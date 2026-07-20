@@ -1,0 +1,1 @@
+"""Internal sync trigger endpoints."""

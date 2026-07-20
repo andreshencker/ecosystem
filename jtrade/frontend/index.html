@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+
+    <!-- Favicon por defecto (se sobreescribe dinámicamente) -->
+    <link id="app-favicon" href="/favicon.ico" rel="icon" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Title por defecto -->
+    <title>Dashboard</title>
+
+    <!-- Tipografía moderna -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+    <!-- 🔥 Branding dinámico desde localStorage -->
+    <script>
+        (function () {
+            try {
+                const raw = localStorage.getItem("app:companyBrand");
+                if (!raw) return;
+
+                const brand = JSON.parse(raw);
+
+                // ✅ Title dinámico
+                if (brand?.displayName) {
+                    document.title = brand.displayName;
+                }
+
+                // ✅ Favicon dinámico
+                if (brand?.logoIconUrl) {
+                    let link = document.getElementById("app-favicon");
+
+                    if (!link) {
+                        link = document.createElement("link");
+                        link.id = "app-favicon";
+                        link.rel = "icon";
+                        document.head.appendChild(link);
+                    }
+
+                    link.href = brand.logoIconUrl;
+                }
+
+            } catch (err) {
+                console.warn("Brand init error:", err);
+            }
+        })();
+    </script>
+</head>
+
+<body>
+<div id="root"></div>
+
+<!-- React app -->
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+export const DEFAULT_THEME = {
+  label: 'Default',
+  primaryColor: '#0F4C81',
+  secondaryColor: '#2563EB',
+  backgroundColor: '#FFFFFF',
+  surfaceColor: '#F8FAFC',
+  textColor: '#1E293B',
+  mutedTextColor: '#64748B',
+  borderColor: '#E2E8F0',
+  linkColor: '#2563EB',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontSizeBase: '14px',
+  fontWeightNormal: 400,
+  fontWeightBold: 600,
+  isDefault: true,
+  isActive: true,
+} as const;

@@ -1,0 +1,874 @@
+// src/channels/provider-credentials/provider-credentials.service.ts
+
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+
+import {
+  ProviderCredentials,
+  ProviderCredentialsDocument,
+} from './schemas/provider-credentials.schema';
+
+import { CreateProviderCredentialsDto } from './dto/create-provider-credentials.dto';
+import { UpdateProviderCredentialsDto } from './dto/update-provider-credentials.dto';
+
+import { ProviderCredentialsResponseDto } from './dto/provider-credentials-response.dto';
+import { ProviderCredentialsMapper } from './mappers/provider-credentials.mapper';
+import type { PaginatedResponse } from '../../common/pagination/pagination.util';
+
+import {
+  CompanyChannelProvider,
+  CompanyChannelProviderDocument,
+} from '../company-channel-providers/schemas/company-channel-provider.schema';
+
+import { CryptoService } from '../../common/security/crypto.service';
+import { ChannelsImplementationFactory } from '../implementation/channels-implementation.factory';
+
+// Credential contracts — used to normalize+validate before encryption and
+// to surface field-level errors as structured 422 responses.
+import { SmtpCredentialsContract } from '../implementation/email/smtp/smtp-credentials.contract';
+import { SendGridCredentialsContract } from '../implementation/email/api_key/sendgrid-credentials.contract';
+import { MailgunCredentialsContract } from '../implementation/email/api_key/mailgun-credentials.contract';
+import { TwilioCredentialsContract } from '../implementation/sms/api_key/twilio-credentials.contract';
+import { S3AccessKeysCredentialsContract } from '../implementation/storage/access_keys/s3-credentials.contract';
+import { CredentialsValidationError } from '../implementation/shared/credentials.errors';
+import type { ContractSpec } from '../implementation/shared/credentials.types';
+
+type PopulateOpts = {
+  populateCompanyChannelProvider?: boolean;
+};
+
+@Injectable()
+export class ProviderCredentialsService {
+  constructor(
+    @InjectModel(ProviderCredentials.name)
+    private readonly model: Model<ProviderCredentialsDocument>,
+    @InjectModel(CompanyChannelProvider.name)
+    private readonly ccpModel: Model<CompanyChannelProviderDocument>,
+    private readonly encryption: CryptoService,
+    private readonly factory: ChannelsImplementationFactory,
+  ) {}
+
+  // =========================================================
+  // Helpers
+  // =========================================================
+
+  async create(
+    dto: CreateProviderCredentialsDto,
+  ): Promise<ProviderCredentialsResponseDto> {
+    const tag = this.normalizeTag(dto.tag);
+    if (!tag) {
+      throw new HttpException('tag is required', HttpStatus.BAD_REQUEST);
+    }
+
+    // 1) cargar provider/channel desde CompanyChannelProvider
+    const { provider, channel } = await this.getCompanyChannelProviderOrFail(
+      dto.companyChannelProviderId,
+    );
+
+    const rawCredentials = dto.credentials ?? {};
+    const providerKey = this.resolveProviderKey({ provider, credentials: rawCredentials });
+
+    // 2) ✅ normalize + validate via contract (field-level 422 on failure)
+    const credentials = await this.normalizeAndValidateCredentials({
+      channelKey: channel.channelKey,
+      connectionType: provider.connectionType,
+      providerKey,
+      credentials: rawCredentials,
+    });
+
+    // 3) ✅ verify connection (SMTP handshake, S3 bucket access, etc.)
+    await this.verifyByImplementation({
+      channelKey: channel.channelKey,
+      connectionType: provider.connectionType,
+      providerKey,
+      credentials,
+    });
+
+    // 4) ✅ encriptar
+    const encrypted = this.encryption.encryptJson(credentials);
+
+    // 5) Derive non-secret display identifier (stored in plain text for UI)
+    const displayIdentifier = this.deriveDisplayIdentifier(
+      credentials,
+      provider.connectionType,
+      providerKey,
+    );
+
+    try {
+      const created = await this.model.create({
+        companyChannelProviderId: this.toObjectIdOrThrow(
+          dto.companyChannelProviderId,
+          'companyChannelProviderId',
+        ),
+        tag,
+        encrypted,
+        isActive: dto.isActive ?? true,
+        displayIdentifier: displayIdentifier || undefined,
+      });
+
+      return ProviderCredentialsMapper.toResponse(created.toObject() as any);
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new HttpException(
+          this.duplicateKeyToMessage(err),
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        err?.message ?? 'Failed to create credentials',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Returns all credentials that belong to a company, resolved by joining
+   * through CompanyChannelProvider. Encrypted payload is never included.
+   * Always populates provider + channel info.
+   */
+  async findAllByCompany(params: {
+    companyId: string;
+    active?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResponse<ProviderCredentialsResponseDto>> {
+    const companyId = this.toObjectIdOrThrow(params.companyId, 'companyId');
+
+    const ccpIds = await this.ccpModel
+      .find({ companyId, isActive: true })
+      .select('_id')
+      .lean()
+      .then((docs) => docs.map((d) => (d as any)._id));
+
+    const limit  = params.limit  ?? 50;
+    const offset = params.offset ?? 0;
+
+    if (ccpIds.length === 0) {
+      return { data: [], total: 0, limit, offset };
+    }
+
+    const filter: any = { companyChannelProviderId: { $in: ccpIds } };
+    if (typeof params.active === 'boolean') filter.isActive = params.active;
+
+    const q = this.model
+      .find(filter)
+      .select('-encrypted')
+      .sort({ tag: 1 });
+
+    this.populateForValidation(q, { populateCompanyChannelProvider: true });
+
+    const [list, total] = await Promise.all([
+      q.skip(offset).limit(limit).lean(),
+      this.model.countDocuments(filter),
+    ]);
+
+    return {
+      data: ProviderCredentialsMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
+  }
+
+  async findAll(params: {
+    companyChannelProviderId: string;
+    active?: boolean;
+    populate?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResponse<ProviderCredentialsResponseDto>> {
+    const companyChannelProviderId = this.toObjectIdOrThrow(
+      params.companyChannelProviderId,
+      'companyChannelProviderId',
+    );
+
+    const filter: any = { companyChannelProviderId };
+    if (typeof params.active === 'boolean') filter.isActive = params.active;
+
+    const limit = params.limit ?? 50;
+    const offset = params.offset ?? 0;
+
+    const q = this.model.find(filter).sort({ tag: 1 });
+    q.select('-encrypted');
+
+    if (params.populate) {
+      this.populateForValidation(q, { populateCompanyChannelProvider: true });
+    }
+
+    const [list, total] = await Promise.all([
+      q.skip(offset).limit(limit).lean(),
+      this.model.countDocuments(filter),
+    ]);
+
+    return { data: ProviderCredentialsMapper.toResponseList(list as any[]), total, limit, offset };
+  }
+
+  async getById(
+    id: string,
+    populate = false,
+  ): Promise<ProviderCredentialsResponseDto> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    const q = this.model.findById(_id);
+
+    q.select('-encrypted');
+
+    if (populate) {
+      this.populateForValidation(q, { populateCompanyChannelProvider: true });
+    }
+
+    const doc = await q.lean();
+    if (!doc)
+      throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+
+    return ProviderCredentialsMapper.toResponse(doc as any);
+  }
+
+  /**
+   * ✅ Método clave para Domain: providerCredentialsId -> (ccp -> provider + channel)
+   */
+  async getPopulatedForDomain(providerCredentialsId: string) {
+    const _id = this.toObjectIdOrThrow(
+      providerCredentialsId,
+      'providerCredentialsId',
+    );
+
+    const q = this.model.findById(_id).select('-encrypted');
+    this.populateForValidation(q, { populateCompanyChannelProvider: true });
+
+    const doc: any = await q.lean();
+
+    if (!doc)
+      throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+    if (doc.isActive === false)
+      throw new HttpException('Credentials inactive', HttpStatus.BAD_REQUEST);
+
+    const ccp = doc.companyChannelProviderId;
+    if (!ccp)
+      throw new HttpException(
+        'CompanyChannelProvider not populated',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+
+    const provider = ccp.providerId;
+    const channel = ccp.channelId;
+
+    if (!provider)
+      throw new HttpException(
+        'Provider not populated',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    if (!channel)
+      throw new HttpException(
+        'Channel not populated',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+
+    return { credentials: doc, companyChannelProvider: ccp, provider, channel };
+  }
+
+  async update(
+    id: string,
+    dto: UpdateProviderCredentialsDto,
+  ): Promise<ProviderCredentialsResponseDto> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    const existing: any = await this.model.findById(_id).lean();
+    if (!existing)
+      throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+
+    const $set: any = {};
+
+    if (dto.tag !== undefined) {
+      const tag = this.normalizeTag(dto.tag);
+      if (!tag)
+        throw new HttpException('tag is required', HttpStatus.BAD_REQUEST);
+      $set.tag = tag;
+    }
+
+    if (dto.isActive !== undefined) $set.isActive = dto.isActive;
+
+    if (dto.credentials !== undefined) {
+      // 1) cargar provider/channel
+      const ccpId = String(existing.companyChannelProviderId);
+      const { provider, channel } =
+        await this.getCompanyChannelProviderOrFail(ccpId);
+
+      const rawCredentials = dto.credentials ?? {};
+      const providerKey = this.resolveProviderKey({ provider, credentials: rawCredentials });
+
+      // 2) ✅ normalize + validate via contract (field-level 422)
+      const credentials = await this.normalizeAndValidateCredentials({
+        channelKey: channel.channelKey,
+        connectionType: provider.connectionType,
+        providerKey,
+        credentials: rawCredentials,
+      });
+
+      // 3) ✅ verify connection
+      await this.verifyByImplementation({
+        channelKey: channel.channelKey,
+        connectionType: provider.connectionType,
+        providerKey,
+        credentials,
+      });
+
+      // 4) ✅ encriptar
+      $set.encrypted = this.encryption.encryptJson(credentials);
+
+      // 5) Re-derive display identifier from the updated credentials
+      const displayIdentifier = this.deriveDisplayIdentifier(
+        credentials,
+        provider.connectionType,
+        providerKey,
+      );
+      $set.displayIdentifier = displayIdentifier || undefined;
+    }
+
+    try {
+      const updated = await this.model.findByIdAndUpdate(
+        _id,
+        { $set },
+        { new: true, runValidators: true },
+      );
+
+      if (!updated)
+        throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+
+      return ProviderCredentialsMapper.toResponse(updated.toObject() as any);
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new HttpException(
+          this.duplicateKeyToMessage(err),
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        err?.message ?? 'Failed to update credentials',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Tests stored credentials for a given provider-credentials record.
+   *
+   * Decrypts the stored payload server-side, routes to the correct channel
+   * implementation, and calls verifyCredentials() — reusing all existing
+   * validation and network-check logic.
+   *
+   * - SMTP:          nodemailer transporter.verify() (real handshake, no email sent)
+   * - S3 access_keys: HeadBucket (read permission check, no upload/delete)
+   * - SendGrid/Mailgun/Twilio/OAuth: field validation only (no live API call yet)
+   *
+   * Security:
+   *   - Decrypted credentials are never logged or returned.
+   *   - Returns only { success, message, provider, connectionType, checkedAt }.
+   *   - companyId guard prevents cross-company credential testing.
+   */
+  async testById(
+    id: string,
+    expectedCompanyId?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    provider: string;
+    connectionType: string;
+    checkedAt: string;
+  }> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    // Load credential record (encrypted blob included — needed for decryption)
+    const cred = await this.model.findById(_id).lean();
+    if (!cred) throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+
+    // Company boundary guard — prevents testing another company's credentials
+    if (expectedCompanyId) {
+      const ccpDoc = await this.ccpModel
+        .findById(cred.companyChannelProviderId)
+        .select('companyId')
+        .lean();
+      if (!ccpDoc) throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+      if (String((ccpDoc as any).companyId) !== expectedCompanyId) {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+    }
+
+    // Load provider + channel info needed for factory routing
+    const { provider, channel } = await this.getCompanyChannelProviderOrFail(
+      String(cred.companyChannelProviderId),
+    );
+
+    // Decrypt — never logged, never returned to caller
+    let decrypted: Record<string, any>;
+    try {
+      decrypted = this.encryption.decryptJson((cred as any).encrypted);
+    } catch {
+      throw new HttpException(
+        'Could not decrypt credentials. The encryption key may have changed.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const providerKey = this.resolveProviderKey({ provider, credentials: decrypted });
+    const checkedAt   = new Date().toISOString();
+    const providerLabel = String(provider.displayName ?? provider.providerKey ?? 'Unknown');
+    const channelKey    = String(channel.channelKey).toLowerCase().trim();
+    const connectionType = String(provider.connectionType).toLowerCase().trim();
+
+    // Route to the correct channel implementation and call verifyCredentials()
+    // directly — same method used during create/update, but we handle
+    // { ok: false } as a safe return value rather than throwing HTTP 400.
+    try {
+      let res: { ok: boolean; message?: string } = { ok: false };
+
+      if (channelKey === 'email') {
+        const emailChannel = this.factory.getEmailChannel(connectionType, providerKey);
+        res = await emailChannel.verifyCredentials(decrypted);
+      } else if (channelKey === 'sms') {
+        const smsChannel = this.factory.getSmsChannel(connectionType, providerKey);
+        res = await smsChannel.verifyCredentials(decrypted);
+      } else if (channelKey === 'storage') {
+        const storageChannel = this.factory.getStorageChannel(connectionType);
+        res = await storageChannel.verifyCredentials(decrypted);
+      } else {
+        throw new HttpException(
+          `Unsupported channel "${channelKey}"`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        success: res.ok,
+        message: res.message ?? (res.ok ? 'Credentials verified.' : 'Verification failed.'),
+        provider: providerLabel,
+        connectionType: provider.connectionType,
+        checkedAt,
+      };
+    } catch (err: any) {
+      // Channel threw (e.g. UnsupportedConnectionTypeError) — treat as failure
+      if (err instanceof HttpException) throw err;
+      return {
+        success: false,
+        message: err?.message ?? 'Verification failed.',
+        provider: providerLabel,
+        connectionType: provider.connectionType,
+        checkedAt,
+      };
+    }
+  }
+
+  async remove(id: string): Promise<{ deleted: boolean }> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    const res = await this.model.findByIdAndDelete(_id);
+    if (!res)
+      throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+
+    return { deleted: true };
+  }
+
+  // =========================================================
+  // CRUD
+  // =========================================================
+
+  /**
+   * Picks the right credential contract for the given channel/connectionType/providerKey,
+   * normalizes the raw payload, and validates it.
+   *
+   * Throws HTTP 422 with a structured `errors` array when validation fails,
+   * so the frontend can map errors back to specific form fields.
+   *
+   * Returns the cleaned (normalized) credential object to be encrypted.
+   */
+  private async normalizeAndValidateCredentials(params: {
+    channelKey: string;
+    connectionType: string;
+    providerKey?: string;
+    credentials: Record<string, any>;
+  }): Promise<Record<string, any>> {
+    const contract = this.getContractForProvider(
+      params.channelKey,
+      params.connectionType,
+      params.providerKey,
+    );
+
+    if (!contract) {
+      // No contract registered → fall through; verifyByImplementation handles it
+      return params.credentials;
+    }
+
+    try {
+      const { value: normalized } = contract.normalize(params.credentials);
+      contract.validate(normalized);
+      return normalized as Record<string, any>;
+    } catch (err: any) {
+      if (
+        err instanceof CredentialsValidationError ||
+        err.name === 'CredentialsValidationError'
+      ) {
+        throw new HttpException(
+          {
+            message: err.message,
+            errors: err.field
+              ? [{ field: err.field, message: err.message }]
+              : [],
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Derives a non-secret human-readable identifier from a cleaned credential
+   * payload. The result is safe to store in plain text and display in the UI.
+   *
+   * Rules:
+   *   - Never include passwords, API keys, auth tokens, client secrets,
+   *     or secret access keys.
+   *   - For access key IDs (AWS), show only a masked form: AKIA***XXXX.
+   */
+  private deriveDisplayIdentifier(
+    credentials: Record<string, any>,
+    connectionType: string,
+    providerKey?: string,
+  ): string {
+    const ct = String(connectionType).toLowerCase().trim();
+    const pk = providerKey ? String(providerKey).toLowerCase().trim() : undefined;
+
+    const str = (v: any): string => (v ? String(v).trim() : '');
+
+    // SMTP / Gmail → show fromEmail or username (never the password)
+    if (ct === 'smtp' || pk === 'gmail') {
+      return str(credentials.fromEmail) || str(credentials.user) || str(credentials.username) || '';
+    }
+
+    // SendGrid → fromEmail or generic label
+    if (pk === 'sendgrid') {
+      return str(credentials.fromEmail) || 'API Key configured';
+    }
+
+    // Mailgun → fromEmail or sending domain
+    if (pk === 'mailgun') {
+      return str(credentials.fromEmail) || str(credentials.domain) || 'API Key configured';
+    }
+
+    // Twilio → from phone number (not the authToken)
+    if (pk === 'twilio') {
+      return str(credentials.fromNumber) || str(credentials.fromPhone) || '';
+    }
+
+    // AWS S3 / access_keys → bucket name, or masked access key ID
+    if (pk === 'aws-s3' || pk === 's3' || ct === 'access_keys') {
+      const bucket = str(credentials.bucket);
+      if (bucket) return bucket;
+      const kid = str(credentials.accessKeyId);
+      if (kid.length >= 8) {
+        return kid.substring(0, 4) + '***' + kid.substring(kid.length - 4);
+      }
+      return kid || '';
+    }
+
+    // Generic api_key → fromEmail or generic label
+    if (ct === 'api_key') {
+      return str(credentials.fromEmail) || 'API Key configured';
+    }
+
+    // OAuth → client ID (not the secret)
+    if (ct === 'oauth') {
+      return str(credentials.clientId) || '';
+    }
+
+    return '';
+  }
+
+  /** Maps channel + connectionType + providerKey to the appropriate credential contract. */
+  private getContractForProvider(
+    channelKey: string,
+    connectionType: string,
+    providerKey?: string,
+  ): ContractSpec<any> | null {
+    const ck = String(channelKey).toLowerCase().trim();
+    const ct = String(connectionType).toLowerCase().trim();
+    const pk = providerKey ? String(providerKey).toLowerCase().trim() : undefined;
+
+    if (ck === 'email') {
+      if (ct === 'smtp') return SmtpCredentialsContract;
+      if (ct === 'api_key') {
+        if (pk === 'sendgrid') return SendGridCredentialsContract;
+        if (pk === 'mailgun') return MailgunCredentialsContract;
+      }
+    }
+    if (ck === 'sms' && ct === 'api_key') return TwilioCredentialsContract;
+    if (ck === 'storage' && ct === 'access_keys') return S3AccessKeysCredentialsContract;
+    return null;
+  }
+
+  private normalizeTag(tag: string) {
+    return String(tag ?? '')
+      .toLowerCase()
+      .trim();
+  }
+
+  private toObjectIdOrThrow(id: string, label: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException(`Invalid ${label}`, HttpStatus.BAD_REQUEST);
+    }
+    return new Types.ObjectId(id);
+  }
+
+  private duplicateKeyToMessage(err: any) {
+    const indexName = err?.keyPattern
+      ? Object.keys(err.keyPattern).join('_')
+      : (err?.indexName ?? err?.index ?? 'unknown_index');
+
+    const keyValue = err?.keyValue;
+    if (keyValue) {
+      return `Duplicate credentials (${indexName}): ${JSON.stringify(keyValue)}`;
+    }
+
+    const keyPattern = err?.keyPattern;
+    if (keyPattern) {
+      return `Duplicate credentials (${indexName})`;
+    }
+
+    return `Duplicate credentials (${indexName}). Raw: ${err?.message ?? 'duplicate key'}`;
+  }
+
+  private populateForValidation(query: any, opts?: PopulateOpts) {
+    if (!opts?.populateCompanyChannelProvider) return query;
+
+    return query.populate({
+      path: 'companyChannelProviderId',
+      populate: [{ path: 'providerId' }, { path: 'channelId' }],
+    });
+  }
+
+  private async getCompanyChannelProviderOrFail(id: string) {
+    const _id = this.toObjectIdOrThrow(id, 'companyChannelProviderId');
+
+    const doc = await this.ccpModel
+      .findById(_id)
+      .populate('providerId')
+      .populate('channelId')
+      .lean();
+
+    if (!doc) {
+      throw new HttpException(
+        'CompanyChannelProvider not found',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if ((doc as any).isActive === false) {
+      throw new HttpException(
+        'CompanyChannelProvider inactive',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const provider = (doc as any).providerId;
+    const channel = (doc as any).channelId;
+
+    if (!provider) {
+      throw new HttpException(
+        'Provider not populated',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    if (!channel) {
+      throw new HttpException(
+        'Channel not populated',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return { doc, provider, channel };
+  }
+
+  /**
+   * ✅ Verifica credenciales usando el factory (single source of truth)
+   * - EMAIL: smtp / oauth / api_key (sendgrid/mailgun)
+   * - SMS: api_key (twilio default) / oauth
+   * - STORAGE: access_keys / iam_role
+   */
+  private async verifyByImplementation(params: {
+    channelKey: string;
+    connectionType: string;
+    providerKey?: string;
+    credentials: Record<string, any>;
+  }): Promise<void> {
+    const channelKey = String(params.channelKey ?? '')
+      .toLowerCase()
+      .trim();
+    const connectionType = String(params.connectionType ?? '')
+      .toLowerCase()
+      .trim();
+    const providerKey = params.providerKey
+      ? String(params.providerKey).toLowerCase().trim()
+      : undefined;
+    const credentials = params.credentials ?? {};
+
+    // EMAIL
+    if (channelKey === 'email') {
+      const emailChannel = this.factory.getEmailChannel(
+        connectionType,
+        providerKey,
+      );
+      const res = await emailChannel.verifyCredentials(credentials);
+      if (!res?.ok) {
+        throw new HttpException(
+          res?.message ?? 'EMAIL credentials verification failed',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return;
+    }
+
+    // SMS
+    if (channelKey === 'sms') {
+      const smsChannel = this.factory.getSmsChannel(
+        connectionType,
+        providerKey,
+      );
+      const res = await smsChannel.verifyCredentials(credentials);
+      if (!res?.ok) {
+        throw new HttpException(
+          res?.message ?? 'SMS credentials verification failed',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return;
+    }
+
+    // STORAGE
+    if (channelKey === 'storage') {
+      const storageChannel = this.factory.getStorageChannel(connectionType);
+      const res = await storageChannel.verifyCredentials(credentials);
+      if (!res?.ok) {
+        throw new HttpException(
+          res?.message ?? 'STORAGE credentials verification failed',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return;
+    }
+
+    throw new HttpException(
+      `Unsupported channelKey="${channelKey}"`,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  /**
+   * ✅ Si el providerKey es necesario (api_key), lo resolvemos así:
+   * - Preferimos el que venga en credentials (providerKey / PROVIDER_KEY)
+   * - Si no viene, usamos provider.providerKey (por ejemplo: "sendgrid", "mailgun")
+   */
+  private resolveProviderKey(params: {
+    provider: any;
+    credentials: Record<string, any>;
+  }): string | undefined {
+    const fromCreds = this.factory.pickProviderKeyFromCredentials(
+      params.credentials,
+    );
+    if (fromCreds) return String(fromCreds).toLowerCase().trim();
+
+    const fromProvider = params.provider?.providerKey;
+    return fromProvider ? String(fromProvider).toLowerCase().trim() : undefined;
+  }
+
+  async options(params: {
+    companyId: string;
+    channel?: 'email' | 'sms';
+    active?: boolean;
+  }) {
+    const companyId = this.toObjectIdOrThrow(params.companyId, 'companyId');
+
+    const filter: any = {};
+
+    if (typeof params.active === 'boolean') {
+      filter.isActive = params.active;
+    }
+
+    const list: any[] = await this.model
+      .find(filter)
+      .select('-encrypted')
+      .populate({
+        path: 'companyChannelProviderId',
+        match: {
+          companyId,
+          isActive: true,
+        },
+        populate: [
+          {
+            path: 'providerId',
+            select: 'providerKey displayName connectionType isActive channelId',
+          },
+          {
+            path: 'channelId',
+            select: 'channelKey displayName isActive',
+          },
+        ],
+      })
+      .sort({ tag: 1 })
+      .lean();
+
+    return list
+      .filter((cred) => {
+        const ccp = cred.companyChannelProviderId;
+
+        if (!ccp) return false;
+
+        const channelKey = String(ccp.channelId?.channelKey ?? '')
+          .toLowerCase()
+          .trim();
+
+        // ✅ Domain Catalogue solo permite email y sms
+        if (channelKey !== 'email' && channelKey !== 'sms') {
+          return false;
+        }
+
+        if (params.channel && channelKey !== params.channel) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((cred) => {
+        const ccp = cred.companyChannelProviderId;
+        const provider = ccp.providerId;
+        const channel = ccp.channelId;
+
+        const channelKey = String(channel?.channelKey ?? '')
+          .toLowerCase()
+          .trim();
+
+        const providerName =
+          provider?.displayName || provider?.providerKey || 'Provider';
+
+        const tag = cred.tag || 'default';
+
+        return {
+          id: String(cred._id),
+          label: `${channelKey.toUpperCase()} — ${providerName} — ${tag}`,
+
+          channel: channelKey,
+          channelKey,
+          channelDisplayName: channel?.displayName ?? channelKey,
+
+          providerKey: provider?.providerKey ?? '',
+          providerDisplayName: provider?.displayName ?? '',
+          connectionType: provider?.connectionType ?? '',
+
+          tag,
+          isActive: cred.isActive !== false,
+
+          companyChannelProviderId: String(ccp._id),
+        };
+      });
+  }
+}
