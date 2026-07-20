@@ -1,0 +1,23 @@
+export declare const COUNTRIES: {
+    readonly AU: "AU";
+    readonly US: "US";
+    readonly GB: "GB";
+    readonly CA: "CA";
+    readonly NZ: "NZ";
+    readonly DE: "DE";
+    readonly FR: "FR";
+    readonly ES: "ES";
+    readonly IT: "IT";
+    readonly JP: "JP";
+    readonly CN: "CN";
+    readonly IN: "IN";
+    readonly BR: "BR";
+    readonly AR: "AR";
+    readonly MX: "MX";
+    readonly SG: "SG";
+    readonly HK: "HK";
+    readonly NL: "NL";
+    readonly SE: "SE";
+    readonly NO: "NO";
+};
+export type CountryCode = (typeof COUNTRIES)[keyof typeof COUNTRIES];

@@ -1,0 +1,1 @@
+{"version":3,"file":"authorization.error.js","sourceRoot":"","sources":["../../../../src/shared/domain/errors/authorization.error.ts"],"names":[],"mappings":";;;AAAA,2DAAkD;AAElD,MAAa,kBAAmB,SAAQ,+BAAW;IACxC,IAAI,GAAW,WAAW,CAAC;IAEpC,YAAY,UAAkB,eAAe,EAAE,OAAiB;QAC9D,KAAK,CAAC,OAAO,EAAE,OAAO,CAAC,CAAC;IAC1B,CAAC;CACF;AAND,gDAMC"}

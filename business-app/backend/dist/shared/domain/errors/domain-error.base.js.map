@@ -1,0 +1,1 @@
+{"version":3,"file":"domain-error.base.js","sourceRoot":"","sources":["../../../../src/shared/domain/errors/domain-error.base.ts"],"names":[],"mappings":";;;AAAA,MAAsB,WAAY,SAAQ,KAAK;IAEpC,OAAO,CAAU;IAE1B,YAAsB,OAAe,EAAE,OAAiB;QACtD,KAAK,CAAC,OAAO,CAAC,CAAC;QACf,IAAI,CAAC,IAAI,GAAG,IAAI,CAAC,WAAW,CAAC,IAAI,CAAC;QAClC,IAAI,CAAC,OAAO,GAAG,OAAO,CAAC;IACzB,CAAC;CACF;AATD,kCASC"}

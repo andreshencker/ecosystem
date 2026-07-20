@@ -1,0 +1,20 @@
+export declare const PERMISSIONS: {
+    readonly BUSINESS_READ: "business:read";
+    readonly BUSINESS_WRITE: "business:write";
+    readonly USERS_READ: "users:read";
+    readonly USERS_WRITE: "users:write";
+    readonly USERS_INVITE: "users:invite";
+    readonly REVENUE_READ: "revenue:read";
+    readonly REVENUE_WRITE: "revenue:write";
+    readonly BILLING_READ: "billing:read";
+    readonly BILLING_WRITE: "billing:write";
+    readonly CUSTOMER_READ: "customer:read";
+    readonly CUSTOMER_WRITE: "customer:write";
+    readonly ANALYTICS_READ: "analytics:read";
+    readonly WORK_READ: "work:read";
+    readonly WORK_WRITE: "work:write";
+    readonly DOCUMENTS_READ: "documents:read";
+    readonly DOCUMENTS_WRITE: "documents:write";
+    readonly PLATFORM_ADMIN: "modules:admin";
+};
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

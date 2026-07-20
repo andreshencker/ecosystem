@@ -1,0 +1,1 @@
+{"version":3,"file":"clock.abstract.js","sourceRoot":"","sources":["../../../src/shared/infrastructure/clock.abstract.ts"],"names":[],"mappings":";;;AAAA,MAAsB,KAAK;CAG1B;AAHD,sBAGC;AAED,MAAa,WAAY,SAAQ,KAAK;IACpC,GAAG;QACD,OAAO,IAAI,IAAI,EAAE,CAAC;IACpB,CAAC;IAED,MAAM;QACJ,OAAO,IAAI,IAAI,EAAE,CAAC,WAAW,EAAE,CAAC;IAClC,CAAC;CACF;AARD,kCAQC"}

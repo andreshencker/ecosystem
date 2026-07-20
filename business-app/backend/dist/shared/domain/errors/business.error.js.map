@@ -1,0 +1,1 @@
+{"version":3,"file":"business.error.js","sourceRoot":"","sources":["../../../../src/shared/domain/errors/business.error.ts"],"names":[],"mappings":";;;AAAA,2DAAkD;AAElD,MAAa,aAAc,SAAQ,+BAAW;IACnC,IAAI,CAAS;IAEtB,YAAY,IAAY,EAAE,OAAe,EAAE,OAAiB;QAC1D,KAAK,CAAC,OAAO,EAAE,OAAO,CAAC,CAAC;QACxB,IAAI,CAAC,IAAI,GAAG,IAAI,CAAC;IACnB,CAAC;CACF;AAPD,sCAOC"}
