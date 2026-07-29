@@ -1,4 +1,8 @@
-import type { DeliveryStatus, ExecutionChannel, RenderStatus } from '../schemas/execution-log.schema';
+import type {
+  DeliveryStatus,
+  ExecutionChannel,
+  RenderStatus,
+} from '../schemas/execution-log.schema';
 
 export class CreateExecutionLogDto {
   companyId!: string;

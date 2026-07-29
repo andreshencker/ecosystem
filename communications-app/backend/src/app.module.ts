@@ -34,6 +34,7 @@ import { DomainCatalogueModule } from './communication/notifications/events/doma
 import { FilesModule } from './files/files.module';
 import { PreviewModule } from './communication/preview/preview.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -70,6 +71,9 @@ import { CalendarModule } from './calendar/calendar.module';
 
     // ── Calendar
     CalendarModule,
+
+    // ── Payments
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

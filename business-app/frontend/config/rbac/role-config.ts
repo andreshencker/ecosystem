@@ -9,9 +9,10 @@ import CableOutlinedIcon               from '@mui/icons-material/CableOutlined';
 import DashboardOutlinedIcon           from '@mui/icons-material/DashboardOutlined';
 import GroupOutlinedIcon               from '@mui/icons-material/GroupOutlined';
 import HistoryOutlinedIcon             from '@mui/icons-material/HistoryOutlined';
-import EventOutlinedIcon                from '@mui/icons-material/EventOutlined';
+import EventOutlinedIcon               from '@mui/icons-material/EventOutlined';
 import NotificationsNoneOutlinedIcon   from '@mui/icons-material/NotificationsNoneOutlined';
 import PersonOutlinedIcon              from '@mui/icons-material/PersonOutlined';
+import ReceiptLongOutlinedIcon         from '@mui/icons-material/ReceiptLongOutlined';
 
 import type { UserRole, Scope } from '@/types/api';
 import { ALLOWED_ROUTES, LANDING_PAGES } from './route-rules';
@@ -134,6 +135,13 @@ const CUSTOMERS_SECTION: SidebarSectionConfig = {
   ],
 };
 
+const BILLING_SECTION: SidebarSectionConfig = {
+  label: 'Billing',
+  items: [
+    { href: '/billing/invoice-approval', label: 'Invoice Approval', icon: ReceiptLongOutlinedIcon },
+  ],
+};
+
 // Business App settings — for company-scoped users (owner, admin) and the modules admin acting in Business mode.
 const COMPANY_SETTINGS_ITEMS: SidebarItemConfig[] = [
   { href: '/settings/company',                 label: 'My Business',              icon: ApartmentOutlinedIcon           },
@@ -241,6 +249,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     sidebar: [
       OVERVIEW_SECTION,
       CUSTOMERS_SECTION,
+      BILLING_SECTION,
       { label: 'Users',    items: [{ href: '/users', label: 'Team', icon: GroupOutlinedIcon }] },
       { label: 'Settings', items: COMPANY_SETTINGS_ITEMS },
     ],
@@ -285,6 +294,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     sidebar: [
       OVERVIEW_SECTION,
       CUSTOMERS_SECTION,
+      BILLING_SECTION,
       { label: 'Users',    items: [{ href: '/users', label: 'Team', icon: GroupOutlinedIcon }] },
       { label: 'Settings', items: COMPANY_SETTINGS_ITEMS },
     ],
@@ -328,6 +338,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     sidebar: [
       OVERVIEW_SECTION,
       CUSTOMERS_SECTION,
+      BILLING_SECTION,
       { label: 'Settings', items: PROFILE_ONLY_ITEMS },
     ],
     allowedRoutes: ALLOWED_ROUTES.accountant,

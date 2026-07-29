@@ -33,7 +33,8 @@ export class NotificationRenderService {
     leavePlaceholders?: boolean;
   }): Promise<EmailRenderResult> {
     const leavePlaceholders =
-      params.leavePlaceholders ?? process.env.LEAVE_DATA_PLACEHOLDERS === 'true';
+      params.leavePlaceholders ??
+      process.env.LEAVE_DATA_PLACEHOLDERS === 'true';
 
     const resolved = await this.sot.resolveForEmailNotificationByEventKey({
       companyId: params.companyId,

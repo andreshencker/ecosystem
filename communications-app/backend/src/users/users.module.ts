@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
-import { Company, CompanySchema } from '../communication/company/company-info/schemas/company.schema';
+import {
+  Company,
+  CompanySchema,
+} from '../communication/company/company-info/schemas/company.schema';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { UsersBootstrapService } from './users-bootstrap.service';
@@ -11,7 +14,7 @@ import { CompanyProvisioningModule } from '../communication/company/provisioning
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: User.name,    schema: UserSchema    },
+      { name: User.name, schema: UserSchema },
       { name: Company.name, schema: CompanySchema },
     ]),
     NotificationModule,

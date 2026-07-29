@@ -64,12 +64,28 @@ export class ProviderCredentialsController {
   @Get()
   @HttpCode(200)
   @ApiOperation({ summary: 'List provider credentials' })
-  @ApiQuery({ name: 'companyId', required: false, type: String, description: 'Return all credentials for a company (alternative to companyChannelProviderId)' })
+  @ApiQuery({
+    name: 'companyId',
+    required: false,
+    type: String,
+    description:
+      'Return all credentials for a company (alternative to companyChannelProviderId)',
+  })
   @ApiQuery({ name: 'companyChannelProviderId', required: false, type: String })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
   @ApiQuery({ name: 'populate', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   async list(
     @Headers('x-api-key') apiKey: string,
     @Query('companyChannelProviderId') companyChannelProviderId?: string,
@@ -80,7 +96,10 @@ export class ProviderCredentialsController {
     @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
 
     // Company-wide query — returns all credentials with populated provider/channel
     if (companyId && !companyChannelProviderId) {
@@ -133,11 +152,10 @@ export class ProviderCredentialsController {
 
   @Post(':id/test')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Test stored credentials by decrypting and verifying connectivity' })
-  async test(
-    @Headers('x-api-key') apiKey: string,
-    @Param('id') id: string,
-  ) {
+  @ApiOperation({
+    summary: 'Test stored credentials by decrypting and verifying connectivity',
+  })
+  async test(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
     this.assertApiKey(apiKey);
     return this.service.testById(id);
   }

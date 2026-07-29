@@ -50,40 +50,50 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
   private async seedChannels(): Promise<void> {
     const channels = [
       {
-        channelKey:        'email',
-        displayName:       'Email',
-        description:       'Transactional and marketing email delivery',
-        contentFormat:     'html' as const,
+        channelKey: 'email',
+        displayName: 'Email',
+        description: 'Transactional and marketing email delivery',
+        contentFormat: 'html' as const,
         supportsTemplates: true,
-        supportsFiles:     true,
-        isActive:          true,
+        supportsFiles: true,
+        isActive: true,
       },
       {
-        channelKey:        'sms',
-        displayName:       'SMS',
-        description:       'Short message service for mobile notifications',
-        contentFormat:     'text' as const,
+        channelKey: 'sms',
+        displayName: 'SMS',
+        description: 'Short message service for mobile notifications',
+        contentFormat: 'text' as const,
         supportsTemplates: false,
-        supportsFiles:     false,
-        isActive:          true,
+        supportsFiles: false,
+        isActive: true,
       },
       {
-        channelKey:        'storage',
-        displayName:       'Storage',
-        description:       'File and object storage for reports and attachments',
-        contentFormat:     'binary' as const,
+        channelKey: 'storage',
+        displayName: 'Storage',
+        description: 'File and object storage for reports and attachments',
+        contentFormat: 'binary' as const,
         supportsTemplates: false,
-        supportsFiles:     true,
-        isActive:          true,
+        supportsFiles: true,
+        isActive: true,
       },
       {
-        channelKey:        'calendar',
-        displayName:       'Calendar',
-        description:       'Calendar event and scheduling integrations',
-        contentFormat:     'text' as const,
+        channelKey: 'calendar',
+        displayName: 'Calendar',
+        description: 'Calendar event and scheduling integrations',
+        contentFormat: 'text' as const,
         supportsTemplates: false,
-        supportsFiles:     false,
-        isActive:          true,
+        supportsFiles: false,
+        isActive: true,
+      },
+      {
+        channelKey: 'payment',
+        displayName: 'Payments',
+        description:
+          'Payment provider integrations for processing transactions',
+        contentFormat: 'text' as const,
+        supportsTemplates: false,
+        supportsFiles: false,
+        isActive: true,
       },
     ];
 
@@ -124,6 +134,10 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
       .findOne({ channelKey: 'calendar' })
       .lean();
 
+    const paymentChannel = await this.channelModel
+      .findOne({ channelKey: 'payment' })
+      .lean();
+
     if (!emailChannel || !smsChannel || !storageChannel) {
       this.logger.warn(
         'Catalog: one or more channels missing — skipping provider seed.',
@@ -134,74 +148,90 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
     const providers = [
       // ── Email providers ──────────────────────────────────────────────────
       {
-        providerKey:    'gmail',
-        displayName:    'Gmail',
-        description:    'Google Gmail SMTP — for personal and small-team email',
-        channelId:      emailChannel._id,
+        providerKey: 'gmail',
+        displayName: 'Gmail',
+        description: 'Google Gmail SMTP — for personal and small-team email',
+        channelId: emailChannel._id,
         connectionType: 'smtp' as const,
-        isActive:       true,
+        isActive: true,
       },
       {
-        providerKey:    'sendgrid',
-        displayName:    'SendGrid',
-        description:    'Twilio SendGrid — high-volume transactional email API',
-        channelId:      emailChannel._id,
+        providerKey: 'sendgrid',
+        displayName: 'SendGrid',
+        description: 'Twilio SendGrid — high-volume transactional email API',
+        channelId: emailChannel._id,
         connectionType: 'api_key' as const,
-        isActive:       true,
+        isActive: true,
       },
       {
-        providerKey:    'mailgun',
-        displayName:    'Mailgun',
-        description:    'Mailgun — developer-friendly email delivery API',
-        channelId:      emailChannel._id,
+        providerKey: 'mailgun',
+        displayName: 'Mailgun',
+        description: 'Mailgun — developer-friendly email delivery API',
+        channelId: emailChannel._id,
         connectionType: 'api_key' as const,
-        isActive:       true,
+        isActive: true,
       },
       // ── SMS providers ────────────────────────────────────────────────────
       {
-        providerKey:    'twilio',
-        displayName:    'Twilio',
-        description:    'Twilio Programmable Messaging — SMS and WhatsApp',
-        channelId:      smsChannel._id,
+        providerKey: 'twilio',
+        displayName: 'Twilio',
+        description: 'Twilio Programmable Messaging — SMS and WhatsApp',
+        channelId: smsChannel._id,
         connectionType: 'api_key' as const,
-        isActive:       true,
+        isActive: true,
       },
       // ── Storage providers ────────────────────────────────────────────────
       {
-        providerKey:    'aws-s3',
-        displayName:    'Amazon S3',
-        description:    'AWS S3 — object storage for files and reports',
-        channelId:      storageChannel._id,
+        providerKey: 'aws-s3',
+        displayName: 'Amazon S3',
+        description: 'AWS S3 — object storage for files and reports',
+        channelId: storageChannel._id,
         connectionType: 'access_keys' as const,
-        isActive:       true,
+        isActive: true,
       },
 
       // ── Calendar providers ───────────────────────────────────────────────
       ...(calendarChannel
         ? [
             {
-              providerKey:    'icloud',
-              displayName:    'iCloud Calendar',
-              description:    'Apple iCloud Calendar via CalDAV (app-specific password)',
-              channelId:      calendarChannel._id,
+              providerKey: 'icloud',
+              displayName: 'iCloud Calendar',
+              description:
+                'Apple iCloud Calendar via CalDAV (app-specific password)',
+              channelId: calendarChannel._id,
               connectionType: 'app_password' as const,
-              isActive:       true,
+              isActive: true,
             },
             {
-              providerKey:    'google_calendar',
-              displayName:    'Google Calendar',
-              description:    'Google Calendar API v3 via OAuth 2.0',
-              channelId:      calendarChannel._id,
+              providerKey: 'google_calendar',
+              displayName: 'Google Calendar',
+              description: 'Google Calendar API v3 via OAuth 2.0',
+              channelId: calendarChannel._id,
               connectionType: 'oauth' as const,
-              isActive:       true,
+              isActive: true,
             },
             {
-              providerKey:    'outlook_calendar',
-              displayName:    'Outlook Calendar',
-              description:    'Microsoft Outlook Calendar via Microsoft Graph API (OAuth 2.0)',
-              channelId:      calendarChannel._id,
+              providerKey: 'outlook_calendar',
+              displayName: 'Outlook Calendar',
+              description:
+                'Microsoft Outlook Calendar via Microsoft Graph API (OAuth 2.0)',
+              channelId: calendarChannel._id,
               connectionType: 'oauth' as const,
-              isActive:       true,
+              isActive: true,
+            },
+          ]
+        : []),
+
+      // ── Payment providers ────────────────────────────────────────────────
+      ...(paymentChannel
+        ? [
+            {
+              providerKey: 'stripe',
+              displayName: 'Stripe',
+              description: 'Stripe — online payment processing via API keys',
+              channelId: paymentChannel._id,
+              connectionType: 'api_key' as const,
+              isActive: true,
             },
           ]
         : []),

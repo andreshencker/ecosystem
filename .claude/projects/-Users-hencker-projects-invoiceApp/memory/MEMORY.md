@@ -14,3 +14,4 @@
 - [Communication Architecture](project_communication_architecture.md) — Seed Catalog (ADR-019), Platform vs Business token flows, provisioning on token-save not company-create, DoD §9; declared 2026-07-07
 - [Sprint 3 Calendar Domain](project_sprint3_calendar.md) — Calendar Domain implemented 2026-07-07; Sprint 2 GO confirmed; CalendarSource/Event/ScheduledEvent schemas; 6 Domain Events; iCal sync; Sprint 4 (Work) depends on this
 - [Integrations Architecture](project_integrations_architecture.md) — ADR-020 accepted 2026-07-07; src/integrations/ replaces src/settings/; migration map defined; docs/integrations/README.md is entry point
+- [Invoice Approval](project_invoice_approval.md) — /billing/invoice-approval page implemented 2026-07-24; BI pending-groups endpoint; Invoice module with approve(); ETL overnight bug fixed

@@ -52,7 +52,13 @@ export class User {
   @Prop({
     type: String,
     required: false,
-    enum: ['platform_admin', 'company_owner', 'company_admin', 'operator', 'viewer'],
+    enum: [
+      'platform_admin',
+      'company_owner',
+      'company_admin',
+      'operator',
+      'viewer',
+    ],
     index: true,
   })
   role!: UserRole;

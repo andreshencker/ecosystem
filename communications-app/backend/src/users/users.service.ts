@@ -22,7 +22,8 @@ const BCRYPT_ROUNDS = 12;
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly model: Model<UserDocument>,
-    @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
+    @InjectModel(Company.name)
+    private readonly companyModel: Model<CompanyDocument>,
   ) {}
 
   // ── Read ──────────────────────────────────────────────────────────────────
@@ -100,7 +101,9 @@ export class UsersService {
       return created.toObject() as any;
     } catch (err: any) {
       if (err?.code === 11000) {
-        throw new ConflictException('An account with this email already exists');
+        throw new ConflictException(
+          'An account with this email already exists',
+        );
       }
       throw err;
     }
@@ -122,7 +125,10 @@ export class UsersService {
     expiresAt: Date,
   ): Promise<void> {
     await this.model.findByIdAndUpdate(userId, {
-      $set: { emailVerificationToken: tokenHash, emailVerificationTokenExpiresAt: expiresAt },
+      $set: {
+        emailVerificationToken: tokenHash,
+        emailVerificationTokenExpiresAt: expiresAt,
+      },
     });
   }
 
@@ -132,7 +138,10 @@ export class UsersService {
     expiresAt: Date,
   ): Promise<void> {
     await this.model.findByIdAndUpdate(userId, {
-      $set: { passwordResetToken: tokenHash, passwordResetTokenExpiresAt: expiresAt },
+      $set: {
+        passwordResetToken: tokenHash,
+        passwordResetTokenExpiresAt: expiresAt,
+      },
     });
   }
 
@@ -172,7 +181,8 @@ export class UsersService {
 
     const tempPassword = this.generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
-    const scope: UserScope = params.role === 'platform_admin' ? 'global' : 'company';
+    const scope: UserScope =
+      params.role === 'platform_admin' ? 'global' : 'company';
 
     const user = await this.model.create({
       email: params.email.toLowerCase().trim(),
@@ -184,7 +194,7 @@ export class UsersService {
       companyId: params.companyId,
       companyKey: params.companyKey,
       isActive: true,
-      isEmailVerified: true,   // invited users login immediately; no email-verification step
+      isEmailVerified: true, // invited users login immediately; no email-verification step
       mustChangePassword: true,
       temporaryPasswordCreatedAt: new Date(),
       temporaryPasswordExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
@@ -219,12 +229,15 @@ export class UsersService {
    * Activates or deactivates a user account.
    * Permission checks (who can deactivate whom) are enforced in the controller.
    */
-  async setUserActive(userId: string, isActive: boolean): Promise<UserDocument> {
+  async setUserActive(
+    userId: string,
+    isActive: boolean,
+  ): Promise<UserDocument> {
     const updated = await this.model
       .findByIdAndUpdate(userId, { $set: { isActive } }, { new: true })
       .select(
         '-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt' +
-        ' -passwordResetToken -passwordResetTokenExpiresAt',
+          ' -passwordResetToken -passwordResetTokenExpiresAt',
       )
       .lean()
       .exec();
@@ -235,8 +248,16 @@ export class UsersService {
   // ── List ──────────────────────────────────────────────────────────────────
 
   /** Returns platform_admin and company_owner users across all companies (global scope listing). */
-  async listPlatformUsers(params: { page: number; limit: number; search?: string }):
-      Promise<{ items: UserDocument[]; total: number; page: number; limit: number }> {
+  async listPlatformUsers(params: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<{
+    items: UserDocument[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const roleFilter = { $in: ['platform_admin', 'company_owner'] };
     const filter: Record<string, any> = { role: roleFilter };
     if (params.search?.trim()) {
@@ -251,7 +272,9 @@ export class UsersService {
     const [items, total] = await Promise.all([
       this.model
         .find(filter)
-        .select('-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt -passwordResetToken -passwordResetTokenExpiresAt')
+        .select(
+          '-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt -passwordResetToken -passwordResetTokenExpiresAt',
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(params.limit)
@@ -259,13 +282,23 @@ export class UsersService {
         .exec(),
       this.model.countDocuments(filter),
     ]);
-    return { items: items as any[], total, page: params.page, limit: params.limit };
+    return {
+      items: items as any[],
+      total,
+      page: params.page,
+      limit: params.limit,
+    };
   }
 
   async listByCompanyId(
     companyId: string,
     params: { page: number; limit: number; search?: string },
-  ): Promise<{ items: UserDocument[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: UserDocument[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const filter: Record<string, any> = { companyId };
     if (params.search?.trim()) {
       const re = new RegExp(params.search.trim(), 'i');
@@ -275,7 +308,9 @@ export class UsersService {
     const [items, total] = await Promise.all([
       this.model
         .find(filter)
-        .select('-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt -passwordResetToken -passwordResetTokenExpiresAt')
+        .select(
+          '-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt -passwordResetToken -passwordResetTokenExpiresAt',
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(params.limit)
@@ -283,7 +318,12 @@ export class UsersService {
         .exec(),
       this.model.countDocuments(filter),
     ]);
-    return { items: items as any[], total, page: params.page, limit: params.limit };
+    return {
+      items: items as any[],
+      total,
+      page: params.page,
+      limit: params.limit,
+    };
   }
 
   // ── Update ────────────────────────────────────────────────────────────────
@@ -294,8 +334,9 @@ export class UsersService {
   ): Promise<UserDocument> {
     const $set: any = {};
     if (data.firstName !== undefined) $set.firstName = data.firstName.trim();
-    if (data.lastName  !== undefined) $set.lastName  = data.lastName.trim();
-    if (data.avatarUrl !== undefined) $set.avatarUrl = data.avatarUrl?.trim() || null;
+    if (data.lastName !== undefined) $set.lastName = data.lastName.trim();
+    if (data.avatarUrl !== undefined)
+      $set.avatarUrl = data.avatarUrl?.trim() || null;
 
     const updated = await this.model
       .findByIdAndUpdate(userId, { $set }, { new: true })
@@ -313,11 +354,12 @@ export class UsersService {
     currentPassword: string,
     newPassword: string,
   ): Promise<UserDocument> {
-    const user = await this.model.findById(userId).lean().exec() as any;
+    const user = (await this.model.findById(userId).lean().exec()) as any;
     if (!user) throw new NotFoundException('User not found');
 
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Current password is incorrect');
+    if (!valid)
+      throw new UnauthorizedException('Current password is incorrect');
 
     const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     const updated = await this.model
@@ -326,7 +368,9 @@ export class UsersService {
         { $set: { passwordHash: hash, mustChangePassword: false } },
         { new: true },
       )
-      .select('-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt -passwordResetToken -passwordResetTokenExpiresAt')
+      .select(
+        '-passwordHash -emailVerificationToken -emailVerificationTokenExpiresAt -passwordResetToken -passwordResetTokenExpiresAt',
+      )
       .lean()
       .exec();
 
@@ -341,7 +385,13 @@ export class UsersService {
 
   /** Returns the count of active company_owner users for a given companyId. */
   async countActiveOwners(companyId: string): Promise<number> {
-    return this.model.countDocuments({ companyId, role: 'company_owner', isActive: { $ne: false } }).exec() as any;
+    return this.model
+      .countDocuments({
+        companyId,
+        role: 'company_owner',
+        isActive: { $ne: false },
+      })
+      .exec() as any;
   }
 
   // ── Registration (Flow A — DEC-009 Rev-2) ──────────────────────────────────
@@ -383,7 +433,9 @@ export class UsersService {
       company = await this.companyModel.create({
         companyKey,
         displayName: params.companyName.trim(),
-        companyEmail: params.companyEmail?.toLowerCase().trim() || params.email.toLowerCase().trim(),
+        companyEmail:
+          params.companyEmail?.toLowerCase().trim() ||
+          params.email.toLowerCase().trim(),
         isActive: true,
       });
     } catch (err: any) {
@@ -405,32 +457,39 @@ export class UsersService {
         passwordHash: params.passwordHash,
         firstName: params.firstName.trim(),
         lastName: params.lastName.trim(),
-        role:              'company_owner' as UserRole,
-        scope:             'company' as UserScope,
+        role: 'company_owner' as UserRole,
+        scope: 'company' as UserScope,
         companyId,
         companyKey,
-        isActive:          true,
-        isEmailVerified:   false,
-        mustChangePassword:false,
+        isActive: true,
+        isEmailVerified: false,
+        mustChangePassword: false,
       });
     } catch (err: any) {
       // Compensating rollback — remove the company if user creation fails.
-      await this.companyModel.findByIdAndDelete(company._id).exec().catch(() => void 0);
+      await this.companyModel
+        .findByIdAndDelete(company._id)
+        .exec()
+        .catch(() => void 0);
       if (err?.code === 11000) {
-        throw new ConflictException('An account with this email already exists');
+        throw new ConflictException(
+          'An account with this email already exists',
+        );
       }
       throw err;
     }
 
     // Link ownerUserId on the company (best-effort; non-fatal if it fails).
     await this.companyModel
-      .findByIdAndUpdate(company._id, { $set: { ownerUserId: String(user._id) } })
+      .findByIdAndUpdate(company._id, {
+        $set: { ownerUserId: String(user._id) },
+      })
       .exec()
       .catch(() => void 0);
 
     return {
       company: company.toObject() as any,
-      user:    user.toObject() as any,
+      user: user.toObject() as any,
     };
   }
 
@@ -456,11 +515,11 @@ export class UsersService {
   async getCompanyDisplayName(companyId: string): Promise<string> {
     try {
       if (!companyId) return companyId;
-      const doc = await this.companyModel
+      const doc = (await this.companyModel
         .findById(companyId)
         .select('displayName')
         .lean()
-        .exec() as any;
+        .exec()) as any;
       return doc?.displayName ?? companyId;
     } catch {
       return companyId;
@@ -470,7 +529,8 @@ export class UsersService {
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private generateTempPassword(): string {
-    const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+    const charset =
+      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
     const bytes = randomBytes(16);
     return Array.from(bytes, (b) => charset[b % charset.length]).join('');
   }

@@ -80,7 +80,7 @@ export class CalendarService {
     // 3. Find or create CompanyChannelProvider
     let ccp = await this.ccpModel
       .findOne({
-        companyId:  new Types.ObjectId(companyId),
+        companyId: new Types.ObjectId(companyId),
         providerId: (provider as any)._id,
       })
       .lean();
@@ -89,27 +89,29 @@ export class CalendarService {
       await this.ccpService.create({
         companyId,
         providerId: String((provider as any)._id),
-        channelId:  String((channel as any)._id),
-        isDefault:  false,
-        isActive:   true,
+        channelId: String((channel as any)._id),
+        isDefault: false,
+        isActive: true,
       });
 
       ccp = await this.ccpModel
         .findOne({
-          companyId:  new Types.ObjectId(companyId),
+          companyId: new Types.ObjectId(companyId),
           providerId: (provider as any)._id,
         })
         .lean();
     }
 
     if (!ccp) {
-      throw new BadRequestException('Could not create or find CompanyChannelProvider');
+      throw new BadRequestException(
+        'Could not create or find CompanyChannelProvider',
+      );
     }
 
     // 4. Create ProviderCredentials (validates + verifies + encrypts)
     const result = await this.credentialsService.create({
       companyChannelProviderId: String((ccp as any)._id),
-      tag:         dto.tag ?? 'default',
+      tag: dto.tag ?? 'default',
       credentials: dto.credentials,
     });
 
@@ -135,7 +137,10 @@ export class CalendarService {
     });
   }
 
-  async disconnect(companyId: string, credentialsId: string): Promise<{ deleted: boolean }> {
+  async disconnect(
+    companyId: string,
+    credentialsId: string,
+  ): Promise<{ deleted: boolean }> {
     // Validate ownership — throws 404 if credential doesn't belong to this company
     await this.runtimeResolver.resolveByProviderCredentialsId({
       companyId,
@@ -149,8 +154,10 @@ export class CalendarService {
       companyId,
       providerCredentialsId: credentialsId,
     });
-    const provider = this.calendarFactory.getCalendarProvider(resolved.providerKey);
-    const result   = await provider.verifyCredentials(resolved.credentials);
+    const provider = this.calendarFactory.getCalendarProvider(
+      resolved.providerKey,
+    );
+    const result = await provider.verifyCredentials(resolved.credentials);
     if (!result.ok) throw new BadRequestException(result.message);
     return result;
   }
@@ -169,10 +176,12 @@ export class CalendarService {
       companyId,
       providerCredentialsId: credentialsId,
     });
-    const provider = this.calendarFactory.getCalendarProvider(resolved.providerKey);
-    const result   = await fn(provider, resolved.credentials);
+    const provider = this.calendarFactory.getCalendarProvider(
+      resolved.providerKey,
+    );
+    const result = await fn(provider, resolved.credentials);
     if (!result.ok) throw new BadRequestException(result.message);
-    return result.data as T;
+    return result.data;
   }
 
   // ─── Calendar management ─────────────────────────────────────────────────
@@ -181,8 +190,14 @@ export class CalendarService {
     return this.withProvider(companyId, credId, (p, c) => p.listCalendars(c));
   }
 
-  async getCalendar(companyId: string, credId: string, calId: string): Promise<any> {
-    return this.withProvider(companyId, credId, (p, c) => p.getCalendar(c, calId));
+  async getCalendar(
+    companyId: string,
+    credId: string,
+    calId: string,
+  ): Promise<any> {
+    return this.withProvider(companyId, credId, (p, c) =>
+      p.getCalendar(c, calId),
+    );
   }
 
   async createCalendar(
@@ -192,10 +207,10 @@ export class CalendarService {
   ): Promise<any> {
     return this.withProvider(companyId, credId, (p, c) =>
       p.createCalendar(c, {
-        name:        dto.name,
+        name: dto.name,
         description: dto.description,
-        color:       dto.color,
-        timeZone:    dto.timeZone,
+        color: dto.color,
+        timeZone: dto.timeZone,
       }),
     );
   }
@@ -208,28 +223,36 @@ export class CalendarService {
   ): Promise<any> {
     return this.withProvider(companyId, credId, (p, c) =>
       p.updateCalendar(c, calId, {
-        name:        dto.name,
+        name: dto.name,
         description: dto.description,
-        color:       dto.color,
-        timeZone:    dto.timeZone,
+        color: dto.color,
+        timeZone: dto.timeZone,
       }),
     );
   }
 
-  async deleteCalendar(companyId: string, credId: string, calId: string): Promise<any> {
-    return this.withProvider(companyId, credId, (p, c) => p.deleteCalendar(c, calId));
+  async deleteCalendar(
+    companyId: string,
+    credId: string,
+    calId: string,
+  ): Promise<any> {
+    return this.withProvider(companyId, credId, (p, c) =>
+      p.deleteCalendar(c, calId),
+    );
   }
 
   async subscribeCalendar(
     companyId: string,
-    credId:    string,
-    dto:       SubscribeCalendarDto,
+    credId: string,
+    dto: SubscribeCalendarDto,
   ): Promise<any> {
     const resolved = await this.runtimeResolver.resolveByProviderCredentialsId({
       companyId,
       providerCredentialsId: credId,
     });
-    const provider = this.calendarFactory.getCalendarProvider(resolved.providerKey);
+    const provider = this.calendarFactory.getCalendarProvider(
+      resolved.providerKey,
+    );
 
     if (!provider.subscribeCalendar) {
       throw new BadRequestException(
@@ -238,7 +261,7 @@ export class CalendarService {
     }
 
     const result = await provider.subscribeCalendar(resolved.credentials, {
-      url:  dto.url,
+      url: dto.url,
       name: dto.name,
     });
 
@@ -246,7 +269,8 @@ export class CalendarService {
       // 422 Unprocessable: the request was valid but the provider cannot fulfil it
       // (capability limitation, not a client error). Distinguishable from 400 Bad Request.
       throw new UnprocessableEntityException(
-        result.message ?? 'Automatic holiday subscription is not supported by this calendar provider.',
+        result.message ??
+          'Automatic holiday subscription is not supported by this calendar provider.',
       );
     }
 
@@ -263,9 +287,9 @@ export class CalendarService {
   ): Promise<any> {
     const result = await this.withProvider(companyId, credId, (p, c) =>
       p.listEvents(c, calId, {
-        from:      query.from,
-        to:        query.to,
-        limit:     query.limit,
+        from: query.from,
+        to: query.to,
+        limit: query.limit,
         pageToken: query.pageToken,
       }),
     );
@@ -276,8 +300,8 @@ export class CalendarService {
       for (const ev of sample) {
         process.stdout.write(
           `[COMM_SVC] COMMUNICATIONS_OUTBOUND_EVENT | id=${ev.id ?? 'undefined'} ` +
-          `startAt=${ev.startAt ?? 'undefined'} endAt=${ev.endAt ?? 'undefined'} ` +
-          `timeZone=${ev.timeZone ?? 'undefined'} allDay=${ev.allDay}\n`,
+            `startAt=${ev.startAt ?? 'undefined'} endAt=${ev.endAt ?? 'undefined'} ` +
+            `timeZone=${ev.timeZone ?? 'undefined'} allDay=${ev.allDay}\n`,
         );
       }
     }
@@ -291,7 +315,9 @@ export class CalendarService {
     calId: string,
     eventId: string,
   ): Promise<any> {
-    return this.withProvider(companyId, credId, (p, c) => p.getEvent(c, calId, eventId));
+    return this.withProvider(companyId, credId, (p, c) =>
+      p.getEvent(c, calId, eventId),
+    );
   }
 
   async createEvent(
@@ -302,14 +328,14 @@ export class CalendarService {
   ): Promise<any> {
     return this.withProvider(companyId, credId, (p, c) =>
       p.createEvent(c, calId, {
-        title:       dto.title,
+        title: dto.title,
         description: dto.description,
-        location:    dto.location,
-        startAt:     dto.startAt,
-        endAt:       dto.endAt,
-        allDay:      dto.allDay,
-        timeZone:    dto.timeZone,
-        attendees:   dto.attendees,
+        location: dto.location,
+        startAt: dto.startAt,
+        endAt: dto.endAt,
+        allDay: dto.allDay,
+        timeZone: dto.timeZone,
+        attendees: dto.attendees,
       }),
     );
   }
@@ -323,13 +349,13 @@ export class CalendarService {
   ): Promise<any> {
     return this.withProvider(companyId, credId, (p, c) =>
       p.updateEvent(c, calId, eventId, {
-        title:       dto.title,
+        title: dto.title,
         description: dto.description,
-        location:    dto.location,
-        startAt:     dto.startAt,
-        endAt:       dto.endAt,
-        allDay:      dto.allDay,
-        timeZone:    dto.timeZone,
+        location: dto.location,
+        startAt: dto.startAt,
+        endAt: dto.endAt,
+        allDay: dto.allDay,
+        timeZone: dto.timeZone,
       }),
     );
   }

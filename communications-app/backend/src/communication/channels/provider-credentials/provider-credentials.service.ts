@@ -21,7 +21,10 @@ import {
   CompanyChannelProviderDocument,
 } from '../company-channel-providers/schemas/company-channel-provider.schema';
 
-import { Company, CompanyDocument } from '../../company/company-info/schemas/company.schema';
+import {
+  Company,
+  CompanyDocument,
+} from '../../company/company-info/schemas/company.schema';
 import { User, UserDocument } from '../../../users/schemas/user.schema';
 
 import { CryptoService } from '../../common/security/crypto.service';
@@ -38,10 +41,11 @@ import { S3AccessKeysCredentialsContract } from '../implementation/storage/acces
 import { CredentialsValidationError } from '../implementation/shared/credentials.errors';
 import type { ContractSpec } from '../implementation/shared/credentials.types';
 
-import { CalendarImplementationFactory }         from '../../../calendar/factory/calendar-implementation.factory';
-import { ICloudCredentialsContract }              from '../../../calendar/contracts/icloud-credentials.contract';
-import { GoogleCalendarCredentialsContract }      from '../../../calendar/contracts/google-credentials.contract';
-import { OutlookCalendarCredentialsContract }     from '../../../calendar/contracts/outlook-credentials.contract';
+import { CalendarImplementationFactory } from '../../../calendar/factory/calendar-implementation.factory';
+import { ICloudCredentialsContract } from '../../../calendar/contracts/icloud-credentials.contract';
+import { GoogleCalendarCredentialsContract } from '../../../calendar/contracts/google-credentials.contract';
+import { OutlookCalendarCredentialsContract } from '../../../calendar/contracts/outlook-credentials.contract';
+import { StripeCredentialsContract } from '../../../payments/providers/stripe/stripe.credentials.contract';
 
 type PopulateOpts = {
   populateCompanyChannelProvider?: boolean;
@@ -88,30 +92,38 @@ export class ProviderCredentialsService {
   ): Promise<string | null> {
     const companyIdStr = String(companyId);
 
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findById(companyId)
       .select('companyEmail')
-      .lean() as any;
+      .lean()) as any;
 
     if (company?.companyEmail?.trim()) {
       return company.companyEmail.trim();
     }
 
-    const owner = await this.userModel
-      .findOne({ companyId: companyIdStr, role: 'company_owner', isActive: { $ne: false } })
+    const owner = (await this.userModel
+      .findOne({
+        companyId: companyIdStr,
+        role: 'company_owner',
+        isActive: { $ne: false },
+      })
       .select('email')
-      .lean() as any;
+      .lean()) as any;
     if (owner?.email) return owner.email;
 
-    const admin = await this.userModel
-      .findOne({ companyId: companyIdStr, role: 'company_admin', isActive: { $ne: false } })
+    const admin = (await this.userModel
+      .findOne({
+        companyId: companyIdStr,
+        role: 'company_admin',
+        isActive: { $ne: false },
+      })
       .select('email')
-      .lean() as any;
+      .lean()) as any;
     if (admin?.email) return admin.email;
 
     this.logger.warn(
       `resolveCompanyRecipient: no email found for companyId=${companyIdStr}` +
-      ` (companyEmail empty, no active owner or admin)`,
+        ` (companyEmail empty, no active owner or admin)`,
     );
     return null;
   }
@@ -127,18 +139,21 @@ export class ProviderCredentialsService {
     connectionType: string;
   } | null> {
     try {
-      const ccp = await this.ccpModel
+      const ccp = (await this.ccpModel
         .findById(new Types.ObjectId(ccpId))
         .populate('providerId', 'displayName providerKey connectionType')
         .populate('channelId', 'channelKey displayName')
-        .lean() as any;
+        .lean()) as any;
 
       if (!ccp) return null;
 
       return {
-        companyId:      String(ccp.companyId),
-        providerName:   ccp.providerId?.displayName || ccp.providerId?.providerKey || 'Unknown',
-        channelKey:     String(ccp.channelId?.channelKey || 'unknown'),
+        companyId: String(ccp.companyId),
+        providerName:
+          ccp.providerId?.displayName ||
+          ccp.providerId?.providerKey ||
+          'Unknown',
+        channelKey: String(ccp.channelId?.channelKey || 'unknown'),
         connectionType: String(ccp.providerId?.connectionType || 'unknown'),
       };
     } catch {
@@ -152,23 +167,32 @@ export class ProviderCredentialsService {
    */
   private async notifyCredentialEvent(
     event: string,
-    ctx: { companyId: string; providerName: string; channelKey: string; connectionType: string },
+    ctx: {
+      companyId: string;
+      providerName: string;
+      channelKey: string;
+      connectionType: string;
+    },
     credentialTag: string,
     extraData: Record<string, string>,
   ): Promise<void> {
     const platformCompanyId = await this.getPlatformCompanyId();
     if (!platformCompanyId) {
-      this.logger.warn(`[${event}] platform company not found — notification skipped`);
+      this.logger.warn(
+        `[${event}] platform company not found — notification skipped`,
+      );
       return;
     }
 
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findById(ctx.companyId)
       .select('displayName')
-      .lean() as any;
+      .lean()) as any;
 
     if (!company) {
-      this.logger.warn(`[${event}] tenant company not found (id=${ctx.companyId}) — skipped`);
+      this.logger.warn(
+        `[${event}] tenant company not found (id=${ctx.companyId}) — skipped`,
+      );
       return;
     }
 
@@ -182,7 +206,7 @@ export class ProviderCredentialsService {
 
     this.logger.log(
       `[${event}] platformCompanyId=${platformCompanyId} tenantCompanyId=${ctx.companyId}` +
-      ` credential="${credentialTag}" recipient=${recipient}`,
+        ` credential="${credentialTag}" recipient=${recipient}`,
     );
 
     await this.notificationService.notifyEvent({
@@ -191,10 +215,10 @@ export class ProviderCredentialsService {
       email: recipient,
       payload: {
         data: {
-          companyName:    company.displayName,
+          companyName: company.displayName,
           credentialTag,
-          providerName:   ctx.providerName,
-          channel:        ctx.channelKey,
+          providerName: ctx.providerName,
+          channel: ctx.channelKey,
           connectionType: ctx.connectionType,
           ...extraData,
         },
@@ -215,12 +239,19 @@ export class ProviderCredentialsService {
     }
 
     // 1) cargar provider/channel desde CompanyChannelProvider
-    const { doc: ccpDoc, provider, channel } = await this.getCompanyChannelProviderOrFail(
+    const {
+      doc: ccpDoc,
+      provider,
+      channel,
+    } = await this.getCompanyChannelProviderOrFail(
       dto.companyChannelProviderId,
     );
 
     const rawCredentials = dto.credentials ?? {};
-    const providerKey = this.resolveProviderKey({ provider, credentials: rawCredentials });
+    const providerKey = this.resolveProviderKey({
+      provider,
+      credentials: rawCredentials,
+    });
 
     // 2) ✅ normalize + validate via contract (field-level 422 on failure)
     const credentials = await this.normalizeAndValidateCredentials({
@@ -260,21 +291,26 @@ export class ProviderCredentialsService {
         displayIdentifier: displayIdentifier || undefined,
       });
 
-      const result = ProviderCredentialsMapper.toResponse(created.toObject() as any);
+      const result = ProviderCredentialsMapper.toResponse(
+        created.toObject() as any,
+      );
 
       // Fire-and-forget — never blocks or rolls back the create operation.
       this.notifyCredentialEvent(
         'notifications.provider_credential_created',
         {
-          companyId:      String((ccpDoc as any).companyId),
-          providerName:   provider.displayName || provider.providerKey || 'Unknown',
-          channelKey:     String(channel.channelKey),
+          companyId: String((ccpDoc as any).companyId),
+          providerName:
+            provider.displayName || provider.providerKey || 'Unknown',
+          channelKey: String(channel.channelKey),
           connectionType: String(provider.connectionType),
         },
         tag,
         { createdBy: 'system', createdAt: new Date().toISOString() },
       ).catch((err) =>
-        this.logger.warn(`provider_credential_created notification failed for ${tag}: ${err?.message}`),
+        this.logger.warn(
+          `provider_credential_created notification failed for ${tag}: ${err?.message}`,
+        ),
       );
 
       return result;
@@ -318,7 +354,7 @@ export class ProviderCredentialsService {
       .lean()
       .then((docs) => docs.map((d) => (d as any)._id));
 
-    const limit  = params.limit  ?? 50;
+    const limit = params.limit ?? 50;
     const offset = params.offset ?? 0;
 
     if (ccpIds.length === 0) {
@@ -328,10 +364,7 @@ export class ProviderCredentialsService {
     const filter: any = { companyChannelProviderId: { $in: ccpIds } };
     if (typeof params.active === 'boolean') filter.isActive = params.active;
 
-    const q = this.model
-      .find(filter)
-      .select('-encrypted')
-      .sort({ tag: 1 });
+    const q = this.model.find(filter).select('-encrypted').sort({ tag: 1 });
 
     this.populateForValidation(q, { populateCompanyChannelProvider: true });
 
@@ -378,7 +411,12 @@ export class ProviderCredentialsService {
       this.model.countDocuments(filter),
     ]);
 
-    return { data: ProviderCredentialsMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: ProviderCredentialsMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async getById(
@@ -473,7 +511,10 @@ export class ProviderCredentialsService {
         await this.getCompanyChannelProviderOrFail(ccpId);
 
       const rawCredentials = dto.credentials ?? {};
-      const providerKey = this.resolveProviderKey({ provider, credentials: rawCredentials });
+      const providerKey = this.resolveProviderKey({
+        provider,
+        credentials: rawCredentials,
+      });
 
       // 2) ✅ normalize + validate via contract (field-level 422)
       const credentials = await this.normalizeAndValidateCredentials({
@@ -513,7 +554,9 @@ export class ProviderCredentialsService {
       if (!updated)
         throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
 
-      const result = ProviderCredentialsMapper.toResponse(updated.toObject() as any);
+      const result = ProviderCredentialsMapper.toResponse(
+        updated.toObject() as any,
+      );
 
       // Determine which lifecycle event to fire.
       const credentialTag = String((updated as any).tag ?? existing.tag);
@@ -537,12 +580,21 @@ export class ProviderCredentialsService {
       if (eventKey) {
         const finalEvent = eventKey;
         const finalExtra = extraData;
-        this.resolveCredentialNotifyContext(ccpId).then((ctx) => {
-          if (!ctx) return;
-          return this.notifyCredentialEvent(finalEvent, ctx, credentialTag, finalExtra);
-        }).catch((err) =>
-          this.logger.warn(`${eventKey} notification failed for ${credentialTag}: ${err?.message}`),
-        );
+        this.resolveCredentialNotifyContext(ccpId)
+          .then((ctx) => {
+            if (!ctx) return;
+            return this.notifyCredentialEvent(
+              finalEvent,
+              ctx,
+              credentialTag,
+              finalExtra,
+            );
+          })
+          .catch((err) =>
+            this.logger.warn(
+              `${eventKey} notification failed for ${credentialTag}: ${err?.message}`,
+            ),
+          );
       }
 
       return result;
@@ -590,7 +642,8 @@ export class ProviderCredentialsService {
 
     // Load credential record (encrypted blob included — needed for decryption)
     const cred = await this.model.findById(_id).lean();
-    if (!cred) throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+    if (!cred)
+      throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
 
     // Company boundary guard — prevents testing another company's credentials
     if (expectedCompanyId) {
@@ -598,7 +651,8 @@ export class ProviderCredentialsService {
         .findById(cred.companyChannelProviderId)
         .select('companyId')
         .lean();
-      if (!ccpDoc) throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+      if (!ccpDoc)
+        throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
       if (String((ccpDoc as any).companyId) !== expectedCompanyId) {
         throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
       }
@@ -620,10 +674,15 @@ export class ProviderCredentialsService {
       );
     }
 
-    const providerKey = this.resolveProviderKey({ provider, credentials: decrypted });
-    const checkedAt   = new Date().toISOString();
-    const providerLabel = String(provider.displayName ?? provider.providerKey ?? 'Unknown');
-    const channelKey    = String(channel.channelKey).toLowerCase().trim();
+    const providerKey = this.resolveProviderKey({
+      provider,
+      credentials: decrypted,
+    });
+    const checkedAt = new Date().toISOString();
+    const providerLabel = String(
+      provider.displayName ?? provider.providerKey ?? 'Unknown',
+    );
+    const channelKey = String(channel.channelKey).toLowerCase().trim();
     const connectionType = String(provider.connectionType).toLowerCase().trim();
 
     // Route to the correct channel implementation and call verifyCredentials()
@@ -633,14 +692,37 @@ export class ProviderCredentialsService {
       let res: { ok: boolean; message?: string } = { ok: false };
 
       if (channelKey === 'email') {
-        const emailChannel = this.factory.getEmailChannel(connectionType, providerKey);
+        const emailChannel = this.factory.getEmailChannel(
+          connectionType,
+          providerKey,
+        );
         res = await emailChannel.verifyCredentials(decrypted);
       } else if (channelKey === 'sms') {
-        const smsChannel = this.factory.getSmsChannel(connectionType, providerKey);
+        const smsChannel = this.factory.getSmsChannel(
+          connectionType,
+          providerKey,
+        );
         res = await smsChannel.verifyCredentials(decrypted);
       } else if (channelKey === 'storage') {
         const storageChannel = this.factory.getStorageChannel(connectionType);
         res = await storageChannel.verifyCredentials(decrypted);
+      } else if (channelKey === 'payment') {
+        // Live Stripe API verification is not yet implemented.
+        // Format validation is performed during save; this confirms credential format only.
+        const contract = this.getContractForProvider(
+          channelKey,
+          connectionType,
+          providerKey,
+        );
+        if (contract?.verify) {
+          res = await contract.verify(decrypted as any);
+        } else {
+          res = {
+            ok: true,
+            message:
+              'Credential format verified. Live connection test will be available after Stripe integration is complete.',
+          };
+        }
       } else {
         throw new HttpException(
           `Unsupported channel "${channelKey}"`,
@@ -650,7 +732,9 @@ export class ProviderCredentialsService {
 
       const testResult = {
         success: res.ok,
-        message: res.message ?? (res.ok ? 'Credentials verified.' : 'Verification failed.'),
+        message:
+          res.message ??
+          (res.ok ? 'Credentials verified.' : 'Verification failed.'),
         provider: providerLabel,
         connectionType: provider.connectionType,
         checkedAt,
@@ -659,17 +743,21 @@ export class ProviderCredentialsService {
       if (testResult.success) {
         const ccpId = String(cred.companyChannelProviderId);
         const credentialTag = String((cred as any).tag);
-        this.resolveCredentialNotifyContext(ccpId).then((ctx) => {
-          if (!ctx) return;
-          return this.notifyCredentialEvent(
-            'notifications.provider_credential_verified',
-            ctx,
-            credentialTag,
-            { verifiedBy: 'system', verifiedAt: checkedAt },
+        this.resolveCredentialNotifyContext(ccpId)
+          .then((ctx) => {
+            if (!ctx) return;
+            return this.notifyCredentialEvent(
+              'notifications.provider_credential_verified',
+              ctx,
+              credentialTag,
+              { verifiedBy: 'system', verifiedAt: checkedAt },
+            );
+          })
+          .catch((err) =>
+            this.logger.warn(
+              `provider_credential_verified notification failed for ${credentialTag}: ${err?.message}`,
+            ),
           );
-        }).catch((err) =>
-          this.logger.warn(`provider_credential_verified notification failed for ${credentialTag}: ${err?.message}`),
-        );
       }
 
       return testResult;
@@ -699,17 +787,21 @@ export class ProviderCredentialsService {
     if (snapshot) {
       const ccpId = String(snapshot.companyChannelProviderId);
       const credentialTag = String(snapshot.tag);
-      this.resolveCredentialNotifyContext(ccpId).then((ctx) => {
-        if (!ctx) return;
-        return this.notifyCredentialEvent(
-          'notifications.provider_credential_deleted',
-          ctx,
-          credentialTag,
-          { deletedBy: 'system', deletedAt: new Date().toISOString() },
+      this.resolveCredentialNotifyContext(ccpId)
+        .then((ctx) => {
+          if (!ctx) return;
+          return this.notifyCredentialEvent(
+            'notifications.provider_credential_deleted',
+            ctx,
+            credentialTag,
+            { deletedBy: 'system', deletedAt: new Date().toISOString() },
+          );
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `provider_credential_deleted notification failed for ${credentialTag}: ${err?.message}`,
+          ),
         );
-      }).catch((err) =>
-        this.logger.warn(`provider_credential_deleted notification failed for ${credentialTag}: ${err?.message}`),
-      );
     }
 
     return { deleted: true };
@@ -783,13 +875,20 @@ export class ProviderCredentialsService {
     providerKey?: string,
   ): string {
     const ct = String(connectionType).toLowerCase().trim();
-    const pk = providerKey ? String(providerKey).toLowerCase().trim() : undefined;
+    const pk = providerKey
+      ? String(providerKey).toLowerCase().trim()
+      : undefined;
 
     const str = (v: any): string => (v ? String(v).trim() : '');
 
     // SMTP / Gmail → show fromEmail or username (never the password)
     if (ct === 'smtp' || pk === 'gmail') {
-      return str(credentials.fromEmail) || str(credentials.user) || str(credentials.username) || '';
+      return (
+        str(credentials.fromEmail) ||
+        str(credentials.user) ||
+        str(credentials.username) ||
+        ''
+      );
     }
 
     // SendGrid → fromEmail or generic label
@@ -799,7 +898,11 @@ export class ProviderCredentialsService {
 
     // Mailgun → fromEmail or sending domain
     if (pk === 'mailgun') {
-      return str(credentials.fromEmail) || str(credentials.domain) || 'API Key configured';
+      return (
+        str(credentials.fromEmail) ||
+        str(credentials.domain) ||
+        'API Key configured'
+      );
     }
 
     // Twilio → from phone number (not the authToken)
@@ -828,6 +931,11 @@ export class ProviderCredentialsService {
       return str(credentials.appleId) || '';
     }
 
+    // Stripe (payment/api_key) → publishable key (designed to be public; identifies account/mode)
+    if (pk === 'stripe') {
+      return str(credentials.publishableKey) || 'Stripe configured';
+    }
+
     // OAuth → client ID (not the secret or tokens)
     // Covers google_calendar, outlook_calendar, and any future OAuth provider.
     if (ct === 'oauth') {
@@ -845,7 +953,9 @@ export class ProviderCredentialsService {
   ): ContractSpec<any> | null {
     const ck = String(channelKey).toLowerCase().trim();
     const ct = String(connectionType).toLowerCase().trim();
-    const pk = providerKey ? String(providerKey).toLowerCase().trim() : undefined;
+    const pk = providerKey
+      ? String(providerKey).toLowerCase().trim()
+      : undefined;
 
     if (ck === 'email') {
       if (ct === 'smtp') return SmtpCredentialsContract;
@@ -855,12 +965,20 @@ export class ProviderCredentialsService {
       }
     }
     if (ck === 'sms' && ct === 'api_key') return TwilioCredentialsContract;
-    if (ck === 'storage' && ct === 'access_keys') return S3AccessKeysCredentialsContract;
+    if (ck === 'storage' && ct === 'access_keys')
+      return S3AccessKeysCredentialsContract;
 
     if (ck === 'calendar') {
-      if (ct === 'app_password' && pk === 'icloud')            return ICloudCredentialsContract;
-      if (ct === 'oauth'        && pk === 'google_calendar')   return GoogleCalendarCredentialsContract;
-      if (ct === 'oauth'        && pk === 'outlook_calendar')  return OutlookCalendarCredentialsContract;
+      if (ct === 'app_password' && pk === 'icloud')
+        return ICloudCredentialsContract;
+      if (ct === 'oauth' && pk === 'google_calendar')
+        return GoogleCalendarCredentialsContract;
+      if (ct === 'oauth' && pk === 'outlook_calendar')
+        return OutlookCalendarCredentialsContract;
+    }
+
+    if (ck === 'payment') {
+      if (ct === 'api_key' && pk === 'stripe') return StripeCredentialsContract;
     }
 
     return null;
@@ -1024,13 +1142,33 @@ export class ProviderCredentialsService {
           HttpStatus.BAD_REQUEST,
         );
       }
-      const calendarProvider = this.calendarFactory.getCalendarProvider(providerKey);
+      const calendarProvider =
+        this.calendarFactory.getCalendarProvider(providerKey);
       const res = await calendarProvider.verifyCredentials(credentials);
       if (!res?.ok) {
         throw new HttpException(
           res?.message ?? 'CALENDAR credentials verification failed',
           HttpStatus.BAD_REQUEST,
         );
+      }
+      return;
+    }
+
+    // PAYMENT — format validation only; live Stripe API verification added in a future task
+    if (channelKey === 'payment') {
+      const contract = this.getContractForProvider(
+        channelKey,
+        connectionType,
+        providerKey,
+      );
+      if (contract?.verify) {
+        const res = await contract.verify(credentials as any);
+        if (!res?.ok) {
+          throw new HttpException(
+            res?.message ?? 'PAYMENT credentials verification failed',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
       }
       return;
     }

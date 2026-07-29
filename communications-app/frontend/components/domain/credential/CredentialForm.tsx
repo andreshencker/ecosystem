@@ -13,6 +13,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -98,6 +99,11 @@ const credentialFormSchema = z.object({
   appSpecificPassword: z.string().optional(),
   // Outlook Calendar (OAuth via Azure AD)
   tenantId: z.string().optional(),
+  // Stripe (payment / api_key)
+  secretKey:      z.string().optional(),
+  publishableKey: z.string().optional(),
+  webhookSecret:  z.string().optional(),
+  mode:           z.string().optional(),
 });
 
 type CredentialFormValues = z.infer<typeof credentialFormSchema>;
@@ -230,6 +236,35 @@ function CredentialField({ fieldConfig, control, errors, isSubmitting, isEditing
     );
   }
 
+  if (type === 'select') {
+    const fieldError = (errors as Record<string, { message?: string }>)[key];
+    return (
+      <Controller
+        name={key as keyof CredentialFormValues}
+        control={control}
+        render={({ field }) => (
+          <FormControl fullWidth size="small" error={Boolean(fieldError)} disabled={isSubmitting}>
+            <InputLabel required={required && !isEditing}>{label}</InputLabel>
+            <Select
+              value={field.value ?? fieldConfig.defaultValue ?? ''}
+              label={label}
+              onChange={(e) => field.onChange(e.target.value)}
+            >
+              {(fieldConfig.options ?? []).map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {(fieldError?.message || helperText) && (
+              <FormHelperText>{fieldError?.message ?? helperText}</FormHelperText>
+            )}
+          </FormControl>
+        )}
+      />
+    );
+  }
+
   const fieldError = (errors as Record<string, { message?: string }>)[key];
   const isPassword = type === 'password';
   const resolvedType = isPassword
@@ -354,7 +389,7 @@ export function CredentialForm({
       };
       if (!isEditing && config) {
         for (const f of allFields) {
-          if (f.type === 'boolean' && f.defaultValue !== undefined) {
+          if ((f.type === 'boolean' || f.type === 'select') && f.defaultValue !== undefined) {
             (defaults as Record<string, unknown>)[f.key] = f.defaultValue;
           }
         }

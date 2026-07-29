@@ -24,6 +24,8 @@ import BugReportOutlinedIcon           from '@mui/icons-material/BugReportOutlin
 import SettingsOutlinedIcon            from '@mui/icons-material/SettingsOutlined';
 import PlayCircleOutlineOutlinedIcon   from '@mui/icons-material/PlayCircleOutlineOutlined';
 import SecurityOutlinedIcon            from '@mui/icons-material/SecurityOutlined';
+import FolderOutlinedIcon              from '@mui/icons-material/FolderOutlined';
+import DescriptionOutlinedIcon         from '@mui/icons-material/DescriptionOutlined';
 
 import type { UserRole, Scope } from '@/types/api';
 import { ALLOWED_ROUTES, LANDING_PAGES } from './route-rules';
@@ -191,6 +193,13 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
+        label: 'Document Setup',
+        items: [
+          { href: '/document-domain-catalogue', label: 'Doc Domains', icon: FolderOutlinedIcon       },
+          { href: '/document-catalogue',        label: 'Documents',   icon: DescriptionOutlinedIcon  },
+        ],
+      },
+      {
         label: 'Calendar',
         items: [
           { href: '/calendar/calendars', label: 'Calendars', icon: CalendarMonthOutlinedIcon },
@@ -340,6 +349,13 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
+        label: 'Document Setup',
+        items: [
+          { href: '/document-domain-catalogue', label: 'Doc Domains', icon: FolderOutlinedIcon       },
+          { href: '/document-catalogue',        label: 'Documents',   icon: DescriptionOutlinedIcon  },
+        ],
+      },
+      {
         label: 'Calendar',
         items: [
           { href: '/calendar/calendars', label: 'Calendars', icon: CalendarMonthOutlinedIcon },
@@ -425,6 +441,13 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/domain-catalogue',          label: 'Domains',           icon: AccountTreeOutlinedIcon },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon     },
           { href: '/event-catalogue',           label: 'Events',            icon: EventOutlinedIcon       },
+        ],
+      },
+      {
+        label: 'Document Setup',
+        items: [
+          { href: '/document-domain-catalogue', label: 'Doc Domains', icon: FolderOutlinedIcon       },
+          { href: '/document-catalogue',        label: 'Documents',   icon: DescriptionOutlinedIcon  },
         ],
       },
       {

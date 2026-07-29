@@ -3,33 +3,33 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 
 import { CompanyDeletionService } from '../company-deletion.service';
-import { Company }                 from '../schemas/company.schema';
-import { CompanyTheme }            from '../../company-theme/schemas/company-theme.schema';
-import { LayoutTemplate }          from '../../../notifications/template/layout-templates/schemas/layout-template.schema';
-import { CompanyIntegration }      from '../../integrations/schemas/company-integration.schema';
-import { CompanyChannelProvider }  from '../../../channels/company-channel-providers/schemas/company-channel-provider.schema';
-import { ProviderCredentials }     from '../../../channels/provider-credentials/schemas/provider-credentials.schema';
-import { DomainCatalogue }         from '../../../notifications/events/domain-catalogue/schemas/domain-catalogue.schema';
-import { EventCatalogue }          from '../../../notifications/events/event-catalogue/schemas/event-catalogue.schema';
+import { Company } from '../schemas/company.schema';
+import { CompanyTheme } from '../../company-theme/schemas/company-theme.schema';
+import { LayoutTemplate } from '../../../notifications/template/layout-templates/schemas/layout-template.schema';
+import { CompanyIntegration } from '../../integrations/schemas/company-integration.schema';
+import { CompanyChannelProvider } from '../../../channels/company-channel-providers/schemas/company-channel-provider.schema';
+import { ProviderCredentials } from '../../../channels/provider-credentials/schemas/provider-credentials.schema';
+import { DomainCatalogue } from '../../../notifications/events/domain-catalogue/schemas/domain-catalogue.schema';
+import { EventCatalogue } from '../../../notifications/events/event-catalogue/schemas/event-catalogue.schema';
 import { NotificationExecutionLog } from '../../../notifications/execution-log/schemas/execution-log.schema';
-import { CompanySmtp }             from '../../../../company/schemas/company-smtp.schema';
-import { Invitation }              from '../../../../user-invitations/schemas/invitation.schema';
-import { User }                    from '../../../../users/schemas/user.schema';
-import { RefreshToken }            from '../../../../auth/schemas/refresh-token.schema';
-import { Types }                   from 'mongoose';
+import { CompanySmtp } from '../../../../company/schemas/company-smtp.schema';
+import { Invitation } from '../../../../user-invitations/schemas/invitation.schema';
+import { User } from '../../../../users/schemas/user.schema';
+import { RefreshToken } from '../../../../auth/schemas/refresh-token.schema';
+import { Types } from 'mongoose';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const COMPANY_ID    = new Types.ObjectId();
-const THEME_ID      = new Types.ObjectId();
-const CCP_ID        = new Types.ObjectId();
-const DOMAIN_ID     = new Types.ObjectId();
-const USER_ID       = new Types.ObjectId();
+const COMPANY_ID = new Types.ObjectId();
+const THEME_ID = new Types.ObjectId();
+const CCP_ID = new Types.ObjectId();
+const DOMAIN_ID = new Types.ObjectId();
+const USER_ID = new Types.ObjectId();
 
 const baseCompany = {
-  _id:               COMPANY_ID,
-  companyKey:        'acme',
-  displayName:       'Acme Corp',
+  _id: COMPANY_ID,
+  companyKey: 'acme',
+  displayName: 'Acme Corp',
   isPlatformCompany: false,
 };
 
@@ -37,8 +37,10 @@ const baseCompany = {
 
 function makeMockSession(overrides: Partial<any> = {}) {
   return {
-    withTransaction: jest.fn().mockImplementation(async (fn: () => Promise<void>) => fn()),
-    endSession:      jest.fn().mockResolvedValue(undefined),
+    withTransaction: jest
+      .fn()
+      .mockImplementation(async (fn: () => Promise<void>) => fn()),
+    endSession: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -57,10 +59,10 @@ function buildModelMock(overrides: Partial<Record<string, jest.Mock>> = {}) {
     find: jest.fn().mockReturnValue({
       distinct: jest.fn().mockResolvedValue([]),
     }),
-    findOneAndDelete:  jest.fn().mockResolvedValue(null),
-    deleteMany:        jest.fn().mockResolvedValue({ deletedCount: 0 }),
-    deleteOne:         jest.fn().mockResolvedValue({ deletedCount: 0 }),
-    countDocuments:    jest.fn().mockResolvedValue(0),
+    findOneAndDelete: jest.fn().mockResolvedValue(null),
+    deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+    deleteOne: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+    countDocuments: jest.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
@@ -68,25 +70,29 @@ function buildModelMock(overrides: Partial<Record<string, jest.Mock>> = {}) {
 // ─── Module builder ───────────────────────────────────────────────────────────
 
 interface ModelMocks {
-  companyModel:     ReturnType<typeof buildModelMock>;
-  themeModel:       ReturnType<typeof buildModelMock>;
-  layoutModel:      ReturnType<typeof buildModelMock>;
+  companyModel: ReturnType<typeof buildModelMock>;
+  themeModel: ReturnType<typeof buildModelMock>;
+  layoutModel: ReturnType<typeof buildModelMock>;
   integrationModel: ReturnType<typeof buildModelMock>;
-  ccpModel:         ReturnType<typeof buildModelMock>;
-  credModel:        ReturnType<typeof buildModelMock>;
-  domainModel:      ReturnType<typeof buildModelMock>;
-  eventModel:       ReturnType<typeof buildModelMock>;
-  logModel:         ReturnType<typeof buildModelMock>;
-  smtpModel:        ReturnType<typeof buildModelMock>;
-  invitationModel:  ReturnType<typeof buildModelMock>;
-  userModel:        ReturnType<typeof buildModelMock>;
-  tokenModel:       ReturnType<typeof buildModelMock>;
+  ccpModel: ReturnType<typeof buildModelMock>;
+  credModel: ReturnType<typeof buildModelMock>;
+  domainModel: ReturnType<typeof buildModelMock>;
+  eventModel: ReturnType<typeof buildModelMock>;
+  logModel: ReturnType<typeof buildModelMock>;
+  smtpModel: ReturnType<typeof buildModelMock>;
+  invitationModel: ReturnType<typeof buildModelMock>;
+  userModel: ReturnType<typeof buildModelMock>;
+  tokenModel: ReturnType<typeof buildModelMock>;
 }
 
 async function buildModule(
   mocks: Partial<ModelMocks> = {},
   session = makeMockSession(),
-): Promise<{ service: CompanyDeletionService; models: ModelMocks; session: ReturnType<typeof makeMockSession> }> {
+): Promise<{
+  service: CompanyDeletionService;
+  models: ModelMocks;
+  session: ReturnType<typeof makeMockSession>;
+}> {
   // Company model needs a db.startSession mock in addition to the base mock
   const companyBase = mocks.companyModel ?? buildModelMock();
   const companyModel = {
@@ -96,36 +102,66 @@ async function buildModule(
 
   const models: ModelMocks = {
     companyModel,
-    themeModel:       mocks.themeModel       ?? buildModelMock(),
-    layoutModel:      mocks.layoutModel       ?? buildModelMock(),
-    integrationModel: mocks.integrationModel  ?? buildModelMock(),
-    ccpModel:         mocks.ccpModel          ?? buildModelMock(),
-    credModel:        mocks.credModel         ?? buildModelMock(),
-    domainModel:      mocks.domainModel       ?? buildModelMock(),
-    eventModel:       mocks.eventModel        ?? buildModelMock(),
-    logModel:         mocks.logModel          ?? buildModelMock(),
-    smtpModel:        mocks.smtpModel         ?? buildModelMock(),
-    invitationModel:  mocks.invitationModel   ?? buildModelMock(),
-    userModel:        mocks.userModel         ?? buildModelMock(),
-    tokenModel:       mocks.tokenModel        ?? buildModelMock(),
+    themeModel: mocks.themeModel ?? buildModelMock(),
+    layoutModel: mocks.layoutModel ?? buildModelMock(),
+    integrationModel: mocks.integrationModel ?? buildModelMock(),
+    ccpModel: mocks.ccpModel ?? buildModelMock(),
+    credModel: mocks.credModel ?? buildModelMock(),
+    domainModel: mocks.domainModel ?? buildModelMock(),
+    eventModel: mocks.eventModel ?? buildModelMock(),
+    logModel: mocks.logModel ?? buildModelMock(),
+    smtpModel: mocks.smtpModel ?? buildModelMock(),
+    invitationModel: mocks.invitationModel ?? buildModelMock(),
+    userModel: mocks.userModel ?? buildModelMock(),
+    tokenModel: mocks.tokenModel ?? buildModelMock(),
   };
 
   const module: TestingModule = await Test.createTestingModule({
     providers: [
       CompanyDeletionService,
-      { provide: getModelToken(Company.name),                  useValue: models.companyModel     },
-      { provide: getModelToken(CompanyTheme.name),             useValue: models.themeModel       },
-      { provide: getModelToken(LayoutTemplate.name),           useValue: models.layoutModel      },
-      { provide: getModelToken(CompanyIntegration.name),       useValue: models.integrationModel },
-      { provide: getModelToken(CompanyChannelProvider.name),   useValue: models.ccpModel         },
-      { provide: getModelToken(ProviderCredentials.name),      useValue: models.credModel        },
-      { provide: getModelToken(DomainCatalogue.name),          useValue: models.domainModel      },
-      { provide: getModelToken(EventCatalogue.name),           useValue: models.eventModel       },
-      { provide: getModelToken(NotificationExecutionLog.name), useValue: models.logModel         },
-      { provide: getModelToken(CompanySmtp.name),              useValue: models.smtpModel        },
-      { provide: getModelToken(Invitation.name),               useValue: models.invitationModel  },
-      { provide: getModelToken(User.name),                     useValue: models.userModel        },
-      { provide: getModelToken(RefreshToken.name),             useValue: models.tokenModel       },
+      { provide: getModelToken(Company.name), useValue: models.companyModel },
+      {
+        provide: getModelToken(CompanyTheme.name),
+        useValue: models.themeModel,
+      },
+      {
+        provide: getModelToken(LayoutTemplate.name),
+        useValue: models.layoutModel,
+      },
+      {
+        provide: getModelToken(CompanyIntegration.name),
+        useValue: models.integrationModel,
+      },
+      {
+        provide: getModelToken(CompanyChannelProvider.name),
+        useValue: models.ccpModel,
+      },
+      {
+        provide: getModelToken(ProviderCredentials.name),
+        useValue: models.credModel,
+      },
+      {
+        provide: getModelToken(DomainCatalogue.name),
+        useValue: models.domainModel,
+      },
+      {
+        provide: getModelToken(EventCatalogue.name),
+        useValue: models.eventModel,
+      },
+      {
+        provide: getModelToken(NotificationExecutionLog.name),
+        useValue: models.logModel,
+      },
+      { provide: getModelToken(CompanySmtp.name), useValue: models.smtpModel },
+      {
+        provide: getModelToken(Invitation.name),
+        useValue: models.invitationModel,
+      },
+      { provide: getModelToken(User.name), useValue: models.userModel },
+      {
+        provide: getModelToken(RefreshToken.name),
+        useValue: models.tokenModel,
+      },
     ],
   }).compile();
 
@@ -147,47 +183,78 @@ function companyModelWith(doc: object | null) {
  */
 function fullyPopulatedMocks(): ModelMocks {
   const themeModel = buildModelMock({
-    find:      jest.fn().mockReturnValue({ distinct: jest.fn().mockResolvedValue([THEME_ID]) }),
+    find: jest
+      .fn()
+      .mockReturnValue({ distinct: jest.fn().mockResolvedValue([THEME_ID]) }),
     deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }),
     countDocuments: jest.fn().mockResolvedValue(2),
   });
   const ccpModel = buildModelMock({
-    find:      jest.fn().mockReturnValue({ distinct: jest.fn().mockResolvedValue([CCP_ID]) }),
+    find: jest
+      .fn()
+      .mockReturnValue({ distinct: jest.fn().mockResolvedValue([CCP_ID]) }),
     deleteMany: jest.fn().mockResolvedValue({ deletedCount: 3 }),
     countDocuments: jest.fn().mockResolvedValue(3),
   });
   const domainModel = buildModelMock({
-    find:      jest.fn().mockReturnValue({ distinct: jest.fn().mockResolvedValue([DOMAIN_ID]) }),
+    find: jest
+      .fn()
+      .mockReturnValue({ distinct: jest.fn().mockResolvedValue([DOMAIN_ID]) }),
     deleteMany: jest.fn().mockResolvedValue({ deletedCount: 4 }),
     countDocuments: jest.fn().mockResolvedValue(4),
   });
   const userModel = buildModelMock({
-    find:      jest.fn().mockReturnValue({ distinct: jest.fn().mockResolvedValue([USER_ID]) }),
+    find: jest
+      .fn()
+      .mockReturnValue({ distinct: jest.fn().mockResolvedValue([USER_ID]) }),
     deleteMany: jest.fn().mockResolvedValue({ deletedCount: 5 }),
     countDocuments: jest.fn().mockResolvedValue(5),
   });
 
   return {
-    companyModel:     companyModelWith(baseCompany),
+    companyModel: companyModelWith(baseCompany),
     themeModel,
-    layoutModel:      buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 1 }), countDocuments: jest.fn().mockResolvedValue(1) }),
-    integrationModel: buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }), countDocuments: jest.fn().mockResolvedValue(2) }),
+    layoutModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      countDocuments: jest.fn().mockResolvedValue(1),
+    }),
+    integrationModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }),
+      countDocuments: jest.fn().mockResolvedValue(2),
+    }),
     ccpModel,
-    credModel:        buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 3 }), countDocuments: jest.fn().mockResolvedValue(3) }),
+    credModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 3 }),
+      countDocuments: jest.fn().mockResolvedValue(3),
+    }),
     domainModel,
-    eventModel:       buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 6 }), countDocuments: jest.fn().mockResolvedValue(6) }),
-    logModel:         buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 134 }), countDocuments: jest.fn().mockResolvedValue(134) }),
-    smtpModel:        buildModelMock({ deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }), countDocuments: jest.fn().mockResolvedValue(1) }),
-    invitationModel:  buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 9 }), countDocuments: jest.fn().mockResolvedValue(9) }),
+    eventModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 6 }),
+      countDocuments: jest.fn().mockResolvedValue(6),
+    }),
+    logModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 134 }),
+      countDocuments: jest.fn().mockResolvedValue(134),
+    }),
+    smtpModel: buildModelMock({
+      deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      countDocuments: jest.fn().mockResolvedValue(1),
+    }),
+    invitationModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 9 }),
+      countDocuments: jest.fn().mockResolvedValue(9),
+    }),
     userModel,
-    tokenModel:       buildModelMock({ deleteMany: jest.fn().mockResolvedValue({ deletedCount: 8 }), countDocuments: jest.fn().mockResolvedValue(8) }),
+    tokenModel: buildModelMock({
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 8 }),
+      countDocuments: jest.fn().mockResolvedValue(8),
+    }),
   };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('CompanyDeletionService', () => {
-
   // ── Validation ───────────────────────────────────────────────────────────────
 
   describe('validateCompany', () => {
@@ -196,15 +263,22 @@ describe('CompanyDeletionService', () => {
         companyModel: companyModelWith(null),
       });
 
-      await expect(service.deleteCompany('ghost')).rejects.toThrow(NotFoundException);
+      await expect(service.deleteCompany('ghost')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws ForbiddenException when trying to delete the modules company', async () => {
       const { service } = await buildModule({
-        companyModel: companyModelWith({ ...baseCompany, isPlatformCompany: true }),
+        companyModel: companyModelWith({
+          ...baseCompany,
+          isPlatformCompany: true,
+        }),
       });
 
-      await expect(service.deleteCompany('grapifly')).rejects.toThrow(ForbiddenException);
+      await expect(service.deleteCompany('grapifly')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('proceeds normally for a regular company', async () => {
@@ -239,10 +313,18 @@ describe('CompanyDeletionService', () => {
       await service.deleteCompany('acme', { dryRun: true });
 
       const allMutatingModels = [
-        mocks.themeModel, mocks.layoutModel, mocks.integrationModel,
-        mocks.ccpModel, mocks.credModel, mocks.domainModel, mocks.eventModel,
-        mocks.logModel, mocks.smtpModel, mocks.invitationModel,
-        mocks.userModel, mocks.tokenModel,
+        mocks.themeModel,
+        mocks.layoutModel,
+        mocks.integrationModel,
+        mocks.ccpModel,
+        mocks.credModel,
+        mocks.domainModel,
+        mocks.eventModel,
+        mocks.logModel,
+        mocks.smtpModel,
+        mocks.invitationModel,
+        mocks.userModel,
+        mocks.tokenModel,
       ];
       for (const m of allMutatingModels) {
         expect(m.deleteMany).not.toHaveBeenCalled();
@@ -252,7 +334,7 @@ describe('CompanyDeletionService', () => {
 
     it('does NOT start a transaction', async () => {
       const session = makeMockSession();
-      const mocks   = fullyPopulatedMocks();
+      const mocks = fullyPopulatedMocks();
       const { service } = await buildModule(mocks, session);
 
       await service.deleteCompany('acme', { dryRun: true });
@@ -261,7 +343,7 @@ describe('CompanyDeletionService', () => {
     });
 
     it('returns correct counts from countDocuments', async () => {
-      const mocks   = fullyPopulatedMocks();
+      const mocks = fullyPopulatedMocks();
       const { service } = await buildModule(mocks);
 
       const result = await service.deleteCompany('acme', { dryRun: true });
@@ -281,7 +363,7 @@ describe('CompanyDeletionService', () => {
     });
 
     it('returns totalDocuments as the sum of all counts', async () => {
-      const mocks   = fullyPopulatedMocks();
+      const mocks = fullyPopulatedMocks();
       const { service } = await buildModule(mocks);
 
       const result = await service.deleteCompany('acme', { dryRun: true });
@@ -310,19 +392,24 @@ describe('CompanyDeletionService', () => {
   describe('actual deletion', () => {
     it('starts a MongoDB session and commits via withTransaction', async () => {
       const session = makeMockSession();
-      const mocks   = fullyPopulatedMocks();
+      const mocks = fullyPopulatedMocks();
       // buildModule returns `models` which contains the companyModel that has `db`
-      const { service, models: resolvedModels } = await buildModule(mocks, session);
+      const { service, models: resolvedModels } = await buildModule(
+        mocks,
+        session,
+      );
 
       await service.deleteCompany('acme');
 
-      expect((resolvedModels.companyModel as any).db.startSession).toHaveBeenCalled();
+      expect(
+        (resolvedModels.companyModel as any).db.startSession,
+      ).toHaveBeenCalled();
       expect(session.withTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('calls session.endSession() even on success', async () => {
       const session = makeMockSession();
-      const mocks   = fullyPopulatedMocks();
+      const mocks = fullyPopulatedMocks();
       const { service } = await buildModule(mocks, session);
 
       await service.deleteCompany('acme');
@@ -389,10 +476,12 @@ describe('CompanyDeletionService', () => {
         callOrder.push('users');
         return { deletedCount: 0 };
       });
-      mocks.companyModel.findOneAndDelete = jest.fn().mockImplementation(async () => {
-        callOrder.push('company');
-        return null;
-      });
+      mocks.companyModel.findOneAndDelete = jest
+        .fn()
+        .mockImplementation(async () => {
+          callOrder.push('company');
+          return null;
+        });
 
       const { service } = await buildModule(mocks);
       await service.deleteCompany('acme');
@@ -400,9 +489,13 @@ describe('CompanyDeletionService', () => {
       // Company document must be the very last write
       expect(callOrder[callOrder.length - 1]).toBe('company');
       // Logs are deleted before themes (Phase 3 order)
-      expect(callOrder.indexOf('logs')).toBeLessThan(callOrder.indexOf('themes'));
+      expect(callOrder.indexOf('logs')).toBeLessThan(
+        callOrder.indexOf('themes'),
+      );
       // Users are deleted before company
-      expect(callOrder.indexOf('users')).toBeLessThan(callOrder.indexOf('company'));
+      expect(callOrder.indexOf('users')).toBeLessThan(
+        callOrder.indexOf('company'),
+      );
     });
 
     it('deletes second-level children before their parent collections', async () => {
@@ -446,10 +539,18 @@ describe('CompanyDeletionService', () => {
       const { service } = await buildModule(mocks);
       await service.deleteCompany('acme');
 
-      expect(callOrder.indexOf('layouts')).toBeLessThan(callOrder.indexOf('themes'));
-      expect(callOrder.indexOf('credentials')).toBeLessThan(callOrder.indexOf('ccps'));
-      expect(callOrder.indexOf('events')).toBeLessThan(callOrder.indexOf('domains'));
-      expect(callOrder.indexOf('tokens')).toBeLessThan(callOrder.indexOf('users'));
+      expect(callOrder.indexOf('layouts')).toBeLessThan(
+        callOrder.indexOf('themes'),
+      );
+      expect(callOrder.indexOf('credentials')).toBeLessThan(
+        callOrder.indexOf('ccps'),
+      );
+      expect(callOrder.indexOf('events')).toBeLessThan(
+        callOrder.indexOf('domains'),
+      );
+      expect(callOrder.indexOf('tokens')).toBeLessThan(
+        callOrder.indexOf('users'),
+      );
     });
 
     it('skips $in deleteMany when intermediate ID arrays are empty', async () => {
@@ -495,9 +596,9 @@ describe('CompanyDeletionService', () => {
   describe('transaction rollback', () => {
     it('propagates the error when a deleteMany fails inside the transaction', async () => {
       const mocks = fullyPopulatedMocks();
-      mocks.themeModel.deleteMany = jest.fn().mockRejectedValue(
-        new Error('Simulated MongoDB write failure'),
-      );
+      mocks.themeModel.deleteMany = jest
+        .fn()
+        .mockRejectedValue(new Error('Simulated MongoDB write failure'));
 
       const { service } = await buildModule(mocks);
 
@@ -522,9 +623,9 @@ describe('CompanyDeletionService', () => {
     it('does not call findOneAndDelete on the company when a prior step fails', async () => {
       const mocks = fullyPopulatedMocks();
       // Make layout deletion throw so the transaction aborts before the company doc is touched
-      mocks.layoutModel.deleteMany = jest.fn().mockRejectedValue(
-        new Error('layout failure'),
-      );
+      mocks.layoutModel.deleteMany = jest
+        .fn()
+        .mockRejectedValue(new Error('layout failure'));
 
       const { service } = await buildModule(mocks);
 
@@ -554,7 +655,10 @@ describe('CompanyDeletionService', () => {
 
       await service.deleteCompany('acme');
 
-      const [filter] = mocks.invitationModel.deleteMany.mock.calls[0] as [any, any];
+      const [filter] = mocks.invitationModel.deleteMany.mock.calls[0] as [
+        any,
+        any,
+      ];
       expect(typeof filter.companyId).toBe('string');
       expect(filter.companyId).toBe(COMPANY_ID.toString());
     });

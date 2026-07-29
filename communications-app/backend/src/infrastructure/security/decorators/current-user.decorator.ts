@@ -12,6 +12,6 @@ import type { AuthContext } from '../types/auth-context.types';
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthContext | undefined => {
     const request = ctx.switchToHttp().getRequest();
-    return (request as any).authContext as AuthContext | undefined;
+    return request.authContext as AuthContext | undefined;
   },
 );

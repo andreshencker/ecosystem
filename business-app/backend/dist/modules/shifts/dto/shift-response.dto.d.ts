@@ -1,14 +1,21 @@
 import type { ShiftDocument, ShiftStatus, SyncStatus } from '../schemas/shift.schema';
+export interface ContractSummary {
+    id: string;
+    customerId: string | null;
+    customerName: string | null;
+    positionName: string;
+}
 export interface ShiftResponseDto {
     id: string;
     businessId: string;
     contractId: string | null;
     customerId: string | null;
+    contract: ContractSummary | null;
     date: string;
     startTime: string;
     endDate: string | null;
     endTime: string;
-    breakMinutes: number | null;
+    breakTaken: boolean;
     status: ShiftStatus;
     location: string | null;
     notes: string | null;

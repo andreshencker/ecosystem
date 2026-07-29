@@ -7,65 +7,85 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 
-import { Company, CompanyDocument }
-  from './schemas/company.schema';
-import { CompanyTheme, CompanyThemeDocument }
-  from '../company-theme/schemas/company-theme.schema';
-import { LayoutTemplate, LayoutTemplateDocument }
-  from '../../notifications/template/layout-templates/schemas/layout-template.schema';
-import { CompanyIntegration, CompanyIntegrationDocument }
-  from '../integrations/schemas/company-integration.schema';
-import { CompanyChannelProvider, CompanyChannelProviderDocument }
-  from '../../channels/company-channel-providers/schemas/company-channel-provider.schema';
-import { ProviderCredentials, ProviderCredentialsDocument }
-  from '../../channels/provider-credentials/schemas/provider-credentials.schema';
-import { DomainCatalogue, DomainCatalogueDocument }
-  from '../../notifications/events/domain-catalogue/schemas/domain-catalogue.schema';
-import { EventCatalogue, EventCatalogueDocument }
-  from '../../notifications/events/event-catalogue/schemas/event-catalogue.schema';
-import { NotificationExecutionLog, NotificationExecutionLogDocument }
-  from '../../notifications/execution-log/schemas/execution-log.schema';
-import { CompanySmtp, CompanySmtpDocument }
-  from '../../../company/schemas/company-smtp.schema';
-import { Invitation, InvitationDocument }
-  from '../../../user-invitations/schemas/invitation.schema';
-import { User, UserDocument }
-  from '../../../users/schemas/user.schema';
-import { RefreshToken, RefreshTokenDocument }
-  from '../../../auth/schemas/refresh-token.schema';
+import { Company, CompanyDocument } from './schemas/company.schema';
+import {
+  CompanyTheme,
+  CompanyThemeDocument,
+} from '../company-theme/schemas/company-theme.schema';
+import {
+  LayoutTemplate,
+  LayoutTemplateDocument,
+} from '../../notifications/template/layout-templates/schemas/layout-template.schema';
+import {
+  CompanyIntegration,
+  CompanyIntegrationDocument,
+} from '../integrations/schemas/company-integration.schema';
+import {
+  CompanyChannelProvider,
+  CompanyChannelProviderDocument,
+} from '../../channels/company-channel-providers/schemas/company-channel-provider.schema';
+import {
+  ProviderCredentials,
+  ProviderCredentialsDocument,
+} from '../../channels/provider-credentials/schemas/provider-credentials.schema';
+import {
+  DomainCatalogue,
+  DomainCatalogueDocument,
+} from '../../notifications/events/domain-catalogue/schemas/domain-catalogue.schema';
+import {
+  EventCatalogue,
+  EventCatalogueDocument,
+} from '../../notifications/events/event-catalogue/schemas/event-catalogue.schema';
+import {
+  NotificationExecutionLog,
+  NotificationExecutionLogDocument,
+} from '../../notifications/execution-log/schemas/execution-log.schema';
+import {
+  CompanySmtp,
+  CompanySmtpDocument,
+} from '../../../company/schemas/company-smtp.schema';
+import {
+  Invitation,
+  InvitationDocument,
+} from '../../../user-invitations/schemas/invitation.schema';
+import { User, UserDocument } from '../../../users/schemas/user.schema';
+import {
+  RefreshToken,
+  RefreshTokenDocument,
+} from '../../../auth/schemas/refresh-token.schema';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface CascadeDeleteSummary {
-  company_themes:               number;
-  layout_templates:             number;
-  company_integrations:         number;
-  company_channel_providers:    number;
-  provider_credentials:         number;
-  domain_catalogues:            number;
-  event_catalogue:              number;
-  notification_execution_logs:  number;
-  company_smtp:                 number;
-  invitations:                  number;
-  users:                        number;
-  refresh_tokens:               number;
+  company_themes: number;
+  layout_templates: number;
+  company_integrations: number;
+  company_channel_providers: number;
+  provider_credentials: number;
+  domain_catalogues: number;
+  event_catalogue: number;
+  notification_execution_logs: number;
+  company_smtp: number;
+  invitations: number;
+  users: number;
+  refresh_tokens: number;
 }
 
 export interface DeleteCompanyResult {
-  deleted:          boolean;
-  dryRun:           boolean;
-  companyKey:       string;
-  summary:          CascadeDeleteSummary;
-  totalDocuments:   number;
+  deleted: boolean;
+  dryRun: boolean;
+  companyKey: string;
+  summary: CascadeDeleteSummary;
+  totalDocuments: number;
 }
 
 // ─── Internal type ────────────────────────────────────────────────────────────
 
 interface DependencyIds {
-  themeIds:  Types.ObjectId[];
-  ccpIds:    Types.ObjectId[];
+  themeIds: Types.ObjectId[];
+  ccpIds: Types.ObjectId[];
   domainIds: Types.ObjectId[];
-  userIds:   Types.ObjectId[];
+  userIds: Types.ObjectId[];
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -121,8 +141,8 @@ export class CompanyDeletionService {
     companyKey: string,
     options: { dryRun?: boolean } = {},
   ): Promise<DeleteCompanyResult> {
-    const company      = await this.validateCompany(companyKey);
-    const companyId    = (company as any)._id as Types.ObjectId;
+    const company = await this.validateCompany(companyKey);
+    const companyId = (company as any)._id as Types.ObjectId;
     const companyIdStr = companyId.toString();
 
     // Collect intermediate IDs before any write — reads are always outside
@@ -133,7 +153,12 @@ export class CompanyDeletionService {
       return this.buildDryRunResult(companyKey, companyId, companyIdStr, deps);
     }
 
-    const summary = await this.executeDelete(companyId, companyIdStr, companyKey, deps);
+    const summary = await this.executeDelete(
+      companyId,
+      companyIdStr,
+      companyKey,
+      deps,
+    );
 
     // Fire-and-forget: external storage cleanup (logos, avatars, bucket assets).
     this.deleteMedia(companyIdStr).catch((err) =>
@@ -147,7 +172,13 @@ export class CompanyDeletionService {
       `Company "${companyKey}" deleted. Total documents removed: ${totalDocuments}.`,
     );
 
-    return { deleted: true, dryRun: false, companyKey, summary, totalDocuments };
+    return {
+      deleted: true,
+      dryRun: false,
+      companyKey,
+      summary,
+      totalDocuments,
+    };
   }
 
   // ─── Validation ──────────────────────────────────────────────────────────────
@@ -159,9 +190,7 @@ export class CompanyDeletionService {
       throw new NotFoundException(`Company "${companyKey}" not found.`);
     }
     if ((company as any).isPlatformCompany) {
-      throw new ForbiddenException(
-        'The modules company cannot be deleted.',
-      );
+      throw new ForbiddenException('The modules company cannot be deleted.');
     }
 
     return company;
@@ -183,10 +212,10 @@ export class CompanyDeletionService {
     ]);
 
     return {
-      themeIds:  themeIds  as Types.ObjectId[],
-      ccpIds:    ccpIds    as Types.ObjectId[],
-      domainIds: domainIds as Types.ObjectId[],
-      userIds:   userIds   as Types.ObjectId[],
+      themeIds: themeIds,
+      ccpIds: ccpIds,
+      domainIds: domainIds,
+      userIds: userIds,
     };
   }
 
@@ -209,7 +238,13 @@ export class CompanyDeletionService {
       `[DRY RUN] Would delete ${totalDocuments} documents across 12 collections.`,
     );
 
-    return { deleted: false, dryRun: true, companyKey, summary, totalDocuments };
+    return {
+      deleted: false,
+      dryRun: true,
+      companyKey,
+      summary,
+      totalDocuments,
+    };
   }
 
   private async dryRunCounts(
@@ -240,25 +275,29 @@ export class CompanyDeletionService {
       }),
     ]);
 
-    const [layout_templates, provider_credentials, event_catalogue, refresh_tokens] =
-      await Promise.all([
-        themeIds.length
-          ? this.layoutModel.countDocuments({ companyThemeId: { $in: themeIds } })
-          : 0,
-        ccpIds.length
-          ? this.credentialsModel.countDocuments({
-              companyChannelProviderId: { $in: ccpIds },
-            })
-          : 0,
-        domainIds.length
-          ? this.eventModel.countDocuments({
-              domainCatalogueId: { $in: domainIds },
-            })
-          : 0,
-        userIds.length
-          ? this.tokenModel.countDocuments({ userId: { $in: userIds } })
-          : 0,
-      ]);
+    const [
+      layout_templates,
+      provider_credentials,
+      event_catalogue,
+      refresh_tokens,
+    ] = await Promise.all([
+      themeIds.length
+        ? this.layoutModel.countDocuments({ companyThemeId: { $in: themeIds } })
+        : 0,
+      ccpIds.length
+        ? this.credentialsModel.countDocuments({
+            companyChannelProviderId: { $in: ccpIds },
+          })
+        : 0,
+      domainIds.length
+        ? this.eventModel.countDocuments({
+            domainCatalogueId: { $in: domainIds },
+          })
+        : 0,
+      userIds.length
+        ? this.tokenModel.countDocuments({ userId: { $in: userIds } })
+        : 0,
+    ]);
 
     return {
       company_themes,
@@ -287,18 +326,18 @@ export class CompanyDeletionService {
     const { themeIds, ccpIds, domainIds, userIds } = deps;
 
     const summary: CascadeDeleteSummary = {
-      company_themes:               0,
-      layout_templates:             0,
-      company_integrations:         0,
-      company_channel_providers:    0,
-      provider_credentials:         0,
-      domain_catalogues:            0,
-      event_catalogue:              0,
-      notification_execution_logs:  0,
-      company_smtp:                 0,
-      invitations:                  0,
-      users:                        0,
-      refresh_tokens:               0,
+      company_themes: 0,
+      layout_templates: 0,
+      company_integrations: 0,
+      company_channel_providers: 0,
+      provider_credentials: 0,
+      domain_catalogues: 0,
+      event_catalogue: 0,
+      notification_execution_logs: 0,
+      company_smtp: 0,
+      invitations: 0,
+      users: 0,
+      refresh_tokens: 0,
     };
 
     this.logger.log(`Starting cascade delete for company "${companyKey}"…`);
@@ -307,25 +346,43 @@ export class CompanyDeletionService {
     try {
       await session.withTransaction(async () => {
         // ── Phase 2: Second-level children (depend on intermediate IDs) ──────
-        summary.layout_templates      = await this.deleteLayouts(themeIds, session);
-        summary.provider_credentials  = await this.deleteCredentials(ccpIds, session);
-        summary.event_catalogue       = await this.deleteEvents(domainIds, session);
-        summary.refresh_tokens        = await this.deleteRefreshTokens(userIds, session);
+        summary.layout_templates = await this.deleteLayouts(themeIds, session);
+        summary.provider_credentials = await this.deleteCredentials(
+          ccpIds,
+          session,
+        );
+        summary.event_catalogue = await this.deleteEvents(domainIds, session);
+        summary.refresh_tokens = await this.deleteRefreshTokens(
+          userIds,
+          session,
+        );
 
         // ── Phase 3: Direct children (companyId: ObjectId) ───────────────────
-        summary.notification_execution_logs =
-          await this.deleteLogs(companyId, session);
-        summary.company_themes        = await this.deleteThemes(companyId, session);
-        summary.company_channel_providers =
-          await this.deleteCCPs(companyId, session);
-        summary.domain_catalogues     = await this.deleteDomains(companyId, session);
-        summary.company_integrations  =
-          await this.deleteIntegrations(companyId, session);
+        summary.notification_execution_logs = await this.deleteLogs(
+          companyId,
+          session,
+        );
+        summary.company_themes = await this.deleteThemes(companyId, session);
+        summary.company_channel_providers = await this.deleteCCPs(
+          companyId,
+          session,
+        );
+        summary.domain_catalogues = await this.deleteDomains(
+          companyId,
+          session,
+        );
+        summary.company_integrations = await this.deleteIntegrations(
+          companyId,
+          session,
+        );
 
         // ── Phase 4: Direct children (companyId: string) ─────────────────────
-        summary.company_smtp   = await this.deleteSmtp(companyIdStr, session);
-        summary.invitations    = await this.deleteInvitations(companyIdStr, session);
-        summary.users          = await this.deleteUsers(companyIdStr, session);
+        summary.company_smtp = await this.deleteSmtp(companyIdStr, session);
+        summary.invitations = await this.deleteInvitations(
+          companyIdStr,
+          session,
+        );
+        summary.users = await this.deleteUsers(companyIdStr, session);
 
         // ── Phase 5: Company document ─────────────────────────────────────────
         await this.deleteCompanyDocument(companyKey, session);

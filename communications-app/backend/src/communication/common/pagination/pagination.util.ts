@@ -34,9 +34,7 @@ export function parsePagination(
     );
   }
   if (!Number.isInteger(offset) || offset < 0) {
-    throw new BadRequestException(
-      'offset must be a non-negative integer',
-    );
+    throw new BadRequestException('offset must be a non-negative integer');
   }
 
   return { limit, offset };

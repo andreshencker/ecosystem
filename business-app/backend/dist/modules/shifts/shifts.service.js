@@ -19,6 +19,7 @@ const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const shift_schema_1 = require("./schemas/shift.schema");
 const contract_schema_1 = require("../contracts/schemas/contract.schema");
+const customer_schema_1 = require("../customer/schemas/customer.schema");
 const communications_client_service_1 = require("../../integrations/communications/client/communications-client.service");
 const business_intelligence_service_1 = require("../../integrations/business-intelligence/business-intelligence.service");
 const users_service_1 = require("../users/users.service");
@@ -27,15 +28,17 @@ const communications_calendar_client_1 = require("../linked-calendars/clients/co
 let ShiftsService = ShiftsService_1 = class ShiftsService {
     model;
     contractModel;
+    customerModel;
     commClient;
     biService;
     usersService;
     linkedCalendarsService;
     calendarClient;
     logger = new common_1.Logger(ShiftsService_1.name);
-    constructor(model, contractModel, commClient, biService, usersService, linkedCalendarsService, calendarClient) {
+    constructor(model, contractModel, customerModel, commClient, biService, usersService, linkedCalendarsService, calendarClient) {
         this.model = model;
         this.contractModel = contractModel;
+        this.customerModel = customerModel;
         this.commClient = commClient;
         this.biService = biService;
         this.usersService = usersService;
@@ -54,6 +57,57 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
             throw new common_1.NotFoundException('Contract not found or does not belong to this business');
         }
         return contract;
+    }
+    async _summaryFromContractDoc(contract) {
+        const customerId = contract.customerId ?? null;
+        const customer = customerId
+            ? await this.customerModel.findById(customerId).select('displayName').lean().exec()
+            : null;
+        return {
+            id: String(contract._id),
+            customerId,
+            customerName: customer?.displayName ?? null,
+            positionName: contract.positionName,
+        };
+    }
+    async _resolveContractSummary(contractId, businessId) {
+        if (!contractId)
+            return null;
+        const contract = await this.contractModel
+            .findOne({ _id: contractId, businessId })
+            .lean()
+            .exec();
+        if (!contract)
+            return null;
+        return this._summaryFromContractDoc(contract);
+    }
+    async _buildContractSummaryMap(shifts, businessId) {
+        const contractIds = [...new Set(shifts.map((s) => s.contractId).filter(Boolean))];
+        if (!contractIds.length)
+            return new Map();
+        const contracts = await this.contractModel
+            .find({ _id: { $in: contractIds }, businessId })
+            .lean()
+            .exec();
+        const customerIds = [...new Set(contracts.map((c) => c.customerId).filter(Boolean))];
+        const customers = customerIds.length > 0
+            ? await this.customerModel
+                .find({ _id: { $in: customerIds } })
+                .select('_id displayName')
+                .lean()
+                .exec()
+            : [];
+        const customerNameMap = new Map(customers.map((c) => [String(c._id), c.displayName ?? null]));
+        const result = new Map();
+        for (const contract of contracts) {
+            result.set(String(contract._id), {
+                id: String(contract._id),
+                customerId: contract.customerId ?? null,
+                customerName: customerNameMap.get(String(contract.customerId)) ?? null,
+                positionName: contract.positionName,
+            });
+        }
+        return result;
     }
     async create(businessId, dto, actor) {
         const contract = await this.assertContractOwnership(dto.contractId, businessId);
@@ -76,7 +130,7 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
             date: dto.date,
             startTime: dto.startTime,
             endTime: dto.endTime,
-            breakMinutes: dto.breakMinutes ?? null,
+            breakTaken: dto.breakTaken ?? false,
             status: dto.status ?? 'draft',
             location: dto.location?.trim() ?? null,
             notes: dto.notes?.trim() ?? null,
@@ -111,8 +165,8 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
                 }, { new: true })
                     .lean()
                     .exec();
-                this._notify('shifts.shift_created', synced ?? doc, contract, actor).catch(() => void 0);
-                return (synced ?? doc);
+                const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+                return { ...(synced ?? doc), contractSummary };
             }
             catch (err) {
                 await this.model
@@ -124,8 +178,8 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
                 throw err;
             }
         }
-        this._notify('shifts.shift_created', doc, contract, actor).catch(() => void 0);
-        return doc;
+        const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+        return { ...doc, contractSummary };
     }
     async findAll(businessId, params) {
         const { page, limit, contractId, customerId, status, date, search, source, linkedCalendarId } = params;
@@ -159,12 +213,21 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
                 .exec(),
             this.model.countDocuments(filter),
         ]);
-        return { items, total, page, limit };
+        const summaryMap = await this._buildContractSummaryMap(items, businessId);
+        const enriched = items.map((shift) => ({
+            ...shift,
+            contractSummary: summaryMap.get(String(shift.contractId)) ?? null,
+        }));
+        return { items: enriched, total, page, limit };
     }
     async findById(id, businessId) {
         if (!mongoose_2.Types.ObjectId.isValid(id))
             return null;
-        return this.model.findOne({ _id: id, businessId }).lean().exec();
+        const doc = await this.model.findOne({ _id: id, businessId }).lean().exec();
+        if (!doc)
+            return null;
+        const contractSummary = await this._resolveContractSummary(doc.contractId, businessId);
+        return { ...doc, contractSummary };
     }
     async findByIdOrThrow(id, businessId) {
         const doc = await this.findById(id, businessId);
@@ -177,7 +240,14 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
         if (existing.status === 'cancelled') {
             throw new common_1.BadRequestException('Cannot update a cancelled shift');
         }
+        let resolvedContract = null;
         const $set = {};
+        if (dto.contractId !== undefined) {
+            resolvedContract = await this.assertContractOwnership(dto.contractId, businessId);
+            $set.contractId = dto.contractId;
+            $set.customerId = resolvedContract.customerId ?? null;
+            $set.contractAssigned = true;
+        }
         if (dto.title !== undefined)
             $set.title = dto.title?.trim() ?? null;
         if (dto.date !== undefined)
@@ -186,8 +256,8 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
             $set.startTime = dto.startTime;
         if (dto.endTime !== undefined)
             $set.endTime = dto.endTime;
-        if (dto.breakMinutes !== undefined)
-            $set.breakMinutes = dto.breakMinutes;
+        if (dto.breakTaken !== undefined)
+            $set.breakTaken = dto.breakTaken;
         if (dto.location !== undefined)
             $set.location = dto.location?.trim() ?? null;
         if (dto.notes !== undefined)
@@ -198,14 +268,18 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
             .exec();
         if (!updated)
             throw new common_1.NotFoundException('Shift not found');
-        const contract = await this.contractModel.findById(existing.contractId).lean().exec();
-        this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
+        const effectiveContractId = $set.contractId ?? existing.contractId;
+        const contract = resolvedContract
+            ?? await this.contractModel.findById(existing.contractId).lean().exec();
+        const contractSummary = contract
+            ? await this._summaryFromContractDoc(contract).catch(() => null)
+            : await this._resolveContractSummary(effectiveContractId, businessId);
         const externalOccurrenceId = existing.externalOccurrenceId;
         const linkedCalendarId = existing.linkedCalendarId;
         if (externalOccurrenceId && linkedCalendarId) {
             this._pushExternalUpdate(businessId, linkedCalendarId, externalOccurrenceId, updated).catch((err) => this.logger.warn(`[ShiftsService.update] External calendar update failed for shift ${id}: ${err?.message}`));
         }
-        return updated;
+        return { ...updated, contractSummary };
     }
     static computeEndDateStr(date, startTime, endTime) {
         if (endTime < startTime) {
@@ -249,8 +323,10 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
         if (!updated)
             throw new common_1.NotFoundException('Shift not found');
         const contract = await this.contractModel.findById(doc.contractId).lean().exec();
-        this._notify('shifts.shift_confirmed', updated, contract, actor).catch(() => void 0);
-        return updated;
+        const contractSummary = contract
+            ? await this._summaryFromContractDoc(contract).catch(() => null)
+            : null;
+        return { ...updated, contractSummary };
     }
     async cancel(id, businessId, actor) {
         const doc = await this.findByIdOrThrow(id, businessId);
@@ -265,8 +341,10 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
         if (!updated)
             throw new common_1.NotFoundException('Shift not found');
         const contract = await this.contractModel.findById(doc.contractId).lean().exec();
-        this._notify('shifts.shift_cancelled', updated, contract, actor).catch(() => void 0);
-        return updated;
+        const contractSummary = contract
+            ? await this._summaryFromContractDoc(contract).catch(() => null)
+            : null;
+        return { ...updated, contractSummary };
     }
     async assignContract(id, businessId, contractId, actor) {
         const doc = await this.findByIdOrThrow(id, businessId);
@@ -286,8 +364,8 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
             .exec();
         if (!updated)
             throw new common_1.NotFoundException('Shift not found');
-        this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
-        return updated;
+        const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+        return { ...updated, contractSummary };
     }
     async bulkAssignContracts(businessId, assignments, actor) {
         if (!assignments.length) {
@@ -395,36 +473,12 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
         }
         const contract = await this.contractModel.findById(doc.contractId).lean().exec();
         await this.model.findOneAndDelete({ _id: id, businessId }).exec();
-        this._notify('shifts.shift_deleted', doc, contract, actor).catch(() => void 0);
     }
     async _notify(eventKey, shift, contract, actor) {
-        try {
-            const businessName = await this.usersService
-                .getCompanyDisplayName(actor.companyId)
-                .catch(() => '');
-            const delivered = await this.commClient.notifyEvent({
-                type: 'business',
-                businessId: actor.companyId,
-                event: eventKey,
-                email: actor.email,
-                data: {
-                    firstName: actor.firstName,
-                    businessName,
-                    contractName: contract?.positionName ?? '',
-                    shiftDate: shift.date,
-                    startTime: shift.startTime,
-                    endTime: shift.endTime,
-                    shiftStatus: shift.status,
-                    actionDate: new Date().toISOString(),
-                    ...(shift.location ? { location: shift.location } : {}),
-                    ...(shift.notes ? { notes: shift.notes } : {}),
-                },
-            });
-            this.logger.log(`[Shift notification] ${eventKey} → ${actor.email} delivered=${delivered}`);
-        }
-        catch (err) {
-            this.logger.error(`[Shift notification] ${eventKey} failed: ${err?.message}`);
-        }
+        void eventKey;
+        void shift;
+        void contract;
+        void actor;
     }
 };
 exports.ShiftsService = ShiftsService;
@@ -432,7 +486,9 @@ exports.ShiftsService = ShiftsService = ShiftsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(shift_schema_1.Shift.name)),
     __param(1, (0, mongoose_1.InjectModel)(contract_schema_1.Contract.name)),
+    __param(2, (0, mongoose_1.InjectModel)(customer_schema_1.Customer.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         mongoose_2.Model,
         communications_client_service_1.CommunicationsClientService,
         business_intelligence_service_1.BusinessIntelligenceService,

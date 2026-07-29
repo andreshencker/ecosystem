@@ -44,6 +44,8 @@ def _calc_net_minutes(start: Any, end: Any, break_min: Any) -> Optional[int]:
     if start_min is None or end_min is None:
         return None
     gross = end_min - start_min
+    if gross < 0:
+        gross += 24 * 60
     try:
         break_val = int(break_min or 0)
     except (ValueError, TypeError):
@@ -92,7 +94,9 @@ class ShiftTransformer(AbstractTransformer[dict, FactShift]):
             shift_date=_to_date(raw.get("date")),
             start_time=raw.get("startTime"),
             end_time=raw.get("endTime"),
+            end_date=_to_date(raw.get("endDate")),
             break_minutes=raw.get("breakMinutes"),
+            break_taken=bool(raw.get("breakTaken", False)),
             duration_minutes=duration_minutes,
             duration_hours=duration_hours,
             shift_status=raw.get("status") or "draft",

@@ -28,8 +28,10 @@ export class CompanyPortalService {
   private readonly logger = new Logger(CompanyPortalService.name);
 
   constructor(
-    @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
-    @InjectModel(CompanySmtp.name) private readonly smtpModel: Model<CompanySmtpDocument>,
+    @InjectModel(Company.name)
+    private readonly companyModel: Model<CompanyDocument>,
+    @InjectModel(CompanySmtp.name)
+    private readonly smtpModel: Model<CompanySmtpDocument>,
     private readonly crypto: CryptoService,
     private readonly users: UsersService,
   ) {}
@@ -65,10 +67,10 @@ export class CompanyPortalService {
     // platform_admin may have a null companyId in early bootstrap environments.
     // Fall back to the designated modules company document.
     if (user.scope === 'global') {
-      const platformCompany = await this.companyModel
+      const platformCompany = (await this.companyModel
         .findOne({ isPlatformCompany: true })
         .lean()
-        .exec() as any;
+        .exec()) as any;
       if (platformCompany?._id) {
         return String(platformCompany._id);
       }
@@ -110,16 +112,38 @@ export class CompanyPortalService {
 
     const $set: Record<string, any> = {};
     const allFields: (keyof UpdateCompanyPortalDto)[] = [
-      'displayName', 'legalName', 'tagline', 'timezone',
-      'supportEmail', 'supportPhone', 'supportHours',
-      'addressLine1', 'addressLine2', 'addressCity', 'addressState',
-      'addressPostalCode', 'addressCountry',
-      'webBaseUrl', 'apiBaseUrl', 'helpCenterUrl', 'privacyPolicyUrl',
-      'termsUrl', 'unsubscribeUrl',
-      'facebook', 'instagram', 'linkedin', 'x', 'youtube',
-      'tiktok', 'whatsapp', 'telegram',
-      'copyrightText', 'disclaimerShort', 'disclaimerLong',
-      'logoIconUrl', 'logoFullUrl',
+      'displayName',
+      'legalName',
+      'tagline',
+      'timezone',
+      'supportEmail',
+      'supportPhone',
+      'supportHours',
+      'addressLine1',
+      'addressLine2',
+      'addressCity',
+      'addressState',
+      'addressPostalCode',
+      'addressCountry',
+      'webBaseUrl',
+      'apiBaseUrl',
+      'helpCenterUrl',
+      'privacyPolicyUrl',
+      'termsUrl',
+      'unsubscribeUrl',
+      'facebook',
+      'instagram',
+      'linkedin',
+      'x',
+      'youtube',
+      'tiktok',
+      'whatsapp',
+      'telegram',
+      'copyrightText',
+      'disclaimerShort',
+      'disclaimerLong',
+      'logoIconUrl',
+      'logoFullUrl',
     ];
     for (const field of allFields) {
       if (dto[field] !== undefined) $set[field] = dto[field];
@@ -169,19 +193,30 @@ export class CompanyPortalService {
     if (dto.fromName !== undefined) $set.fromName = dto.fromName;
 
     const hasCredentialFields =
-      dto.host || dto.user || dto.pass || dto.port !== undefined || dto.secure !== undefined;
+      dto.host ||
+      dto.user ||
+      dto.pass ||
+      dto.port !== undefined ||
+      dto.secure !== undefined;
     if (hasCredentialFields) {
-      const existing = await this.smtpModel.findOne({ companyId }).lean().exec() as any;
+      const existing = (await this.smtpModel
+        .findOne({ companyId })
+        .lean()
+        .exec()) as any;
       let existingDecrypted: any = {};
       if (existing?.credentials) {
-        try { existingDecrypted = this.crypto.decryptJson(existing.credentials); } catch { /* ignore */ }
+        try {
+          existingDecrypted = this.crypto.decryptJson(existing.credentials);
+        } catch {
+          /* ignore */
+        }
       }
       const merged = {
-        host:   dto.host   ?? existingDecrypted.host   ?? '',
-        port:   dto.port   ?? existingDecrypted.port   ?? 587,
+        host: dto.host ?? existingDecrypted.host ?? '',
+        port: dto.port ?? existingDecrypted.port ?? 587,
         secure: dto.secure ?? existingDecrypted.secure ?? false,
-        user:   dto.user   ?? existingDecrypted.user   ?? '',
-        pass:   dto.pass   ?? existingDecrypted.pass   ?? '',
+        user: dto.user ?? existingDecrypted.user ?? '',
+        pass: dto.pass ?? existingDecrypted.pass ?? '',
       };
       $set.credentials = this.crypto.encryptJson(merged);
       $set.verifiedAt = null;
@@ -197,7 +232,10 @@ export class CompanyPortalService {
 
   async testSmtp(ctx: AuthContext): Promise<{ ok: boolean; message: string }> {
     const companyId = await this.resolveCompanyId(ctx);
-    const doc = await this.smtpModel.findOne({ companyId }).lean().exec() as any;
+    const doc = (await this.smtpModel
+      .findOne({ companyId })
+      .lean()
+      .exec()) as any;
 
     if (!doc?.credentials) {
       return { ok: false, message: 'No SMTP credentials configured' };
@@ -212,7 +250,9 @@ export class CompanyPortalService {
 
     try {
       const transporter = nodemailer.createTransport({
-        host: smtp.host, port: smtp.port, secure: smtp.secure,
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
         auth: { user: smtp.user, pass: smtp.pass },
       });
       await transporter.verify();

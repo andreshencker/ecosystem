@@ -8,6 +8,7 @@ import { TemplateEngineModule } from '../common/template-engine/template-engine.
 import { SourceOfTruthModule } from '../common/source-of-truth/source-of-truth.module';
 import { GeneratorModule } from '../../files/generator/generator.module';
 import { ReportModule } from '../../files/reports/report.module';
+import { DocumentCatalogueModule } from '../../files/document-catalogue/document-catalogue.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ReportModule } from '../../files/reports/report.module';
     SourceOfTruthModule,
     GeneratorModule,
     ReportModule,
+    DocumentCatalogueModule,
   ],
   controllers: [PreviewController],
   providers: [PreviewService, CommunicationApiKeyGuard],

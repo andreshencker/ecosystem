@@ -9,7 +9,12 @@ import type { UserRole } from '../../users/schemas/user.schema';
  * expired          — invitation expired before use.
  * cancelled        — admin cancelled.
  */
-export type InvitationStatus = 'pending' | 'pending_delivery' | 'accepted' | 'expired' | 'cancelled';
+export type InvitationStatus =
+  | 'pending'
+  | 'pending_delivery'
+  | 'accepted'
+  | 'expired'
+  | 'cancelled';
 
 /**
  * Scope of the invitation in terms of who issued it.
@@ -45,7 +50,13 @@ export class Invitation {
   @Prop({
     type: String,
     required: true,
-    enum: ['platform_admin', 'company_owner', 'company_admin', 'operator', 'viewer'],
+    enum: [
+      'platform_admin',
+      'company_owner',
+      'company_admin',
+      'operator',
+      'viewer',
+    ],
   })
   role!: UserRole;
 

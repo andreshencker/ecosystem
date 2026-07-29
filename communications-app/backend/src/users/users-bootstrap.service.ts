@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
-import { Company, CompanyDocument } from '../communication/company/company-info/schemas/company.schema';
+import {
+  Company,
+  CompanyDocument,
+} from '../communication/company/company-info/schemas/company.schema';
 import { CompanyProvisioningService } from '../communication/company/provisioning/company-provisioning.service';
 
 const BCRYPT_ROUNDS = 12;
@@ -34,7 +37,8 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-    @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
+    @InjectModel(Company.name)
+    private readonly companyModel: Model<CompanyDocument>,
     private readonly provisioning: CompanyProvisioningService,
   ) {}
 
@@ -143,8 +147,12 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
    * by DEFAULT_COMPANY_EVENTS updates (e.g. company_verify_email) without touching
    * existing ones (DEC-017 §21.1 idempotency rule).
    */
-  private async ensurePlatformCompanyProvisioned(companyId: string): Promise<void> {
-    const report = await this.provisioning.provisionCompany(companyId, { isPlatformCompany: true });
+  private async ensurePlatformCompanyProvisioned(
+    companyId: string,
+  ): Promise<void> {
+    const report = await this.provisioning.provisionCompany(companyId, {
+      isPlatformCompany: true,
+    });
     if (report.errors.length > 0) {
       this.logger.warn(
         `Bootstrap: platform company provisioning had errors — ${JSON.stringify(report.errors)}`,
@@ -156,7 +164,9 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
           `Bootstrap: platform company provisioning created events: [${created.join(', ')}]`,
         );
       } else {
-        this.logger.log('Bootstrap: modules company provisioning — all assets already present.');
+        this.logger.log(
+          'Bootstrap: modules company provisioning — all assets already present.',
+        );
       }
     }
   }
@@ -177,7 +187,9 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
         `Bootstrap: tenant catalogue cleanup removed ${deletedDomains} domain(s) and ${deletedEvents} event(s).`,
       );
     } else {
-      this.logger.log('Bootstrap: tenant catalogues already clean — no action taken.');
+      this.logger.log(
+        'Bootstrap: tenant catalogues already clean — no action taken.',
+      );
     }
   }
 
@@ -189,17 +201,21 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
    * restart; no-ops when everything is already present.
    */
   private async ensureInvoiceAppSecurityEvents(): Promise<void> {
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findOne({ companyKey: 'invoice-app' })
       .select('_id displayName')
-      .lean() as any;
+      .lean()) as any;
 
     if (!company) {
-      this.logger.log('Bootstrap: invoice-app company not found — skipping tenant security events.');
+      this.logger.log(
+        'Bootstrap: invoice-app company not found — skipping tenant security events.',
+      );
       return;
     }
 
-    const report = await this.provisioning.provisionTenantSecurityEvents(String(company._id));
+    const report = await this.provisioning.provisionTenantSecurityEvents(
+      String(company._id),
+    );
 
     if (report.errors.length > 0) {
       this.logger.warn(
@@ -212,7 +228,9 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
         `Bootstrap: invoice-app security events created: [${report.created.events.join(', ')}]`,
       );
     } else {
-      this.logger.log('Bootstrap: invoice-app security events — all already present.');
+      this.logger.log(
+        'Bootstrap: invoice-app security events — all already present.',
+      );
     }
   }
 }

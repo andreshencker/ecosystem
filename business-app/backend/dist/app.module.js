@@ -34,7 +34,9 @@ const contracts_module_1 = require("./modules/contracts/contracts.module");
 const shifts_module_1 = require("./modules/shifts/shifts.module");
 const linked_calendars_module_1 = require("./modules/linked-calendars/linked-calendars.module");
 const mdm_module_1 = require("./mdm/mdm.module");
+const invoices_module_1 = require("./modules/invoices/invoices.module");
 const analytics_module_1 = require("./analytics/analytics.module");
+const shift_invoice_1 = require("./integrations/business-intelligence/contracts/invoice/shift-invoice");
 const platform_admin_module_1 = require("./modules/platform-admin/platform-admin.module");
 let AppModule = class AppModule {
     configure(consumer) {
@@ -70,7 +72,9 @@ exports.AppModule = AppModule = __decorate([
             shifts_module_1.ShiftsModule,
             linked_calendars_module_1.LinkedCalendarsModule,
             mdm_module_1.MdmModule,
+            invoices_module_1.InvoicesModule,
             analytics_module_1.AnalyticsModule,
+            shift_invoice_1.ShiftInvoiceModule,
             platform_admin_module_1.PlatformAdminModule,
         ],
         controllers: [app_controller_1.AppController],

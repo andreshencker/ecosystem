@@ -90,7 +90,9 @@ export class ChannelsRuntimeResolverService {
       .exec()) as unknown as PopulatedPC | null;
 
     if (!pc) {
-      this.logger.warn(`[resolve] ProviderCredentials not found: id=${params.providerCredentialsId}`);
+      this.logger.warn(
+        `[resolve] ProviderCredentials not found: id=${params.providerCredentialsId}`,
+      );
       throw new HttpException(
         'Provider credential not found — it may have been deleted',
         HttpStatus.NOT_FOUND,
@@ -124,14 +126,14 @@ export class ChannelsRuntimeResolverService {
 
     this.logger.debug(
       `[resolve] ccp.id=${String(ccp._id)} ccp.companyId=${String(ccp.companyId)} ` +
-      `ccp.isActive=${ccp.isActive} (type=${typeof ccp.isActive}) ` +
-      `expected companyId=${params.companyId}`,
+        `ccp.isActive=${ccp.isActive} (type=${typeof ccp.isActive}) ` +
+        `expected companyId=${params.companyId}`,
     );
 
     if (String(ccp.companyId) !== String(companyId)) {
       this.logger.warn(
         `[resolve] companyId mismatch: credential.ccp.companyId=${String(ccp.companyId)} ` +
-        `vs requested companyId=${params.companyId}`,
+          `vs requested companyId=${params.companyId}`,
       );
       throw new HttpException(
         'Provider credential does not belong to this company — check domain configuration',
@@ -168,7 +170,7 @@ export class ChannelsRuntimeResolverService {
 
     this.logger.debug(
       `[resolve] provider=${provider.providerKey} connectionType=${provider.connectionType} ` +
-      `channel=${channel.channelKey}`,
+        `channel=${channel.channelKey}`,
     );
 
     const credentials = this.decryptCredentials(pc.encrypted);
@@ -318,7 +320,13 @@ export class ChannelsRuntimeResolverService {
       .toLowerCase()
       .trim();
 
-    if (k !== 'email' && k !== 'sms' && k !== 'storage' && k !== 'calendar') {
+    if (
+      k !== 'email' &&
+      k !== 'sms' &&
+      k !== 'storage' &&
+      k !== 'calendar' &&
+      k !== 'payment'
+    ) {
       throw new HttpException(
         `Invalid channelKey "${v}"`,
         HttpStatus.INTERNAL_SERVER_ERROR,

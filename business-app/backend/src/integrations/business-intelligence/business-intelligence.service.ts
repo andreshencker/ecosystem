@@ -57,6 +57,13 @@ export type {
 } from './dto/responses/bi-semantic-metadata.dto';
 export type { SyncResult } from './dto/responses/sync-result.dto';
 export type { SyncStatus } from './dto/responses/sync-status.dto';
+export type {
+  PendingInvoiceGroup,
+  PendingInvoiceGroupsResult,
+  PendingShiftCalculation,
+  PendingGroupStatus,
+  ShiftCalcStatus,
+} from './dto/responses/pending-invoice-groups.dto';
 
 import type { CustomerSummaryResult } from './dto/responses/customer-summary.dto';
 import type { DashboardSummaryResult } from './dto/responses/dashboard-summary.dto';
@@ -72,6 +79,7 @@ import type {
 } from './dto/responses/bi-semantic-metadata.dto';
 import type { SyncResult } from './dto/responses/sync-result.dto';
 import type { SyncStatus } from './dto/responses/sync-status.dto';
+import type { PendingInvoiceGroupsResult } from './dto/responses/pending-invoice-groups.dto';
 
 /**
  * Facade for the Business Intelligence service.
@@ -404,6 +412,27 @@ export class BusinessIntelligenceService {
       );
     } catch (err) {
       if (err instanceof BIUnavailableError && err.message.includes('404')) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  // ── Pending invoice groups ────────────────────────────────────────────────
+
+  async getPendingInvoiceGroups(
+    businessId: string,
+  ): Promise<PendingInvoiceGroupsResult | null> {
+    try {
+      return await this.client.get<PendingInvoiceGroupsResult>(
+        '/internal/invoices/pending-groups',
+        { businessId },
+      );
+    } catch (err) {
+      if (err instanceof BIUnavailableError) {
+        this.logger.error(
+          `[BI] getPendingInvoiceGroups failed businessId=${businessId}: ${err.message}`,
+        );
         return null;
       }
       throw err;

@@ -394,3 +394,100 @@ export interface ApiError {
   message: string;
   error?: string;
 }
+
+// ─── Document Domain Catalogue ────────────────────────────────────────────────
+
+export type DocumentFormat = 'pdf' | 'xlsx' | 'csv' | 'html';
+
+export interface DocumentDomainCatalogue {
+  id: string;
+  companyId: string;
+  domainKey: string;
+  displayName: string;
+  description: string;
+  domainCategory: string;
+  allowedFormats: DocumentFormat[];
+  isActive: boolean;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ─── Document Catalogue ───────────────────────────────────────────────────────
+
+export interface PdfSectionConfig {
+  key: string;
+  type: string;
+  label?: string;
+  enabled?: boolean;
+}
+
+export interface PdfFormatContract {
+  enabled: boolean;
+  version?: string;
+  renderer?: string;
+  layoutType?: string;
+  layoutKey?: string;
+  sections?: PdfSectionConfig[];
+  requiredFields?: string[];
+  optionalFields?: string[];
+  notes?: string;
+}
+
+export interface XlsxColumnConfig {
+  key: string;
+  label?: string;
+  isNumeric?: boolean;
+}
+
+export interface XlsxWorksheetConfig {
+  key: string;
+  label?: string;
+  dataSource?: string;
+  columns?: XlsxColumnConfig[];
+}
+
+export interface XlsxFormatContract {
+  enabled: boolean;
+  version?: string;
+  renderer?: string;
+  worksheets?: XlsxWorksheetConfig[];
+  requiredFields?: string[];
+  optionalFields?: string[];
+  notes?: string;
+}
+
+export interface CsvColumnConfig {
+  key: string;
+  label?: string;
+}
+
+export interface CsvFormatContract {
+  enabled: boolean;
+  version?: string;
+  renderer?: string;
+  dataSource?: string;
+  includeHeaders?: boolean;
+  columns?: CsvColumnConfig[];
+  requiredFields?: string[];
+  optionalFields?: string[];
+  notes?: string;
+}
+
+export interface DocumentFormatContracts {
+  pdf?: PdfFormatContract;
+  xlsx?: XlsxFormatContract;
+  csv?: CsvFormatContract;
+}
+
+export interface DocumentCatalogue {
+  id: string;
+  documentDomainCatalogueId: string | DocumentDomainCatalogue;
+  documentKey: string;
+  displayName: string;
+  description?: string;
+  formatContracts: DocumentFormatContracts;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}

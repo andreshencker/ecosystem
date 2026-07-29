@@ -6,7 +6,7 @@ import { XMLParser } from 'fast-xml-parser';
 // Shared parser instance — namespace prefixes stripped so lookups use local names.
 const _xmlParser = new XMLParser({
   ignoreAttributes: false,
-  removeNSPrefix:   true,
+  removeNSPrefix: true,
 });
 
 /**
@@ -51,7 +51,9 @@ export function extractHrefFromProp(xml: string, propName: string): string {
 
 function _searchPropHref(node: unknown, propName: string): string | undefined {
   if (typeof node !== 'object' || node === null) return undefined;
-  for (const [rawKey, value] of Object.entries(node as Record<string, unknown>)) {
+  for (const [rawKey, value] of Object.entries(
+    node as Record<string, unknown>,
+  )) {
     // removeNSPrefix strips "D:", "C:", etc., but guard with split just in case.
     const localKey = rawKey.split(':').pop()!.toLowerCase();
     if (localKey === propName) {
@@ -65,7 +67,9 @@ function _searchPropHref(node: unknown, propName: string): string | undefined {
 
 function _extractNestedHref(node: unknown): string | undefined {
   if (typeof node !== 'object' || node === null) return undefined;
-  for (const [rawKey, value] of Object.entries(node as Record<string, unknown>)) {
+  for (const [rawKey, value] of Object.entries(
+    node as Record<string, unknown>,
+  )) {
     const localKey = rawKey.split(':').pop()!.toLowerCase();
     if (localKey === 'href') {
       return typeof value === 'string' ? value.trim() : String(value).trim();
@@ -89,10 +93,14 @@ export function buildPropfindBody(props: string[]): string {
 </D:propfind>`;
 }
 
-export function buildCalendarQueryBody(timeMin?: string, timeMax?: string): string {
-  const timeRange = (timeMin || timeMax)
-    ? `<C:time-range${timeMin ? ` start="${toCalDAVDate(timeMin)}"` : ''}${timeMax ? ` end="${toCalDAVDate(timeMax)}"` : ''}/>`
-    : '';
+export function buildCalendarQueryBody(
+  timeMin?: string,
+  timeMax?: string,
+): string {
+  const timeRange =
+    timeMin || timeMax
+      ? `<C:time-range${timeMin ? ` start="${toCalDAVDate(timeMin)}"` : ''}${timeMax ? ` end="${toCalDAVDate(timeMax)}"` : ''}/>`
+      : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
   <D:prop><D:getetag/><C:calendar-data/></D:prop>
@@ -104,7 +112,11 @@ export function buildCalendarQueryBody(timeMin?: string, timeMax?: string): stri
 </C:calendar-query>`;
 }
 
-export function buildMkCalendarBody(name: string, description?: string, color?: string): string {
+export function buildMkCalendarBody(
+  name: string,
+  description?: string,
+  color?: string,
+): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <C:mkcalendar xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:A="http://apple.com/ns/ical/">
   <D:set><D:prop>
@@ -126,7 +138,10 @@ export function buildMkCalendarBody(name: string, description?: string, color?: 
  * MKCALENDAR (i.e., `buildMkCalendarBody`) and inform the user that URL
  * subscription is not supported.
  */
-export function buildMkSubscribedCalendarBody(name: string, icsUrl: string): string {
+export function buildMkSubscribedCalendarBody(
+  name: string,
+  icsUrl: string,
+): string {
   // iCloud CalDAV expects webcal:// for subscribed calendar sources
   const webcalUrl = icsUrl.replace(/^https?:\/\//i, 'webcal://');
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -165,7 +180,10 @@ export function extractHrefValues(xml: string): string[] {
 export function extractPropValue(xml: string, propName: string): string {
   const escaped = propName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const patterns = [
-    new RegExp(`<[A-Za-z]*:?${escaped}[^>]*>([\\s\\S]*?)<\\/[A-Za-z]*:?${escaped}>`, 'i'),
+    new RegExp(
+      `<[A-Za-z]*:?${escaped}[^>]*>([\\s\\S]*?)<\\/[A-Za-z]*:?${escaped}>`,
+      'i',
+    ),
     new RegExp(`<${escaped}[^>]*>([\\s\\S]*?)<\\/${escaped}>`, 'i'),
   ];
   for (const re of patterns) {
@@ -175,8 +193,11 @@ export function extractPropValue(xml: string, propName: string): string {
   return '';
 }
 
-export function parseMultistatusResponses(xml: string): Array<{ href: string; props: string }> {
-  const responseRe = /<(?:[A-Za-z]+:)?response[^>]*>([\s\S]*?)<\/(?:[A-Za-z]+:)?response>/gi;
+export function parseMultistatusResponses(
+  xml: string,
+): Array<{ href: string; props: string }> {
+  const responseRe =
+    /<(?:[A-Za-z]+:)?response[^>]*>([\s\S]*?)<\/(?:[A-Za-z]+:)?response>/gi;
   const results: Array<{ href: string; props: string }> = [];
   let match: RegExpExecArray | null;
   while ((match = responseRe.exec(xml)) !== null) {
@@ -216,11 +237,18 @@ export function buildVEvent(params: {
   allDay?: boolean;
   attendees?: { email: string; name?: string }[];
 }): string {
-  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const now = new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d+/, '');
   const dtStart = formatICalDate(params.startAt, params.allDay ?? false);
   const dtEnd = formatICalDate(params.endAt, params.allDay ?? false);
-  const startProp = params.allDay ? `DTSTART;VALUE=DATE:${dtStart}` : `DTSTART:${dtStart}`;
-  const endProp = params.allDay ? `DTEND;VALUE=DATE:${dtEnd}` : `DTEND:${dtEnd}`;
+  const startProp = params.allDay
+    ? `DTSTART;VALUE=DATE:${dtStart}`
+    : `DTSTART:${dtStart}`;
+  const endProp = params.allDay
+    ? `DTEND;VALUE=DATE:${dtEnd}`
+    : `DTEND:${dtEnd}`;
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -231,7 +259,9 @@ export function buildVEvent(params: {
     startProp,
     endProp,
     `SUMMARY:${foldICalLine(params.title)}`,
-    ...(params.description ? [`DESCRIPTION:${foldICalLine(params.description)}`] : []),
+    ...(params.description
+      ? [`DESCRIPTION:${foldICalLine(params.description)}`]
+      : []),
     ...(params.location ? [`LOCATION:${foldICalLine(params.location)}`] : []),
     ...(params.attendees?.map(
       (a) => `ATTENDEE;CN=${a.name ?? a.email}:mailto:${a.email}`,
@@ -263,7 +293,7 @@ function unfoldIcal(ical: string): string {
   return ical
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
-    .replace(/\n[ \t]/g, '');   // RFC 5545 §3.1 — CRLF + WSP → removed
+    .replace(/\n[ \t]/g, ''); // RFC 5545 §3.1 — CRLF + WSP → removed
 }
 
 // ─── Timezone conversion ──────────────────────────────────────────────────────
@@ -279,15 +309,17 @@ export function utcToLocalDateTimeString(utc: Date, tzid: string): string {
   try {
     const fmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: tzid,
-      year:     'numeric',
-      month:    '2-digit',
-      day:      '2-digit',
-      hour:     '2-digit',
-      minute:   '2-digit',
-      second:   '2-digit',
-      hour12:   false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
     });
-    const parts = Object.fromEntries(fmt.formatToParts(utc).map((p) => [p.type, p.value]));
+    const parts = Object.fromEntries(
+      fmt.formatToParts(utc).map((p) => [p.type, p.value]),
+    );
     const h = parts.hour === '24' ? '00' : parts.hour;
     return `${parts.year}-${parts.month}-${parts.day}T${h}:${parts.minute}:${parts.second}`;
   } catch {
@@ -302,7 +334,7 @@ export function utcToLocalDateTimeString(utc: Date, tzid: string): string {
  */
 function tzLocalToUTC(
   year: number,
-  month: number,  // 0-indexed
+  month: number, // 0-indexed
   day: number,
   hour: number,
   minute: number,
@@ -311,30 +343,34 @@ function tzLocalToUTC(
 ): Date {
   try {
     // Use the local time as an approximate UTC seed, then correct for offset.
-    const approxUTC = new Date(Date.UTC(year, month, day, hour, minute, second));
+    const approxUTC = new Date(
+      Date.UTC(year, month, day, hour, minute, second),
+    );
     const fmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: tzid,
-      year:     'numeric',
-      month:    '2-digit',
-      day:      '2-digit',
-      hour:     '2-digit',
-      minute:   '2-digit',
-      second:   '2-digit',
-      hour12:   false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
     });
     const parts = fmt.formatToParts(approxUTC);
     const getP = (type: string): number =>
       parseInt(parts.find((p) => p.type === type)?.value ?? '0');
 
-    const fmtYear  = getP('year');
+    const fmtYear = getP('year');
     const fmtMonth = getP('month') - 1;
-    const fmtDay   = getP('day');
-    const fmtHour  = getP('hour') % 24;   // guard against hour=24 edge case
-    const fmtMin   = getP('minute');
-    const fmtSec   = getP('second');
+    const fmtDay = getP('day');
+    const fmtHour = getP('hour') % 24; // guard against hour=24 edge case
+    const fmtMin = getP('minute');
+    const fmtSec = getP('second');
 
     // What UTC time does this approximate seed look like in the target timezone?
-    const computedLocal = new Date(Date.UTC(fmtYear, fmtMonth, fmtDay, fmtHour, fmtMin, fmtSec));
+    const computedLocal = new Date(
+      Date.UTC(fmtYear, fmtMonth, fmtDay, fmtHour, fmtMin, fmtSec),
+    );
     // Offset correction: actual UTC = approxUTC + (approxUTC - computedLocal)
     const offsetMs = approxUTC.getTime() - computedLocal.getTime();
     return new Date(approxUTC.getTime() + offsetMs);
@@ -361,21 +397,23 @@ export function icalRawToUTCDate(raw: string, tzid?: string): Date | null {
 
   // All-day: YYYYMMDD (exactly 8 digits, no T)
   if (/^\d{8}$/.test(r)) {
-    return new Date(Date.UTC(
-      parseInt(r.slice(0, 4)),
-      parseInt(r.slice(4, 6)) - 1,
-      parseInt(r.slice(6, 8)),
-    ));
+    return new Date(
+      Date.UTC(
+        parseInt(r.slice(0, 4)),
+        parseInt(r.slice(4, 6)) - 1,
+        parseInt(r.slice(6, 8)),
+      ),
+    );
   }
 
   // Date-time: YYYYMMDDTHHmmss[Z]
   if (r.length >= 15 && r[8] === 'T') {
-    const y  = parseInt(r.slice(0, 4));
+    const y = parseInt(r.slice(0, 4));
     const mo = parseInt(r.slice(4, 6)) - 1;
-    const d  = parseInt(r.slice(6, 8));
-    const h  = parseInt(r.slice(9, 11));
+    const d = parseInt(r.slice(6, 8));
+    const h = parseInt(r.slice(9, 11));
     const mi = parseInt(r.slice(11, 13));
-    const s  = parseInt(r.slice(13, 15) || '0');
+    const s = parseInt(r.slice(13, 15) || '0');
 
     if (r.endsWith('Z')) {
       return new Date(Date.UTC(y, mo, d, h, mi, s));
@@ -436,17 +474,14 @@ export function parseVEvents(ical: string): Array<{
      *   SUMMARY:Meeting with\, client
      */
     const get = (prop: string): string => {
-      const re = new RegExp(
-        `^${prop}(?:;[^:]*)?:(.*)$`,
-        'im',
-      );
+      const re = new RegExp(`^${prop}(?:;[^:]*)?:(.*)$`, 'im');
       const m = block.match(re);
       if (!m) return '';
       return m[1]
-        .replace(/\\n/g, '\n')   // iCal escaped newlines
-        .replace(/\\,/g, ',')    // iCal escaped commas
-        .replace(/\\;/g, ';')    // iCal escaped semicolons
-        .replace(/\\/g, '')      // remaining backslash escapes
+        .replace(/\\n/g, '\n') // iCal escaped newlines
+        .replace(/\\,/g, ',') // iCal escaped commas
+        .replace(/\\;/g, ';') // iCal escaped semicolons
+        .replace(/\\/g, '') // remaining backslash escapes
         .trim();
     };
 
@@ -455,7 +490,7 @@ export function parseVEvents(ical: string): Array<{
       const re = new RegExp(`^${prop}([^:]*)`, 'im');
       const m = block.match(re);
       if (!m) return undefined;
-      const params = m[1];                              // e.g. ";TZID=America/New_York"
+      const params = m[1]; // e.g. ";TZID=America/New_York"
       const tzidM = params.match(/TZID=([^;:,\s]+)/i);
       return tzidM ? tzidM[1].trim() : undefined;
     };
@@ -466,36 +501,39 @@ export function parseVEvents(ical: string): Array<{
       const results: Array<{ tzid?: string; values: string[] }> = [];
       let m: RegExpExecArray | null;
       while ((m = re.exec(block)) !== null) {
-        const params   = m[1];                            // e.g. ";TZID=America/New_York"
-        const rawVals  = m[2].trim();
-        const tzidM    = params.match(/TZID=([^;:,\s]+)/i);
-        const tzid     = tzidM ? tzidM[1].trim() : undefined;
-        const values   = rawVals.split(',').map(v => v.trim()).filter(Boolean);
+        const params = m[1]; // e.g. ";TZID=America/New_York"
+        const rawVals = m[2].trim();
+        const tzidM = params.match(/TZID=([^;:,\s]+)/i);
+        const tzid = tzidM ? tzidM[1].trim() : undefined;
+        const values = rawVals
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean);
         results.push({ tzid, values });
       }
       return results;
     };
 
     const dtstart = get('DTSTART');
-    const dtend   = get('DTEND');
+    const dtend = get('DTEND');
 
     events.push({
-      uid:          get('UID'),
-      summary:      get('SUMMARY'),
-      dtstart:      convertICalDate(dtstart),
-      dtend:        convertICalDate(dtend),
-      description:  get('DESCRIPTION'),
-      location:     get('LOCATION'),
-      status:       get('STATUS').toLowerCase() || 'confirmed',
-      url:          get('URL'),
-      rrule:        get('RRULE')         || undefined,
+      uid: get('UID'),
+      summary: get('SUMMARY'),
+      dtstart: convertICalDate(dtstart),
+      dtend: convertICalDate(dtend),
+      description: get('DESCRIPTION'),
+      location: get('LOCATION'),
+      status: get('STATUS').toLowerCase() || 'confirmed',
+      url: get('URL'),
+      rrule: get('RRULE') || undefined,
       recurrenceId: get('RECURRENCE-ID') || undefined,
-      exdate:       get('EXDATE')        || undefined,
+      exdate: get('EXDATE') || undefined,
       // Expansion fields
-      dtStartRaw:   dtstart,
-      dtStartTzid:  getTzidParam('DTSTART'),
-      dtEndRaw:     dtend,
-      exdateLines:  getExdateLines(),
+      dtStartRaw: dtstart,
+      dtStartTzid: getTzidParam('DTSTART'),
+      dtEndRaw: dtend,
+      exdateLines: getExdateLines(),
     });
   }
   return events;
@@ -516,14 +554,14 @@ export function convertICalDate(icalDate: string): string {
   const tPos = raw.indexOf('T');
   if (tPos === 8) {
     const datePart = raw.slice(0, 8);
-    const timePart = raw.slice(9);           // skip the 'T'
-    const y  = datePart.slice(0, 4);
+    const timePart = raw.slice(9); // skip the 'T'
+    const y = datePart.slice(0, 4);
     const mo = datePart.slice(4, 6);
-    const d  = datePart.slice(6, 8);
-    const h  = timePart.slice(0, 2);
+    const d = datePart.slice(6, 8);
+    const h = timePart.slice(0, 2);
     const mi = timePart.slice(2, 4);
-    const s  = timePart.slice(4, 6) || '00';
-    const z  = raw.endsWith('Z') ? 'Z' : '';
+    const s = timePart.slice(4, 6) || '00';
+    const z = raw.endsWith('Z') ? 'Z' : '';
     return `${y}-${mo}-${d}T${h}:${mi}:${s}${z}`;
   }
 
@@ -533,27 +571,54 @@ export function convertICalDate(icalDate: string): string {
   return raw;
 }
 
+// ─── Calendar-level timezone extraction ──────────────────────────────────────
+
+/**
+ * Extracts the calendar-level timezone from an ICS feed string.
+ *
+ * Priority:
+ *   1. X-WR-TIMEZONE property (Apple/Google extension, universally supported)
+ *   2. First VTIMEZONE TZID declaration (RFC 5545 §3.6.5)
+ *
+ * Used as a fallback timezone for events that have no per-event TZID parameter.
+ * This covers feeds (e.g. LASSO, Airtable) that export UTC-Z timestamps and rely
+ * on the calendar-level timezone to convey the intended local context.
+ *
+ * Returns null when no calendar-level timezone can be determined.
+ */
+export function extractCalendarTimezone(ical: string): string | null {
+  // 1. X-WR-TIMEZONE — simplest and most widely used
+  const xwr = ical.match(/^X-WR-TIMEZONE:([^\r\n]+)/m);
+  if (xwr?.[1]) return xwr[1].trim();
+
+  // 2. First VTIMEZONE block TZID — RFC 5545 §3.6.5
+  const vtz = ical.match(/^TZID:([^\r\n]+)/m);
+  if (vtz?.[1]) return vtz[1].trim();
+
+  return null;
+}
+
 // ─── RRULE expansion ──────────────────────────────────────────────────────────
 
 export interface ExpandedVEvent {
-  uid:          string;
-  summary:      string;
-  dtstart:      string;      // ISO 8601 — bare local datetime or UTC; see timeZone
-  dtend:        string;      // ISO 8601 — bare local datetime or UTC; see timeZone
-  description:  string;
-  location:     string;
-  status:       string;
-  url:          string;
-  rrule?:       string;
-  isRecurring:  boolean;
-  occurrenceId: string;      // uid + "_" + occurrence start ISO
+  uid: string;
+  summary: string;
+  dtstart: string; // ISO 8601 — bare local datetime or UTC; see timeZone
+  dtend: string; // ISO 8601 — bare local datetime or UTC; see timeZone
+  description: string;
+  location: string;
+  status: string;
+  url: string;
+  rrule?: string;
+  isRecurring: boolean;
+  occurrenceId: string; // uid + "_" + occurrence start ISO
   /**
    * IANA timezone from the VEVENT DTSTART;TZID= parameter.
    * Present when the provider encoded a local time with a timezone identifier.
    * Consumers must use this to interpret dtstart/dtend as local time in that zone.
    * Undefined for floating times and for events already in UTC (dtstart ends with Z).
    */
-  timeZone?:    string;
+  timeZone?: string;
 }
 
 type ParsedVEvent = ReturnType<typeof parseVEvents>[number];
@@ -574,9 +639,15 @@ export function expandVEventsInRange(
   events: ParsedVEvent[],
   from: Date,
   to: Date,
+  /**
+   * Calendar-level timezone fallback (from X-WR-TIMEZONE or VTIMEZONE TZID).
+   * Applied to events that have no per-event DTSTART;TZID= parameter.
+   * Pass the result of extractCalendarTimezone() for the ICS feed being processed.
+   */
+  calendarTz?: string | null,
 ): ExpandedVEvent[] {
   // ── 1. Classify events ─────────────────────────────────────────────────────
-  const masterMap   = new Map<string, ParsedVEvent>();
+  const masterMap = new Map<string, ParsedVEvent>();
   const overrideMap = new Map<string, ParsedVEvent[]>();
   const standalone: ParsedVEvent[] = [];
 
@@ -600,26 +671,29 @@ export function expandVEventsInRange(
     // Range check: use icalRawToUTCDate so TZID-qualified local times are
     // compared correctly against the UTC window bounds.
     const startUtc = icalRawToUTCDate(ev.dtStartRaw, ev.dtStartTzid);
-    const endUtc   = ev.dtEndRaw ? icalRawToUTCDate(ev.dtEndRaw, ev.dtStartTzid) : startUtc;
-    const startMs  = startUtc?.getTime() ?? new Date(ev.dtstart).getTime();
-    const endMs    = endUtc?.getTime()   ?? startMs;
+    const endUtc = ev.dtEndRaw
+      ? icalRawToUTCDate(ev.dtEndRaw, ev.dtStartTzid)
+      : startUtc;
+    const startMs = startUtc?.getTime() ?? new Date(ev.dtstart).getTime();
+    const endMs = endUtc?.getTime() ?? startMs;
     if (endMs < from.getTime() || startMs > to.getTime()) continue;
 
     result.push({
-      uid:          ev.uid,
-      summary:      ev.summary,
-      dtstart:      ev.dtstart,
-      dtend:        ev.dtend || ev.dtstart,
-      description:  ev.description,
-      location:     ev.location,
-      status:       ev.status,
-      url:          ev.url,
-      rrule:        undefined,
-      isRecurring:  false,
+      uid: ev.uid,
+      summary: ev.summary,
+      dtstart: ev.dtstart,
+      dtend: ev.dtend || ev.dtstart,
+      description: ev.description,
+      location: ev.location,
+      status: ev.status,
+      url: ev.url,
+      rrule: undefined,
+      isRecurring: false,
       occurrenceId: ev.uid || ev.dtstart,
-      // Propagate the IANA timezone so consumers can interpret the bare
-      // local datetime in dtstart/dtend without guessing the timezone.
-      timeZone:     ev.dtStartTzid,
+      // Per-event TZID takes priority; fall back to calendar-level timezone so that
+      // UTC-Z events from feeds like LASSO (which use X-WR-TIMEZONE instead of TZID)
+      // carry the correct local context for conversion by downstream consumers.
+      timeZone: ev.dtStartTzid ?? calendarTz ?? undefined,
     });
   }
 
@@ -631,7 +705,10 @@ export function expandVEventsInRange(
     const overrideByMs = new Map<number, ParsedVEvent>();
     for (const ov of overrides) {
       if (!ov.recurrenceId) continue;
-      const d = icalRawToUTCDate(ov.recurrenceId, ov.dtStartTzid ?? master.dtStartTzid);
+      const d = icalRawToUTCDate(
+        ov.recurrenceId,
+        ov.dtStartTzid ?? master.dtStartTzid,
+      );
       if (d) overrideByMs.set(d.getTime(), ov);
     }
 
@@ -641,7 +718,7 @@ export function expandVEventsInRange(
 
     // Compute event duration (ms) from master DTSTART/DTEND
     const durationMs = _computeDurationMs(master, dtStartUTC);
-    const isAllDay   = !master.dtstart.includes('T');
+    const isAllDay = !master.dtstart.includes('T');
 
     // Build set of excluded UTC timestamps from all EXDATE lines
     const exdateMs = new Set<number>();
@@ -689,60 +766,67 @@ export function expandVEventsInRange(
         // Overridden occurrence — use the override event's data
         if (!override.dtstart) continue;
         const ovStartMs = new Date(override.dtstart).getTime();
-        const ovEndMs   = override.dtend ? new Date(override.dtend).getTime() : ovStartMs;
+        const ovEndMs = override.dtend
+          ? new Date(override.dtend).getTime()
+          : ovStartMs;
         if (ovEndMs < from.getTime() || ovStartMs > to.getTime()) continue;
 
         result.push({
-          uid:          uid,
-          summary:      override.summary  || master.summary,
-          dtstart:      override.dtstart,
-          dtend:        override.dtend    || override.dtstart,
-          description:  override.description || master.description,
-          location:     override.location || master.location,
-          status:       override.status,
-          url:          override.url      || master.url,
-          rrule:        master.rrule,
-          isRecurring:  true,
+          uid: uid,
+          summary: override.summary || master.summary,
+          dtstart: override.dtstart,
+          dtend: override.dtend || override.dtstart,
+          description: override.description || master.description,
+          location: override.location || master.location,
+          status: override.status,
+          url: override.url || master.url,
+          rrule: master.rrule,
+          isRecurring: true,
           occurrenceId: `${uid}_${occ.toISOString()}`,
-          timeZone:     override.dtStartTzid ?? master.dtStartTzid,
+          timeZone:
+            override.dtStartTzid ??
+            master.dtStartTzid ??
+            calendarTz ??
+            undefined,
         });
       } else {
         // Standard occurrence — rrule generates UTC Date objects.
-        // Convert back to local time using the original TZID so the dtstart/dtend
-        // strings carry the local representation rather than the UTC instant.
-        const tzid = master.dtStartTzid;
+        // Convert back to local time using the TZID (per-event or calendar fallback)
+        // so the dtstart/dtend strings carry the local representation rather than
+        // the UTC instant. calendarTz covers UTC-Z feeds without per-event TZID.
+        const tzid = master.dtStartTzid ?? calendarTz;
         const endDate = new Date(occMs + durationMs);
 
         let startStr: string;
-        let endStr:   string;
+        let endStr: string;
 
         if (isAllDay) {
           startStr = occ.toISOString().slice(0, 10);
-          endStr   = endDate.toISOString().slice(0, 10);
+          endStr = endDate.toISOString().slice(0, 10);
         } else if (tzid) {
           // Re-express the UTC occurrence time as a bare local datetime in the
           // original IANA timezone so consumers can use IANA conversion correctly.
           startStr = utcToLocalDateTimeString(occ, tzid);
-          endStr   = utcToLocalDateTimeString(endDate, tzid);
+          endStr = utcToLocalDateTimeString(endDate, tzid);
         } else {
           // No TZID available — keep as UTC ISO (ends with Z)
           startStr = occ.toISOString();
-          endStr   = endDate.toISOString();
+          endStr = endDate.toISOString();
         }
 
         result.push({
-          uid:          uid,
-          summary:      master.summary,
-          dtstart:      startStr,
-          dtend:        endStr,
-          description:  master.description,
-          location:     master.location,
-          status:       master.status,
-          url:          master.url,
-          rrule:        master.rrule,
-          isRecurring:  true,
+          uid: uid,
+          summary: master.summary,
+          dtstart: startStr,
+          dtend: endStr,
+          description: master.description,
+          location: master.location,
+          status: master.status,
+          url: master.url,
+          rrule: master.rrule,
+          isRecurring: true,
           occurrenceId: `${uid}_${occ.toISOString()}`,
-          timeZone:     tzid,
+          timeZone: tzid ?? undefined,
         });
       }
     }
@@ -755,25 +839,33 @@ export function expandVEventsInRange(
       if (ovStartMs < from.getTime() || ovStartMs > to.getTime()) continue;
 
       // Skip if this override was already included above
-      const recIdDate = icalRawToUTCDate(ov.recurrenceId, ov.dtStartTzid ?? master.dtStartTzid);
-      if (recIdDate && overrideByMs.has(recIdDate.getTime()) &&
-          occurrences.some(o => Math.abs(o.getTime() - recIdDate.getTime()) < 1000)) {
+      const recIdDate = icalRawToUTCDate(
+        ov.recurrenceId,
+        ov.dtStartTzid ?? master.dtStartTzid,
+      );
+      if (
+        recIdDate &&
+        overrideByMs.has(recIdDate.getTime()) &&
+        occurrences.some(
+          (o) => Math.abs(o.getTime() - recIdDate.getTime()) < 1000,
+        )
+      ) {
         continue;
       }
 
       result.push({
-        uid:          uid,
-        summary:      ov.summary  || master.summary,
-        dtstart:      ov.dtstart,
-        dtend:        ov.dtend    || ov.dtstart,
-        description:  ov.description || master.description,
-        location:     ov.location || master.location,
-        status:       ov.status,
-        url:          ov.url      || master.url,
-        rrule:        master.rrule,
-        isRecurring:  true,
+        uid: uid,
+        summary: ov.summary || master.summary,
+        dtstart: ov.dtstart,
+        dtend: ov.dtend || ov.dtstart,
+        description: ov.description || master.description,
+        location: ov.location || master.location,
+        status: ov.status,
+        url: ov.url || master.url,
+        rrule: master.rrule,
+        isRecurring: true,
         occurrenceId: `${uid}_${ov.dtstart}`,
-        timeZone:     ov.dtStartTzid ?? master.dtStartTzid,
+        timeZone: ov.dtStartTzid ?? master.dtStartTzid,
       });
     }
   }

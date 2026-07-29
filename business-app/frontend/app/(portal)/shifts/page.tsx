@@ -14,6 +14,8 @@ import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
@@ -23,6 +25,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
+import TableRowsOutlinedIcon from '@mui/icons-material/TableRowsOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
 import { PageHeader } from '@/components/layout';
@@ -45,11 +48,17 @@ import {
 import { useContracts } from '@/hooks/api/useContracts';
 import { useCalendarOptions, useLinkedCalendars } from '@/hooks/api/useLinkedCalendars';
 import { formatShiftDate, formatShiftTimeRange } from '@/lib/formatShift';
+import { formatContractLabel } from '@/lib/formatContract';
 import type { Shift } from '@/types/shift';
 import { STATUS_LABELS } from '@/types/shift';
 import { ShiftDrawer, type DrawerMode } from './components/ShiftDrawer';
+import { ShiftCalendarView } from './components/ShiftCalendarView';
 import { SyncHistoryDrawer } from './components/SyncHistoryDrawer';
 import { PendingContractModal } from './components/PendingContractModal';
+
+// ─── View mode ────────────────────────────────────────────────────────────────
+
+type ViewMode = 'table' | 'calendar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,11 +89,18 @@ function CalendarCell({ shift }: { shift: Shift }) {
 }
 
 function ContractCell({ shift }: { shift: Shift }) {
-  // Match the BI pending rule exactly — defined once in the BI repository:
-  //   createdFromCalendar = true
-  //   AND contractAssigned = false
-  //   AND contractId IS NULL
-  //   AND syncStatus != 'deleted'
+  if (shift.contract) {
+    const label = formatContractLabel(shift.contract);
+    return (
+      <Tooltip title={label} disableHoverListener={label.length <= 30}>
+        <Typography variant="body2" noWrap sx={{ maxWidth: 220 }}>
+          {label}
+        </Typography>
+      </Tooltip>
+    );
+  }
+
+  // Match the BI pending rule: imported shifts with no contract assigned
   if (
     shift.createdFromCalendar &&
     !shift.contractAssigned &&
@@ -93,12 +109,16 @@ function ContractCell({ shift }: { shift: Shift }) {
   ) {
     return <Chip label="Contract required" size="small" color="warning" variant="filled" />;
   }
-  return null;
+
+  return <Typography variant="body2" color="text.disabled">—</Typography>;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ShiftsPage() {
+  // ── View mode ─────────────────────────────────────────────────────────────
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+
   // ── List / filter state ───────────────────────────────────────────────────
   const [page,             setPage]             = useState(0);
   const [search,           setSearch]           = useState('');
@@ -120,14 +140,16 @@ export default function ShiftsPage() {
   const [pendingModalOpen,  setPendingModalOpen]  = useState(false);
   const hasAutoOpenedModal = useRef(false);
 
-  // ── Data ──────────────────────────────────────────────────────────────────
+  // ── Data — single query shared by both Table and Calendar views ───────────
+  // Table: standard pagination with date filter.
+  // Calendar: page 1, higher limit, date filter not applied (internal month/week/day filter).
   const { data, isLoading } = useShifts({
-    page:             page + 1,
-    limit:            25,
+    page:             viewMode === 'table' ? page + 1 : 1,
+    limit:            viewMode === 'table' ? 25 : 200,
     search:           search || undefined,
     status:           status || undefined,
     source:           (source as 'calendar' | 'manual') || undefined,
-    date:             date || undefined,
+    date:             viewMode === 'table' ? (date || undefined) : undefined,
     linkedCalendarId: linkedCalendarId || undefined,
   });
 
@@ -278,8 +300,8 @@ export default function ShiftsPage() {
     {
       field: 'contractStatus',
       headerName: 'Contract',
-      width: 165,
-      minWidth: 140,
+      flex: 1,
+      minWidth: 180,
       sortable: false,
       renderCell: ({ row }: GridRenderCellParams<Shift>) => (
         <ContractCell shift={row} />
@@ -363,9 +385,13 @@ export default function ShiftsPage() {
           color={STATUS_COLORS[r.status] ?? 'default'}
           variant="outlined"
         />
-        {!r.contractId && (
+        {r.contract ? (
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 160 }}>
+            {formatContractLabel(r.contract)}
+          </Typography>
+        ) : r.createdFromCalendar && !r.contractAssigned && !r.contractId && r.syncStatus !== 'deleted' ? (
           <Chip label="Contract required" size="small" color="warning" variant="filled" />
-        )}
+        ) : null}
       </Stack>
     ),
 
@@ -603,20 +629,29 @@ export default function ShiftsPage() {
       </Box>
       <Divider sx={{ mb: 2 }} />
 
-      <DataTable<Shift>
-        rows={data?.items ?? []}
-        columns={columns}
-        loading={isLoading}
-        total={data?.total ?? 0}
-        page={page}
-        pageSize={25}
-        onPageChange={setPage}
-        onPageSizeChange={() => { setPage(0); }}
-        onRowClick={(row) => openView(row)}
-        getRowId={(row) => row.id!}
-        mobileCardConfig={mobileCardConfig}
-        height={tableHeight}
-        filterSlot={
+      {/* ── View mode selector ────────────────────────────────────────────── */}
+      <Box display="flex" justifyContent="flex-end" mb={1.5}>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, v: ViewMode | null) => { if (v) setViewMode(v); }}
+          size="small"
+          aria-label="View mode"
+        >
+          <ToggleButton value="table" aria-label="Table view">
+            <TableRowsOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
+            Table
+          </ToggleButton>
+          <ToggleButton value="calendar" aria-label="Calendar view">
+            <CalendarMonthOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
+            Calendar
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {/* ── Shared filter toolbar — visible in both views ─────────────────── */}
+      {(() => {
+        const filterNode = (
           <SearchToolbar
             search={search}
             onSearchChange={(v) => { setSearch(v); setPage(0); }}
@@ -667,36 +702,70 @@ export default function ShiftsPage() {
               </FormControl>
             )}
 
-            <TextField
-              type="date"
-              size="small"
-              label="Date"
-              value={date}
-              onChange={(e) => { setDate(e.target.value); setPage(0); }}
-              InputLabelProps={{ shrink: true }}
-              sx={{ minWidth: 150 }}
-            />
+            {/* Date filter only applies in table view; preserved in state when switching */}
+            {viewMode === 'table' && (
+              <TextField
+                type="date"
+                size="small"
+                label="Date"
+                value={date}
+                onChange={(e) => { setDate(e.target.value); setPage(0); }}
+                InputLabelProps={{ shrink: true }}
+                sx={{ minWidth: 150 }}
+              />
+            )}
           </SearchToolbar>
+        );
+
+        if (viewMode === 'table') {
+          return (
+            <DataTable<Shift>
+              rows={data?.items ?? []}
+              columns={columns}
+              loading={isLoading}
+              total={data?.total ?? 0}
+              page={page}
+              pageSize={25}
+              onPageChange={setPage}
+              onPageSizeChange={() => { setPage(0); }}
+              onRowClick={(row) => openView(row)}
+              getRowId={(row) => row.id!}
+              mobileCardConfig={mobileCardConfig}
+              height={tableHeight}
+              filterSlot={filterNode}
+              emptyState={
+                <EmptyState
+                  title="No shifts found"
+                  description={
+                    hasActiveFilters
+                      ? 'Try adjusting your filters.'
+                      : 'Synchronize your linked calendars or create your first manual shift.'
+                  }
+                  icon={AccessTimeOutlinedIcon}
+                  action={
+                    !hasActiveFilters ? (
+                      <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                        New Shift
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              }
+            />
+          );
         }
-        emptyState={
-          <EmptyState
-            title="No shifts found"
-            description={
-              hasActiveFilters
-                ? 'Try adjusting your filters.'
-                : 'Synchronize your linked calendars or create your first manual shift.'
-            }
-            icon={AccessTimeOutlinedIcon}
-            action={
-              !hasActiveFilters ? (
-                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                  New Shift
-                </Button>
-              ) : undefined
-            }
-          />
-        }
-      />
+
+        return (
+          <>
+            <Box mb={2}>{filterNode}</Box>
+            <ShiftCalendarView
+              shifts={data?.items ?? []}
+              isLoading={isLoading}
+              onShiftClick={openView}
+            />
+          </>
+        );
+      })()}
 
       <ShiftDrawer
         open={drawerOpen}

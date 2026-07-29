@@ -134,7 +134,7 @@ export class EventCatalogueMapper {
       // ✅ metadata solamente
       channelsRuntime,
 
-      scope:       (doc.scope       ?? 'company') as 'platform' | 'company',
+      scope: (doc.scope ?? 'company') as 'platform' | 'company',
       senderScope: (doc.senderScope ?? 'company') as 'platform' | 'company',
 
       isActive: doc.isActive !== false,

@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
@@ -38,7 +31,9 @@ export class AuthController {
   @Public()
   @Get('verify-email')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Verify email address using the link sent by email' })
+  @ApiOperation({
+    summary: 'Verify email address using the link sent by email',
+  })
   verifyEmail(@Query() dto: VerifyEmailDto) {
     return this.auth.verifyEmail(dto.token);
   }
@@ -85,7 +80,9 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Reset password using the token from the reset email' })
+  @ApiOperation({
+    summary: 'Reset password using the token from the reset email',
+  })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.token, dto.newPassword);
   }
@@ -94,7 +91,9 @@ export class AuthController {
   // Convenience: quick identity check using the access token.
   @Get('me')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Return the auth context of the current access token' })
+  @ApiOperation({
+    summary: 'Return the auth context of the current access token',
+  })
   me(@CurrentUser() ctx: AuthContext) {
     return { actorType: ctx.actorType, userId: ctx.userId };
   }

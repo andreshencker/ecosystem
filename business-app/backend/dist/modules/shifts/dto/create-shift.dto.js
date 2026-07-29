@@ -18,7 +18,7 @@ class CreateShiftDto {
     date;
     startTime;
     endTime;
-    breakMinutes;
+    breakTaken;
     status;
     location;
     notes;
@@ -57,11 +57,9 @@ __decorate([
 ], CreateShiftDto.prototype, "endTime", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_validator_1.Max)(480),
-    __metadata("design:type", Number)
-], CreateShiftDto.prototype, "breakMinutes", void 0);
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateShiftDto.prototype, "breakTaken", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(['draft', 'confirmed', 'cancelled'], {

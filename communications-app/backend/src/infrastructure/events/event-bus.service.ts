@@ -7,7 +7,8 @@ export const PLATFORM_EVENTS = {
   USER_INVITATION_PASSWORD_COMPLETED: 'user.invitation-password-completed',
 } as const;
 
-export type PlatformEventKey = typeof PLATFORM_EVENTS[keyof typeof PLATFORM_EVENTS];
+export type PlatformEventKey =
+  (typeof PLATFORM_EVENTS)[keyof typeof PLATFORM_EVENTS];
 
 export interface InvitationPasswordCompletedPayload {
   email: string;

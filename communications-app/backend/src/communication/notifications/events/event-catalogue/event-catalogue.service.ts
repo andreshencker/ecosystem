@@ -60,9 +60,9 @@ export class EventCatalogueService {
     // ── DIAG: domain query ────────────────────────────────────────────────────
     this.logger.log(
       `[DIAG:findByCompanyAndCanonicalKey] ── Step 1: domain lookup ──\n` +
-      `  collection: domain_catalogues\n` +
-      `  filter:     { companyId: "${companyId}", domainKey: "${domainKey}" }\n` +
-      `  select:     _id domainKey isActive`,
+        `  collection: domain_catalogues\n` +
+        `  filter:     { companyId: "${companyId}", domainKey: "${domainKey}" }\n` +
+        `  select:     _id domainKey isActive`,
     );
 
     const domain = await this.domainModel
@@ -93,9 +93,9 @@ export class EventCatalogueService {
     // ── DIAG: event query ─────────────────────────────────────────────────────
     this.logger.log(
       `[DIAG:findByCompanyAndCanonicalKey] ── Step 2: event lookup + populate ──\n` +
-      `  collection: event_catalogues\n` +
-      `  filter:     { domainCatalogueId: "${String((domain as any)._id)}", eventKey: "${eventKey}", isActive: true }\n` +
-      `  populate:   domainCatalogueId → { companyId domainKey displayName domainCategory isActive channelsToUse }`,
+        `  collection: event_catalogues\n` +
+        `  filter:     { domainCatalogueId: "${String((domain as any)._id)}", eventKey: "${eventKey}", isActive: true }\n` +
+        `  populate:   domainCatalogueId → { companyId domainKey displayName domainCategory isActive channelsToUse }`,
     );
 
     let q = this.model.findOne({
@@ -115,21 +115,22 @@ export class EventCatalogueService {
     const populatedDomain = doc?.domainCatalogueId;
     this.logger.log(
       `[DIAG:findByCompanyAndCanonicalKey] event result: ${doc ? `FOUND — eventId=${String(doc._id)}` : 'NOT FOUND'}\n` +
-      `  populated domain.domainKey:     ${populatedDomain?.domainKey ?? '(not populated)'}\n` +
-      `  populated domain.isActive:      ${populatedDomain?.isActive ?? '(not populated)'}\n` +
-      `  populated domain.channelsToUse: ${
-        Array.isArray(populatedDomain?.channelsToUse)
-          ? populatedDomain.channelsToUse.length === 0
-            ? '[] ← EMPTY — no channel assigned to this domain'
-            : JSON.stringify(populatedDomain.channelsToUse)
-          : '(missing)'
-      }\n` +
-      (Array.isArray(populatedDomain?.channelsToUse) && populatedDomain.channelsToUse.length === 0
-        ? `  ─── DIAGNOSIS ────────────────────────────────────────────────────\n` +
-          `  DomainCatalogue "${domainKey}" exists but has channelsToUse=[].\n` +
-          `  Expected: [{ channel: "email", providerCredentialsId: <ObjectId> }]\n` +
-          `  Fix: Communications UI → Domains → ${domainKey} → assign a provider credential.`
-        : ''),
+        `  populated domain.domainKey:     ${populatedDomain?.domainKey ?? '(not populated)'}\n` +
+        `  populated domain.isActive:      ${populatedDomain?.isActive ?? '(not populated)'}\n` +
+        `  populated domain.channelsToUse: ${
+          Array.isArray(populatedDomain?.channelsToUse)
+            ? populatedDomain.channelsToUse.length === 0
+              ? '[] ← EMPTY — no channel assigned to this domain'
+              : JSON.stringify(populatedDomain.channelsToUse)
+            : '(missing)'
+        }\n` +
+        (Array.isArray(populatedDomain?.channelsToUse) &&
+        populatedDomain.channelsToUse.length === 0
+          ? `  ─── DIAGNOSIS ────────────────────────────────────────────────────\n` +
+            `  DomainCatalogue "${domainKey}" exists but has channelsToUse=[].\n` +
+            `  Expected: [{ channel: "email", providerCredentialsId: <ObjectId> }]\n` +
+            `  Fix: Communications UI → Domains → ${domainKey} → assign a provider credential.`
+          : ''),
     );
 
     if (!doc) {
@@ -211,7 +212,7 @@ export class EventCatalogueService {
         eventType: dto.eventType,
         channelContent,
         isActive: dto.isActive ?? true,
-        scope:       (dto as any).scope       ?? 'company',
+        scope: (dto as any).scope ?? 'company',
         senderScope: (dto as any).senderScope ?? 'company',
       });
 
@@ -342,7 +343,12 @@ export class EventCatalogueService {
       this.model.countDocuments(filter),
     ]);
 
-    return { data: EventCatalogueMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: EventCatalogueMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async getById(params: {
@@ -406,8 +412,9 @@ export class EventCatalogueService {
     }
 
     if (dto.isActive !== undefined) $set.isActive = dto.isActive;
-    if ((dto as any).scope       !== undefined) $set.scope       = (dto as any).scope;
-    if ((dto as any).senderScope !== undefined) $set.senderScope = (dto as any).senderScope;
+    if ((dto as any).scope !== undefined) $set.scope = (dto as any).scope;
+    if ((dto as any).senderScope !== undefined)
+      $set.senderScope = (dto as any).senderScope;
 
     try {
       const updated = await this.model.findByIdAndUpdate(
@@ -524,7 +531,9 @@ export class EventCatalogueService {
     if (!Types.ObjectId.isValid(domainCatalogueId)) return null;
     const domainId = new Types.ObjectId(domainCatalogueId);
     const key = this.normalizeKey(eventKey);
-    const doc = await this.model.findOne({ domainCatalogueId: domainId, eventKey: key }).lean();
+    const doc = await this.model
+      .findOne({ domainCatalogueId: domainId, eventKey: key })
+      .lean();
     if (!doc) return null;
     return EventCatalogueMapper.toResponse(doc as any);
   }

@@ -1,6 +1,13 @@
 export type ShiftStatus = 'draft' | 'confirmed' | 'cancelled';
 export type SyncStatus  = 'pending' | 'synced' | 'deleted' | 'error';
 
+export interface ContractSummary {
+  id:           string;
+  customerId:   string | null;
+  customerName: string | null;
+  positionName: string;
+}
+
 export const STATUS_LABELS: Record<ShiftStatus, string> = {
   draft:     'Draft',
   confirmed: 'Confirmed',
@@ -12,12 +19,14 @@ export interface Shift {
   businessId:   string;
   contractId:   string | null;
   customerId:   string | null;
+  contract:     ContractSummary | null;
   date:         string;        // YYYY-MM-DD — local start date in the event timezone
   startTime:    string;        // HH:mm
   /** YYYY-MM-DD — local end date. null for records created before this field was added (treat as same as date). */
   endDate:      string | null;
   endTime:      string;        // HH:mm
-  breakMinutes: number | null;
+  /** Whether the worker took their contractual break. Break duration is defined by the Contract. */
+  breakTaken: boolean;
   status:       ShiftStatus;
   location:     string | null;
   notes:        string | null;
@@ -54,18 +63,20 @@ export interface CreateShiftPayload {
   date:             string;
   startTime:        string;
   endTime:          string;
-  breakMinutes?:    number;
+  /** Whether the worker took their contractual break. Defaults to false when omitted. */
+  breakTaken?:      boolean;
   status?:          ShiftStatus;
   location?:        string;
   notes?:           string;
 }
 
 export interface UpdateShiftPayload {
+  contractId?:    string;
   title?:         string | null;
   date?:          string;
   startTime?:     string;
   endTime?:       string;
-  breakMinutes?:  number | null;
+  breakTaken?:    boolean;
   location?:      string | null;
   notes?:         string | null;
 }

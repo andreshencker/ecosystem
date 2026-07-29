@@ -47,37 +47,42 @@ export class CompanyIntegrationsController {
 
   @Get('modules/all')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Platform Admin — list all integrations across all companies' })
-  @ApiQuery({ name: 'search',      required: false })
-  @ApiQuery({ name: 'companyId',   required: false })
+  @ApiOperation({
+    summary: 'Platform Admin — list all integrations across all companies',
+  })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'companyId', required: false })
   @ApiQuery({ name: 'environment', required: false })
-  @ApiQuery({ name: 'active',      required: false, type: Boolean })
-  @ApiQuery({ name: 'expired',     required: false, type: Boolean })
-  @ApiQuery({ name: 'neverUsed',   required: false, type: Boolean })
-  @ApiQuery({ name: 'limit',       required: false, type: Number })
-  @ApiQuery({ name: 'offset',      required: false, type: Number })
+  @ApiQuery({ name: 'active', required: false, type: Boolean })
+  @ApiQuery({ name: 'expired', required: false, type: Boolean })
+  @ApiQuery({ name: 'neverUsed', required: false, type: Boolean })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
   async listForPlatform(
     @Headers('x-api-key') apiKey: string,
-    @Query('search')      search?: string,
-    @Query('companyId')   companyId?: string,
+    @Query('search') search?: string,
+    @Query('companyId') companyId?: string,
     @Query('environment') environment?: string,
-    @Query('active')      active?: string,
-    @Query('expired')     expired?: string,
-    @Query('neverUsed')   neverUsed?: string,
-    @Query('limit')       limit?: string,
-    @Query('offset')      offset?: string,
+    @Query('active') active?: string,
+    @Query('expired') expired?: string,
+    @Query('neverUsed') neverUsed?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
     return this.service.findAllForPlatform({
       search,
       companyId,
       environment,
-      active:    this.toBool(active),
-      expired:   this.toBool(expired),
+      active: this.toBool(active),
+      expired: this.toBool(expired),
       neverUsed: this.toBool(neverUsed),
-      limit:     parsedLimit,
-      offset:    parsedOffset,
+      limit: parsedLimit,
+      offset: parsedOffset,
     });
   }
 
@@ -85,22 +90,25 @@ export class CompanyIntegrationsController {
   @HttpCode(200)
   @ApiOperation({ summary: 'List integrations for a company' })
   @ApiQuery({ name: 'companyId', required: true })
-  @ApiQuery({ name: 'active',    required: false, type: Boolean })
-  @ApiQuery({ name: 'limit',     required: false, type: Number })
-  @ApiQuery({ name: 'offset',    required: false, type: Number })
+  @ApiQuery({ name: 'active', required: false, type: Boolean })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
   async list(
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
-    @Query('active')    active?: string,
-    @Query('limit')     limit?: string,
-    @Query('offset')    offset?: string,
+    @Query('active') active?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
     return this.service.findAll({
       companyId,
       active: this.toBool(active),
-      limit:  parsedLimit,
+      limit: parsedLimit,
       offset: parsedOffset,
     });
   }
@@ -115,7 +123,10 @@ export class CompanyIntegrationsController {
    */
   @Get('me')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Resolve the company that owns this integration token (x-integration-token)' })
+  @ApiOperation({
+    summary:
+      'Resolve the company that owns this integration token (x-integration-token)',
+  })
   async me(@Headers('x-integration-token') token: string) {
     if (!token?.trim()) {
       throw new UnauthorizedException('x-integration-token header is required');
@@ -126,10 +137,7 @@ export class CompanyIntegrationsController {
   @Get(':id')
   @HttpCode(200)
   @ApiOperation({ summary: 'Get a single integration by ID' })
-  async getById(
-    @Headers('x-api-key') apiKey: string,
-    @Param('id') id: string,
-  ) {
+  async getById(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
     this.assertApiKey(apiKey);
     return this.service.findById(id);
   }
@@ -149,10 +157,7 @@ export class CompanyIntegrationsController {
   @Delete(':id')
   @HttpCode(200)
   @ApiOperation({ summary: 'Delete an integration permanently' })
-  async remove(
-    @Headers('x-api-key') apiKey: string,
-    @Param('id') id: string,
-  ) {
+  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
     this.assertApiKey(apiKey);
     return this.service.remove(id);
   }
@@ -161,7 +166,9 @@ export class CompanyIntegrationsController {
 
   @Post(':id/rotate-token')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Rotate the integration token — new raw token returned ONCE' })
+  @ApiOperation({
+    summary: 'Rotate the integration token — new raw token returned ONCE',
+  })
   async rotateToken(
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
@@ -174,7 +181,9 @@ export class CompanyIntegrationsController {
 
   @Post(':id/deactivate')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Deactivate an integration (blocks token resolver)' })
+  @ApiOperation({
+    summary: 'Deactivate an integration (blocks token resolver)',
+  })
   async deactivate(
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,

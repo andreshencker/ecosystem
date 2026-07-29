@@ -183,12 +183,12 @@ describe('ShiftSyncService — calendar flow filter', () => {
 
     await service.syncBusiness('biz1', actor);
 
-    // $set must NOT include contractId, status, notes, breakMinutes
+    // $set must NOT include contractId, status, notes, breakTaken (business-owned fields)
     const setFields = Object.keys(updatePayload.$set);
     expect(setFields).not.toContain('contractId');
     expect(setFields).not.toContain('status');
     expect(setFields).not.toContain('notes');
-    expect(setFields).not.toContain('breakMinutes');
+    expect(setFields).not.toContain('breakTaken');
     expect(setFields).not.toContain('contractAssigned');
     // $set MUST include provider-owned fields
     expect(setFields).toContain('title');

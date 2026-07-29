@@ -1,6 +1,7 @@
 import { Model } from 'mongoose';
 import { ShiftDocument } from './schemas/shift.schema';
 import { ContractDocument } from '../contracts/schemas/contract.schema';
+import { CustomerDocument } from '../customer/schemas/customer.schema';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
 import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
@@ -27,14 +28,18 @@ export interface ActorContext {
 export declare class ShiftsService {
     private readonly model;
     private readonly contractModel;
+    private readonly customerModel;
     private readonly commClient;
     private readonly biService;
     private readonly usersService;
     private readonly linkedCalendarsService;
     private readonly calendarClient;
     private readonly logger;
-    constructor(model: Model<ShiftDocument>, contractModel: Model<ContractDocument>, commClient: CommunicationsClientService, biService: BusinessIntelligenceService, usersService: UsersService, linkedCalendarsService: LinkedCalendarsService, calendarClient: CommunicationsCalendarClient);
+    constructor(model: Model<ShiftDocument>, contractModel: Model<ContractDocument>, customerModel: Model<CustomerDocument>, commClient: CommunicationsClientService, biService: BusinessIntelligenceService, usersService: UsersService, linkedCalendarsService: LinkedCalendarsService, calendarClient: CommunicationsCalendarClient);
     private assertContractOwnership;
+    private _summaryFromContractDoc;
+    private _resolveContractSummary;
+    private _buildContractSummaryMap;
     create(businessId: string, dto: CreateShiftDto, actor: ActorContext): Promise<ShiftDocument>;
     findAll(businessId: string, params: ShiftListParams): Promise<{
         items: ShiftDocument[];

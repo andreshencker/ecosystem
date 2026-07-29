@@ -273,6 +273,18 @@ let BusinessIntelligenceService = BusinessIntelligenceService_1 = class Business
             throw err;
         }
     }
+    async getPendingInvoiceGroups(businessId) {
+        try {
+            return await this.client.get('/internal/invoices/pending-groups', { businessId });
+        }
+        catch (err) {
+            if (err instanceof bi_unavailable_error_1.BIUnavailableError) {
+                this.logger.error(`[BI] getPendingInvoiceGroups failed businessId=${businessId}: ${err.message}`);
+                return null;
+            }
+            throw err;
+        }
+    }
 };
 exports.BusinessIntelligenceService = BusinessIntelligenceService;
 exports.BiClientService = BusinessIntelligenceService;

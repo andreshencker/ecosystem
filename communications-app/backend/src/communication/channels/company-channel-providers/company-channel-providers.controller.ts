@@ -36,8 +36,18 @@ export class CompanyChannelProvidersController {
   @ApiQuery({ name: 'active', required: false, type: Boolean })
   @ApiQuery({ name: 'isDefault', required: false, type: Boolean })
   @ApiQuery({ name: 'populate', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   list(
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
@@ -49,7 +59,10 @@ export class CompanyChannelProvidersController {
     @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
 
     return this.service.findAll({
       companyId,
@@ -113,7 +126,12 @@ export class CompanyChannelProvidersController {
 
   @Delete(':id')
   @HttpCode(200)
-  @ApiQuery({ name: 'force', required: false, type: Boolean, description: 'Cascade-delete related credentials' })
+  @ApiQuery({
+    name: 'force',
+    required: false,
+    type: Boolean,
+    description: 'Cascade-delete related credentials',
+  })
   remove(
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,

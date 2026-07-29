@@ -1,4 +1,10 @@
-import { IsMongoId, IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
+import {
+  IsMongoId,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class PreviewByEventKeyDto {
@@ -11,7 +17,10 @@ export class PreviewByEventKeyDto {
   @IsNotEmpty()
   canonicalEventKey!: string;
 
-  @ApiPropertyOptional({ description: 'Runtime variables — data.* namespace', example: { firstName: 'Alice' } })
+  @ApiPropertyOptional({
+    description: 'Runtime variables — data.* namespace',
+    example: { firstName: 'Alice' },
+  })
   @IsOptional()
   @IsObject()
   data?: Record<string, any>;

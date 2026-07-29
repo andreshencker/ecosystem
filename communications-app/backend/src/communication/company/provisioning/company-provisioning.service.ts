@@ -8,12 +8,18 @@ import { LayoutTemplatesService } from '../../notifications/template/layout-temp
 import { DomainCatalogueService } from '../../notifications/events/domain-catalogue/domain-catalogue.service';
 import { EventCatalogueService } from '../../notifications/events/event-catalogue/event-catalogue.service';
 
-import { Company, CompanyDocument }
-  from '../company-info/schemas/company.schema';
-import { DomainCatalogue, DomainCatalogueDocument }
-  from '../../notifications/events/domain-catalogue/schemas/domain-catalogue.schema';
-import { EventCatalogue, EventCatalogueDocument }
-  from '../../notifications/events/event-catalogue/schemas/event-catalogue.schema';
+import {
+  Company,
+  CompanyDocument,
+} from '../company-info/schemas/company.schema';
+import {
+  DomainCatalogue,
+  DomainCatalogueDocument,
+} from '../../notifications/events/domain-catalogue/schemas/domain-catalogue.schema';
+import {
+  EventCatalogue,
+  EventCatalogueDocument,
+} from '../../notifications/events/event-catalogue/schemas/event-catalogue.schema';
 
 import { ProvisioningReportDto } from './dto/provisioning-report.dto';
 import { DEFAULT_THEME } from './constants/default-theme.constant';
@@ -77,15 +83,29 @@ export class CompanyProvisioningService {
     const report: ProvisioningReportDto = {
       companyId,
       companyType: isPlatform ? 'platform' : 'tenant',
-      created: { theme: false, emailLayout: false, pdfLayout: false, securityDomain: false, events: [] },
-      skipped: { theme: false, emailLayout: false, pdfLayout: false, securityDomain: false, events: [] },
+      created: {
+        theme: false,
+        emailLayout: false,
+        pdfLayout: false,
+        securityDomain: false,
+        events: [],
+      },
+      skipped: {
+        theme: false,
+        emailLayout: false,
+        pdfLayout: false,
+        securityDomain: false,
+        events: [],
+      },
       errors: [],
     };
 
     // ── Step 1: Default Theme (all companies) ──────────────────────────────────
     const themeId = await this.ensureDefaultTheme(companyId, report);
     if (!themeId) {
-      this.logger.error(`[provision:${companyId}] Cannot continue without theme`);
+      this.logger.error(
+        `[provision:${companyId}] Cannot continue without theme`,
+      );
       return report;
     }
 
@@ -104,7 +124,9 @@ export class CompanyProvisioningService {
     // ── Step 4: Security Domain (modules company only) ────────────────────────
     const domainId = await this.ensureSecurityDomain(companyId, report);
     if (!domainId) {
-      this.logger.error(`[provision:platform:${companyId}] Cannot continue without security domain`);
+      this.logger.error(
+        `[provision:platform:${companyId}] Cannot continue without security domain`,
+      );
       return report;
     }
 
@@ -112,7 +134,10 @@ export class CompanyProvisioningService {
     await this.ensureDefaultEvents(domainId, report);
 
     // ── Step 6: Notifications Domain + its events (modules company only) ────
-    const notificationsDomainId = await this.ensureNotificationsDomain(companyId, report);
+    const notificationsDomainId = await this.ensureNotificationsDomain(
+      companyId,
+      report,
+    );
     if (notificationsDomainId) {
       await this.ensureNotificationsEvents(notificationsDomainId, report);
     }
@@ -137,7 +162,7 @@ export class CompanyProvisioningService {
    */
   async cleanupTenantCatalogues(): Promise<{
     deletedDomains: number;
-    deletedEvents:  number;
+    deletedEvents: number;
   }> {
     const platform = await this.companyModel
       .findOne({ isPlatformCompany: true })
@@ -145,7 +170,9 @@ export class CompanyProvisioningService {
       .lean();
 
     if (!platform) {
-      this.logger.warn('[cleanup] Platform company not found — skipping tenant catalogue cleanup.');
+      this.logger.warn(
+        '[cleanup] Platform company not found — skipping tenant catalogue cleanup.',
+      );
       return { deletedDomains: 0, deletedEvents: 0 };
     }
 
@@ -157,7 +184,9 @@ export class CompanyProvisioningService {
       .distinct('_id');
 
     if (tenantDomainIds.length === 0) {
-      this.logger.log('[cleanup] No tenant domains found — catalogue already clean.');
+      this.logger.log(
+        '[cleanup] No tenant domains found — catalogue already clean.',
+      );
       return { deletedDomains: 0, deletedEvents: 0 };
     }
 
@@ -166,13 +195,16 @@ export class CompanyProvisioningService {
     );
 
     // Delete events belonging to those domains before removing the domains.
-    const { deletedCount: deletedEvents = 0 } = await this.eventModel.deleteMany({
-      domainCatalogueId: { $in: tenantDomainIds },
-    });
+    const { deletedCount: deletedEvents = 0 } =
+      await this.eventModel.deleteMany({
+        domainCatalogueId: { $in: tenantDomainIds },
+      });
 
-    const { deletedCount: deletedDomains = 0 } = await this.domainModel.deleteMany({
-      companyId: { $ne: platformId }, isSystem: { $ne: true },
-    });
+    const { deletedCount: deletedDomains = 0 } =
+      await this.domainModel.deleteMany({
+        companyId: { $ne: platformId },
+        isSystem: { $ne: true },
+      });
 
     this.logger.log(
       `[cleanup] Done — removed ${deletedEvents} event(s) and ${deletedDomains} domain(s) from tenant companies.`,
@@ -193,22 +225,40 @@ export class CompanyProvisioningService {
    * The security domain is created with isSystem:true so that cleanupTenantCatalogues()
    * never removes it.
    */
-  async provisionTenantSecurityEvents(companyId: string): Promise<ProvisioningReportDto> {
+  async provisionTenantSecurityEvents(
+    companyId: string,
+  ): Promise<ProvisioningReportDto> {
     const report: ProvisioningReportDto = {
       companyId,
       companyType: 'tenant',
-      created: { theme: false, emailLayout: false, pdfLayout: false, securityDomain: false, events: [] },
-      skipped: { theme: false, emailLayout: false, pdfLayout: false, securityDomain: false, events: [] },
+      created: {
+        theme: false,
+        emailLayout: false,
+        pdfLayout: false,
+        securityDomain: false,
+        events: [],
+      },
+      skipped: {
+        theme: false,
+        emailLayout: false,
+        pdfLayout: false,
+        securityDomain: false,
+        events: [],
+      },
       errors: [],
     };
 
     const domainId = await this.ensureTenantSecurityDomain(companyId, report);
     if (!domainId) {
-      this.logger.error(`[provisionTenant:${companyId}] Cannot continue without security domain`);
+      this.logger.error(
+        `[provisionTenant:${companyId}] Cannot continue without security domain`,
+      );
       return report;
     }
 
-    const tenantEvents = DEFAULT_PLATFORM_EVENTS.filter(e => e.eventKey.startsWith('company_'));
+    const tenantEvents = DEFAULT_PLATFORM_EVENTS.filter((e) =>
+      e.eventKey.startsWith('company_'),
+    );
     for (const eventDef of tenantEvents) {
       await this.ensureTenantSecurityEvent(domainId, eventDef, report);
     }
@@ -222,7 +272,10 @@ export class CompanyProvisioningService {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-  private async ensureDefaultTheme(companyId: string, report: ProvisioningReportDto): Promise<string | null> {
+  private async ensureDefaultTheme(
+    companyId: string,
+    report: ProvisioningReportDto,
+  ): Promise<string | null> {
     try {
       const existing = await this.themeService.getDefaultByCompanyId(companyId);
       if (existing) {
@@ -230,23 +283,38 @@ export class CompanyProvisioningService {
         return existing.id;
       }
 
-      const created = await this.themeService.create({ companyId, ...DEFAULT_THEME });
+      const created = await this.themeService.create({
+        companyId,
+        ...DEFAULT_THEME,
+      });
       report.created.theme = true;
       return created.id;
     } catch (err: any) {
       if (this.isDuplicateKey(err)) {
         report.skipped.theme = true;
-        const existing = await this.themeService.getDefaultByCompanyId(companyId).catch(() => null);
+        const existing = await this.themeService
+          .getDefaultByCompanyId(companyId)
+          .catch(() => null);
         return existing?.id ?? null;
       }
-      report.errors.push({ asset: 'theme', message: err?.message ?? String(err) });
+      report.errors.push({
+        asset: 'theme',
+        message: err?.message ?? String(err),
+      });
       return null;
     }
   }
 
-  private async ensureEmailLayout(themeId: string, report: ProvisioningReportDto): Promise<void> {
+  private async ensureEmailLayout(
+    themeId: string,
+    report: ProvisioningReportDto,
+  ): Promise<void> {
     try {
-      await this.layoutService.getByKey({ companyThemeId: themeId, templateType: 'email', key: DEFAULT_EMAIL_LAYOUT_KEY });
+      await this.layoutService.getByKey({
+        companyThemeId: themeId,
+        templateType: 'email',
+        key: DEFAULT_EMAIL_LAYOUT_KEY,
+      });
       report.skipped.emailLayout = true;
     } catch (err: any) {
       if (this.isNotFound(err)) {
@@ -258,8 +326,8 @@ export class CompanyProvisioningService {
             name: DEFAULT_EMAIL_LAYOUT_NAME,
             html: DEFAULT_EMAIL_LAYOUT_HTML,
             css: '',
-            requiredVariables: DEFAULT_EMAIL_LAYOUT_REQUIRED_VARIABLES as string[],
-            optionalVariables: DEFAULT_EMAIL_LAYOUT_OPTIONAL_VARIABLES as string[],
+            requiredVariables: DEFAULT_EMAIL_LAYOUT_REQUIRED_VARIABLES,
+            optionalVariables: DEFAULT_EMAIL_LAYOUT_OPTIONAL_VARIABLES,
             isDefault: true,
             isActive: true,
           });
@@ -268,18 +336,31 @@ export class CompanyProvisioningService {
           if (this.isDuplicateKey(createErr)) {
             report.skipped.emailLayout = true;
           } else {
-            report.errors.push({ asset: 'emailLayout', message: createErr?.message ?? String(createErr) });
+            report.errors.push({
+              asset: 'emailLayout',
+              message: createErr?.message ?? String(createErr),
+            });
           }
         }
       } else {
-        report.errors.push({ asset: 'emailLayout', message: err?.message ?? String(err) });
+        report.errors.push({
+          asset: 'emailLayout',
+          message: err?.message ?? String(err),
+        });
       }
     }
   }
 
-  private async ensurePdfLayout(themeId: string, report: ProvisioningReportDto): Promise<void> {
+  private async ensurePdfLayout(
+    themeId: string,
+    report: ProvisioningReportDto,
+  ): Promise<void> {
     try {
-      await this.layoutService.getByKey({ companyThemeId: themeId, templateType: 'pdf', key: DEFAULT_PDF_LAYOUT_KEY });
+      await this.layoutService.getByKey({
+        companyThemeId: themeId,
+        templateType: 'pdf',
+        key: DEFAULT_PDF_LAYOUT_KEY,
+      });
       report.skipped.pdfLayout = true;
     } catch (err: any) {
       if (this.isNotFound(err)) {
@@ -291,8 +372,8 @@ export class CompanyProvisioningService {
             name: DEFAULT_PDF_LAYOUT_NAME,
             html: DEFAULT_PDF_LAYOUT_HTML,
             css: '',
-            requiredVariables: DEFAULT_PDF_LAYOUT_REQUIRED_VARIABLES as string[],
-            optionalVariables: DEFAULT_PDF_LAYOUT_OPTIONAL_VARIABLES as string[],
+            requiredVariables: DEFAULT_PDF_LAYOUT_REQUIRED_VARIABLES,
+            optionalVariables: DEFAULT_PDF_LAYOUT_OPTIONAL_VARIABLES,
             isDefault: true,
             isActive: true,
           });
@@ -301,23 +382,38 @@ export class CompanyProvisioningService {
           if (this.isDuplicateKey(createErr)) {
             report.skipped.pdfLayout = true;
           } else {
-            report.errors.push({ asset: 'pdfLayout', message: createErr?.message ?? String(createErr) });
+            report.errors.push({
+              asset: 'pdfLayout',
+              message: createErr?.message ?? String(createErr),
+            });
           }
         }
       } else {
-        report.errors.push({ asset: 'pdfLayout', message: err?.message ?? String(err) });
+        report.errors.push({
+          asset: 'pdfLayout',
+          message: err?.message ?? String(err),
+        });
       }
     }
   }
 
-  private async ensureSecurityDomain(companyId: string, report: ProvisioningReportDto): Promise<string | null> {
+  private async ensureSecurityDomain(
+    companyId: string,
+    report: ProvisioningReportDto,
+  ): Promise<string | null> {
     try {
-      const existing = await this.domainService.getByCompanyAndDomainKey({ companyId, domainKey: 'security' });
+      const existing = await this.domainService.getByCompanyAndDomainKey({
+        companyId,
+        domainKey: 'security',
+      });
       report.skipped.securityDomain = true;
       return existing.id;
     } catch (notFoundErr: any) {
       if (!this.isNotFound(notFoundErr)) {
-        report.errors.push({ asset: 'securityDomain', message: notFoundErr?.message ?? String(notFoundErr) });
+        report.errors.push({
+          asset: 'securityDomain',
+          message: notFoundErr?.message ?? String(notFoundErr),
+        });
         return null;
       }
 
@@ -335,16 +431,24 @@ export class CompanyProvisioningService {
       } catch (createErr: any) {
         if (this.isDuplicateKey(createErr)) {
           report.skipped.securityDomain = true;
-          const existing = await this.domainService.getByCompanyAndDomainKey({ companyId, domainKey: 'security' }).catch(() => null);
+          const existing = await this.domainService
+            .getByCompanyAndDomainKey({ companyId, domainKey: 'security' })
+            .catch(() => null);
           return existing?.id ?? null;
         }
-        report.errors.push({ asset: 'securityDomain', message: createErr?.message ?? String(createErr) });
+        report.errors.push({
+          asset: 'securityDomain',
+          message: createErr?.message ?? String(createErr),
+        });
         return null;
       }
     }
   }
 
-  private async ensureDefaultEvents(domainId: string, report: ProvisioningReportDto): Promise<void> {
+  private async ensureDefaultEvents(
+    domainId: string,
+    report: ProvisioningReportDto,
+  ): Promise<void> {
     for (const eventDef of DEFAULT_PLATFORM_EVENTS) {
       await this.ensureSingleEvent(domainId, eventDef, report);
     }
@@ -356,7 +460,10 @@ export class CompanyProvisioningService {
     report: ProvisioningReportDto,
   ): Promise<void> {
     try {
-      const existing = await this.eventService.findByDomainAndEventKeyOrNull(domainId, eventDef.eventKey);
+      const existing = await this.eventService.findByDomainAndEventKeyOrNull(
+        domainId,
+        eventDef.eventKey,
+      );
       if (existing) {
         report.skipped.events.push(eventDef.eventKey);
         return;
@@ -364,21 +471,24 @@ export class CompanyProvisioningService {
 
       await this.eventService.create({
         domainCatalogueId: domainId,
-        eventKey:     eventDef.eventKey,
-        displayName:  eventDef.displayName,
-        description:  eventDef.description,
-        eventType:    eventDef.eventType,
+        eventKey: eventDef.eventKey,
+        displayName: eventDef.displayName,
+        description: eventDef.description,
+        eventType: eventDef.eventType,
         channelContent: eventDef.channelContent,
-        isActive:     true,
-        scope:        eventDef.scope,
-        senderScope:  eventDef.senderScope,
+        isActive: true,
+        scope: eventDef.scope,
+        senderScope: eventDef.senderScope,
       } as any);
       report.created.events.push(eventDef.eventKey);
     } catch (err: any) {
       if (this.isDuplicateKey(err)) {
         report.skipped.events.push(eventDef.eventKey);
       } else {
-        report.errors.push({ asset: `event:${eventDef.eventKey}`, message: err?.message ?? String(err) });
+        report.errors.push({
+          asset: `event:${eventDef.eventKey}`,
+          message: err?.message ?? String(err),
+        });
       }
     }
   }
@@ -388,13 +498,22 @@ export class CompanyProvisioningService {
    * If it was created manually it is reused as-is; if missing it is created.
    * domainCategory matches the manually-created domain: 'system'.
    */
-  private async ensureNotificationsDomain(companyId: string, report: ProvisioningReportDto): Promise<string | null> {
+  private async ensureNotificationsDomain(
+    companyId: string,
+    report: ProvisioningReportDto,
+  ): Promise<string | null> {
     try {
-      const existing = await this.domainService.getByCompanyAndDomainKey({ companyId, domainKey: 'notifications' });
+      const existing = await this.domainService.getByCompanyAndDomainKey({
+        companyId,
+        domainKey: 'notifications',
+      });
       return existing.id;
     } catch (notFoundErr: any) {
       if (!this.isNotFound(notFoundErr)) {
-        report.errors.push({ asset: 'notificationsDomain', message: notFoundErr?.message ?? String(notFoundErr) });
+        report.errors.push({
+          asset: 'notificationsDomain',
+          message: notFoundErr?.message ?? String(notFoundErr),
+        });
         return null;
       }
       try {
@@ -406,21 +525,31 @@ export class CompanyProvisioningService {
           isActive: true,
           channelsToUse: [],
         });
-        this.logger.log(`[provision:platform:${companyId}] created notifications domain (${created.id})`);
+        this.logger.log(
+          `[provision:platform:${companyId}] created notifications domain (${created.id})`,
+        );
         return created.id;
       } catch (createErr: any) {
         if (this.isDuplicateKey(createErr)) {
-          const existing = await this.domainService.getByCompanyAndDomainKey({ companyId, domainKey: 'notifications' }).catch(() => null);
+          const existing = await this.domainService
+            .getByCompanyAndDomainKey({ companyId, domainKey: 'notifications' })
+            .catch(() => null);
           return existing?.id ?? null;
         }
-        report.errors.push({ asset: 'notificationsDomain', message: createErr?.message ?? String(createErr) });
+        report.errors.push({
+          asset: 'notificationsDomain',
+          message: createErr?.message ?? String(createErr),
+        });
         return null;
       }
     }
   }
 
   /** Ensures every DEFAULT_NOTIFICATIONS_EVENTS entry exists in the notifications domain. */
-  private async ensureNotificationsEvents(domainId: string, report: ProvisioningReportDto): Promise<void> {
+  private async ensureNotificationsEvents(
+    domainId: string,
+    report: ProvisioningReportDto,
+  ): Promise<void> {
     for (const eventDef of DEFAULT_NOTIFICATIONS_EVENTS) {
       await this.ensureSingleEvent(domainId, eventDef as any, report);
     }
@@ -430,17 +559,29 @@ export class CompanyProvisioningService {
    * Gets or creates the 'security' domain for a tenant company.
    * Sets isSystem:true so cleanupTenantCatalogues() never removes it.
    */
-  private async ensureTenantSecurityDomain(companyId: string, report: ProvisioningReportDto): Promise<string | null> {
+  private async ensureTenantSecurityDomain(
+    companyId: string,
+    report: ProvisioningReportDto,
+  ): Promise<string | null> {
     try {
-      const existing = await this.domainService.getByCompanyAndDomainKey({ companyId, domainKey: 'security' });
+      const existing = await this.domainService.getByCompanyAndDomainKey({
+        companyId,
+        domainKey: 'security',
+      });
       if (!(existing as any).isSystem) {
-        await this.domainModel.findByIdAndUpdate((existing as any)._id ?? (existing as any).id, { $set: { isSystem: true } });
+        await this.domainModel.findByIdAndUpdate(
+          (existing as any)._id ?? (existing as any).id,
+          { $set: { isSystem: true } },
+        );
       }
       report.skipped.securityDomain = true;
       return existing.id;
     } catch (notFoundErr: any) {
       if (!this.isNotFound(notFoundErr)) {
-        report.errors.push({ asset: 'securityDomain', message: notFoundErr?.message ?? String(notFoundErr) });
+        report.errors.push({
+          asset: 'securityDomain',
+          message: notFoundErr?.message ?? String(notFoundErr),
+        });
         return null;
       }
       try {
@@ -462,10 +603,15 @@ export class CompanyProvisioningService {
       } catch (createErr: any) {
         if (this.isDuplicateKey(createErr)) {
           report.skipped.securityDomain = true;
-          const existing = await this.domainService.getByCompanyAndDomainKey({ companyId, domainKey: 'security' }).catch(() => null);
+          const existing = await this.domainService
+            .getByCompanyAndDomainKey({ companyId, domainKey: 'security' })
+            .catch(() => null);
           return existing?.id ?? null;
         }
-        report.errors.push({ asset: 'securityDomain', message: createErr?.message ?? String(createErr) });
+        report.errors.push({
+          asset: 'securityDomain',
+          message: createErr?.message ?? String(createErr),
+        });
         return null;
       }
     }
@@ -481,34 +627,42 @@ export class CompanyProvisioningService {
     report: ProvisioningReportDto,
   ): Promise<void> {
     try {
-      const existing = await this.eventService.findByDomainAndEventKeyOrNull(domainId, eventDef.eventKey);
+      const existing = await this.eventService.findByDomainAndEventKeyOrNull(
+        domainId,
+        eventDef.eventKey,
+      );
       if (existing) {
         report.skipped.events.push(eventDef.eventKey);
         return;
       }
       await this.eventService.create({
         domainCatalogueId: domainId,
-        eventKey:       eventDef.eventKey,
-        displayName:    eventDef.displayName,
-        description:    eventDef.description,
-        eventType:      eventDef.eventType,
+        eventKey: eventDef.eventKey,
+        displayName: eventDef.displayName,
+        description: eventDef.description,
+        eventType: eventDef.eventType,
         channelContent: eventDef.channelContent,
-        isActive:       true,
-        scope:          'company',
-        senderScope:    'company',
+        isActive: true,
+        scope: 'company',
+        senderScope: 'company',
       } as any);
       report.created.events.push(eventDef.eventKey);
     } catch (err: any) {
       if (this.isDuplicateKey(err)) {
         report.skipped.events.push(eventDef.eventKey);
       } else {
-        report.errors.push({ asset: `event:${eventDef.eventKey}`, message: err?.message ?? String(err) });
+        report.errors.push({
+          asset: `event:${eventDef.eventKey}`,
+          message: err?.message ?? String(err),
+        });
       }
     }
   }
 
   private isNotFound(err: any): boolean {
-    return err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND;
+    return (
+      err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND
+    );
   }
 
   private isDuplicateKey(err: any): boolean {

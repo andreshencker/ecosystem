@@ -41,8 +41,18 @@ export class LayoutTemplatesController {
   @ApiQuery({ name: 'includeHtml', required: false, type: Boolean })
   @ApiQuery({ name: 'populateTheme', required: false, type: Boolean })
   @ApiQuery({ name: 'populateCompany', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max templates (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Templates to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max templates (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Templates to skip (default 0)',
+  })
   async listByCompany(
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
@@ -55,7 +65,10 @@ export class LayoutTemplatesController {
     @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
 
     return this.service.findAllByCompanyFlat({
       companyId,

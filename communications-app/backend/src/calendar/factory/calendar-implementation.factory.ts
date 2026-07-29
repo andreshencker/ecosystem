@@ -3,9 +3,9 @@
 import { Injectable } from '@nestjs/common';
 
 import type { ICalendarProvider } from '../interfaces/calendar-provider.interface';
-import { ICloudCalendarProvider }   from '../providers/icloud/icloud-calendar.provider';
-import { GoogleCalendarProvider }   from '../providers/google/google-calendar.provider';
-import { OutlookCalendarProvider }  from '../providers/outlook/outlook-calendar.provider';
+import { ICloudCalendarProvider } from '../providers/icloud/icloud-calendar.provider';
+import { GoogleCalendarProvider } from '../providers/google/google-calendar.provider';
+import { OutlookCalendarProvider } from '../providers/outlook/outlook-calendar.provider';
 import { UnsupportedProviderKeyError } from '../../communication/channels/implementation/shared/credentials.errors';
 import { lowerTrim } from '../../communication/channels/implementation/shared/credentials.utils';
 
@@ -26,9 +26,9 @@ import { lowerTrim } from '../../communication/channels/implementation/shared/cr
 @Injectable()
 export class CalendarImplementationFactory {
   constructor(
-    private readonly icloud:   ICloudCalendarProvider,
-    private readonly google:   GoogleCalendarProvider,
-    private readonly outlook:  OutlookCalendarProvider,
+    private readonly icloud: ICloudCalendarProvider,
+    private readonly google: GoogleCalendarProvider,
+    private readonly outlook: OutlookCalendarProvider,
   ) {}
 
   /**

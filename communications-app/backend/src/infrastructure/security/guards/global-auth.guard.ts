@@ -91,16 +91,18 @@ export class GlobalAuthGuard implements CanActivate {
     if (apiKeyHeader) {
       const adminKey = this.config.get<string>('COMMUNICATION_API_KEY');
       if (adminKey && apiKeyHeader === adminKey) {
-        const platformCompany = await this.integrations.resolvePlatformCompany().catch(() => null);
+        const platformCompany = await this.integrations
+          .resolvePlatformCompany()
+          .catch(() => null);
         if (!platformCompany) {
           this.logger.error(
             '[step3] No modules company (isPlatformCompany=true) found — admin-key auth cannot resolve base company. ' +
-            'Ensure the modules company exists in Communications.',
+              'Ensure the modules company exists in Communications.',
           );
         } else {
           this.logger.log(
             `[step3] admin key — platform company resolved: companyId=${platformCompany.companyId} ` +
-            `companyKey=${platformCompany.companyKey}`,
+              `companyKey=${platformCompany.companyKey}`,
           );
         }
         (request as any).authContext = {
@@ -124,19 +126,25 @@ export class GlobalAuthGuard implements CanActivate {
     //
     // In both cases the resolved Communications companyId is stored in
     // authContext.companyId so controllers can use it as the effective companyId.
-    const rawIntegration = this.resolveIntegrationTokenHeader(request, apiKeyHeader);
+    const rawIntegration = this.resolveIntegrationTokenHeader(
+      request,
+      apiKeyHeader,
+    );
 
     if (rawIntegration) {
-      const headerSource = request.headers['x-integration-token'] ? 'x-integration-token' : 'x-api-key';
+      const headerSource = request.headers['x-integration-token']
+        ? 'x-integration-token'
+        : 'x-api-key';
       try {
         this.logger.log(
           `[step4] validating integration token from ${headerSource} ` +
-          `route=${request.method} ${request.path}`,
+            `route=${request.method} ${request.path}`,
         );
-        const resolved = await this.integrations.resolveCompanyByToken(rawIntegration);
+        const resolved =
+          await this.integrations.resolveCompanyByToken(rawIntegration);
         this.logger.log(
           `[step4] token valid — companyId=${resolved.companyId} companyKey=${resolved.companyKey} ` +
-          `source=${headerSource}`,
+            `source=${headerSource}`,
         );
         (request as any).authContext = {
           actorType: 'apikey',
@@ -147,7 +155,7 @@ export class GlobalAuthGuard implements CanActivate {
       } catch {
         this.logger.warn(
           `[step4] invalid or expired integration token from ${headerSource} ` +
-          `route=${request.method} ${request.path}`,
+            `route=${request.method} ${request.path}`,
         );
         throw new UnauthorizedException('Invalid or expired integration token');
       }
@@ -166,7 +174,9 @@ export class GlobalAuthGuard implements CanActivate {
     request: Request,
     apiKeyHeader: string | undefined,
   ): string | null {
-    const explicit = (request.headers['x-integration-token'] as string | undefined)?.trim();
+    const explicit = (
+      request.headers['x-integration-token'] as string | undefined
+    )?.trim();
     if (explicit) return explicit;
 
     // x-api-key fallback: only when the value differs from the admin key

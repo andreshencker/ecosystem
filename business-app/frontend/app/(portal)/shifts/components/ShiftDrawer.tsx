@@ -6,8 +6,10 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
+import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -32,7 +34,7 @@ import { useContracts } from '@/hooks/api/useContracts';
 import { useCalendarOptions } from '@/hooks/api/useLinkedCalendars';
 import { formatContractLabel, formatContractSecondary } from '@/lib/formatContract';
 import { formatShiftDate, formatShiftTime, formatShiftDateTime } from '@/lib/formatShift';
-import type { Shift, CreateShiftPayload, UpdateShiftPayload } from '@/types/shift';
+import type { Shift, ContractSummary, CreateShiftPayload, UpdateShiftPayload } from '@/types/shift';
 import { STATUS_LABELS } from '@/types/shift';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ interface FormValues {
   date:             string;
   startTime:        string;
   endTime:          string;
-  breakMinutes:     string;
+  breakTaken:       boolean;
   location:         string;
   notes:            string;
 }
@@ -140,11 +142,26 @@ function ViewContent({
             }
           />
         )}
-        {shift.createdFromCalendar && !shift.contractAssigned && (
+      </Box>
+
+      {/* Contract */}
+      <Box mb={2.5}>
+        <Typography variant="subtitle2" color="text.secondary" fontWeight={700} gutterBottom>
+          CONTRACT
+        </Typography>
+        <Divider sx={{ mb: 1.5 }} />
+        {shift.contract ? (
+          <>
+            <DetailRow label="Customer"  value={shift.contract.customerName ?? '—'} />
+            <DetailRow label="Position"  value={shift.contract.positionName} />
+          </>
+        ) : shift.createdFromCalendar && !shift.contractAssigned ? (
           <DetailRow
             label="Contract"
             value={<Chip label="Pending contract" size="small" color="warning" variant="filled" />}
           />
+        ) : (
+          <DetailRow label="Contract" value={undefined} />
         )}
       </Box>
 
@@ -170,8 +187,8 @@ function ViewContent({
           </>
         )}
         <DetailRow
-          label="Break"
-          value={shift.breakMinutes != null ? `${shift.breakMinutes} min` : undefined}
+          label="Break taken"
+          value={shift.breakTaken ? 'Yes' : 'No'}
         />
         {shift.timezone && (
           <DetailRow label="Timezone" value={shift.timezone} />
@@ -291,7 +308,7 @@ function ShiftForm({
       date:             '',
       startTime:        '',
       endTime:          '',
-      breakMinutes:     '',
+      breakTaken:       false,
       location:         '',
       notes:            '',
     },
@@ -306,7 +323,7 @@ function ShiftForm({
         date:             shift.date,
         startTime:        shift.startTime,
         endTime:          shift.endTime,
-        breakMinutes:     shift.breakMinutes != null ? String(shift.breakMinutes) : '',
+        breakTaken:       shift.breakTaken ?? false,
         location:         shift.location ?? '',
         notes:            shift.notes    ?? '',
       });
@@ -318,7 +335,7 @@ function ShiftForm({
         date:             '',
         startTime:        '',
         endTime:          '',
-        breakMinutes:     '',
+        breakTaken:       false,
         location:         '',
         notes:            '',
       });
@@ -332,21 +349,22 @@ function ShiftForm({
         date:       values.date,
         startTime:  values.startTime,
         endTime:    values.endTime,
+        breakTaken: values.breakTaken,
         ...(values.linkedCalendarId ? { linkedCalendarId: values.linkedCalendarId } : {}),
         ...(values.title            ? { title:            values.title.trim() }     : {}),
-        ...(values.breakMinutes     ? { breakMinutes: Number(values.breakMinutes) } : {}),
-        ...(values.location         ? { location:     values.location }             : {}),
-        ...(values.notes            ? { notes:        values.notes }                : {}),
+        ...(values.location         ? { location:         values.location }         : {}),
+        ...(values.notes            ? { notes:            values.notes }            : {}),
       };
       await createMutation.mutateAsync(payload);
     } else {
       const payload: UpdateShiftPayload = {
-        date:         values.date         || undefined,
-        startTime:    values.startTime    || undefined,
-        endTime:      values.endTime      || undefined,
-        breakMinutes: values.breakMinutes ? Number(values.breakMinutes) : null,
-        location:     values.location     || null,
-        notes:        values.notes        || null,
+        ...(values.contractId ? { contractId: values.contractId } : {}),
+        date:      values.date      || undefined,
+        startTime: values.startTime || undefined,
+        endTime:   values.endTime   || undefined,
+        breakTaken: values.breakTaken,
+        location:  values.location  || null,
+        notes:     values.notes     || null,
       };
       await updateMutation.mutateAsync({ id: shift!.id, ...payload });
     }
@@ -359,45 +377,49 @@ function ShiftForm({
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <Box display="flex" flexDirection="column" gap={3}>
 
-        {/* Contract (create only) — displays "Customer — Position" for disambiguation */}
-        {mode === 'create' && (
-          <Controller
-            name="contractId"
-            control={control}
-            rules={{ required: 'Contract is required' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Contract"
-                required
-                fullWidth
-                error={!!errors.contractId}
-                helperText={errors.contractId?.message}
-                SelectProps={{
-                  renderValue: (val: unknown) => {
-                    const c = contracts.find((x) => x.id === val);
-                    return c ? formatContractLabel(c) : 'Select a contract';
-                  },
-                }}
-              >
-                <MenuItem value="" disabled>Select a contract</MenuItem>
-                {contracts.map((c) => (
-                  <MenuItem key={c.id} value={c.id} sx={{ py: 1 }}>
-                    <Box>
-                      <Typography variant="body2" fontWeight={500} noWrap>
-                        {formatContractLabel(c)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {formatContractSecondary(c)}
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-        )}
+        {/* Contract selector — create (required) and edit (optional change) */}
+        <Controller
+          name="contractId"
+          control={control}
+          rules={mode === 'create' ? { required: 'Contract is required' } : {}}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              select
+              label="Contract"
+              required={mode === 'create'}
+              fullWidth
+              error={!!errors.contractId}
+              helperText={errors.contractId?.message}
+              SelectProps={{
+                renderValue: (val: unknown) => {
+                  if (!val) return mode === 'create' ? 'Select a contract' : 'No contract selected';
+                  const fromList = contracts.find((x) => x.id === val);
+                  if (fromList) return formatContractLabel(fromList);
+                  // Current shift may have an inactive contract not in the active list
+                  if (shift?.contract && shift.contract.id === val) {
+                    return formatContractLabel(shift.contract as Pick<typeof shift.contract, 'customerName' | 'positionName'>);
+                  }
+                  return 'Select a contract';
+                },
+              }}
+            >
+              {mode === 'create' && <MenuItem value="" disabled>Select a contract</MenuItem>}
+              {contracts.map((c) => (
+                <MenuItem key={c.id} value={c.id} sx={{ py: 1 }}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={500} noWrap>
+                      {formatContractLabel(c)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {formatContractSecondary(c)}
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+        />
 
         {/* Shift calendar (optional, create only) — only shows if shift-flow calendars exist */}
         {mode === 'create' && calendarOptions.length > 0 && (
@@ -481,17 +503,28 @@ function ShiftForm({
             )}
           />
           <Controller
-            name="breakMinutes"
+            name="breakTaken"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                type="number"
-                label="Break (min)"
-                inputProps={{ min: 0, step: 5 }}
-                sx={{ flex: 1, minWidth: 110 }}
-                helperText="Unpaid break"
-              />
+              <Box sx={{ flex: 1, minWidth: 110, display: 'flex', alignItems: 'center', pt: 0.5 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(field.value)}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2">Break taken</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Duration defined by contract
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Box>
             )}
           />
         </Box>

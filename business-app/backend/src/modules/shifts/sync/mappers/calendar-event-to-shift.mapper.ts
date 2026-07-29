@@ -157,11 +157,15 @@ export class CalendarEventToShiftMapper {
    * Full local-time resolution with the complete fallback chain.
    *
    * Fallback order (in priority):
-   * 1. IANA timezone via Intl.DateTimeFormat (converts any UTC instant to local).
-   * 2. Non-UTC offset embedded in raw string (+HH:MM / -HH:MM).
-   * 3. Bare local datetime string (no Z, no offset) — the value IS the local time.
-   *    This is the format Communications emits for TZID-qualified iCal events
-   *    where it stripped the TZID parameter but kept the local time value.
+   * 1. Bare local datetime string (no Z, no offset) — the local components ARE the
+   *    value. Must be checked FIRST. Communications emits bare-local strings for
+   *    TZID-qualified iCal events (utcToLocalDateTimeString output) and for floating
+   *    times. Applying new Date() + Intl.DateTimeFormat to a bare-local string on a
+   *    UTC Node server would treat it as UTC and produce wrong local times.
+   * 2. IANA timezone via Intl.DateTimeFormat — converts a real UTC instant to local.
+   *    Only reached for UTC-Z or offset-aware strings that represent a true instant.
+   * 3. Non-UTC offset embedded in raw string (+HH:MM / -HH:MM) — local time readable
+   *    directly from the string when no IANA timezone is available.
    * 4. UTC fallback (for Z-terminated strings with no IANA timezone).
    */
   private static resolveLocalDateTime(
@@ -169,16 +173,21 @@ export class CalendarEventToShiftMapper {
     rawString: string,
     tzid: string | null | undefined,
   ): { date: string; time: string } {
-    // 1. IANA timezone — most accurate, handles DST transitions
+    // 1. Bare local datetime string — local components are literally in the string.
+    //    This covers: TZID-qualified events (Communications emits local string + timeZone),
+    //    floating times, and utcToLocalDateTimeString output for recurring occurrences.
+    //    Must precede IANA: new Date('2026-07-21T13:00:00') on a UTC server = 13:00Z,
+    //    and Intl would then convert 13:00Z → 23:00 AEST (double-conversion).
+    const fromLocal = CalendarEventToShiftMapper.extractFromLocalDateTimeString(rawString);
+    if (fromLocal) return fromLocal;
+
+    // 2. IANA timezone — converts a UTC instant (Z-string or offset-aware string) to local.
     if (tzid) {
       return CalendarEventToShiftMapper.toLocalDateTime(dt, tzid);
     }
-    // 2. Explicit non-UTC offset in the string (+10:00 etc.)
+    // 3. Explicit non-UTC offset in the string (+10:00 etc.)
     const fromOffset = CalendarEventToShiftMapper.extractFromOffsetAwareString(rawString);
     if (fromOffset) return fromOffset;
-    // 3. Bare local datetime string — timezone was stripped by Communications
-    const fromLocal = CalendarEventToShiftMapper.extractFromLocalDateTimeString(rawString);
-    if (fromLocal) return fromLocal;
     // 4. UTC fallback (Z-terminated strings; no local info available)
     return CalendarEventToShiftMapper.toLocalDateTime(dt, null);
   }

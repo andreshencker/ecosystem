@@ -13,7 +13,10 @@ import { createHash, randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 
 import { UsersService } from '../users/users.service';
-import { RefreshToken, RefreshTokenDocument } from './schemas/refresh-token.schema';
+import {
+  RefreshToken,
+  RefreshTokenDocument,
+} from './schemas/refresh-token.schema';
 import { NotificationService } from '../communication/notifications/notification.service';
 import { CompanyProvisioningService } from '../communication/company/provisioning/company-provisioning.service';
 
@@ -567,9 +570,13 @@ export class AuthService {
     // Platform admins (scope='global') with a null companyId fall back to the
     // platform company so scoped controllers (e.g. CalendarController) work.
     const user = await this.users.findById(userId);
-    let companyId: string | undefined = user?.companyId ? String(user.companyId) : undefined;
+    let companyId: string | undefined = user?.companyId
+      ? String(user.companyId)
+      : undefined;
     if (!companyId && (user as any)?.scope === 'global') {
-      companyId = (await this.users.getPlatformCompanyId().catch(() => null)) ?? undefined;
+      companyId =
+        (await this.users.getPlatformCompanyId().catch(() => null)) ??
+        undefined;
     }
 
     const accessToken = await this.jwt.signAsync({

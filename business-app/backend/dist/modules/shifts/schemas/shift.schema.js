@@ -19,7 +19,7 @@ let Shift = class Shift {
     startTime;
     endDate;
     endTime;
-    breakMinutes;
+    breakTaken;
     status;
     location;
     notes;
@@ -76,9 +76,9 @@ __decorate([
     __metadata("design:type", String)
 ], Shift.prototype, "endTime", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: Number, default: null }),
-    __metadata("design:type", Object)
-], Shift.prototype, "breakMinutes", void 0);
+    (0, mongoose_1.Prop)({ type: Boolean, default: false }),
+    __metadata("design:type", Boolean)
+], Shift.prototype, "breakTaken", void 0);
 __decorate([
     (0, mongoose_1.Prop)({
         required: true,

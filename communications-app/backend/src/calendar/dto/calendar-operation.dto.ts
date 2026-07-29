@@ -147,12 +147,17 @@ export class UpdateEventDto {
 }
 
 export class SubscribeCalendarDto {
-  @ApiProperty({ description: 'iCal/ICS subscription URL or provider-specific calendar identifier' })
+  @ApiProperty({
+    description:
+      'iCal/ICS subscription URL or provider-specific calendar identifier',
+  })
   @IsString()
   @IsNotEmpty()
   url!: string;
 
-  @ApiPropertyOptional({ description: 'Display name for the subscribed calendar' })
+  @ApiPropertyOptional({
+    description: 'Display name for the subscribed calendar',
+  })
   @IsOptional()
   @IsString()
   name?: string;

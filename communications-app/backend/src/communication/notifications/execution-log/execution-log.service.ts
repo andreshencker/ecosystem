@@ -81,7 +81,8 @@ export class ExecutionLogService {
     }
 
     const doc = await this.model.findById(id).lean();
-    if (!doc) throw new HttpException('Execution log not found', HttpStatus.NOT_FOUND);
+    if (!doc)
+      throw new HttpException('Execution log not found', HttpStatus.NOT_FOUND);
 
     return ExecutionLogMapper.toResponse(doc);
   }

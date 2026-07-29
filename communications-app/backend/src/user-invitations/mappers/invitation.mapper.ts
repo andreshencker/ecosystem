@@ -6,21 +6,21 @@ export class InvitationMapper {
       v instanceof Date ? v.toISOString() : String(v ?? '');
 
     return {
-      id:                    String(doc._id ?? doc.id),
-      userId:                doc.userId ?? null,
-      email:                 doc.email,
-      firstName:             doc.firstName,
-      lastName:              doc.lastName,
-      role:                  doc.role,
-      companyId:             doc.companyId ?? null,
-      companyKey:            doc.companyKey ?? null,
-      expiresAt:             toISO(doc.expiresAt),
-      status:                doc.status,
-      invitedByUserId:       doc.invitedByUserId ?? null,
-      invitationScope:       doc.invitationScope,
+      id: String(doc._id ?? doc.id),
+      userId: doc.userId ?? null,
+      email: doc.email,
+      firstName: doc.firstName,
+      lastName: doc.lastName,
+      role: doc.role,
+      companyId: doc.companyId ?? null,
+      companyKey: doc.companyKey ?? null,
+      expiresAt: toISO(doc.expiresAt),
+      status: doc.status,
+      invitedByUserId: doc.invitedByUserId ?? null,
+      invitationScope: doc.invitationScope,
       senderCredentialScope: doc.senderCredentialScope,
-      createdAt:             toISO(doc.createdAt),
-      updatedAt:             toISO(doc.updatedAt),
+      createdAt: toISO(doc.createdAt),
+      updatedAt: toISO(doc.updatedAt),
     };
   }
 

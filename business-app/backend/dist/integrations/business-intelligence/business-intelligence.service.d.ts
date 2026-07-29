@@ -15,6 +15,7 @@ export type { BiQueryResult } from './dto/responses/bi-query-result.dto';
 export type { BiSemanticIndex, BiSemanticDomainDetail, BiSemanticMetadata, } from './dto/responses/bi-semantic-metadata.dto';
 export type { SyncResult } from './dto/responses/sync-result.dto';
 export type { SyncStatus } from './dto/responses/sync-status.dto';
+export type { PendingInvoiceGroup, PendingInvoiceGroupsResult, PendingShiftCalculation, PendingGroupStatus, ShiftCalcStatus, } from './dto/responses/pending-invoice-groups.dto';
 import type { CustomerSummaryResult } from './dto/responses/customer-summary.dto';
 import type { DashboardSummaryResult } from './dto/responses/dashboard-summary.dto';
 import type { InvoiceSummaryResult } from './dto/responses/invoice-summary.dto';
@@ -25,6 +26,7 @@ import type { BiQueryResult } from './dto/responses/bi-query-result.dto';
 import type { BiSemanticMetadata } from './dto/responses/bi-semantic-metadata.dto';
 import type { SyncResult } from './dto/responses/sync-result.dto';
 import type { SyncStatus } from './dto/responses/sync-status.dto';
+import type { PendingInvoiceGroupsResult } from './dto/responses/pending-invoice-groups.dto';
 export declare class BusinessIntelligenceService {
     private readonly client;
     private readonly logger;
@@ -60,5 +62,6 @@ export declare class BusinessIntelligenceService {
     }): Promise<BiShiftPendingSummaryResponse>;
     getPendingShiftAssignments(params: BiShiftAssignmentListParams): Promise<BiShiftPendingAssignmentListResponse>;
     getPendingShiftAssignmentDetail(shiftId: string, businessId?: string): Promise<BiShiftPendingAssignmentItem | null>;
+    getPendingInvoiceGroups(businessId: string): Promise<PendingInvoiceGroupsResult | null>;
 }
 export { BusinessIntelligenceService as BiClientService };

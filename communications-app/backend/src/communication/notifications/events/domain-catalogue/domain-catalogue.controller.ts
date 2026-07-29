@@ -43,8 +43,18 @@ export class DomainCatalogueController {
   @ApiOperation({ summary: 'List domain catalogue entries' })
   @ApiQuery({ name: 'companyId', required: true, type: String })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   async list(
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
@@ -53,8 +63,16 @@ export class DomainCatalogueController {
     @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
-    return this.service.findAll({ companyId, active: this.toBool(active), limit: parsedLimit, offset: parsedOffset });
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
+    return this.service.findAll({
+      companyId,
+      active: this.toBool(active),
+      limit: parsedLimit,
+      offset: parsedOffset,
+    });
   }
 
   // =========================================================

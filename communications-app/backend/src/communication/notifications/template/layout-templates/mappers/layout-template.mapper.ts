@@ -47,8 +47,8 @@ export class LayoutTemplateMapper {
     const themeObj =
       doc?.companyThemeId &&
       typeof doc.companyThemeId === 'object' &&
-      (doc.companyThemeId as any)._id
-        ? (doc.companyThemeId as any)
+      doc.companyThemeId._id
+        ? doc.companyThemeId
         : undefined;
 
     // theme.companyId puede venir:
@@ -57,8 +57,8 @@ export class LayoutTemplateMapper {
     const companyObj =
       themeObj?.companyId &&
       typeof themeObj.companyId === 'object' &&
-      (themeObj.companyId as any)._id
-        ? (themeObj.companyId as any)
+      themeObj.companyId._id
+        ? themeObj.companyId
         : undefined;
 
     // ✅ layout.companyThemeId siempre string (no objeto)
@@ -90,7 +90,7 @@ export class LayoutTemplateMapper {
   private static stripMongoMeta(obj: any) {
     if (!obj || typeof obj !== 'object') return obj;
     const copy = { ...obj };
-    delete (copy as any).__v;
+    delete copy.__v;
     return copy;
   }
 }

@@ -1,6 +1,6 @@
 // src/channels/implementation/shared/credentials.types.ts
 
-export type ChannelKey = 'email' | 'sms' | 'storage' | 'calendar';
+export type ChannelKey = 'email' | 'sms' | 'storage' | 'calendar' | 'payment';
 
 export type EmailConnectionType = 'smtp' | 'oauth' | 'api_key';
 export type SmsConnectionType = 'api_key' | 'oauth';

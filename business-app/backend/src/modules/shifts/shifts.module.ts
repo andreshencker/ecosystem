@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Shift, ShiftSchema } from './schemas/shift.schema';
 import { SyncHistory, SyncHistorySchema } from './sync/schemas/sync-history.schema';
 import { Contract, ContractSchema } from '../contracts/schemas/contract.schema';
+import { Customer, CustomerSchema } from '../customer/schemas/customer.schema';
 import { ShiftsService } from './shifts.service';
 import { ShiftsController } from './shifts.controller';
 import { ShiftSyncService } from './sync/services/shift-sync.service';
@@ -17,6 +18,7 @@ import { BusinessIntelligenceModule } from '../../integrations/business-intellig
     MongooseModule.forFeature([
       { name: Shift.name,        schema: ShiftSchema        },
       { name: Contract.name,     schema: ContractSchema     },
+      { name: Customer.name,     schema: CustomerSchema     },
       { name: SyncHistory.name,  schema: SyncHistorySchema  },
     ]),
     CommunicationsModule,

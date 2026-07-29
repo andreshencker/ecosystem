@@ -48,7 +48,7 @@ export class TwilioSmsChannel implements ISmsChannel {
       );
       TwilioCredentialsContract.validate(normalized.value);
 
-      const creds = normalized.value as TwilioSmsCredentials;
+      const creds = normalized.value;
       const providerKey = payload.providerKey ?? creds.providerKey ?? 'twilio';
       const client = twilio(creds.accountSid, creds.authToken);
 

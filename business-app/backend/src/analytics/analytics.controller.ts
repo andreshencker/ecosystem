@@ -118,6 +118,35 @@ export class AnalyticsController {
   @ApiQuery({ name: 'dateFrom',         required: false, description: 'ISO date YYYY-MM-DD' })
   @ApiQuery({ name: 'dateTo',           required: false, description: 'ISO date YYYY-MM-DD' })
   @ApiQuery({ name: 'search',           required: false })
+  @Get('invoices/pending-groups')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Pending invoice groups — real-time BI calculation (proxied from BI service)',
+    description:
+      'Returns confirmed shifts with invoiceStatus=pending grouped by ' +
+      'customer × contract × billing period. All amounts are computed by BI. ' +
+      'businessId is resolved from the JWT — never from the request.',
+  })
+  async getPendingInvoiceGroups(@CurrentUser() ctx: AuthContext) {
+    const businessId = this.resolveCompanyId(ctx);
+    try {
+      const result = await this.bi.getPendingInvoiceGroups(businessId);
+      if (!result) {
+        throw new ServiceUnavailableException(
+          'Business Intelligence service is unavailable',
+        );
+      }
+      return result;
+    } catch (err) {
+      if (err instanceof BIUnavailableError) {
+        throw new ServiceUnavailableException(
+          'Business Intelligence service is unavailable',
+        );
+      }
+      throw err;
+    }
+  }
+
   async getShiftPendingList(
     @CurrentUser() ctx: AuthContext,
     @Query('page')             rawPage?:             string,

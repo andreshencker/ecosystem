@@ -91,7 +91,10 @@ export class ShiftSyncService {
     );
 
     // ── Email notification ──────────────────────────────────────────────────
-    this.sendSyncNotification(businessId, actor, stats, totalCreated, totalUpdated, totalDeleted, totalErrors);
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this.sendSyncNotification(businessId, actor, stats, totalCreated, totalUpdated, totalDeleted, totalErrors);
 
     // ── BI ETL trigger (fire-and-forget) ───────────────────────────────────
     // After calendar sync updates MongoDB, replicate fact_shift to PostgreSQL so
@@ -401,6 +404,13 @@ export class ShiftSyncService {
 
   // ─── Notifications ────────────────────────────────────────────────────────
 
+  // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+  // Calendar sync notification strategy is still under definition.
+  // Final implementation MUST use Platform credentials:
+  //   type: 'platform'   ← required
+  //   businessId must NOT be passed when type is 'platform'
+  // Do NOT restore using type: 'business'.
+  // Re-enable once the notification behavior and delivery channels have been approved.
   private sendSyncNotification(
     businessId: string,
     actor: { userId: string; email: string; firstName: string },
@@ -410,37 +420,37 @@ export class ShiftSyncService {
     totalDeleted: number,
     totalErrors: number,
   ): void {
-    const hasFailures = stats.some((s) => s.status === 'failed');
-    const event = hasFailures
-      ? 'calendar_sync.sync_failed'
-      : 'calendar_sync.sync_completed';
-
-    const calendarNames = stats.map((s) => s.calendarName).join(', ');
-
-    this.usersService
-      .getCompanyDisplayName(businessId)
-      .catch(() => businessId)
-      .then((businessName) =>
-        this.commClient.notifyEvent({
-          type:       'business',
-          businessId,
-          event,
-          email:      actor.email,
-          data: {
-            firstName:     actor.firstName,
-            businessName,
-            calendarNames,
-            totalCreated:  String(totalCreated),
-            totalUpdated:  String(totalUpdated),
-            totalDeleted:  String(totalDeleted),
-            totalErrors:   String(totalErrors),
-            actionDate:    new Date().toISOString(),
-          },
-        }),
-      )
-      .then((ok) => this.logger.log(`[sync:notify] ${event} delivered=${ok}`))
-      .catch((err: any) =>
-        this.logger.error(`[sync:notify] ${event} failed: ${err?.message}`),
-      );
+    void businessId; void actor; void stats; void totalCreated; void totalUpdated; void totalDeleted; void totalErrors;
+    // const hasFailures = stats.some((s) => s.status === 'failed');
+    // const event = hasFailures
+    //   ? 'calendar_sync.sync_failed'
+    //   : 'calendar_sync.sync_completed';
+    //
+    // const calendarNames = stats.map((s) => s.calendarName).join(', ');
+    //
+    // this.usersService
+    //   .getCompanyDisplayName(businessId)
+    //   .catch(() => businessId)
+    //   .then((businessName) =>
+    //     this.commClient.notifyEvent({
+    //       type:  'platform',  // ← MUST be 'platform' — do NOT use 'business'
+    //       event,
+    //       email:      actor.email,
+    //       data: {
+    //         firstName:     actor.firstName,
+    //         businessName,
+    //         calendarNames,
+    //         totalCreated:  String(totalCreated),
+    //         totalUpdated:  String(totalUpdated),
+    //         totalDeleted:  String(totalDeleted),
+    //         totalErrors:   String(totalErrors),
+    //         actionDate:    new Date().toISOString(),
+    //       },
+    //     }),
+    //   )
+    //   .then((ok) => this.logger.log(`[sync:notify] ${event} delivered=${ok}`))
+    //   .catch((err: any) =>
+    //     this.logger.error(`[sync:notify] ${event} failed: ${err?.message}`),
+    //   );
   }
 }

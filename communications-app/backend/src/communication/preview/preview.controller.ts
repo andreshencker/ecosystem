@@ -1,9 +1,18 @@
-import { Body, Controller, Header, HttpCode, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Header,
+  HttpCode,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 
 import { PreviewLayoutDto } from './dto/preview-layout.dto';
 import { PreviewNotificationDto } from './dto/preview-notification.dto';
 import { PreviewReportDto } from './dto/preview-report.dto';
+import { PreviewDocumentStructureDto } from './dto/preview-document-structure.dto';
 import { PreviewService } from './preview.service';
 import { CommunicationApiKeyGuard } from '../common/guards/communication-api-key.guard';
 
@@ -46,5 +55,31 @@ export class PreviewController {
     );
 
     return res.send(result);
+  }
+
+  // ─────────────────────────────
+  // 4) Document Catalogue — structural PDF preview
+  //
+  // POST /preview/documents/structure/pdf
+  // Body: { companyId, canonicalKey }
+  //
+  // Resolves the stored PDF contract, builds placeholder content from its
+  // section definitions, applies the real company layout and theme, and returns
+  // an inline PDF that shows document structure without business data.
+  // ─────────────────────────────
+  @Post('documents/structure/pdf')
+  async previewDocumentStructurePdf(
+    @Body() dto: PreviewDocumentStructureDto,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.service.previewDocumentStructurePdf(dto);
+
+    const docKey = dto.canonicalKey.split('.')[1] ?? 'document';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${docKey}-structure-preview.pdf"`,
+    );
+    return res.send(buffer);
   }
 }

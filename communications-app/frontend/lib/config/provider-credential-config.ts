@@ -3,7 +3,7 @@
 // connectionType (fallback). Nothing in this file goes to the database —
 // these are display / UX definitions only.
 
-export type CredentialFieldType = 'text' | 'password' | 'number' | 'boolean';
+export type CredentialFieldType = 'text' | 'password' | 'number' | 'boolean' | 'select';
 
 export interface CredentialFieldConfig {
   /** Key as expected by the backend contract's ALLOWED list. */
@@ -17,6 +17,8 @@ export interface CredentialFieldConfig {
   defaultValue?: string | number | boolean;
   /** 'basic' fields are always visible; 'advanced' are collapsible. */
   section: 'basic' | 'advanced';
+  /** Selectable options — only used when type === 'select'. */
+  options?: { value: string; label: string }[];
 }
 
 export interface ProviderCredentialConfig {
@@ -149,6 +151,58 @@ const OUTLOOK_CALENDAR: ProviderCredentialConfig = {
   advancedFields: [],
 };
 
+// ─── Payment provider-specific configs ───────────────────────────────────────
+
+const STRIPE: ProviderCredentialConfig = {
+  connectionTypeLabel: 'API Key',
+  helperText:
+    'Find your API keys in the Stripe Dashboard under Developers → API Keys. Use your test keys while setting up, and switch to live keys when you are ready to accept real payments.',
+  basicFields: [
+    {
+      key:         'secretKey',
+      label:       'Secret Key',
+      type:        'password',
+      required:    true,
+      placeholder: 'sk_test_...',
+      helperText:  'Never share your secret key. Keep it out of version control.',
+      section:     'basic',
+    },
+    {
+      key:         'publishableKey',
+      label:       'Publishable Key',
+      type:        'text',
+      required:    true,
+      placeholder: 'pk_test_...',
+      helperText:  'Safe to expose in client-side code. Used to identify your Stripe account.',
+      section:     'basic',
+    },
+    {
+      key:          'mode',
+      label:        'Mode',
+      type:         'select',
+      required:     true,
+      defaultValue: 'test',
+      helperText:   'Use "Test" mode during development. Switch to "Live" when ready for real payments.',
+      section:      'basic',
+      options: [
+        { value: 'test', label: 'Test' },
+        { value: 'live', label: 'Live' },
+      ],
+    },
+  ],
+  advancedFields: [
+    {
+      key:         'webhookSecret',
+      label:       'Webhook Secret',
+      type:        'password',
+      required:    false,
+      placeholder: 'whsec_...',
+      helperText:  'Optional. Found in the Stripe Dashboard under Developers → Webhooks → your endpoint → Signing secret. Required to validate incoming webhook events.',
+      section:     'advanced',
+    },
+  ],
+};
+
 // ─── Fallback configs by connectionType ───────────────────────────────────────
 
 const SMTP_GENERIC: ProviderCredentialConfig = {
@@ -214,6 +268,7 @@ const BY_PROVIDER_KEY: Record<string, ProviderCredentialConfig> = {
   icloud:           ICLOUD,
   google_calendar:  GOOGLE_CALENDAR,
   outlook_calendar: OUTLOOK_CALENDAR,
+  stripe:           STRIPE,
 };
 
 const APP_PASSWORD_GENERIC: ProviderCredentialConfig = {

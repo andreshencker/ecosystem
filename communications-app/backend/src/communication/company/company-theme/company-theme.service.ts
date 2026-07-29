@@ -43,7 +43,12 @@ export class CompanyThemeService {
       this.model.countDocuments(filter),
     ]);
 
-    return { data: CompanyThemeMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: CompanyThemeMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async findById(id: string): Promise<CompanyThemeResponseDto> {

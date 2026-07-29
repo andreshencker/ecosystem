@@ -8,7 +8,8 @@ export const DEFAULT_THEME = {
   mutedTextColor: '#64748B',
   borderColor: '#E2E8F0',
   linkColor: '#2563EB',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   fontSizeBase: '14px',
   fontWeightNormal: 400,
   fontWeightBold: 600,

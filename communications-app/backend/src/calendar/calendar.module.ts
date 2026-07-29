@@ -27,9 +27,12 @@ import { CalendarService } from './services/calendar.service';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Channel.name,               schema: ChannelSchema               },
-      { name: Provider.name,              schema: ProviderSchema              },
-      { name: CompanyChannelProvider.name, schema: CompanyChannelProviderSchema },
+      { name: Channel.name, schema: ChannelSchema },
+      { name: Provider.name, schema: ProviderSchema },
+      {
+        name: CompanyChannelProvider.name,
+        schema: CompanyChannelProviderSchema,
+      },
     ]),
     CalendarImplementationModule,
     ChannelsRuntimeModule,
@@ -37,7 +40,7 @@ import { CalendarService } from './services/calendar.service';
     CompanyChannelProvidersModule,
   ],
   controllers: [CalendarController],
-  providers:   [CalendarService],
-  exports:     [CalendarService],
+  providers: [CalendarService],
+  exports: [CalendarService],
 })
 export class CalendarModule {}

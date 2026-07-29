@@ -62,8 +62,18 @@ export class CompanyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'List companies' })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   async list(
     @Headers('x-api-key') apiKey: string,
     @CurrentUser() ctx: AuthContext | undefined,
@@ -72,8 +82,15 @@ export class CompanyController {
     @Query('offset') offset?: string,
   ) {
     this.assertAccess(apiKey, ctx);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
-    return this.companies.findAll({ active: this.toBool(active), limit: parsedLimit, offset: parsedOffset });
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
+    return this.companies.findAll({
+      active: this.toBool(active),
+      limit: parsedLimit,
+      offset: parsedOffset,
+    });
   }
 
   @Get('by-key/:companyKey')
@@ -112,8 +129,13 @@ export class CompanyController {
     this.assertAccess(apiKey, ctx);
     const created = await this.companies.create(dto);
     // Tenant provisioning — theme + layouts only (no domains or events for tenants).
-    this.provisioning.provisionCompany(String(created.id))
-      .catch(err => this.logger.error(`Auto-provisioning failed for ${created.id}: ${err?.message}`));
+    this.provisioning
+      .provisionCompany(String(created.id))
+      .catch((err) =>
+        this.logger.error(
+          `Auto-provisioning failed for ${created.id}: ${err?.message}`,
+        ),
+      );
     return created;
   }
 
@@ -191,8 +213,13 @@ export class CompanyController {
     }
 
     // Tenant provisioning — theme + layouts only (no domains or events for tenants).
-    this.provisioning.provisionCompany(companyId)
-      .catch(err => this.logger.error(`Auto-provisioning failed for ${companyId}: ${err?.message}`));
+    this.provisioning
+      .provisionCompany(companyId)
+      .catch((err) =>
+        this.logger.error(
+          `Auto-provisioning failed for ${companyId}: ${err?.message}`,
+        ),
+      );
 
     return result;
   }
@@ -216,8 +243,16 @@ export class CompanyController {
   // ==========================
   @Delete(':companyKey')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Delete a company and all its associated data (cascade)' })
-  @ApiQuery({ name: 'dryRun', required: false, type: Boolean, description: 'Preview what would be deleted without actually deleting anything' })
+  @ApiOperation({
+    summary: 'Delete a company and all its associated data (cascade)',
+  })
+  @ApiQuery({
+    name: 'dryRun',
+    required: false,
+    type: Boolean,
+    description:
+      'Preview what would be deleted without actually deleting anything',
+  })
   async removeByKey(
     @Headers('x-api-key') apiKey: string,
     @CurrentUser() ctx: AuthContext | undefined,
@@ -225,7 +260,9 @@ export class CompanyController {
     @Query('dryRun') dryRun?: string,
   ) {
     this.assertAccess(apiKey, ctx);
-    return this.deletion.deleteCompany(companyKey, { dryRun: dryRun === 'true' });
+    return this.deletion.deleteCompany(companyKey, {
+      dryRun: dryRun === 'true',
+    });
   }
 
   // ==========================
@@ -235,7 +272,10 @@ export class CompanyController {
 
   @Post('with-owner')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Create a company and its initial company_owner (platform_admin only, DEC-014)' })
+  @ApiOperation({
+    summary:
+      'Create a company and its initial company_owner (platform_admin only, DEC-014)',
+  })
   async createWithOwner(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: CreateCompanyWithOwnerDto,
@@ -246,7 +286,8 @@ export class CompanyController {
     message: string;
     provisioning: any;
   }> {
-    if (ctx?.actorType !== 'user') throw new UnauthorizedException('Authentication required');
+    if (ctx?.actorType !== 'user')
+      throw new UnauthorizedException('Authentication required');
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
     if (actor.role !== 'platform_admin') {
       throw new ForbiddenException('Only platform_admin may use this endpoint');
@@ -254,7 +295,9 @@ export class CompanyController {
 
     const companyKey = this.slugify(dto.displayName);
     if (!companyKey) {
-      throw new BadRequestException('displayName must contain at least one alphanumeric character');
+      throw new BadRequestException(
+        'displayName must contain at least one alphanumeric character',
+      );
     }
 
     // 1. Create company
@@ -267,7 +310,9 @@ export class CompanyController {
       } as any);
     } catch (err: any) {
       if (err?.status === 400 && err?.message?.includes('already exists')) {
-        throw new ConflictException(`A company with key "${companyKey}" already exists. Try a different name.`);
+        throw new ConflictException(
+          `A company with key "${companyKey}" already exists. Try a different name.`,
+        );
       }
       throw err;
     }
@@ -277,26 +322,34 @@ export class CompanyController {
     let tempPassword: string;
     try {
       ({ user, tempPassword } = await this.users.createInvitedUser({
-        email:      dto.ownerEmail,
-        firstName:  dto.ownerFirstName,
-        lastName:   dto.ownerLastName,
-        role:       'company_owner',
-        companyId:  String(company.id),
+        email: dto.ownerEmail,
+        firstName: dto.ownerFirstName,
+        lastName: dto.ownerLastName,
+        role: 'company_owner',
+        companyId: String(company.id),
         companyKey: companyKey,
       }));
     } catch {
       await this.companies.removeByKey(companyKey).catch(() => void 0);
-      throw new ConflictException(`An account with email "${dto.ownerEmail}" already exists.`);
+      throw new ConflictException(
+        `An account with email "${dto.ownerEmail}" already exists.`,
+      );
     }
 
     // 3. Link ownerUserId on the company
-    await this.companies.updateById(String(company.id), { ownerUserId: String(user._id ?? user.id) } as any);
+    await this.companies.updateById(String(company.id), {
+      ownerUserId: String(user._id ?? user.id),
+    } as any);
 
-    const loginUrl = (this.config.get<string>('APP_BASE_URL') || 'http://localhost:3000')
-      .replace(/\/$/, '') + '/auth/login';
+    const loginUrl =
+      (
+        this.config.get<string>('APP_BASE_URL') || 'http://localhost:3000'
+      ).replace(/\/$/, '') + '/auth/login';
 
     // 4. Provision tenant branding assets (theme + layouts only — no domains/events for tenants).
-    const provisioningReport = await this.provisioning.provisionCompany(String(company.id));
+    const provisioningReport = await this.provisioning.provisionCompany(
+      String(company.id),
+    );
 
     // 5. Deliver invitation via NotificationEngine.
     // Route through the Platform Company (Grapifly) — the newly created tenant has no
@@ -304,7 +357,9 @@ export class CompanyController {
     // data.companyName so the template renders "invited to join <TenantName>" while
     // the email is actually sent from Grapifly's SMTP credentials.
     let emailDelivered = false;
-    const platformCompanyId = await this.users.getPlatformCompanyId().catch(() => null);
+    const platformCompanyId = await this.users
+      .getPlatformCompanyId()
+      .catch(() => null);
     if (!platformCompanyId) {
       this.logger.warn(
         `company_user_invitation: platform company not found — notification skipped for ${dto.ownerEmail}`,
@@ -313,19 +368,19 @@ export class CompanyController {
       try {
         this.logger.log(
           `[company_user_invitation] event=security.company_user_invitation` +
-          ` senderCompanyId=${platformCompanyId} tenantCompanyId=${String(company.id)}` +
-          ` companyName=${dto.displayName} recipient=${dto.ownerEmail}`,
+            ` senderCompanyId=${platformCompanyId} tenantCompanyId=${String(company.id)}` +
+            ` companyName=${dto.displayName} recipient=${dto.ownerEmail}`,
         );
         const notifyResult = await this.notificationService.notifyEvent({
           companyId: platformCompanyId,
-          event:     'security.company_user_invitation',
-          email:     dto.ownerEmail,
+          event: 'security.company_user_invitation',
+          email: dto.ownerEmail,
           payload: {
             data: {
-              firstName:   dto.ownerFirstName,
+              firstName: dto.ownerFirstName,
               companyName: dto.displayName,
-              role:        'company_owner',
-              email:       dto.ownerEmail,
+              role: 'company_owner',
+              email: dto.ownerEmail,
               tempPassword,
               loginUrl,
             },
@@ -333,26 +388,33 @@ export class CompanyController {
         });
         emailDelivered = notifyResult.results.some((r) => r.success);
         if (!emailDelivered) {
-          const notifyError = notifyResult.results.map((r) => r.error).filter(Boolean).join('; ');
-          this.logger.warn(`company_user_invitation did not deliver for ${dto.ownerEmail}: ${notifyError}`);
+          const notifyError = notifyResult.results
+            .map((r) => r.error)
+            .filter(Boolean)
+            .join('; ');
+          this.logger.warn(
+            `company_user_invitation did not deliver for ${dto.ownerEmail}: ${notifyError}`,
+          );
         }
       } catch (err: any) {
-        this.logger.warn(`company_user_invitation notification failed for ${dto.ownerEmail}: ${err?.message}`);
+        this.logger.warn(
+          `company_user_invitation notification failed for ${dto.ownerEmail}: ${err?.message}`,
+        );
       }
     }
 
     // 6. Invitation audit record
     await this.userInvitations.createInvitationRecord({
-      userId:          String(user._id ?? user.id),
-      email:           dto.ownerEmail,
-      firstName:       dto.ownerFirstName,
-      lastName:        dto.ownerLastName,
-      role:            'company_owner',
-      companyId:       String(company.id),
-      companyKey:      companyKey,
+      userId: String(user._id ?? user.id),
+      email: dto.ownerEmail,
+      firstName: dto.ownerFirstName,
+      lastName: dto.ownerLastName,
+      role: 'company_owner',
+      companyId: String(company.id),
+      companyKey: companyKey,
       invitedByUserId: ctx.userId!,
       invitationScope: 'company',
-      status:          emailDelivered ? 'pending' : 'pending_delivery',
+      status: emailDelivered ? 'pending' : 'pending_delivery',
     });
 
     const message = emailDelivered
@@ -362,10 +424,10 @@ export class CompanyController {
     return {
       company,
       user: {
-        id:        String(user._id ?? user.id),
-        email:     dto.ownerEmail,
+        id: String(user._id ?? user.id),
+        email: dto.ownerEmail,
         firstName: dto.ownerFirstName,
-        lastName:  dto.ownerLastName,
+        lastName: dto.ownerLastName,
       },
       emailDelivered,
       message,
@@ -377,12 +439,16 @@ export class CompanyController {
 
   @Post(':companyId/provision')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Provision (or repair) default communication assets for a company (platform_admin only, DEC-017 §3)' })
+  @ApiOperation({
+    summary:
+      'Provision (or repair) default communication assets for a company (platform_admin only, DEC-017 §3)',
+  })
   async reprovision(
     @CurrentUser() ctx: AuthContext,
     @Param('companyId') companyId: string,
   ) {
-    if (ctx?.actorType !== 'user') throw new UnauthorizedException('Authentication required');
+    if (ctx?.actorType !== 'user')
+      throw new UnauthorizedException('Authentication required');
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
     if (actor.role !== 'platform_admin') {
       throw new ForbiddenException('Only platform_admin may use this endpoint');
@@ -390,14 +456,18 @@ export class CompanyController {
     // Determine whether this is the modules company so the correct provisioning
     // path runs: modules gets theme+layouts+domain+events; tenant gets theme+layouts only.
     const platformCompanyId = await this.users.getPlatformCompanyId();
-    const isPlatformCompany  = !!platformCompanyId && platformCompanyId === companyId;
+    const isPlatformCompany =
+      !!platformCompanyId && platformCompanyId === companyId;
     return this.provisioning.provisionCompany(companyId, { isPlatformCompany });
   }
 
   // ==========================
   // Accepts either a JWT-authenticated user (set by GlobalAuthGuard) or the
   // internal COMMUNICATION_API_KEY header used by engine-to-engine calls.
-  private assertAccess(apiKey: string | undefined, ctx: AuthContext | undefined): void {
+  private assertAccess(
+    apiKey: string | undefined,
+    ctx: AuthContext | undefined,
+  ): void {
     if (ctx?.actorType === 'user') return;
     const expected = this.config.get<string>('COMMUNICATION_API_KEY');
     if (apiKey && expected && apiKey === expected) return;

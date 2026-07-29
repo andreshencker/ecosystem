@@ -49,10 +49,13 @@ import { CalendarImplementationModule } from '../../../calendar/factory/calendar
   imports: [
     ConfigModule,
     MongooseModule.forFeature([
-      { name: ProviderCredentials.name,    schema: ProviderCredentialsSchema    },
-      { name: CompanyChannelProvider.name, schema: CompanyChannelProviderSchema },
-      { name: Company.name,               schema: CompanySchema                },
-      { name: User.name,                  schema: UserSchema                   },
+      { name: ProviderCredentials.name, schema: ProviderCredentialsSchema },
+      {
+        name: CompanyChannelProvider.name,
+        schema: CompanyChannelProviderSchema,
+      },
+      { name: Company.name, schema: CompanySchema },
+      { name: User.name, schema: UserSchema },
     ]),
     NotificationModule,
     CalendarImplementationModule,

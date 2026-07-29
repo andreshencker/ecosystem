@@ -19,6 +19,7 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/customers',
     '/contracts',
     '/shifts',
+    '/billing',
     '/users',
     '/settings/company',
     '/settings/profile',
@@ -34,6 +35,7 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/customers',
     '/contracts',
     '/shifts',
+    '/billing',
     '/users',
     '/settings/company',
     '/settings/profile',
@@ -49,6 +51,7 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/customers',
     '/contracts',
     '/shifts',
+    '/billing',
     '/settings/profile',
   ],
 

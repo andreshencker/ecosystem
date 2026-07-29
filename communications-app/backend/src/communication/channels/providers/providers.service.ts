@@ -53,7 +53,12 @@ export class ProvidersService {
       this.model.countDocuments(filter),
     ]);
 
-    return { data: ProviderMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: ProviderMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async findById(id: string, populate = true): Promise<ProviderResponseDto> {

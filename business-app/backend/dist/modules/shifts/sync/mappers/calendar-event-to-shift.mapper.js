@@ -50,15 +50,15 @@ class CalendarEventToShiftMapper {
         return { date: match[1], time: `${match[2]}:${match[3]}` };
     }
     static resolveLocalDateTime(dt, rawString, tzid) {
+        const fromLocal = CalendarEventToShiftMapper.extractFromLocalDateTimeString(rawString);
+        if (fromLocal)
+            return fromLocal;
         if (tzid) {
             return CalendarEventToShiftMapper.toLocalDateTime(dt, tzid);
         }
         const fromOffset = CalendarEventToShiftMapper.extractFromOffsetAwareString(rawString);
         if (fromOffset)
             return fromOffset;
-        const fromLocal = CalendarEventToShiftMapper.extractFromLocalDateTimeString(rawString);
-        if (fromLocal)
-            return fromLocal;
         return CalendarEventToShiftMapper.toLocalDateTime(dt, null);
     }
     static _logger = { log: (msg) => process.stdout.write(`[SHIFT_MAPPER] ${msg}\n`) };

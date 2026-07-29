@@ -47,9 +47,13 @@ export class Shift {
   @Prop({ required: true })
   endTime!: string;
 
-  /** Unpaid break in minutes — overrides contract default when set. */
-  @Prop({ type: Number, default: null })
-  breakMinutes!: number | null;
+  /**
+   * Whether the worker took their contractual break during this shift.
+   * The duration and conditions of the break are defined by the assigned Contract,
+   * not by the Shift. BI resolves the applicable break duration at calculation time.
+   */
+  @Prop({ type: Boolean, default: false })
+  breakTaken!: boolean;
 
   @Prop({
     required: true,

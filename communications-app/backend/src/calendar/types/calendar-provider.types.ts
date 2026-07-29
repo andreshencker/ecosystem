@@ -28,14 +28,14 @@ export interface CalendarEventInfo {
   title: string;
   description?: string;
   location?: string;
-  startAt: string;   // ISO 8601
-  endAt: string;     // ISO 8601
+  startAt: string; // ISO 8601
+  endAt: string; // ISO 8601
   allDay: boolean;
   timeZone?: string;
   status?: 'confirmed' | 'tentative' | 'cancelled';
   attendees?: CalendarEventAttendee[];
   organizerEmail?: string;
-  uid?: string;      // iCal UID for stable cross-provider identification
+  uid?: string; // iCal UID for stable cross-provider identification
   raw?: Record<string, any>;
 }
 
@@ -57,7 +57,7 @@ export interface UpdateCalendarParams {
 
 export interface SubscribeCalendarParams {
   /** iCal/ICS subscription URL or provider-specific calendar identifier. */
-  url:   string;
+  url: string;
   /** Optional display name for the subscribed calendar. */
   name?: string;
 }
@@ -86,8 +86,8 @@ export interface UpdateEventParams {
 }
 
 export interface ListEventsParams {
-  from?: string;      // ISO 8601 — inclusive lower bound
-  to?: string;        // ISO 8601 — inclusive upper bound
+  from?: string; // ISO 8601 — inclusive lower bound
+  to?: string; // ISO 8601 — inclusive upper bound
   limit?: number;
   pageToken?: string;
 }
@@ -103,14 +103,19 @@ export type CalendarVerifyResult = {
   message?: string;
 };
 
-export type CalendarListResult    = CalendarOperationResult<CalendarInfo[]>;
-export type CalendarGetResult     = CalendarOperationResult<CalendarInfo>;
-export type CalendarCreateResult  = CalendarOperationResult<CalendarInfo>;
-export type CalendarUpdateResult  = CalendarOperationResult<CalendarInfo>;
-export type CalendarDeleteResult  = CalendarOperationResult<{ deleted: boolean }>;
+export type CalendarListResult = CalendarOperationResult<CalendarInfo[]>;
+export type CalendarGetResult = CalendarOperationResult<CalendarInfo>;
+export type CalendarCreateResult = CalendarOperationResult<CalendarInfo>;
+export type CalendarUpdateResult = CalendarOperationResult<CalendarInfo>;
+export type CalendarDeleteResult = CalendarOperationResult<{
+  deleted: boolean;
+}>;
 
-export type EventListResult   = CalendarOperationResult<{ items: CalendarEventInfo[]; nextPageToken?: string }>;
-export type EventGetResult    = CalendarOperationResult<CalendarEventInfo>;
+export type EventListResult = CalendarOperationResult<{
+  items: CalendarEventInfo[];
+  nextPageToken?: string;
+}>;
+export type EventGetResult = CalendarOperationResult<CalendarEventInfo>;
 export type EventCreateResult = CalendarOperationResult<CalendarEventInfo>;
 export type EventUpdateResult = CalendarOperationResult<CalendarEventInfo>;
 export type EventDeleteResult = CalendarOperationResult<{ deleted: boolean }>;

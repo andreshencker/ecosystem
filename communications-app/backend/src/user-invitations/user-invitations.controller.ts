@@ -55,7 +55,7 @@ export class UserInvitationsController {
   }> {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
 
-    const actorRole = actor.role as UserRole;
+    const actorRole = actor.role;
     const targetRole = dto.role as UserRole;
 
     const allowedRoles = INVITE_HIERARCHY[actorRole] ?? [];

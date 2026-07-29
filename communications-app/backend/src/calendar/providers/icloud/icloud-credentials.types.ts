@@ -9,6 +9,6 @@
  * Base URL: https://caldav.icloud.com
  */
 export interface ICloudCredentials {
-  appleId: string;            // e.g. user@icloud.com
+  appleId: string; // e.g. user@icloud.com
   appSpecificPassword: string; // 16-char app-specific password (xxxx-xxxx-xxxx-xxxx)
 }

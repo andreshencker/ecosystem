@@ -37,7 +37,7 @@ export class GeneratorService {
    * ✅ API actual (se mantiene)
    */
   async handle(dto: GenerateFileDto): Promise<DownloadFileResult> {
-    const format = dto.format as FileFormat;
+    const format = dto.format;
 
     const filename = ensureFileExtension(dto.filename, format);
     const renderer = this.renderers.get(format);

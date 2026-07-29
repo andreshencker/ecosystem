@@ -16,7 +16,8 @@ const ALLOWED: (keyof ICloudCredentials)[] = ['appleId', 'appSpecificPassword'];
  * App-Specific Password format emitted by Apple:
  *   xxxx-xxxx-xxxx-xxxx  (16 lowercase alphanumeric chars + 3 hyphens)
  */
-const APP_SPECIFIC_PASSWORD_RE = /^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/;
+const APP_SPECIFIC_PASSWORD_RE =
+  /^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/;
 
 export const ICloudCredentialsContract: ContractSpec<ICloudCredentials> = {
   channelKey: 'calendar' as any,
@@ -38,7 +39,9 @@ export const ICloudCredentialsContract: ContractSpec<ICloudCredentials> = {
 
     const normalized: ICloudCredentials = { appleId, appSpecificPassword };
 
-    return { value: pick<ICloudCredentials>(normalized, ALLOWED) as ICloudCredentials };
+    return {
+      value: pick<ICloudCredentials>(normalized, ALLOWED) as ICloudCredentials,
+    };
   },
 
   validate(value) {
@@ -69,7 +72,8 @@ export const ICloudCredentialsContract: ContractSpec<ICloudCredentials> = {
     // Phase 1: field validation is the only check.
     return {
       ok: true,
-      message: 'iCloud credentials format is valid. Live CalDAV check pending (Phase 2).',
+      message:
+        'iCloud credentials format is valid. Live CalDAV check pending (Phase 2).',
     };
   },
 };

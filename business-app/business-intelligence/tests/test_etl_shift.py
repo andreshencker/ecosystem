@@ -99,3 +99,33 @@ def test_calc_net_minutes():
     assert _calc_net_minutes("08:00", "08:00", 0) == 0
     assert _calc_net_minutes(None, "17:00", 0) is None
     assert _calc_net_minutes("09:00", "10:00", None) == 60
+
+
+def test_calc_net_minutes_overnight():
+    # 22:00 → 02:00 = 4 h gross, no break
+    assert _calc_net_minutes("22:00", "02:00", 0) == 240
+    # 23:00 → 07:00 = 8 h gross − 30 min break = 450 min
+    assert _calc_net_minutes("23:00", "07:00", 30) == 450
+
+
+def test_transform_populates_break_taken():
+    t = ShiftTransformer()
+    record = t.transform(make_shift(breakTaken=True))
+    assert record.break_taken is True
+    record_no_break = t.transform(make_shift(breakTaken=False))
+    assert record_no_break.break_taken is False
+
+
+def test_transform_populates_end_date():
+    t = ShiftTransformer()
+    record = t.transform(make_shift(endDate="2026-01-16"))
+    assert record.end_date == date(2026, 1, 16)
+    record_same_day = t.transform(make_shift(endDate=None))
+    assert record_same_day.end_date is None
+
+
+def test_transform_overnight_shift_duration():
+    t = ShiftTransformer()
+    # 22:00 → 06:00 overnight, no break minutes on the shift doc
+    record = t.transform(make_shift(startTime="22:00", endTime="06:00", breakMinutes=0))
+    assert record.duration_hours == Decimal("8.00")

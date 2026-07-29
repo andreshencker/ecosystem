@@ -53,7 +53,7 @@ export class OAuthSmsChannel implements ISmsChannel {
       );
       OAuthSmsCredentialsContract.validate(normalized.value);
 
-      const creds = normalized.value as OAuthSmsCredentials;
+      const creds = normalized.value;
       const providerKey = payload.providerKey ?? creds.providerKey ?? 'oauth';
 
       // Aquí NO enviamos realmente porque depende del provider.

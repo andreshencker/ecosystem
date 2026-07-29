@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 import { CompanyPortalService } from './company-portal.service';
@@ -30,14 +23,18 @@ export class CompanyPortalController {
 
   @Get()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Get own company (resolves modules company for platform_admin)' })
+  @ApiOperation({
+    summary: 'Get own company (resolves modules company for platform_admin)',
+  })
   async getOwnCompany(@CurrentUser() ctx: AuthContext) {
     return this.service.getOwnCompany(ctx);
   }
 
   @Patch()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Update own company (platform_admin and company_owner only)' })
+  @ApiOperation({
+    summary: 'Update own company (platform_admin and company_owner only)',
+  })
   async updateOwnCompany(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: UpdateCompanyPortalDto,
@@ -50,7 +47,9 @@ export class CompanyPortalController {
   @Get('smtp')
   @HttpCode(200)
   @ApiOperation({ summary: 'Get company SMTP settings' })
-  async getSmtp(@CurrentUser() ctx: AuthContext): Promise<CompanySmtpResponseDto> {
+  async getSmtp(
+    @CurrentUser() ctx: AuthContext,
+  ): Promise<CompanySmtpResponseDto> {
     return this.service.getSmtp(ctx);
   }
 

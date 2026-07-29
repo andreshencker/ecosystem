@@ -1,14 +1,12 @@
 import {
+  IsBoolean,
   IsEnum,
-  IsInt,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 
 export class CreateShiftDto {
@@ -46,11 +44,13 @@ export class CreateShiftDto {
   @Matches(/^\d{2}:\d{2}$/, { message: 'endTime must be HH:mm' })
   endTime!: string;
 
+  /**
+   * Whether the worker took their contractual break.
+   * Defaults to false. The break duration is derived from the Contract by BI.
+   */
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(480)
-  breakMinutes?: number;
+  @IsBoolean()
+  breakTaken?: boolean;
 
   @IsOptional()
   @IsEnum(['draft', 'confirmed', 'cancelled'], {

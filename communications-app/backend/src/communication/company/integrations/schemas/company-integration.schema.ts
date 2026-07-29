@@ -3,10 +3,11 @@ import { HydratedDocument, Types } from 'mongoose';
 
 export type IntegrationEnvironment = 'development' | 'staging' | 'production';
 
-export type CompanyIntegrationDocument = HydratedDocument<CompanyIntegration> & {
-  createdAt: Date;
-  updatedAt: Date;
-};
+export type CompanyIntegrationDocument =
+  HydratedDocument<CompanyIntegration> & {
+    createdAt: Date;
+    updatedAt: Date;
+  };
 
 @Schema({
   collection: 'company_integrations',
@@ -70,7 +71,10 @@ CompanyIntegrationSchema.index(
 );
 
 // Token prefix lookup (fast display identification)
-CompanyIntegrationSchema.index({ tokenPrefix: 1 }, { name: 'idx_token_prefix' });
+CompanyIntegrationSchema.index(
+  { tokenPrefix: 1 },
+  { name: 'idx_token_prefix' },
+);
 
 // Expiry TTL queries
 CompanyIntegrationSchema.index({ expiresAt: 1 }, { name: 'idx_expires_at' });

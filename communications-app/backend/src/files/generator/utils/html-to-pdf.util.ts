@@ -11,9 +11,7 @@ const MAX_CONCURRENT_PUPPETEER = Number(
 
 export async function renderHtmlToPdf(html: string): Promise<Buffer> {
   if (activePuppeteerInstances >= MAX_CONCURRENT_PUPPETEER) {
-    throw new Error(
-      'PDF generation at capacity. Please retry in a moment.',
-    );
+    throw new Error('PDF generation at capacity. Please retry in a moment.');
   }
 
   activePuppeteerInstances += 1;

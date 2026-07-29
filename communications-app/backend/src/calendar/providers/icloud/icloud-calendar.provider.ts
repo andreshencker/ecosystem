@@ -40,6 +40,7 @@ import {
   parseMultistatusResponses,
   parseVEvents,
   expandVEventsInRange,
+  extractCalendarTimezone,
   buildVEvent,
   generateUID,
 } from '../../utils/caldav.util';
@@ -79,15 +80,15 @@ export class ICloudCalendarProvider implements ICalendarProvider {
   ): Promise<{ status: number; text: string; headers: Headers }> {
     const headers: Record<string, string> = {
       Authorization: auth,
-      'User-Agent':  'Grapifly/1.0',
+      'User-Agent': 'Grapifly/1.0',
     };
-    if (options.contentType)    headers['Content-Type'] = options.contentType;
-    if (options.depth !== undefined) headers['Depth']   = options.depth;
+    if (options.contentType) headers['Content-Type'] = options.contentType;
+    if (options.depth !== undefined) headers['Depth'] = options.depth;
 
     const res = await fetch(url, {
       method,
       headers,
-      body:     options.body,
+      body: options.body,
       redirect: 'follow',
     });
     const text = await res.text();
@@ -96,7 +97,9 @@ export class ICloudCalendarProvider implements ICalendarProvider {
 
   // ─── CalDAV discovery ─────────────────────────────────────────────────────
 
-  private async discoverCalendarHome(creds: ICloudCredentials): Promise<string> {
+  private async discoverCalendarHome(
+    creds: ICloudCredentials,
+  ): Promise<string> {
     const auth = this.authHeader(creds);
 
     // Step 1: PROPFIND to /.well-known/caldav → get current-user-principal
@@ -105,26 +108,37 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       'PROPFIND',
       auth,
       {
-        depth:       '0',
+        depth: '0',
         contentType: 'application/xml; charset=utf-8',
-        body:        buildPropfindBody(['<D:current-user-principal/>']),
+        body: buildPropfindBody(['<D:current-user-principal/>']),
       },
     );
 
     // Use the XML-aware extractor so relative hrefs inside <current-user-principal>
     // are parsed correctly (Apple returns relative paths, not absolute URLs).
-    const principalHref = extractHrefFromProp(principalXml, 'current-user-principal');
+    const principalHref = extractHrefFromProp(
+      principalXml,
+      'current-user-principal',
+    );
     if (!principalHref) {
       throw new Error('Could not discover CalDAV principal URL');
     }
-    const principalUrl = resolveHref(principalHref, ICloudCalendarProvider.CALDAV_BASE);
+    const principalUrl = resolveHref(
+      principalHref,
+      ICloudCalendarProvider.CALDAV_BASE,
+    );
 
     // Step 2: PROPFIND on principal → get calendar-home-set
-    const { text: homeXml } = await this.caldavRequest(principalUrl, 'PROPFIND', auth, {
-      depth:       '0',
-      contentType: 'application/xml; charset=utf-8',
-      body:        buildPropfindBody(['<C:calendar-home-set/>']),
-    });
+    const { text: homeXml } = await this.caldavRequest(
+      principalUrl,
+      'PROPFIND',
+      auth,
+      {
+        depth: '0',
+        contentType: 'application/xml; charset=utf-8',
+        body: buildPropfindBody(['<C:calendar-home-set/>']),
+      },
+    );
 
     const homeHref = extractHrefFromProp(homeXml, 'calendar-home-set');
     if (!homeHref) {
@@ -143,7 +157,10 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       : `${ICloudCalendarProvider.CALDAV_BASE}${calendarId}`;
   }
 
-  private parseCalendarFromProps(href: string, props: string): CalendarInfo | null {
+  private parseCalendarFromProps(
+    href: string,
+    props: string,
+  ): CalendarInfo | null {
     const name = extractPropValue(props, 'displayname');
     if (!name) return null;
 
@@ -154,40 +171,53 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       ? href
       : `${ICloudCalendarProvider.CALDAV_BASE}${href}`;
 
+    // Extract TZID from the C:calendar-timezone VTIMEZONE block when present.
+    // iCloud CalDAV includes this for calendars that have a timezone set.
+    const calTzProp = extractPropValue(props, 'calendar-timezone');
+    const calTzMatch = calTzProp ? calTzProp.match(/TZID:([^\r\n:]+)/) : null;
+    const timeZone = calTzMatch ? calTzMatch[1].trim() : undefined;
+
     return {
-      id:          fullUrl,
+      id: fullUrl,
       name,
       description: extractPropValue(props, 'calendar-description') || undefined,
-      color:       extractPropValue(props, 'calendar-color') || undefined,
-      timeZone:    undefined,
-      isReadOnly:  false,
-      isPrimary:   name.toLowerCase() === 'home',
+      color: extractPropValue(props, 'calendar-color') || undefined,
+      timeZone,
+      isReadOnly: false,
+      isPrimary: name.toLowerCase() === 'home',
     };
   }
 
   // ─── verifyCredentials ────────────────────────────────────────────────────
 
-  async verifyCredentials(credentials: Record<string, any>): Promise<CalendarVerifyResult> {
+  async verifyCredentials(
+    credentials: Record<string, any>,
+  ): Promise<CalendarVerifyResult> {
     try {
       const creds = this.normalize(credentials);
       await this.discoverCalendarHome(creds);
       return { ok: true, message: 'iCloud CalDAV connection verified' };
     } catch (err: any) {
       this.logger.error(`[iCloud] verifyCredentials: ${err.message}`);
-      return { ok: false, message: err?.message ?? 'iCloud verification failed' };
+      return {
+        ok: false,
+        message: err?.message ?? 'iCloud verification failed',
+      };
     }
   }
 
   // ─── Calendar management ─────────────────────────────────────────────────
 
-  async listCalendars(credentials: Record<string, any>): Promise<CalendarListResult> {
+  async listCalendars(
+    credentials: Record<string, any>,
+  ): Promise<CalendarListResult> {
     try {
-      const creds   = this.normalize(credentials);
+      const creds = this.normalize(credentials);
       const homeUrl = await this.discoverCalendarHome(creds);
-      const auth    = this.authHeader(creds);
+      const auth = this.authHeader(creds);
 
       const { text } = await this.caldavRequest(homeUrl, 'PROPFIND', auth, {
-        depth:       '1',
+        depth: '1',
         contentType: 'application/xml; charset=utf-8',
         body: buildPropfindBody([
           '<D:displayname/>',
@@ -198,14 +228,17 @@ export class ICloudCalendarProvider implements ICalendarProvider {
         ]),
       });
 
-      const responses  = parseMultistatusResponses(text);
-      const homePath   = new URL(homeUrl).pathname;
+      const responses = parseMultistatusResponses(text);
+      const homePath = new URL(homeUrl).pathname;
       const calendars: CalendarInfo[] = [];
 
       for (const { href, props } of responses) {
         // Skip the home collection itself
-        const hrefPath = href.startsWith('http') ? new URL(href).pathname : href;
-        if (hrefPath === homePath || hrefPath === homePath.replace(/\/$/, '')) continue;
+        const hrefPath = href.startsWith('http')
+          ? new URL(href).pathname
+          : href;
+        if (hrefPath === homePath || hrefPath === homePath.replace(/\/$/, ''))
+          continue;
 
         const cal = this.parseCalendarFromProps(href, props);
         if (cal) calendars.push(cal);
@@ -223,12 +256,12 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     calendarId: string,
   ): Promise<CalendarGetResult> {
     try {
-      const creds  = this.normalize(credentials);
-      const auth   = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const calUrl = this.resolveCalUrl(calendarId);
 
       const { text } = await this.caldavRequest(calUrl, 'PROPFIND', auth, {
-        depth:       '0',
+        depth: '0',
         contentType: 'application/xml; charset=utf-8',
         body: buildPropfindBody([
           '<D:displayname/>',
@@ -260,16 +293,20 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     params: CreateCalendarParams,
   ): Promise<CalendarCreateResult> {
     try {
-      const creds   = this.normalize(credentials);
+      const creds = this.normalize(credentials);
       const homeUrl = await this.discoverCalendarHome(creds);
-      const auth    = this.authHeader(creds);
+      const auth = this.authHeader(creds);
 
-      const uid    = generateUID().replace('@grapifly.com', '');
+      const uid = generateUID().replace('@grapifly.com', '');
       const calUrl = `${homeUrl.replace(/\/$/, '')}/${uid}/`;
 
       const { status } = await this.caldavRequest(calUrl, 'MKCALENDAR', auth, {
         contentType: 'application/xml; charset=utf-8',
-        body:        buildMkCalendarBody(params.name, params.description, params.color),
+        body: buildMkCalendarBody(
+          params.name,
+          params.description,
+          params.color,
+        ),
       });
 
       if (status >= 400) {
@@ -279,13 +316,13 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       return {
         ok: true,
         data: {
-          id:          calUrl,
-          name:        params.name,
+          id: calUrl,
+          name: params.name,
           description: params.description,
-          color:       params.color,
-          timeZone:    params.timeZone,
-          isReadOnly:  false,
-          isPrimary:   false,
+          color: params.color,
+          timeZone: params.timeZone,
+          isReadOnly: false,
+          isPrimary: false,
         },
       };
     } catch (err: any) {
@@ -299,17 +336,17 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     params: SubscribeCalendarParams,
   ): Promise<CalendarSubscribeResult> {
     try {
-      const creds   = this.normalize(credentials);
+      const creds = this.normalize(credentials);
       const homeUrl = await this.discoverCalendarHome(creds);
-      const auth    = this.authHeader(creds);
+      const auth = this.authHeader(creds);
 
-      const uid    = generateUID().replace('@grapifly.com', '');
+      const uid = generateUID().replace('@grapifly.com', '');
       const calUrl = `${homeUrl.replace(/\/$/, '')}/${uid}/`;
 
       // Use MKCALENDAR with CS:source to create a subscribed calendar (Apple extension)
       const { status } = await this.caldavRequest(calUrl, 'MKCALENDAR', auth, {
         contentType: 'application/xml; charset=utf-8',
-        body:        buildMkSubscribedCalendarBody(
+        body: buildMkSubscribedCalendarBody(
           params.name ?? 'Australian Public Holidays',
           params.url,
         ),
@@ -318,28 +355,30 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       if (status >= 400) {
         this.logger.warn(
           `[iCloud] subscribeCalendar: MKCALENDAR with CS:source failed HTTP ${status} — ` +
-          `this iCloud account may not support URL subscriptions via CalDAV API.`,
+            `this iCloud account may not support URL subscriptions via CalDAV API.`,
         );
         return {
-          ok:      false,
-          message: 'Automatic holiday subscription is not supported by this calendar provider.',
+          ok: false,
+          message:
+            'Automatic holiday subscription is not supported by this calendar provider.',
         };
       }
 
       return {
         ok: true,
         data: {
-          id:         calUrl,
-          name:       params.name ?? 'Australian Public Holidays',
+          id: calUrl,
+          name: params.name ?? 'Australian Public Holidays',
           isReadOnly: true,
-          isPrimary:  false,
+          isPrimary: false,
         },
       };
     } catch (err: any) {
       this.logger.error(`[iCloud] subscribeCalendar: ${err.message}`);
       return {
-        ok:      false,
-        message: 'Automatic holiday subscription is not supported by this calendar provider.',
+        ok: false,
+        message:
+          'Automatic holiday subscription is not supported by this calendar provider.',
       };
     }
   }
@@ -350,23 +389,29 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     params: UpdateCalendarParams,
   ): Promise<CalendarUpdateResult> {
     try {
-      const creds  = this.normalize(credentials);
-      const auth   = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const calUrl = this.resolveCalUrl(calendarId);
 
       const propsToSet: Record<string, string> = {};
-      if (params.name        !== undefined) propsToSet['D:displayname'] = params.name;
-      if (params.description !== undefined) propsToSet['C:calendar-description'] = params.description;
-      if (params.color       !== undefined) propsToSet['A:calendar-color xmlns:A="http://apple.com/ns/ical/"'] = params.color;
+      if (params.name !== undefined) propsToSet['D:displayname'] = params.name;
+      if (params.description !== undefined)
+        propsToSet['C:calendar-description'] = params.description;
+      if (params.color !== undefined)
+        propsToSet['A:calendar-color xmlns:A="http://apple.com/ns/ical/"'] =
+          params.color;
 
       if (Object.keys(propsToSet).length === 0) {
         // Nothing to update — fetch and return current
-        return this.getCalendar(credentials, calendarId) as Promise<CalendarUpdateResult>;
+        return this.getCalendar(
+          credentials,
+          calendarId,
+        ) as Promise<CalendarUpdateResult>;
       }
 
       const { status } = await this.caldavRequest(calUrl, 'PROPPATCH', auth, {
         contentType: 'application/xml; charset=utf-8',
-        body:        buildProppatchBody(propsToSet),
+        body: buildProppatchBody(propsToSet),
       });
 
       if (status >= 400) {
@@ -374,7 +419,10 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       }
 
       // Fetch the updated calendar
-      return this.getCalendar(credentials, calendarId) as Promise<CalendarUpdateResult>;
+      return this.getCalendar(
+        credentials,
+        calendarId,
+      ) as Promise<CalendarUpdateResult>;
     } catch (err: any) {
       this.logger.error(`[iCloud] updateCalendar: ${err.message}`);
       return { ok: false, message: err.message };
@@ -386,8 +434,8 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     calendarId: string,
   ): Promise<CalendarDeleteResult> {
     try {
-      const creds  = this.normalize(credentials);
-      const auth   = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const calUrl = this.resolveCalUrl(calendarId);
 
       const { status } = await this.caldavRequest(calUrl, 'DELETE', auth);
@@ -409,26 +457,38 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     params?: ListEventsParams,
   ): Promise<EventListResult> {
     try {
-      const creds  = this.normalize(credentials);
-      const auth   = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const calUrl = this.resolveCalUrl(calendarId);
 
       // ── 1. Log the resolved calendar URL ────────────────────────────────
-      this.logger.log(`[iCloud/listEvents] calendarId decoded → calUrl="${calUrl}"`);
+      this.logger.log(
+        `[iCloud/listEvents] calendarId decoded → calUrl="${calUrl}"`,
+      );
 
       // ── 2. Default date range: ±12 months when none is supplied ─────────
-      const now      = new Date();
-      const fromDate = params?.from
-        ?? new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString();
-      const toDate   = params?.to
-        ?? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).toISOString();
-      const fromMs   = new Date(fromDate).getTime();
-      const toMs     = new Date(toDate).getTime();
+      const now = new Date();
+      const fromDate =
+        params?.from ??
+        new Date(
+          now.getFullYear() - 1,
+          now.getMonth(),
+          now.getDate(),
+        ).toISOString();
+      const toDate =
+        params?.to ??
+        new Date(
+          now.getFullYear() + 1,
+          now.getMonth(),
+          now.getDate(),
+        ).toISOString();
+      const fromMs = new Date(fromDate).getTime();
+      const toMs = new Date(toDate).getTime();
 
       this.logger.log(
         `[iCloud/listEvents] time-range: from="${fromDate}" to="${toDate}"` +
-        (params?.from ? '' : ' (from=DEFAULT)') +
-        (params?.to   ? '' : ' (to=DEFAULT)'),
+          (params?.from ? '' : ' (from=DEFAULT)') +
+          (params?.to ? '' : ' (to=DEFAULT)'),
       );
 
       // ── 3. PROPFIND Depth:0 — detect calendar type ───────────────────────
@@ -437,7 +497,7 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       // syncs the events only to local Apple Calendar but never stores them
       // in the CalDAV account.  We must fetch from the source feed directly.
       let sourceUrl: string | null = null;
-      let isSubscribed             = false;
+      let isSubscribed = false;
 
       try {
         const { status: propStatus, text: propText } = await this.caldavRequest(
@@ -445,7 +505,7 @@ export class ICloudCalendarProvider implements ICalendarProvider {
           'PROPFIND',
           auth,
           {
-            depth:       '0',
+            depth: '0',
             contentType: 'application/xml; charset=utf-8',
             body: buildPropfindBody([
               '<D:resourcetype/>',
@@ -458,7 +518,7 @@ export class ICloudCalendarProvider implements ICalendarProvider {
 
         this.logger.log(
           `[iCloud/listEvents] PROPFIND Depth:0 → HTTP ${propStatus}\n` +
-          `  Body (first 2000 chars):\n${propText.slice(0, 2000)}`,
+            `  Body (first 2000 chars):\n${propText.slice(0, 2000)}`,
         );
 
         if (propStatus < 400) {
@@ -472,20 +532,25 @@ export class ICloudCalendarProvider implements ICalendarProvider {
             sourceUrl = rawSourceHref.replace(/^webcal:\/\//i, 'https://');
             this.logger.log(
               `[iCloud/listEvents] Calendar has <CS:source> → subscribed feed detected.\n` +
-              `  isSubscribed marker in resourcetype: ${isSubscribed}\n` +
-              `  source URL (scheme sanitised): ${sourceUrl.replace(/token=[^&]+/, 'token=REDACTED')}`,
+                `  isSubscribed marker in resourcetype: ${isSubscribed}\n` +
+                `  source URL (scheme sanitised): ${sourceUrl.replace(/token=[^&]+/, 'token=REDACTED')}`,
             );
           }
 
-          const privs = extractPropValue(propText, 'current-user-privilege-set');
+          const privs = extractPropValue(
+            propText,
+            'current-user-privilege-set',
+          );
           this.logger.log(
             `[iCloud/listEvents] resourcetype: "${resourcetype.replace(/\s+/g, ' ').trim()}"\n` +
-            `  has write : ${privs.includes('write')}\n` +
-            `  has read  : ${privs.includes('read') || privs.includes('read-current-user-privilege-set')}`,
+              `  has write : ${privs.includes('write')}\n` +
+              `  has read  : ${privs.includes('read') || privs.includes('read-current-user-privilege-set')}`,
           );
         }
       } catch (probeErr: any) {
-        this.logger.warn(`[iCloud/listEvents] PROPFIND probe failed: ${probeErr.message}`);
+        this.logger.warn(
+          `[iCloud/listEvents] PROPFIND probe failed: ${probeErr.message}`,
+        );
       }
 
       // ── 4a. SUBSCRIBED CALENDAR — fetch the external iCal feed ──────────
@@ -494,7 +559,7 @@ export class ICloudCalendarProvider implements ICalendarProvider {
           `[iCloud/listEvents] Taking SUBSCRIBED path — GET from external iCal feed.`,
         );
 
-        const feedRes  = await fetch(sourceUrl, {
+        const feedRes = await fetch(sourceUrl, {
           headers: { 'User-Agent': 'Grapifly/1.0' },
           redirect: 'follow',
         });
@@ -502,7 +567,7 @@ export class ICloudCalendarProvider implements ICalendarProvider {
 
         this.logger.log(
           `[iCloud/listEvents] External feed response: HTTP ${feedRes.status}  ` +
-          `bytes=${feedText.length}`,
+            `bytes=${feedText.length}`,
         );
         this.logger.debug(
           `[iCloud/listEvents] Feed body (first 3000 chars):\n${feedText.slice(0, 3000)}`,
@@ -510,60 +575,90 @@ export class ICloudCalendarProvider implements ICalendarProvider {
 
         if (!feedRes.ok) {
           return {
-            ok:      false,
+            ok: false,
             message: `External calendar feed returned HTTP ${feedRes.status}`,
           };
         }
 
+        // Extract the calendar-level timezone from the feed (X-WR-TIMEZONE or VTIMEZONE TZID).
+        // [CALDAV_TIMEZONE_FIX_RUNTIME_V1] — runtime marker confirming the updated code is active.
+        // If this line appears in the logs, the timezone fix is running.
+        this.logger.log(
+          `[CALDAV_TIMEZONE_FIX_RUNTIME_V1] SUBSCRIBED path entered for calendarId=${calendarId.slice(0, 40)}`,
+        );
+
+        // This is the authoritative timezone for feeds that export UTC-Z timestamps without
+        // per-event TZID parameters (e.g. LASSO, Airtable, many SaaS scheduling platforms).
+        const calendarTz = extractCalendarTimezone(feedText);
+        if (calendarTz) {
+          this.logger.log(
+            `[iCloud/listEvents] SUBSCRIBED: calendar-level timezone detected → "${calendarTz}"`,
+          );
+        } else {
+          this.logger.warn(
+            `[iCloud/listEvents] SUBSCRIBED: no X-WR-TIMEZONE / VTIMEZONE in feed — ` +
+              `UTC-Z events without per-event TZID will be stored as UTC. feedText first 500: ${feedText.slice(0, 500).replace(/\n/g, '|')}`,
+          );
+        }
+
         // Parse the entire feed then expand recurring events within the date range
-        const allParsed  = parseVEvents(feedText);
+        const allParsed = parseVEvents(feedText);
         this.logger.log(
           `[iCloud/listEvents] Feed VEVENTs parsed: ${allParsed.length}`,
         );
 
         // Log any RRULE-bearing events found in the feed
-        const masterEvents = allParsed.filter(e => e.rrule && !e.recurrenceId);
+        const masterEvents = allParsed.filter(
+          (e) => e.rrule && !e.recurrenceId,
+        );
         if (masterEvents.length > 0) {
           for (const me of masterEvents) {
             this.logger.log(
               `[iCloud/listEvents] RRULE detected — uid="${me.uid}" ` +
-              `summary="${me.summary}" dtstart="${me.dtstart}" rrule="${me.rrule}"`,
+                `summary="${me.summary}" dtstart="${me.dtstart}" rrule="${me.rrule}"`,
             );
           }
         }
 
-        const expanded = expandVEventsInRange(allParsed, new Date(fromDate), new Date(toDate));
+        const expanded = expandVEventsInRange(
+          allParsed,
+          new Date(fromDate),
+          new Date(toDate),
+          calendarTz,
+        );
 
         // Log expansion results for recurring events
-        const recurringExpanded = expanded.filter(e => e.isRecurring);
+        const recurringExpanded = expanded.filter((e) => e.isRecurring);
         if (recurringExpanded.length > 0) {
           this.logger.log(
             `[iCloud/listEvents] RRULE expansion results:\n` +
-            `  occurrences generated : ${recurringExpanded.length}\n` +
-            `  first occurrence      : ${recurringExpanded[0]?.dtstart ?? '—'}\n` +
-            `  last occurrence       : ${recurringExpanded[recurringExpanded.length - 1]?.dtstart ?? '—'}`,
+              `  occurrences generated : ${recurringExpanded.length}\n` +
+              `  first occurrence      : ${recurringExpanded[0]?.dtstart ?? '—'}\n` +
+              `  last occurrence       : ${recurringExpanded[recurringExpanded.length - 1]?.dtstart ?? '—'}`,
           );
         }
 
-        const events: CalendarEventInfo[] = expanded.map(ev => ({
-          id:          ev.occurrenceId || `${calendarId}/${ev.dtstart}`,
+        const events: CalendarEventInfo[] = expanded.map((ev) => ({
+          id: ev.occurrenceId || `${calendarId}/${ev.dtstart}`,
           calendarId,
-          title:       ev.summary      || '(no title)',
-          description: ev.description  || undefined,
-          location:    ev.location     || undefined,
-          startAt:     ev.dtstart,
-          endAt:       ev.dtend        || ev.dtstart,
-          allDay:      !ev.dtstart.includes('T'),
-          timeZone:    ev.timeZone     || undefined,
-          uid:         ev.uid,
-          status:      ev.status       as any,
+          title: ev.summary || '(no title)',
+          description: ev.description || undefined,
+          location: ev.location || undefined,
+          startAt: ev.dtstart,
+          endAt: ev.dtend || ev.dtstart,
+          allDay: !ev.dtstart.includes('T'),
+          // ev.timeZone is already set by expandVEventsInRange using calendarTz as fallback.
+          // Belt-and-suspenders: apply calendarTz here too in case ev.timeZone was not set.
+          timeZone: ev.timeZone || calendarTz || undefined,
+          uid: ev.uid,
+          status: ev.status as any,
         }));
 
         this.logger.log(
           `[iCloud/listEvents] SUBSCRIBED SUMMARY:\n` +
-          `  feed VEVENTs total    : ${allParsed.length}\n` +
-          `  after RRULE expansion : ${expanded.length}\n` +
-          `  total events returned : ${events.length}`,
+            `  feed VEVENTs total    : ${allParsed.length}\n` +
+            `  after RRULE expansion : ${expanded.length}\n` +
+            `  total events returned : ${events.length}`,
         );
 
         if (params?.limit) events.splice(params.limit);
@@ -574,16 +669,21 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       const reportBody = buildCalendarQueryBody(fromDate, toDate);
       this.logger.debug(
         `[iCloud/listEvents] REPORT request:\n` +
-        `  URL   : ${calUrl}\n` +
-        `  Depth : 1\n` +
-        `  Body  :\n${reportBody}`,
+          `  URL   : ${calUrl}\n` +
+          `  Depth : 1\n` +
+          `  Body  :\n${reportBody}`,
       );
 
-      const { status, text } = await this.caldavRequest(calUrl, 'REPORT', auth, {
-        depth:       '1',
-        contentType: 'application/xml; charset=utf-8',
-        body:        reportBody,
-      });
+      const { status, text } = await this.caldavRequest(
+        calUrl,
+        'REPORT',
+        auth,
+        {
+          depth: '1',
+          contentType: 'application/xml; charset=utf-8',
+          body: reportBody,
+        },
+      );
 
       this.logger.log(`[iCloud/listEvents] REPORT response status: ${status}`);
 
@@ -598,23 +698,25 @@ export class ICloudCalendarProvider implements ICalendarProvider {
         `[iCloud/listEvents] Raw multistatus (first 3000 chars):\n${text.slice(0, 3000)}`,
       );
 
-      const responses       = parseMultistatusResponses(text);
+      const responses = parseMultistatusResponses(text);
       const events: CalendarEventInfo[] = [];
       let resourcesWithData = 0;
-      let totalParsed       = 0;
-      let totalExpanded     = 0;
-      let totalSkipped      = 0;
+      let totalParsed = 0;
+      let totalExpanded = 0;
+      let totalSkipped = 0;
 
-      this.logger.log(`[iCloud/listEvents] Multistatus blocks: ${responses.length}`);
+      this.logger.log(
+        `[iCloud/listEvents] Multistatus blocks: ${responses.length}`,
+      );
 
       for (let i = 0; i < responses.length; i++) {
         const { href, props } = responses[i];
-        const icalData        = extractPropValue(props, 'calendar-data');
+        const icalData = extractPropValue(props, 'calendar-data');
 
         if (!icalData) {
           this.logger.debug(
             `[iCloud/listEvents] resource[${i}] href="${href}" — no calendar-data ` +
-            `(propstat: "${extractPropValue(props, 'status')}")`,
+              `(propstat: "${extractPropValue(props, 'status')}")`,
           );
           continue;
         }
@@ -626,31 +728,47 @@ export class ICloudCalendarProvider implements ICalendarProvider {
         if (parsed.length === 0) {
           this.logger.warn(
             `[iCloud/listEvents] resource[${i}] href="${href}" — 0 VEVENTs parsed.\n` +
-            `  iCal (first 500):\n${icalData.slice(0, 500)}`,
+              `  iCal (first 500):\n${icalData.slice(0, 500)}`,
           );
           continue;
         }
 
         // Log RRULE detection for this resource
-        const masters = parsed.filter(e => e.rrule && !e.recurrenceId);
+        const masters = parsed.filter((e) => e.rrule && !e.recurrenceId);
         for (const me of masters) {
           this.logger.log(
             `[iCloud/listEvents] RRULE detected — resource[${i}] uid="${me.uid}" ` +
-            `summary="${me.summary}" rrule="${me.rrule}"`,
+              `summary="${me.summary}" rrule="${me.rrule}"`,
+          );
+        }
+
+        // [CALDAV_TIMEZONE_FIX_RUNTIME_V1] — REPORT path event (not subscribed).
+        // Extract calendar-level timezone from this resource's VCALENDAR block.
+        // Owned iCloud calendars use DTSTART;TZID= so calResTz is usually null here,
+        // but this handles edge cases where the TZID is missing.
+        const calResTz = extractCalendarTimezone(icalData);
+        if (i === 0) {
+          this.logger.log(
+            `[CALDAV_TIMEZONE_FIX_RUNTIME_V1] REPORT resource[0] calResTz="${calResTz ?? 'null'}" icalData[0..200]=${icalData.slice(0, 200).replace(/\n/g, '|')}`,
           );
         }
 
         // Expand recurring events within the requested range
-        const expanded = expandVEventsInRange(parsed, new Date(fromDate), new Date(toDate));
+        const expanded = expandVEventsInRange(
+          parsed,
+          new Date(fromDate),
+          new Date(toDate),
+          calResTz,
+        );
         totalExpanded += expanded.length;
 
         if (masters.length > 0) {
-          const recurExpanded = expanded.filter(e => e.isRecurring);
+          const recurExpanded = expanded.filter((e) => e.isRecurring);
           this.logger.log(
             `[iCloud/listEvents] resource[${i}] RRULE expansion:\n` +
-            `  occurrences generated : ${recurExpanded.length}\n` +
-            `  first occurrence      : ${recurExpanded[0]?.dtstart ?? '—'}\n` +
-            `  last occurrence       : ${recurExpanded[recurExpanded.length - 1]?.dtstart ?? '—'}`,
+              `  occurrences generated : ${recurExpanded.length}\n` +
+              `  first occurrence      : ${recurExpanded[0]?.dtstart ?? '—'}\n` +
+              `  last occurrence       : ${recurExpanded[recurExpanded.length - 1]?.dtstart ?? '—'}`,
           );
         }
 
@@ -665,46 +783,47 @@ export class ICloudCalendarProvider implements ICalendarProvider {
 
           this.logger.debug(
             `[iCloud/listEvents] event uid="${ev.uid}" summary="${ev.summary}" ` +
-            `dtstart="${ev.dtstart}" recurring="${ev.isRecurring}"`,
+              `dtstart="${ev.dtstart}" recurring="${ev.isRecurring}"`,
           );
 
           events.push({
-            id:          ev.occurrenceId || href,
+            id: ev.occurrenceId || href,
             calendarId,
-            title:       ev.summary      || '(no title)',
-            description: ev.description  || undefined,
-            location:    ev.location     || undefined,
-            startAt:     ev.dtstart,
-            endAt:       ev.dtend        || ev.dtstart,
-            allDay:      !ev.dtstart.includes('T'),
-            timeZone:    ev.timeZone     || undefined,
-            uid:         ev.uid,
-            status:      ev.status       as any,
+            title: ev.summary || '(no title)',
+            description: ev.description || undefined,
+            location: ev.location || undefined,
+            startAt: ev.dtstart,
+            endAt: ev.dtend || ev.dtstart,
+            allDay: !ev.dtstart.includes('T'),
+            // calResTz is the calendar-level timezone from this resource's VCALENDAR block.
+            // Use it as a fallback when the event has no per-event TZID.
+            timeZone: ev.timeZone || calResTz || undefined,
+            uid: ev.uid,
+            status: ev.status as any,
           });
         }
       }
 
       this.logger.log(
         `[iCloud/listEvents] REPORT SUMMARY:\n` +
-        `  <response> blocks    : ${responses.length}\n` +
-        `  with calendar-data   : ${resourcesWithData}\n` +
-        `  VEVENTs parsed       : ${totalParsed}\n` +
-        `  after RRULE expansion: ${totalExpanded}\n` +
-        `  VEVENTs skipped      : ${totalSkipped}\n` +
-        `  total events returned: ${events.length}`,
+          `  <response> blocks    : ${responses.length}\n` +
+          `  with calendar-data   : ${resourcesWithData}\n` +
+          `  VEVENTs parsed       : ${totalParsed}\n` +
+          `  after RRULE expansion: ${totalExpanded}\n` +
+          `  VEVENTs skipped      : ${totalSkipped}\n` +
+          `  total events returned: ${events.length}`,
       );
 
       if (responses.length === 0) {
         this.logger.warn(
           `[iCloud/listEvents] iCloud returned 0 resources. ` +
-          `If this is a subscribed/external calendar the <CS:source> PROPFIND ` +
-          `returned nothing — check the PROPFIND log above.`,
+            `If this is a subscribed/external calendar the <CS:source> PROPFIND ` +
+            `returned nothing — check the PROPFIND log above.`,
         );
       }
 
       if (params?.limit) events.splice(params.limit);
       return { ok: true, data: { items: events } };
-
     } catch (err: any) {
       this.logger.error(`[iCloud] listEvents: ${err.message}`, err?.stack);
       return { ok: false, message: err.message };
@@ -717,8 +836,8 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     eventId: string,
   ): Promise<EventGetResult> {
     try {
-      const creds    = this.normalize(credentials);
-      const auth     = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const eventUrl = this.resolveCalUrl(eventId);
 
       const { status, text } = await this.caldavRequest(eventUrl, 'GET', auth);
@@ -735,16 +854,16 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       return {
         ok: true,
         data: {
-          id:          eventUrl,
+          id: eventUrl,
           calendarId,
-          title:       ev.summary,
+          title: ev.summary,
           description: ev.description || undefined,
-          location:    ev.location || undefined,
-          startAt:     ev.dtstart,
-          endAt:       ev.dtend,
-          allDay:      !ev.dtstart.includes('T'),
-          uid:         ev.uid,
-          status:      ev.status as any,
+          location: ev.location || undefined,
+          startAt: ev.dtstart,
+          endAt: ev.dtend,
+          allDay: !ev.dtstart.includes('T'),
+          uid: ev.uid,
+          status: ev.status as any,
         },
       };
     } catch (err: any) {
@@ -759,16 +878,16 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     params: CreateEventParams,
   ): Promise<EventCreateResult> {
     try {
-      const creds    = this.normalize(credentials);
-      const auth     = this.authHeader(creds);
-      const uid      = generateUID();
-      const calUrl   = this.resolveCalUrl(calendarId);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
+      const uid = generateUID();
+      const calUrl = this.resolveCalUrl(calendarId);
       const eventUrl = `${calUrl.replace(/\/$/, '')}/${uid}.ics`;
-      const ical     = buildVEvent({ uid, ...params });
+      const ical = buildVEvent({ uid, ...params });
 
       const { status } = await this.caldavRequest(eventUrl, 'PUT', auth, {
         contentType: 'text/calendar; charset=utf-8',
-        body:        ical,
+        body: ical,
       });
 
       if (status >= 400) {
@@ -778,14 +897,14 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       return {
         ok: true,
         data: {
-          id:          eventUrl,
+          id: eventUrl,
           calendarId,
-          title:       params.title,
+          title: params.title,
           description: params.description,
-          location:    params.location,
-          startAt:     params.startAt,
-          endAt:       params.endAt,
-          allDay:      params.allDay ?? false,
+          location: params.location,
+          startAt: params.startAt,
+          endAt: params.endAt,
+          allDay: params.allDay ?? false,
           uid,
         },
       };
@@ -802,16 +921,13 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     params: UpdateEventParams,
   ): Promise<EventUpdateResult> {
     try {
-      const creds    = this.normalize(credentials);
-      const auth     = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const eventUrl = this.resolveCalUrl(eventId);
 
       // Fetch existing event
-      const { status: getStatus, text: existingIcal } = await this.caldavRequest(
-        eventUrl,
-        'GET',
-        auth,
-      );
+      const { status: getStatus, text: existingIcal } =
+        await this.caldavRequest(eventUrl, 'GET', auth);
       if (getStatus >= 400) {
         throw new Error(`Could not fetch existing event (status ${getStatus})`);
       }
@@ -824,21 +940,26 @@ export class ICloudCalendarProvider implements ICalendarProvider {
 
       // Merge params into existing event data
       const merged: CreateEventParams = {
-        title:       params.title       ?? ev.summary,
+        title: params.title ?? ev.summary,
         description: params.description ?? (ev.description || undefined),
-        location:    params.location    ?? (ev.location    || undefined),
-        startAt:     params.startAt     ?? ev.dtstart,
-        endAt:       params.endAt       ?? ev.dtend,
-        allDay:      params.allDay      ?? !ev.dtstart.includes('T'),
-        timeZone:    params.timeZone,
+        location: params.location ?? (ev.location || undefined),
+        startAt: params.startAt ?? ev.dtstart,
+        endAt: params.endAt ?? ev.dtend,
+        allDay: params.allDay ?? !ev.dtstart.includes('T'),
+        timeZone: params.timeZone,
       };
 
       const updatedIcal = buildVEvent({ uid: ev.uid, ...merged });
 
-      const { status: putStatus } = await this.caldavRequest(eventUrl, 'PUT', auth, {
-        contentType: 'text/calendar; charset=utf-8',
-        body:        updatedIcal,
-      });
+      const { status: putStatus } = await this.caldavRequest(
+        eventUrl,
+        'PUT',
+        auth,
+        {
+          contentType: 'text/calendar; charset=utf-8',
+          body: updatedIcal,
+        },
+      );
 
       if (putStatus >= 400) {
         throw new Error(`CalDAV PUT (update) failed with status ${putStatus}`);
@@ -847,15 +968,15 @@ export class ICloudCalendarProvider implements ICalendarProvider {
       return {
         ok: true,
         data: {
-          id:          eventUrl,
+          id: eventUrl,
           calendarId,
-          title:       merged.title,
+          title: merged.title,
           description: merged.description,
-          location:    merged.location,
-          startAt:     merged.startAt,
-          endAt:       merged.endAt,
-          allDay:      merged.allDay ?? false,
-          uid:         ev.uid,
+          location: merged.location,
+          startAt: merged.startAt,
+          endAt: merged.endAt,
+          allDay: merged.allDay ?? false,
+          uid: ev.uid,
         },
       };
     } catch (err: any) {
@@ -870,8 +991,8 @@ export class ICloudCalendarProvider implements ICalendarProvider {
     eventId: string,
   ): Promise<EventDeleteResult> {
     try {
-      const creds    = this.normalize(credentials);
-      const auth     = this.authHeader(creds);
+      const creds = this.normalize(credentials);
+      const auth = this.authHeader(creds);
       const eventUrl = this.resolveCalUrl(eventId);
 
       const { status } = await this.caldavRequest(eventUrl, 'DELETE', auth);

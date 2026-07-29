@@ -14,6 +14,6 @@ export interface GoogleCalendarCredentials {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
-  accessToken?: string;    // refreshed at runtime; optional at save time
-  expiresAt?: number;      // Unix timestamp (ms); optional at save time
+  accessToken?: string; // refreshed at runtime; optional at save time
+  expiresAt?: number; // Unix timestamp (ms); optional at save time
 }

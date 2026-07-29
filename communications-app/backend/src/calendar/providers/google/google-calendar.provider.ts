@@ -39,24 +39,28 @@ import type { GoogleCalendarCredentials } from './google-credentials.types';
 export class GoogleCalendarProvider implements ICalendarProvider {
   private readonly logger = new Logger(GoogleCalendarProvider.name);
 
-  private static readonly API_BASE  = 'https://www.googleapis.com/calendar/v3';
+  private static readonly API_BASE = 'https://www.googleapis.com/calendar/v3';
   private static readonly TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
   // ─── Credential helpers ───────────────────────────────────────────────────
 
-  private normalize(credentials: Record<string, any>): GoogleCalendarCredentials {
+  private normalize(
+    credentials: Record<string, any>,
+  ): GoogleCalendarCredentials {
     const { value } = GoogleCalendarCredentialsContract.normalize(credentials);
     GoogleCalendarCredentialsContract.validate(value);
     return value;
   }
 
-  private async getAccessToken(creds: GoogleCalendarCredentials): Promise<string> {
+  private async getAccessToken(
+    creds: GoogleCalendarCredentials,
+  ): Promise<string> {
     const res = await fetch(GoogleCalendarProvider.TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        grant_type:    'refresh_token',
-        client_id:     creds.clientId,
+        grant_type: 'refresh_token',
+        client_id: creds.clientId,
         client_secret: creds.clientSecret,
         refresh_token: creds.refreshToken,
       }).toString(),
@@ -79,7 +83,7 @@ export class GoogleCalendarProvider implements ICalendarProvider {
     const res = await fetch(`${GoogleCalendarProvider.API_BASE}${path}`, {
       ...options,
       headers: {
-        Authorization:  `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...(options?.headers ?? {}),
       },
@@ -96,46 +100,49 @@ export class GoogleCalendarProvider implements ICalendarProvider {
 
   private mapCalendar(item: any): CalendarInfo {
     return {
-      id:         item.id,
-      name:       item.summary ?? '',
+      id: item.id,
+      name: item.summary ?? '',
       description: item.description,
-      color:      item.colorId ?? item.backgroundColor,
-      timeZone:   item.timeZone,
-      isReadOnly: item.accessRole === 'reader' || item.accessRole === 'freeBusyReader',
-      isPrimary:  item.primary ?? false,
-      raw:        item,
+      color: item.colorId ?? item.backgroundColor,
+      timeZone: item.timeZone,
+      isReadOnly:
+        item.accessRole === 'reader' || item.accessRole === 'freeBusyReader',
+      isPrimary: item.primary ?? false,
+      raw: item,
     };
   }
 
   private mapEvent(item: any, calendarId: string): CalendarEventInfo {
     const start = item.start?.dateTime ?? item.start?.date ?? '';
-    const end   = item.end?.dateTime   ?? item.end?.date   ?? '';
+    const end = item.end?.dateTime ?? item.end?.date ?? '';
     return {
-      id:             item.id,
+      id: item.id,
       calendarId,
-      title:          item.summary ?? '',
-      description:    item.description,
-      location:       item.location,
-      startAt:        start,
-      endAt:          end,
-      allDay:         !item.start?.dateTime,
-      timeZone:       item.start?.timeZone ?? item.timeZone,
-      status:         item.status as any,
-      attendees:      (item.attendees ?? []).map((a: any) => ({
-        email:       a.email,
-        name:        a.displayName,
-        status:      a.responseStatus as any,
+      title: item.summary ?? '',
+      description: item.description,
+      location: item.location,
+      startAt: start,
+      endAt: end,
+      allDay: !item.start?.dateTime,
+      timeZone: item.start?.timeZone ?? item.timeZone,
+      status: item.status,
+      attendees: (item.attendees ?? []).map((a: any) => ({
+        email: a.email,
+        name: a.displayName,
+        status: a.responseStatus,
         isOrganizer: a.organizer ?? false,
       })),
       organizerEmail: item.organizer?.email,
-      uid:            item.iCalUID,
-      raw:            item,
+      uid: item.iCalUID,
+      raw: item,
     };
   }
 
   // ─── verifyCredentials ────────────────────────────────────────────────────
 
-  async verifyCredentials(credentials: Record<string, any>): Promise<CalendarVerifyResult> {
+  async verifyCredentials(
+    credentials: Record<string, any>,
+  ): Promise<CalendarVerifyResult> {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
@@ -143,18 +150,26 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       return { ok: true, message: 'Google Calendar connection verified' };
     } catch (err: any) {
       this.logger.error(`[Google] verifyCredentials: ${err.message}`);
-      return { ok: false, message: err?.message ?? 'Google Calendar verification failed' };
+      return {
+        ok: false,
+        message: err?.message ?? 'Google Calendar verification failed',
+      };
     }
   }
 
   // ─── Calendar management ─────────────────────────────────────────────────
 
-  async listCalendars(credentials: Record<string, any>): Promise<CalendarListResult> {
+  async listCalendars(
+    credentials: Record<string, any>,
+  ): Promise<CalendarListResult> {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      const data  = await this.googleRequest(token, '/users/me/calendarList');
-      return { ok: true, data: (data.items ?? []).map((i: any) => this.mapCalendar(i)) };
+      const data = await this.googleRequest(token, '/users/me/calendarList');
+      return {
+        ok: true,
+        data: (data.items ?? []).map((i: any) => this.mapCalendar(i)),
+      };
     } catch (err: any) {
       this.logger.error(`[Google] listCalendars: ${err.message}`);
       return { ok: false, message: err.message };
@@ -168,7 +183,7 @@ export class GoogleCalendarProvider implements ICalendarProvider {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      const data  = await this.googleRequest(
+      const data = await this.googleRequest(
         token,
         `/calendars/${encodeURIComponent(calendarId)}`,
       );
@@ -188,10 +203,10 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       const token = await this.getAccessToken(creds);
       const body: any = { summary: params.name };
       if (params.description) body.description = params.description;
-      if (params.timeZone)    body.timeZone    = params.timeZone;
+      if (params.timeZone) body.timeZone = params.timeZone;
       const data = await this.googleRequest(token, '/calendars', {
         method: 'POST',
-        body:   JSON.stringify(body),
+        body: JSON.stringify(body),
       });
       return { ok: true, data: this.mapCalendar(data) };
     } catch (err: any) {
@@ -229,15 +244,22 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       if (googleCalId) {
         try {
           // CalendarList.insert: adds an existing calendar to the authenticated user's list
-          const data = await this.googleRequest(token, '/users/me/calendarList', {
-            method: 'POST',
-            body:   JSON.stringify({ id: googleCalId }),
-          });
+          const data = await this.googleRequest(
+            token,
+            '/users/me/calendarList',
+            {
+              method: 'POST',
+              body: JSON.stringify({ id: googleCalId }),
+            },
+          );
           return { ok: true, data: this.mapCalendar(data) };
         } catch (insertErr: any) {
           // 409 = calendar already subscribed in the user's Google Calendar account.
           // Treat as idempotent success by fetching the existing entry.
-          if (insertErr.message?.includes('409') || insertErr.message?.toLowerCase().includes('already')) {
+          if (
+            insertErr.message?.includes('409') ||
+            insertErr.message?.toLowerCase().includes('already')
+          ) {
             const existing = await this.googleRequest(
               token,
               `/users/me/calendarList/${encodeURIComponent(googleCalId)}`,
@@ -252,14 +274,18 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       // For non-Google iCal URLs, Google Calendar API does not support
       // subscribing to arbitrary external URLs via the REST API.
       return {
-        ok:      false,
-        message: 'Automatic holiday subscription is not supported by this calendar provider.',
+        ok: false,
+        message:
+          'Automatic holiday subscription is not supported by this calendar provider.',
       };
     } catch (err: any) {
       const msg = err?.message ?? 'Google Calendar subscription failed';
       this.logger.error(`[Google] subscribeCalendar: ${msg}`);
       // Return the real error so callers can surface a meaningful message
-      return { ok: false, message: `Google Calendar subscription failed: ${msg}` };
+      return {
+        ok: false,
+        message: `Google Calendar subscription failed: ${msg}`,
+      };
     }
   }
 
@@ -272,9 +298,10 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
       const body: any = {};
-      if (params.name        !== undefined) body.summary     = params.name;
-      if (params.description !== undefined) body.description = params.description;
-      if (params.timeZone    !== undefined) body.timeZone    = params.timeZone;
+      if (params.name !== undefined) body.summary = params.name;
+      if (params.description !== undefined)
+        body.description = params.description;
+      if (params.timeZone !== undefined) body.timeZone = params.timeZone;
       const data = await this.googleRequest(
         token,
         `/calendars/${encodeURIComponent(calendarId)}`,
@@ -319,12 +346,12 @@ export class GoogleCalendarProvider implements ICalendarProvider {
 
       const qs = new URLSearchParams({
         singleEvents: 'true',
-        orderBy:      'startTime',
+        orderBy: 'startTime',
       });
-      if (params?.from)      qs.set('timeMin',    params.from);
-      if (params?.to)        qs.set('timeMax',    params.to);
-      if (params?.limit)     qs.set('maxResults', String(params.limit));
-      if (params?.pageToken) qs.set('pageToken',  params.pageToken);
+      if (params?.from) qs.set('timeMin', params.from);
+      if (params?.to) qs.set('timeMax', params.to);
+      if (params?.limit) qs.set('maxResults', String(params.limit));
+      if (params?.pageToken) qs.set('pageToken', params.pageToken);
 
       const data = await this.googleRequest(
         token,
@@ -334,7 +361,9 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       return {
         ok: true,
         data: {
-          items:         (data.items ?? []).map((i: any) => this.mapEvent(i, calendarId)),
+          items: (data.items ?? []).map((i: any) =>
+            this.mapEvent(i, calendarId),
+          ),
           nextPageToken: data.nextPageToken,
         },
       };
@@ -352,7 +381,7 @@ export class GoogleCalendarProvider implements ICalendarProvider {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      const data  = await this.googleRequest(
+      const data = await this.googleRequest(
         token,
         `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
       );
@@ -373,9 +402,9 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       const token = await this.getAccessToken(creds);
 
       const body: any = {
-        summary:     params.title,
+        summary: params.title,
         description: params.description,
-        location:    params.location,
+        location: params.location,
         start: params.allDay
           ? { date: params.startAt.split('T')[0] }
           : { dateTime: params.startAt, timeZone: params.timeZone ?? 'UTC' },
@@ -385,7 +414,7 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       };
       if (params.attendees?.length) {
         body.attendees = params.attendees.map((a) => ({
-          email:       a.email,
+          email: a.email,
           displayName: a.name,
         }));
       }
@@ -413,9 +442,10 @@ export class GoogleCalendarProvider implements ICalendarProvider {
       const token = await this.getAccessToken(creds);
 
       const body: any = {};
-      if (params.title       !== undefined) body.summary     = params.title;
-      if (params.description !== undefined) body.description = params.description;
-      if (params.location    !== undefined) body.location    = params.location;
+      if (params.title !== undefined) body.summary = params.title;
+      if (params.description !== undefined)
+        body.description = params.description;
+      if (params.location !== undefined) body.location = params.location;
 
       if (params.startAt !== undefined) {
         body.start = params.allDay

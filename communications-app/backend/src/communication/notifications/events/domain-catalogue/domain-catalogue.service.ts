@@ -111,11 +111,21 @@ export class DomainCatalogueService {
     const offset = Math.max(0, Number(params?.offset ?? 0));
 
     const [list, total] = await Promise.all([
-      this.model.find(filter).sort({ domainKey: 1 }).skip(offset).limit(limit).lean(),
+      this.model
+        .find(filter)
+        .sort({ domainKey: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
       this.model.countDocuments(filter),
     ]);
 
-    return { data: DomainCatalogueMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: DomainCatalogueMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async getById(id: string): Promise<DomainCatalogueResponseDto> {
@@ -138,8 +148,15 @@ export class DomainCatalogueService {
       throw new HttpException('Domain not found', HttpStatus.NOT_FOUND);
 
     if ((existing as any).isSystem) {
-      const protectedFields = ['domainKey', 'displayName', 'domainCategory', 'companyId'] as const;
-      const attemptedProtected = protectedFields.filter((f) => (dto as any)[f] !== undefined);
+      const protectedFields = [
+        'domainKey',
+        'displayName',
+        'domainCategory',
+        'companyId',
+      ] as const;
+      const attemptedProtected = protectedFields.filter(
+        (f) => (dto as any)[f] !== undefined,
+      );
       if (attemptedProtected.length > 0) {
         throw new HttpException(
           `System domain — the following fields cannot be changed: ${attemptedProtected.join(', ')}`,
@@ -221,9 +238,13 @@ export class DomainCatalogueService {
   async remove(id: string): Promise<{ deleted: boolean }> {
     const _id = this.toObjectIdOrThrow(id, 'id');
     const existing = await this.model.findById(_id).lean();
-    if (!existing) throw new HttpException('Domain not found', HttpStatus.NOT_FOUND);
+    if (!existing)
+      throw new HttpException('Domain not found', HttpStatus.NOT_FOUND);
     if ((existing as any).isSystem) {
-      throw new HttpException('System domains cannot be deleted', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        'System domains cannot be deleted',
+        HttpStatus.FORBIDDEN,
+      );
     }
     await this.model.findByIdAndDelete(_id);
     return { deleted: true };
@@ -525,7 +546,7 @@ export class DomainCatalogueService {
     const doc: any = await this.model.findById(_id).lean();
     if (!doc) throw new HttpException('Domain not found', HttpStatus.NOT_FOUND);
 
-    return doc as any;
+    return doc;
   }
 
   // =========================================================

@@ -37,7 +37,9 @@ export interface ICalendarProvider {
    * check (token refresh, CalDAV PROPFIND, etc.).
    * Must never throw — always returns { ok, message }.
    */
-  verifyCredentials(credentials: Record<string, any>): Promise<CalendarVerifyResult>;
+  verifyCredentials(
+    credentials: Record<string, any>,
+  ): Promise<CalendarVerifyResult>;
 
   // ─── Calendar management ──────────────────────────────────────────────────
 

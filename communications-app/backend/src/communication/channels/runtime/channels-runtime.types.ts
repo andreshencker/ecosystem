@@ -1,5 +1,5 @@
 // src/channels/runtime/channels-runtime.types.ts
-export type ChannelKey = 'email' | 'sms' | 'storage' | 'calendar';
+export type ChannelKey = 'email' | 'sms' | 'storage' | 'calendar' | 'payment';
 
 export type ChannelsRuntimeResolved = {
   channelKey: ChannelKey;

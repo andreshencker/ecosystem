@@ -84,7 +84,12 @@ export class CompanyChannelProvidersService {
       this.model.countDocuments(filter),
     ]);
 
-    return { data: CompanyChannelProviderMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: CompanyChannelProviderMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async findById(
@@ -167,7 +172,9 @@ export class CompanyChannelProvidersService {
       const channelId = this.toObjectId(dto.channelId, 'channelId');
 
       // Explicit duplicate check — gives a clear 409 instead of a cryptic 11000
-      const existingLink = await this.model.findOne({ companyId, providerId }).lean();
+      const existingLink = await this.model
+        .findOne({ companyId, providerId })
+        .lean();
       if (existingLink) {
         throw new HttpException(
           'This provider is already enabled for this company.',

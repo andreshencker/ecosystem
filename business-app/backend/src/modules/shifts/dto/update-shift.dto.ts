@@ -1,16 +1,19 @@
 import {
-  IsEnum,
-  IsInt,
+  IsBoolean,
+  IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 
 export class UpdateShiftDto {
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  contractId?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -32,11 +35,10 @@ export class UpdateShiftDto {
   @Matches(/^\d{2}:\d{2}$/, { message: 'endTime must be HH:mm' })
   endTime?: string;
 
+  /** Whether the worker took their contractual break. The break duration is defined by the Contract. */
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(480)
-  breakMinutes?: number | null;
+  @IsBoolean()
+  breakTaken?: boolean;
 
   @IsOptional()
   @IsString()

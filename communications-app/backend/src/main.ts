@@ -35,7 +35,9 @@ async function bootstrap() {
   // Swagger
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Communication Platform')
-    .setDescription('Communication Platform API — emails, SMS, files, templates.')
+    .setDescription(
+      'Communication Platform API — emails, SMS, files, templates.',
+    )
     .setVersion('1.0.0')
     .addBearerAuth()
     .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'x-api-key')

@@ -33,8 +33,18 @@ export class ProvidersController {
   @ApiQuery({ name: 'active', required: false, type: Boolean })
   @ApiQuery({ name: 'channelId', required: false, type: String })
   @ApiQuery({ name: 'populate', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   list(
     @Headers('x-api-key') apiKey: string,
     @Query('active') active?: string,
@@ -55,7 +65,10 @@ export class ProvidersController {
         ? populate === 'true' || populate === '1'
         : true;
 
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
 
     return this.service.findAll({
       active: activeBool,

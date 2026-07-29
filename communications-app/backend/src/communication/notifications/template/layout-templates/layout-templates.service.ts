@@ -151,7 +151,14 @@ export class LayoutTemplatesService {
     populateCompany?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<{ companyId: string; themes: any[]; templates: any[]; total: number; limit: number; offset: number }> {
+  }): Promise<{
+    companyId: string;
+    themes: any[];
+    templates: any[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
     const companyId = this.toObjectIdOrThrow(params.companyId, 'companyId');
     const limit = params.limit ?? 50;
     const offset = params.offset ?? 0;
@@ -200,7 +207,7 @@ export class LayoutTemplatesService {
     const normalized = (list as any[]).map((doc) => {
       const themeObj =
         doc?.companyThemeId && typeof doc.companyThemeId === 'object'
-          ? (doc.companyThemeId as any)
+          ? doc.companyThemeId
           : undefined;
       return { ...doc, companyThemeId: themeObj?._id ?? doc.companyThemeId };
     });
@@ -213,7 +220,7 @@ export class LayoutTemplatesService {
         isActive: t.isActive !== false,
         isDefault: t.isDefault === true,
       })),
-      templates: LayoutTemplateMapper.toLayoutList(normalized as any[]),
+      templates: LayoutTemplateMapper.toLayoutList(normalized),
       total,
       limit,
       offset,

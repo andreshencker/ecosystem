@@ -14,8 +14,11 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
               "connect-src 'self' http://localhost:3001 https:",
-              "frame-src 'none'",
-              "object-src 'none'",
+              // blob: is required for embedded PDF previews (object/embed/iframe with blob: URLs).
+              // Top-level navigation (window.open, <a download>) bypasses these directives, which
+              // is why Open PDF and Download worked while the embedded viewer showed a broken icon.
+              "frame-src blob:",
+              "object-src blob:",
             ].join('; '),
           },
           {

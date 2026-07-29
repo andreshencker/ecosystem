@@ -67,7 +67,6 @@ let ShiftSyncService = class ShiftSyncService {
         this.logger.log(`[sync] DONE businessId=${businessId} ` +
             `created=${totalCreated} updated=${totalUpdated} deleted=${totalDeleted} ` +
             `errors=${totalErrors} duration=${totalDurationMs}ms`);
-        this.sendSyncNotification(businessId, actor, stats, totalCreated, totalUpdated, totalDeleted, totalErrors);
         this.biService.syncModel(businessId, 'shift', false)
             .then((r) => this.logger.log(`[sync] BI ETL complete businessId=${businessId} inserted=${r?.inserted ?? 0} updated=${r?.updated ?? 0}`))
             .catch((err) => this.logger.warn(`[sync] BI ETL failed businessId=${businessId}: ${err?.message ?? 'unknown error'}`));
@@ -279,32 +278,13 @@ let ShiftSyncService = class ShiftSyncService {
         return { items, total, page: params.page, limit: params.limit };
     }
     sendSyncNotification(businessId, actor, stats, totalCreated, totalUpdated, totalDeleted, totalErrors) {
-        const hasFailures = stats.some((s) => s.status === 'failed');
-        const event = hasFailures
-            ? 'calendar_sync.sync_failed'
-            : 'calendar_sync.sync_completed';
-        const calendarNames = stats.map((s) => s.calendarName).join(', ');
-        this.usersService
-            .getCompanyDisplayName(businessId)
-            .catch(() => businessId)
-            .then((businessName) => this.commClient.notifyEvent({
-            type: 'business',
-            businessId,
-            event,
-            email: actor.email,
-            data: {
-                firstName: actor.firstName,
-                businessName,
-                calendarNames,
-                totalCreated: String(totalCreated),
-                totalUpdated: String(totalUpdated),
-                totalDeleted: String(totalDeleted),
-                totalErrors: String(totalErrors),
-                actionDate: new Date().toISOString(),
-            },
-        }))
-            .then((ok) => this.logger.log(`[sync:notify] ${event} delivered=${ok}`))
-            .catch((err) => this.logger.error(`[sync:notify] ${event} failed: ${err?.message}`));
+        void businessId;
+        void actor;
+        void stats;
+        void totalCreated;
+        void totalUpdated;
+        void totalDeleted;
+        void totalErrors;
     }
 };
 exports.ShiftSyncService = ShiftSyncService;

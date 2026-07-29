@@ -24,6 +24,7 @@ import { ShiftsController } from '../shifts.controller';
 import { ShiftSyncService } from '../sync/services/shift-sync.service';
 import { Shift } from '../schemas/shift.schema';
 import { Contract } from '../../contracts/schemas/contract.schema';
+import { Customer } from '../../customer/schemas/customer.schema';
 import { SyncHistory } from '../sync/schemas/sync-history.schema';
 import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
 import { UsersService } from '../../users/users.service';
@@ -62,7 +63,7 @@ function makeShift(overrides: Record<string, any> = {}) {
     date:                '2026-07-20',
     startTime:           '09:00',
     endTime:             '17:00',
-    breakMinutes:        null,
+    breakTaken:          false,
     location:            null,
     notes:               null,
     title:               'Morning Shift',
@@ -120,6 +121,7 @@ const mockShiftModel: any = {
 };
 
 const mockContractModel: any  = { findOne: jest.fn(), findById: jest.fn() };
+const mockCustomerModel: any  = { findById: jest.fn(), find: jest.fn() };
 const mockHistoryModel: any   = { create: jest.fn(), findOneAndUpdate: jest.fn() };
 const mockCommClient: any     = { notifyEvent: jest.fn().mockResolvedValue(true) };
 const mockUsersService: any   = { getCompanyDisplayName: jest.fn().mockResolvedValue('Biz Name') };
@@ -146,6 +148,7 @@ async function buildModule(): Promise<TestingModule> {
       ShiftSyncService,
       { provide: getModelToken(Shift.name),       useValue: mockShiftModel       },
       { provide: getModelToken(Contract.name),     useValue: mockContractModel    },
+      { provide: getModelToken(Customer.name),     useValue: mockCustomerModel    },
       { provide: getModelToken(SyncHistory.name),  useValue: mockHistoryModel     },
       { provide: CommunicationsClientService,      useValue: mockCommClient       },
       { provide: UsersService,                     useValue: mockUsersService     },
@@ -169,6 +172,8 @@ describe('ShiftsService — Business App → Calendar (bidirectional)', () => {
     mockContractModel.findOne.mockReturnValue(leanExec(makeContract()));
     mockContractModel.findById.mockReturnValue(leanExec(makeContract()));
     mockLinkedCalendarsService.findAll.mockResolvedValue([makeLinkedCalendar()]);
+    mockCustomerModel.findById.mockReturnValue(leanExec({ _id: 'cust1', displayName: 'Test Customer' }));
+    mockCustomerModel.find.mockReturnValue(leanExec([]));
   });
 
   // ── CREATE: local-only (no linkedCalendarId) ───────────────────────────────

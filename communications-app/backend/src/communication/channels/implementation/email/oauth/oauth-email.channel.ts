@@ -57,7 +57,7 @@ export class OAuthEmailChannel implements IEmailChannel {
       );
       OAuthEmailCredentialsContract.validate(normalized.value);
 
-      const creds = normalized.value as OAuthEmailCredentials;
+      const creds = normalized.value;
       const providerKey = payload.providerKey ?? creds.providerKey ?? 'oauth';
 
       return {

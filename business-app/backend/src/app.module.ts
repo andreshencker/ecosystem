@@ -34,10 +34,14 @@ import { ContractsModule } from './modules/contracts/contracts.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { LinkedCalendarsModule } from './modules/linked-calendars/linked-calendars.module';
 import { MdmModule } from './mdm/mdm.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 
 
 // ─── Analytics Gateway (proxies to BI service) ───────────────────────────────
 import { AnalyticsModule } from './analytics/analytics.module';
+
+// ─── BI Contracts ─────────────────────────────────────────────────────────────
+import { ShiftInvoiceModule } from './integrations/business-intelligence/contracts/invoice/shift-invoice';
 
 // ─── Platform Admin ───────────────────────────────────────────────────────────
 import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
@@ -79,10 +83,14 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
     ShiftsModule,
     LinkedCalendarsModule,
     MdmModule,
+    InvoicesModule,
 
 
     // ── Analytics Gateway
     AnalyticsModule,
+
+    // ── BI Contracts
+    ShiftInvoiceModule,
 
     // ── Platform Admin (cross-tenant read-only views)
     PlatformAdminModule,

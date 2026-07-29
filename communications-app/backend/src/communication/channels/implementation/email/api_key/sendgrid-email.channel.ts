@@ -59,7 +59,7 @@ export class SendGridEmailChannel implements IEmailChannel {
       );
       SendGridCredentialsContract.validate(normalized.value);
 
-      const creds = normalized.value as SendGridEmailCredentials;
+      const creds = normalized.value;
       const providerKey =
         payload.providerKey ?? creds.providerKey ?? 'sendgrid';
 
@@ -142,7 +142,10 @@ export class SendGridEmailChannel implements IEmailChannel {
         req.end();
       });
 
-      return await Promise.race([sendOp, emailSendTimeout(String(providerKey))]);
+      return await Promise.race([
+        sendOp,
+        emailSendTimeout(String(providerKey)),
+      ]);
     } catch (err: any) {
       this.logger.error(
         `❌ SendGrid error preparing send to ${payload.to}: ${err?.message}`,

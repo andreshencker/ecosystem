@@ -14,7 +14,9 @@ function getTimeoutMs(): number {
  * Returns a Promise that resolves with a timeout error result after CHANNEL_TIMEOUT_MS ms.
  * Use with Promise.race() in email channel send methods.
  */
-export function emailSendTimeout(provider: string): Promise<NotificationResultDto> {
+export function emailSendTimeout(
+  provider: string,
+): Promise<NotificationResultDto> {
   return new Promise((resolve) =>
     setTimeout(
       () =>

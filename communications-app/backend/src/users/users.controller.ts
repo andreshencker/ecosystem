@@ -13,7 +13,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
-import { ApiOperation, ApiQuery, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { IsString, MinLength, MaxLength } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
 
@@ -66,19 +71,29 @@ export class UsersController {
   @Get()
   @HttpCode(200)
   @ApiOperation({ summary: 'List users scoped to actor role (DEC-009)' })
-  @ApiQuery({ name: 'page',      required: false, type: Number })
-  @ApiQuery({ name: 'limit',     required: false, type: Number })
-  @ApiQuery({ name: 'search',    required: false })
-  @ApiQuery({ name: 'companyId', required: false, description: 'platform_admin: scope listing to a specific company (Global Users page)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({
+    name: 'companyId',
+    required: false,
+    description:
+      'platform_admin: scope listing to a specific company (Global Users page)',
+  })
   async list(
     @CurrentUser() ctx: AuthContext,
     @Query('page') page = '1',
     @Query('limit') limit = '25',
     @Query('search') search?: string,
     @Query('companyId') companyId?: string,
-  ): Promise<{ items: UserResponseDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: UserResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
-    const parsedPage  = Math.max(1, parseInt(page, 10)  || 1);
+    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
     const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 25));
     const params = { page: parsedPage, limit: parsedLimit, search };
 
@@ -90,13 +105,16 @@ export class UsersController {
     } else if (actor.scope === 'global') {
       result = await this.users.listPlatformUsers(params);
     } else {
-      result = await this.users.listByCompanyId(String(actor.companyId), params);
+      result = await this.users.listByCompanyId(
+        String(actor.companyId),
+        params,
+      );
     }
 
     return {
       items: result.items.map(UserResponseDto.from),
       total: result.total,
-      page:  result.page,
+      page: result.page,
       limit: result.limit,
     };
   }
@@ -124,7 +142,10 @@ export class UsersController {
 
   @Patch('me/password')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Change current user password and clear mustChangePassword (DEC-014)' })
+  @ApiOperation({
+    summary:
+      'Change current user password and clear mustChangePassword (DEC-014)',
+  })
   async changePassword(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: ChangePasswordDto,
@@ -133,15 +154,18 @@ export class UsersController {
     const before = await this.users.findByIdOrThrow(ctx.userId!);
     const wasMustChange = !!before.mustChangePassword;
 
-    const updated = await this.users.changePassword(ctx.userId!, dto.currentPassword, dto.newPassword);
+    const updated = await this.users.changePassword(
+      ctx.userId!,
+      dto.currentPassword,
+      dto.newPassword,
+    );
 
     // Notify UserInvitationsModule to accept pending invitations for this email.
     // Fire-and-forget via event bus — no circular dependency on UserInvitationsService (DEC-013).
     if (wasMustChange) {
-      this.eventBus.emit(
-        PLATFORM_EVENTS.USER_INVITATION_PASSWORD_COMPLETED,
-        { email: before.email },
-      );
+      this.eventBus.emit(PLATFORM_EVENTS.USER_INVITATION_PASSWORD_COMPLETED, {
+        email: before.email,
+      });
     }
 
     // Notify the user that their password was changed — fire-and-forget.
@@ -156,12 +180,12 @@ export class UsersController {
       this.notificationService
         .notifyEvent({
           companyId: String(before.companyId),
-          event:     'security.company_password_changed',
-          email:     before.email,
+          event: 'security.company_password_changed',
+          email: before.email,
           payload: {
             data: {
-              firstName:   before.firstName,
-              email:       before.email,
+              firstName: before.firstName,
+              email: before.email,
               companyName,
               when,
             },
@@ -177,12 +201,12 @@ export class UsersController {
       this.notificationService
         .notifyEvent({
           companyId: String(before.companyId),
-          event:     'security.platform_password_changed',
-          email:     before.email,
+          event: 'security.platform_password_changed',
+          email: before.email,
           payload: {
             data: {
               firstName: before.firstName,
-              email:     before.email,
+              email: before.email,
               when,
             },
           },
@@ -201,7 +225,10 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Permanently delete a user account (platform_admin or company_owner only)' })
+  @ApiOperation({
+    summary:
+      'Permanently delete a user account (platform_admin or company_owner only)',
+  })
   async deleteUser(
     @Param('id') targetId: string,
     @CurrentUser() ctx: AuthContext,
@@ -209,7 +236,9 @@ export class UsersController {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
 
     if (actor.role !== 'platform_admin' && actor.role !== 'company_owner') {
-      throw new ForbiddenException('You do not have permission to delete users');
+      throw new ForbiddenException(
+        'You do not have permission to delete users',
+      );
     }
 
     const target = await this.users.findByIdOrThrow(targetId);
@@ -220,18 +249,26 @@ export class UsersController {
 
     if (actor.role === 'company_owner') {
       if (target.role === 'platform_admin') {
-        throw new ForbiddenException('You cannot delete modules administrators');
+        throw new ForbiddenException(
+          'You cannot delete modules administrators',
+        );
       }
       if (target.companyId !== actor.companyId) {
-        throw new ForbiddenException('You can only delete users in your own company');
+        throw new ForbiddenException(
+          'You can only delete users in your own company',
+        );
       }
     }
 
     // Guard: cannot remove the last active owner of a company.
     if (target.role === 'company_owner' && target.companyId) {
-      const ownerCount = await this.users.countActiveOwners(String(target.companyId));
+      const ownerCount = await this.users.countActiveOwners(
+        String(target.companyId),
+      );
       if (ownerCount <= 1) {
-        throw new BadRequestException('Cannot delete the last owner of a company');
+        throw new BadRequestException(
+          'Cannot delete the last owner of a company',
+        );
       }
     }
 
@@ -243,7 +280,9 @@ export class UsersController {
 
   @Patch(':id/deactivate')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Deactivate a user account (platform_admin or company_owner only)' })
+  @ApiOperation({
+    summary: 'Deactivate a user account (platform_admin or company_owner only)',
+  })
   async deactivateUser(
     @Param('id') targetId: string,
     @CurrentUser() ctx: AuthContext,
@@ -251,7 +290,9 @@ export class UsersController {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
 
     if (actor.role !== 'platform_admin' && actor.role !== 'company_owner') {
-      throw new ForbiddenException('You do not have permission to deactivate users');
+      throw new ForbiddenException(
+        'You do not have permission to deactivate users',
+      );
     }
 
     const target = await this.users.findByIdOrThrow(targetId);
@@ -262,10 +303,14 @@ export class UsersController {
 
     if (actor.role === 'company_owner') {
       if (target.role === 'platform_admin') {
-        throw new ForbiddenException('You cannot deactivate modules administrators');
+        throw new ForbiddenException(
+          'You cannot deactivate modules administrators',
+        );
       }
       if (target.companyId !== actor.companyId) {
-        throw new ForbiddenException('You can only deactivate users in your own company');
+        throw new ForbiddenException(
+          'You can only deactivate users in your own company',
+        );
       }
     }
 
@@ -281,7 +326,10 @@ export class UsersController {
 
   @Patch(':id/reactivate')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Reactivate a deactivated user account (platform_admin or company_owner only)' })
+  @ApiOperation({
+    summary:
+      'Reactivate a deactivated user account (platform_admin or company_owner only)',
+  })
   async reactivateUser(
     @Param('id') targetId: string,
     @CurrentUser() ctx: AuthContext,
@@ -289,7 +337,9 @@ export class UsersController {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
 
     if (actor.role !== 'platform_admin' && actor.role !== 'company_owner') {
-      throw new ForbiddenException('You do not have permission to reactivate users');
+      throw new ForbiddenException(
+        'You do not have permission to reactivate users',
+      );
     }
 
     const target = await this.users.findByIdOrThrow(targetId);
@@ -300,10 +350,14 @@ export class UsersController {
 
     if (actor.role === 'company_owner') {
       if (target.role === 'platform_admin') {
-        throw new ForbiddenException('You cannot reactivate modules administrators');
+        throw new ForbiddenException(
+          'You cannot reactivate modules administrators',
+        );
       }
       if (target.companyId !== actor.companyId) {
-        throw new ForbiddenException('You can only reactivate users in your own company');
+        throw new ForbiddenException(
+          'You can only reactivate users in your own company',
+        );
       }
     }
 
@@ -319,34 +373,50 @@ export class UsersController {
 
   @Post(':id/send-password-reset')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Admin-triggered password reset email for any user (company_admin+)' })
+  @ApiOperation({
+    summary:
+      'Admin-triggered password reset email for any user (company_admin+)',
+  })
   async sendPasswordReset(
     @Param('id') targetId: string,
     @CurrentUser() ctx: AuthContext,
   ): Promise<{ message: string }> {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
 
-    if (!['platform_admin', 'company_owner', 'company_admin'].includes(actor.role)) {
-      throw new ForbiddenException('You do not have permission to reset user passwords');
+    if (
+      !['platform_admin', 'company_owner', 'company_admin'].includes(actor.role)
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to reset user passwords',
+      );
     }
 
     const target = await this.users.findByIdOrThrow(targetId);
 
     if (String((target as any)._id) === ctx.userId) {
-      throw new ForbiddenException('Use the profile settings to change your own password');
+      throw new ForbiddenException(
+        'Use the profile settings to change your own password',
+      );
     }
 
-    if (actor.scope === 'company' && String(target.companyId) !== String(actor.companyId)) {
-      throw new ForbiddenException('You can only reset passwords for users in your company');
+    if (
+      actor.scope === 'company' &&
+      String(target.companyId) !== String(actor.companyId)
+    ) {
+      throw new ForbiddenException(
+        'You can only reset passwords for users in your company',
+      );
     }
 
     // Generate and persist reset token (1-hour TTL).
-    const rawToken  = randomBytes(32).toString('hex');
+    const rawToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await this.users.setPasswordResetToken(targetId, tokenHash, expiresAt);
 
-    const resetUrl = this.buildFrontendUrl(`/auth/reset-password?token=${rawToken}`);
+    const resetUrl = this.buildFrontendUrl(
+      `/auth/reset-password?token=${rawToken}`,
+    );
 
     // Route all admin-triggered resets through the Platform Company (same pattern as
     // AuthService.notifyCompanyForgotPassword / notifyPlatformForgotPassword).
@@ -359,42 +429,48 @@ export class UsersController {
         this.notificationService
           .notifyEvent({
             companyId: platformCompanyId,
-            event:     'security.company_forgot_password',
-            email:     target.email,
-            payload: {
-              data: {
-                firstName:   target.firstName,
-                email:       target.email,
-                companyName,
-                resetUrl,
-                expiresAt:   expiresAt.toISOString(),
-              },
-            },
-          })
-          .catch((err) =>
-            this.logger.warn(`send-password-reset notification failed for ${target.email}: ${err?.message}`),
-          );
-      } else {
-        this.notificationService
-          .notifyEvent({
-            companyId: platformCompanyId,
-            event:     'security.platform_forgot_password',
-            email:     target.email,
+            event: 'security.company_forgot_password',
+            email: target.email,
             payload: {
               data: {
                 firstName: target.firstName,
-                email:     target.email,
+                email: target.email,
+                companyName,
                 resetUrl,
                 expiresAt: expiresAt.toISOString(),
               },
             },
           })
           .catch((err) =>
-            this.logger.warn(`send-password-reset notification failed for ${target.email}: ${err?.message}`),
+            this.logger.warn(
+              `send-password-reset notification failed for ${target.email}: ${err?.message}`,
+            ),
+          );
+      } else {
+        this.notificationService
+          .notifyEvent({
+            companyId: platformCompanyId,
+            event: 'security.platform_forgot_password',
+            email: target.email,
+            payload: {
+              data: {
+                firstName: target.firstName,
+                email: target.email,
+                resetUrl,
+                expiresAt: expiresAt.toISOString(),
+              },
+            },
+          })
+          .catch((err) =>
+            this.logger.warn(
+              `send-password-reset notification failed for ${target.email}: ${err?.message}`,
+            ),
           );
       }
     } else {
-      this.logger.warn(`send-password-reset: platform company not found, email skipped for ${target.email}`);
+      this.logger.warn(
+        `send-password-reset: platform company not found, email skipped for ${target.email}`,
+      );
     }
 
     return { message: 'Password reset email sent.' };

@@ -10,6 +10,7 @@ import { ShiftsController } from '../shifts.controller';
 import { ShiftSyncService } from '../sync/services/shift-sync.service';
 import { Shift } from '../schemas/shift.schema';
 import { Contract } from '../../contracts/schemas/contract.schema';
+import { Customer } from '../../customer/schemas/customer.schema';
 import { SyncHistory } from '../sync/schemas/sync-history.schema';
 import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
 import { UsersService } from '../../users/users.service';
@@ -43,7 +44,7 @@ function makeShift(overrides: Record<string, any> = {}) {
     date:                '2026-07-18',
     startTime:           '09:00',
     endTime:             '17:00',
-    breakMinutes:        null,
+    breakTaken:          false,
     location:            null,
     notes:               null,
     calendarProvider:    'icloud',
@@ -88,12 +89,19 @@ const mockShiftModel: any = {
 };
 
 const mockContractModel: any = { findOne: jest.fn() };
+const mockCustomerModel: any = { findById: jest.fn(), find: jest.fn() };
 const mockHistoryModel: any  = { create: jest.fn(), findOneAndUpdate: jest.fn() };
 const mockCommClient: any    = { notifyEvent: jest.fn().mockResolvedValue(true) };
 const mockUsersService: any  = { getCompanyDisplayName: jest.fn().mockResolvedValue('Biz Name') };
 const mockLinkedCalendarsService: any = { findAll: jest.fn().mockResolvedValue([]) };
 const mockCalendarClient: any         = { listCalendarEvents: jest.fn().mockResolvedValue([]) };
 const mockBiService: any              = { syncModel: jest.fn().mockResolvedValue({ inserted: 0, updated: 0 }) };
+
+function leanExecCustomer(value: any) {
+  const exec = jest.fn().mockResolvedValue(value);
+  const lean = jest.fn().mockReturnValue({ exec });
+  return { lean, select: jest.fn().mockReturnValue({ lean }) };
+}
 
 async function buildModule(): Promise<TestingModule> {
   return Test.createTestingModule({
@@ -103,6 +111,7 @@ async function buildModule(): Promise<TestingModule> {
       ShiftSyncService,
       { provide: getModelToken(Shift.name),       useValue: mockShiftModel       },
       { provide: getModelToken(Contract.name),     useValue: mockContractModel    },
+      { provide: getModelToken(Customer.name),     useValue: mockCustomerModel    },
       { provide: getModelToken(SyncHistory.name),  useValue: mockHistoryModel     },
       { provide: CommunicationsClientService,      useValue: mockCommClient       },
       { provide: UsersService,                     useValue: mockUsersService     },
@@ -133,6 +142,8 @@ describe('ShiftsService.assignContract', () => {
     service    = mod.get(ShiftsService);
     controller = mod.get(ShiftsController);
     jest.clearAllMocks();
+    mockCustomerModel.findById.mockReturnValue(leanExecCustomer({ _id: CUSTOMER_ID, displayName: 'Jay Productions' }));
+    mockCustomerModel.find.mockReturnValue(leanExecCustomer([]));
   });
 
   it('assigns a valid Contract — sets contractId, customerId, contractAssigned=true', async () => {
@@ -232,7 +243,9 @@ describe('ShiftsService.assignContract', () => {
     expect(setKeys).not.toContain('syncStatus');
   });
 
-  it('fires shift_updated notification fire-and-forget', async () => {
+  // TODO(shifts-notifications): update this test when notifications are re-enabled.
+  // When re-enabled, the call MUST use type: 'platform' (not 'business').
+  it('notifyEvent is currently disabled — no notification fires on assignContract', async () => {
     mockShiftModel.findOne.mockReturnValue(leanExec(makeShift()));
     mockContractModel.findOne.mockReturnValue(leanExec(makeContract()));
     mockShiftModel.findOneAndUpdate.mockReturnValue(
@@ -241,11 +254,10 @@ describe('ShiftsService.assignContract', () => {
 
     await service.assignContract(SHIFT_ID, BIZ_ID, CONTRACT_ID, { email: 'e@x.com', firstName: 'F', companyId: BIZ_ID });
 
-    // Notification is fire-and-forget — give it a tick to fire
     await Promise.resolve();
-    expect(mockCommClient.notifyEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ event: 'shifts.shift_updated' }),
-    );
+    // Notification is intentionally disabled — _notify() is a no-op.
+    // Re-enable this expectation (with type: 'platform') once strategy is approved.
+    expect(mockCommClient.notifyEvent).not.toHaveBeenCalled();
   });
 
   it('does not emit notification if persistence fails', async () => {
@@ -261,6 +273,129 @@ describe('ShiftsService.assignContract', () => {
 
     await Promise.resolve();
     expect(mockCommClient.notifyEvent).not.toHaveBeenCalled();
+  });
+});
+
+// ─── breakTaken field contract ────────────────────────────────────────────────
+
+describe('Shift.breakTaken — toShiftResponse mapper', () => {
+  // Tests exercise the response mapper directly — no NestJS module bootstrap needed.
+  const { toShiftResponse } = require('../dto/shift-response.dto');
+
+  function makeDoc(overrides: Record<string, any> = {}) {
+    return {
+      ...makeShift({ createdAt: new Date(), updatedAt: new Date() }),
+      ...overrides,
+    };
+  }
+
+  it('defaults to false when breakTaken is absent from the stored document', () => {
+    const result = toShiftResponse(makeDoc({ breakTaken: undefined }));
+    expect(result.breakTaken).toBe(false);
+  });
+
+  it('maps breakTaken = true correctly', () => {
+    const result = toShiftResponse(makeDoc({ breakTaken: true }));
+    expect(result.breakTaken).toBe(true);
+  });
+
+  it('maps breakTaken = false correctly', () => {
+    const result = toShiftResponse(makeDoc({ breakTaken: false }));
+    expect(result.breakTaken).toBe(false);
+  });
+
+  it('response DTO does not contain breakMinutes', () => {
+    const result = toShiftResponse(makeDoc({ breakTaken: false }));
+    expect(result).not.toHaveProperty('breakMinutes');
+  });
+
+  it('legacy document with breakMinutes > 0 and no breakTaken field defaults to false (pre-migration)', () => {
+    // Pre-migration documents have breakMinutes but no breakTaken.
+    // toShiftResponse falls back to false until the migration script runs.
+    const result = toShiftResponse(makeDoc({ breakMinutes: 30, breakTaken: undefined }));
+    expect(result.breakTaken).toBe(false);
+    expect(result).not.toHaveProperty('breakMinutes');
+  });
+});
+
+describe('Shift.breakTaken — update $set filter', () => {
+  let service: ShiftsService;
+
+  beforeEach(async () => {
+    const mod = await buildModule();
+    service   = mod.get(ShiftsService);
+    jest.clearAllMocks();
+    // The update flow resolves the contract summary via findById after persisting.
+    mockContractModel.findById = jest.fn().mockReturnValue(leanExec(makeContract()));
+    mockCustomerModel.findById.mockReturnValue(leanExecCustomer({ _id: CUSTOMER_ID, displayName: 'Jay' }));
+  });
+
+  it('breakTaken is included in $set when provided in update DTO', async () => {
+    mockShiftModel.findOne.mockReturnValue(leanExec(makeShift()));
+    let capturedUpdate: any;
+    mockShiftModel.findOneAndUpdate.mockImplementation((_f: any, update: any) => {
+      capturedUpdate = update;
+      return leanExecFOU(makeShift({ breakTaken: false }));
+    });
+
+    await service.update(
+      SHIFT_ID, BIZ_ID,
+      { breakTaken: false } as any,
+      { companyId: BIZ_ID, email: 'e', firstName: 'F' } as any,
+    );
+
+    expect(capturedUpdate.$set.breakTaken).toBe(false);
+  });
+
+  it('breakTaken=true to false transition is persisted', async () => {
+    mockShiftModel.findOne.mockReturnValue(leanExec(makeShift({ breakTaken: true })));
+    let capturedUpdate: any;
+    mockShiftModel.findOneAndUpdate.mockImplementation((_f: any, update: any) => {
+      capturedUpdate = update;
+      return leanExecFOU(makeShift({ breakTaken: false }));
+    });
+
+    await service.update(
+      SHIFT_ID, BIZ_ID,
+      { breakTaken: false } as any,
+      { companyId: BIZ_ID, email: 'e', firstName: 'F' } as any,
+    );
+
+    expect(capturedUpdate.$set.breakTaken).toBe(false);
+  });
+
+  it('breakTaken false to true transition is persisted', async () => {
+    mockShiftModel.findOne.mockReturnValue(leanExec(makeShift({ breakTaken: false })));
+    let capturedUpdate: any;
+    mockShiftModel.findOneAndUpdate.mockImplementation((_f: any, update: any) => {
+      capturedUpdate = update;
+      return leanExecFOU(makeShift({ breakTaken: true }));
+    });
+
+    await service.update(
+      SHIFT_ID, BIZ_ID,
+      { breakTaken: true } as any,
+      { companyId: BIZ_ID, email: 'e', firstName: 'F' } as any,
+    );
+
+    expect(capturedUpdate.$set.breakTaken).toBe(true);
+  });
+
+  it('breakMinutes is not present in $set for any update', async () => {
+    mockShiftModel.findOne.mockReturnValue(leanExec(makeShift()));
+    let capturedUpdate: any;
+    mockShiftModel.findOneAndUpdate.mockImplementation((_f: any, update: any) => {
+      capturedUpdate = update;
+      return leanExecFOU(makeShift());
+    });
+
+    await service.update(
+      SHIFT_ID, BIZ_ID,
+      { location: 'Sydney', breakTaken: true } as any,
+      { companyId: BIZ_ID, email: 'e', firstName: 'F' } as any,
+    );
+
+    expect(capturedUpdate.$set).not.toHaveProperty('breakMinutes');
   });
 });
 

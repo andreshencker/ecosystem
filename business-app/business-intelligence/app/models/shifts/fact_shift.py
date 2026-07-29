@@ -48,6 +48,10 @@ class FactShift(Base):
     sync_status = Column(String(20), nullable=True, index=True)
     last_external_update = Column(DateTime(timezone=True), nullable=True)
 
+    # ── Invoice-calculation support ───────────────────────────────────────────
+    break_taken = Column(Boolean, nullable=True)
+    end_date = Column(Date, nullable=True)
+
     # ── Detail ────────────────────────────────────────────────────────────────
     location = Column(String(500), nullable=True)
     title = Column(String(500), nullable=True)

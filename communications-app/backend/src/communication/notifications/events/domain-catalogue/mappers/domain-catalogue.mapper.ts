@@ -10,8 +10,8 @@ export class DomainCatalogueMapper {
       displayName: String(doc.displayName ?? ''),
       domainCategory: String(doc.domainCategory ?? ''),
 
-      isActive:  !!doc.isActive,
-      isSystem:  !!doc.isSystem,
+      isActive: !!doc.isActive,
+      isSystem: !!doc.isSystem,
 
       channelsToUse: (doc.channelsToUse ?? []).map((x: any) => ({
         channel: x.channel,

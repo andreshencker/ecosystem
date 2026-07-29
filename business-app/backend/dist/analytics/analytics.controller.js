@@ -56,6 +56,22 @@ let AnalyticsController = class AnalyticsController {
             throw err;
         }
     }
+    async getPendingInvoiceGroups(ctx) {
+        const businessId = this.resolveCompanyId(ctx);
+        try {
+            const result = await this.bi.getPendingInvoiceGroups(businessId);
+            if (!result) {
+                throw new common_1.ServiceUnavailableException('Business Intelligence service is unavailable');
+            }
+            return result;
+        }
+        catch (err) {
+            if (err instanceof bi_unavailable_error_1.BIUnavailableError) {
+                throw new common_1.ServiceUnavailableException('Business Intelligence service is unavailable');
+            }
+            throw err;
+        }
+    }
     async getShiftPendingList(ctx, rawPage, rawLimit, linkedCalendarId, dateFrom, dateTo, search) {
         const businessId = this.resolveCompanyId(ctx);
         const params = {
@@ -136,6 +152,20 @@ __decorate([
     (0, swagger_1.ApiQuery)({ name: 'dateFrom', required: false, description: 'ISO date YYYY-MM-DD' }),
     (0, swagger_1.ApiQuery)({ name: 'dateTo', required: false, description: 'ISO date YYYY-MM-DD' }),
     (0, swagger_1.ApiQuery)({ name: 'search', required: false }),
+    (0, common_1.Get)('invoices/pending-groups'),
+    (0, common_1.HttpCode)(200),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Pending invoice groups — real-time BI calculation (proxied from BI service)',
+        description: 'Returns confirmed shifts with invoiceStatus=pending grouped by ' +
+            'customer × contract × billing period. All amounts are computed by BI. ' +
+            'businessId is resolved from the JWT — never from the request.',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getPendingInvoiceGroups", null);
+__decorate([
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('page')),
     __param(2, (0, common_1.Query)('limit')),

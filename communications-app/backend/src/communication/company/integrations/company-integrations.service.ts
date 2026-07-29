@@ -7,7 +7,10 @@ import {
   CompanyIntegration,
   CompanyIntegrationDocument,
 } from './schemas/company-integration.schema';
-import { Company, CompanyDocument } from '../company-info/schemas/company.schema';
+import {
+  Company,
+  CompanyDocument,
+} from '../company-info/schemas/company.schema';
 import { User, UserDocument } from '../../../users/schemas/user.schema';
 import { CreateCompanyIntegrationDto } from './dto/create-company-integration.dto';
 import { UpdateCompanyIntegrationDto } from './dto/update-company-integration.dto';
@@ -54,10 +57,10 @@ export class CompanyIntegrationsService {
   ): Promise<string | null> {
     const companyIdStr = String(companyId);
 
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findById(companyId)
       .select('companyEmail')
-      .lean() as any;
+      .lean()) as any;
 
     // Priority 1: explicit company email
     if (company?.companyEmail?.trim()) {
@@ -65,22 +68,30 @@ export class CompanyIntegrationsService {
     }
 
     // Priority 2: active company_owner
-    const owner = await this.userModel
-      .findOne({ companyId: companyIdStr, role: 'company_owner', isActive: { $ne: false } })
+    const owner = (await this.userModel
+      .findOne({
+        companyId: companyIdStr,
+        role: 'company_owner',
+        isActive: { $ne: false },
+      })
       .select('email')
-      .lean() as any;
+      .lean()) as any;
     if (owner?.email) return owner.email;
 
     // Priority 3: any active company_admin
-    const admin = await this.userModel
-      .findOne({ companyId: companyIdStr, role: 'company_admin', isActive: { $ne: false } })
+    const admin = (await this.userModel
+      .findOne({
+        companyId: companyIdStr,
+        role: 'company_admin',
+        isActive: { $ne: false },
+      })
       .select('email')
-      .lean() as any;
+      .lean()) as any;
     if (admin?.email) return admin.email;
 
     this.logger.warn(
       `resolveCompanyRecipient: no email found for companyId=${companyIdStr}` +
-      ` (companyEmail empty, no active owner or admin)`,
+        ` (companyEmail empty, no active owner or admin)`,
     );
     return null;
   }
@@ -103,17 +114,21 @@ export class CompanyIntegrationsService {
   ): Promise<void> {
     const platformCompanyId = await this.getPlatformCompanyId();
     if (!platformCompanyId) {
-      this.logger.warn(`[${event}] platform company not found — notification skipped`);
+      this.logger.warn(
+        `[${event}] platform company not found — notification skipped`,
+      );
       return;
     }
 
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findById(integration.companyId)
       .select('displayName')
-      .lean() as any;
+      .lean()) as any;
 
     if (!company) {
-      this.logger.warn(`[${event}] tenant company not found (id=${String(integration.companyId)}) — skipped`);
+      this.logger.warn(
+        `[${event}] tenant company not found (id=${String(integration.companyId)}) — skipped`,
+      );
       return;
     }
 
@@ -127,7 +142,7 @@ export class CompanyIntegrationsService {
 
     this.logger.log(
       `[${event}] platformCompanyId=${platformCompanyId} tenantCompanyId=${String(integration.companyId)}` +
-      ` integration="${integration.displayName}" recipient=${recipient}`,
+        ` integration="${integration.displayName}" recipient=${recipient}`,
     );
 
     await this.notificationService.notifyEvent({
@@ -136,9 +151,9 @@ export class CompanyIntegrationsService {
       email: recipient,
       payload: {
         data: {
-          companyName:     company.displayName,
+          companyName: company.displayName,
           integrationName: integration.displayName,
-          environment:     integration.environment,
+          environment: integration.environment,
           ...extraData,
         },
       },
@@ -160,8 +175,7 @@ export class CompanyIntegrationsService {
     tokenHash: string;
     tokenPrefix: string;
   } {
-    const envPrefix =
-      environment === 'production' ? 'gpf_live_' : 'gpf_test_';
+    const envPrefix = environment === 'production' ? 'gpf_live_' : 'gpf_test_';
     const randomPart = randomBytes(24).toString('hex'); // 48 chars
     const rawToken = `${envPrefix}${randomPart}`;
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
@@ -200,23 +214,27 @@ export class CompanyIntegrationsService {
     const integrationKey = dto.integrationKey.toLowerCase().trim();
 
     if (!integrationKey) {
-      throw new HttpException('integrationKey is required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'integrationKey is required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
-    const { rawToken, tokenHash, tokenPrefix } = this.generateToken(environment);
+    const { rawToken, tokenHash, tokenPrefix } =
+      this.generateToken(environment);
 
     try {
       const doc: any = await this.model.create({
         companyId,
         integrationKey,
-        displayName:    dto.displayName.trim(),
-        description:    dto.description?.trim() ?? '',
-        environment:    environment as any,
+        displayName: dto.displayName.trim(),
+        description: dto.description?.trim() ?? '',
+        environment: environment as any,
         tokenHash,
         tokenPrefix,
-        isActive:       true,
-        expiresAt:      dto.expiresAt ? new Date(dto.expiresAt) : null,
-        createdBy:      dto.createdBy
+        isActive: true,
+        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        createdBy: dto.createdBy
           ? this.toObjectIdOrThrow(dto.createdBy, 'createdBy')
           : null,
       });
@@ -227,11 +245,17 @@ export class CompanyIntegrationsService {
       );
 
       // Fire-and-forget — never blocks or rolls back the create operation.
-      this.notifyIntegrationEvent('notifications.integration_token_created', doc as any, {
-        createdBy: dto.createdBy ?? 'system',
-        createdAt: new Date().toISOString(),
-      }).catch((err) =>
-        this.logger.warn(`integration_token_created notification failed for ${doc.integrationKey}: ${err?.message}`),
+      this.notifyIntegrationEvent(
+        'notifications.integration_token_created',
+        doc,
+        {
+          createdBy: dto.createdBy ?? 'system',
+          createdAt: new Date().toISOString(),
+        },
+      ).catch((err) =>
+        this.logger.warn(
+          `integration_token_created notification failed for ${doc.integrationKey}: ${err?.message}`,
+        ),
       );
 
       return result;
@@ -259,7 +283,7 @@ export class CompanyIntegrationsService {
     const filter: any = { companyId };
     if (typeof params.active === 'boolean') filter.isActive = params.active;
 
-    const limit  = params.limit  ?? 50;
+    const limit = params.limit ?? 50;
     const offset = params.offset ?? 0;
 
     const [list, total] = await Promise.all([
@@ -274,7 +298,7 @@ export class CompanyIntegrationsService {
     ]);
 
     return {
-      data:   CompanyIntegrationMapper.toResponseList(list),
+      data: CompanyIntegrationMapper.toResponseList(list),
       total,
       limit,
       offset,
@@ -298,20 +322,25 @@ export class CompanyIntegrationsService {
     }
 
     const $set: any = {};
-    if (dto.displayName !== undefined) $set.displayName = dto.displayName.trim();
-    if (dto.description !== undefined) $set.description = dto.description.trim();
-    if (dto.isActive    !== undefined) $set.isActive    = dto.isActive;
-    if (dto.expiresAt   !== undefined) {
+    if (dto.displayName !== undefined)
+      $set.displayName = dto.displayName.trim();
+    if (dto.description !== undefined)
+      $set.description = dto.description.trim();
+    if (dto.isActive !== undefined) $set.isActive = dto.isActive;
+    if (dto.expiresAt !== undefined) {
       $set.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
     }
 
     // Re-generate token when environment changes (old token used wrong prefix)
     let rawToken: string | undefined;
-    if (dto.environment !== undefined && dto.environment !== (existing as any).environment) {
+    if (
+      dto.environment !== undefined &&
+      dto.environment !== (existing as any).environment
+    ) {
       const generated = this.generateToken(dto.environment);
-      $set.environment  = dto.environment;
-      $set.tokenHash    = generated.tokenHash;
-      $set.tokenPrefix  = generated.tokenPrefix;
+      $set.environment = dto.environment;
+      $set.tokenHash = generated.tokenHash;
+      $set.tokenPrefix = generated.tokenPrefix;
       rawToken = generated.rawToken;
     }
 
@@ -341,12 +370,18 @@ export class CompanyIntegrationsService {
     }
 
     if (snapshot) {
-      this.notifyIntegrationEvent('notifications.integration_token_revoked', snapshot as any, {
-        revokedBy: 'system',
-        revokedAt: new Date().toISOString(),
-        reason:    'Integration permanently deleted',
-      }).catch((err) =>
-        this.logger.warn(`integration_token_revoked notification failed for ${(snapshot as any).integrationKey}: ${err?.message}`),
+      this.notifyIntegrationEvent(
+        'notifications.integration_token_revoked',
+        snapshot as any,
+        {
+          revokedBy: 'system',
+          revokedAt: new Date().toISOString(),
+          reason: 'Integration permanently deleted',
+        },
+      ).catch((err) =>
+        this.logger.warn(
+          `integration_token_revoked notification failed for ${(snapshot as any).integrationKey}: ${err?.message}`,
+        ),
       );
     }
 
@@ -376,11 +411,17 @@ export class CompanyIntegrationsService {
       .select('-tokenHash')
       .lean();
 
-    this.notifyIntegrationEvent('notifications.integration_token_rotated', updated as any, {
-      rotatedBy: 'system',
-      rotatedAt: new Date().toISOString(),
-    }).catch((err) =>
-      this.logger.warn(`integration_token_rotated notification failed for ${(updated as any)?.integrationKey}: ${err?.message}`),
+    this.notifyIntegrationEvent(
+      'notifications.integration_token_rotated',
+      updated as any,
+      {
+        rotatedBy: 'system',
+        rotatedAt: new Date().toISOString(),
+      },
+    ).catch((err) =>
+      this.logger.warn(
+        `integration_token_rotated notification failed for ${(updated as any)?.integrationKey}: ${err?.message}`,
+      ),
     );
 
     return CompanyIntegrationMapper.toResponseWithToken(updated, rawToken);
@@ -392,12 +433,18 @@ export class CompanyIntegrationsService {
     const result = await this.setActive(id, false);
 
     // Fire-and-forget — deactivation counts as a revocation of access.
-    this.notifyIntegrationEvent('notifications.integration_token_revoked', result as any, {
-      revokedBy: 'system',
-      revokedAt: new Date().toISOString(),
-      reason:    'Integration deactivated',
-    }).catch((err) =>
-      this.logger.warn(`integration_token_revoked notification failed for ${result.integrationKey}: ${err?.message}`),
+    this.notifyIntegrationEvent(
+      'notifications.integration_token_revoked',
+      result as any,
+      {
+        revokedBy: 'system',
+        revokedAt: new Date().toISOString(),
+        reason: 'Integration deactivated',
+      },
+    ).catch((err) =>
+      this.logger.warn(
+        `integration_token_revoked notification failed for ${result.integrationKey}: ${err?.message}`,
+      ),
     );
 
     return result;
@@ -438,7 +485,10 @@ export class CompanyIntegrationsService {
     const filter: any = {};
 
     if (params.companyId?.trim()) {
-      filter.companyId = this.toObjectIdOrThrow(params.companyId.trim(), 'companyId');
+      filter.companyId = this.toObjectIdOrThrow(
+        params.companyId.trim(),
+        'companyId',
+      );
     }
 
     if (typeof params.active === 'boolean') filter.isActive = params.active;
@@ -458,7 +508,7 @@ export class CompanyIntegrationsService {
       ];
     }
 
-    const limit  = params.limit  ?? 50;
+    const limit = params.limit ?? 50;
     const offset = params.offset ?? 0;
 
     const [list, total] = await Promise.all([
@@ -474,7 +524,7 @@ export class CompanyIntegrationsService {
     ]);
 
     return {
-      data:   CompanyIntegrationMapper.toPlatformResponseList(list),
+      data: CompanyIntegrationMapper.toPlatformResponseList(list),
       total,
       limit,
       offset,
@@ -495,17 +545,17 @@ export class CompanyIntegrationsService {
     companyName: string;
     isPlatformCompany: true;
   } | null> {
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findOne({ isPlatformCompany: true })
       .select('_id companyKey displayName')
-      .lean() as any;
+      .lean()) as any;
 
     if (!company) return null;
 
     return {
-      companyId:         String(company._id),
-      companyKey:        company.companyKey   ?? '',
-      companyName:       company.displayName  ?? '',
+      companyId: String(company._id),
+      companyKey: company.companyKey ?? '',
+      companyName: company.displayName ?? '',
       isPlatformCompany: true,
     };
   }
@@ -522,10 +572,10 @@ export class CompanyIntegrationsService {
   }> {
     const { companyId } = await this.resolveByToken(rawToken);
 
-    const company = await this.companyModel
+    const company = (await this.companyModel
       .findById(companyId)
       .select('companyKey displayName')
-      .lean() as any;
+      .lean()) as any;
 
     if (!company) {
       throw new HttpException('Company not found', HttpStatus.NOT_FOUND);
@@ -533,7 +583,7 @@ export class CompanyIntegrationsService {
 
     return {
       companyId,
-      companyKey:  company.companyKey,
+      companyKey: company.companyKey,
       companyName: company.displayName,
     };
   }
@@ -552,24 +602,39 @@ export class CompanyIntegrationsService {
       .lean();
 
     if (!doc) {
-      throw new HttpException('Invalid integration token', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Invalid integration token',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const d = doc as any;
 
     if (!d.isActive) {
-      throw new HttpException('Integration is inactive', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Integration is inactive',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     if (d.expiresAt && new Date(d.expiresAt) < new Date()) {
       // Fire-and-forget — notify the company that this token has expired.
       // May fire more than once if the caller retries; acceptable for now.
-      this.notifyIntegrationEvent('notifications.integration_token_expired', d, {
-        expiredAt: new Date(d.expiresAt).toISOString(),
-      }).catch((err) =>
-        this.logger.warn(`integration_token_expired notification failed for ${d.integrationKey}: ${err?.message}`),
+      this.notifyIntegrationEvent(
+        'notifications.integration_token_expired',
+        d,
+        {
+          expiredAt: new Date(d.expiresAt).toISOString(),
+        },
+      ).catch((err) =>
+        this.logger.warn(
+          `integration_token_expired notification failed for ${d.integrationKey}: ${err?.message}`,
+        ),
       );
-      throw new HttpException('Integration token has expired', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Integration token has expired',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     // Update lastUsedAt without waiting for it to complete (fire-and-forget)
@@ -578,10 +643,10 @@ export class CompanyIntegrationsService {
     });
 
     return {
-      integrationId:  String(d._id),
-      companyId:      String(d.companyId),
+      integrationId: String(d._id),
+      companyId: String(d.companyId),
       integrationKey: String(d.integrationKey),
-      environment:    String(d.environment),
+      environment: String(d.environment),
     };
   }
 }

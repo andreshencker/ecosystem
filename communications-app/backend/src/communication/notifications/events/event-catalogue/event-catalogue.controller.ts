@@ -89,8 +89,18 @@ export class EventCatalogueController {
   @ApiQuery({ name: 'domainCatalogueId', required: true, type: String })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
   @ApiQuery({ name: 'populateDomainCatalogue', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   async list(
     @Headers('x-api-key') apiKey: string,
     @Query('domainCatalogueId') domainCatalogueId: string,
@@ -100,7 +110,10 @@ export class EventCatalogueController {
     @Query('offset') offset?: string,
   ) {
     this.assertApiKey(apiKey);
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
     return this.service.findAll({
       domainCatalogueId,
       active: this.toBool(active),

@@ -5,7 +5,7 @@ export declare class CreateShiftDto {
     date: string;
     startTime: string;
     endTime: string;
-    breakMinutes?: number;
+    breakTaken?: boolean;
     status?: 'draft' | 'confirmed' | 'cancelled';
     location?: string;
     notes?: string;

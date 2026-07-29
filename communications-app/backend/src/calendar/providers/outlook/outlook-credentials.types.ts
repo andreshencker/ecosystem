@@ -17,6 +17,6 @@ export interface OutlookCalendarCredentials {
   clientSecret: string;
   refreshToken: string;
   tenantId: string;
-  accessToken?: string;   // refreshed at runtime; optional at save time
-  expiresAt?: number;     // Unix timestamp (ms); optional at save time
+  accessToken?: string; // refreshed at runtime; optional at save time
+  expiresAt?: number; // Unix timestamp (ms); optional at save time
 }

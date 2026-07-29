@@ -9,6 +9,8 @@ import { Model, Types, ClientSession } from 'mongoose';
 
 import { Shift, ShiftDocument } from './schemas/shift.schema';
 import { Contract, ContractDocument } from '../contracts/schemas/contract.schema';
+import { Customer, CustomerDocument } from '../customer/schemas/customer.schema';
+import { ContractSummary } from './dto/shift-response.dto';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
 import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
@@ -45,6 +47,8 @@ export class ShiftsService {
     private readonly model: Model<ShiftDocument>,
     @InjectModel(Contract.name)
     private readonly contractModel: Model<ContractDocument>,
+    @InjectModel(Customer.name)
+    private readonly customerModel: Model<CustomerDocument>,
     private readonly commClient: CommunicationsClientService,
     private readonly biService: BusinessIntelligenceService,
     private readonly usersService: UsersService,
@@ -69,6 +73,70 @@ export class ShiftsService {
       throw new NotFoundException('Contract not found or does not belong to this business');
     }
     return contract as ContractDocument;
+  }
+
+  // ─── Contract summary resolution ─────────────────────────────────────────
+
+  private async _summaryFromContractDoc(contract: any): Promise<ContractSummary> {
+    const customerId = contract.customerId ?? null;
+    const customer = customerId
+      ? await this.customerModel.findById(customerId).select('displayName').lean().exec()
+      : null;
+    return {
+      id:           String(contract._id),
+      customerId,
+      customerName: (customer as any)?.displayName ?? null,
+      positionName: contract.positionName,
+    };
+  }
+
+  private async _resolveContractSummary(
+    contractId: string | null,
+    businessId: string,
+  ): Promise<ContractSummary | null> {
+    if (!contractId) return null;
+    const contract = await this.contractModel
+      .findOne({ _id: contractId, businessId })
+      .lean()
+      .exec();
+    if (!contract) return null;
+    return this._summaryFromContractDoc(contract);
+  }
+
+  private async _buildContractSummaryMap(
+    shifts: any[],
+    businessId: string,
+  ): Promise<Map<string, ContractSummary>> {
+    const contractIds = [...new Set(shifts.map((s) => s.contractId).filter(Boolean))];
+    if (!contractIds.length) return new Map();
+
+    const contracts = await this.contractModel
+      .find({ _id: { $in: contractIds }, businessId })
+      .lean()
+      .exec();
+
+    const customerIds = [...new Set((contracts as any[]).map((c) => c.customerId).filter(Boolean))];
+    const customers = customerIds.length > 0
+      ? await this.customerModel
+          .find({ _id: { $in: customerIds } })
+          .select('_id displayName')
+          .lean()
+          .exec()
+      : [];
+    const customerNameMap = new Map(
+      (customers as any[]).map((c) => [String(c._id), c.displayName ?? null]),
+    );
+
+    const result = new Map<string, ContractSummary>();
+    for (const contract of contracts as any[]) {
+      result.set(String(contract._id), {
+        id:           String(contract._id),
+        customerId:   contract.customerId ?? null,
+        customerName: customerNameMap.get(String(contract.customerId)) ?? null,
+        positionName: contract.positionName,
+      });
+    }
+    return result;
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -117,7 +185,7 @@ export class ShiftsService {
       date:             dto.date,
       startTime:        dto.startTime,
       endTime:          dto.endTime,
-      breakMinutes:     dto.breakMinutes ?? null,
+      breakTaken:       dto.breakTaken ?? false,
       status:           dto.status ?? 'draft',
       location:         dto.location?.trim() ?? null,
       notes:            dto.notes?.trim() ?? null,
@@ -172,8 +240,12 @@ export class ShiftsService {
           .lean()
           .exec();
 
-        this._notify('shifts.shift_created', synced ?? doc, contract, actor).catch(() => void 0);
-        return (synced ?? doc) as ShiftDocument;
+        const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+        // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+        // Shift notification strategy is still under definition.
+        // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+        // this._notify('shifts.shift_created', synced ?? doc, contract, actor).catch(() => void 0);
+        return { ...((synced ?? doc) as any), contractSummary } as ShiftDocument;
       } catch (err: any) {
         // External creation failed — mark Shift as error so the user knows it is unsynced
         await this.model
@@ -190,8 +262,12 @@ export class ShiftsService {
       }
     }
 
-    this._notify('shifts.shift_created', doc, contract, actor).catch(() => void 0);
-    return doc;
+    const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this._notify('shifts.shift_created', doc, contract, actor).catch(() => void 0);
+    return { ...(doc as any), contractSummary } as ShiftDocument;
   }
 
   async findAll(
@@ -225,12 +301,21 @@ export class ShiftsService {
       this.model.countDocuments(filter),
     ]);
 
-    return { items, total, page, limit };
+    const summaryMap = await this._buildContractSummaryMap(items, businessId);
+    const enriched = (items as any[]).map((shift) => ({
+      ...shift,
+      contractSummary: summaryMap.get(String(shift.contractId)) ?? null,
+    }));
+
+    return { items: enriched, total, page, limit };
   }
 
   async findById(id: string, businessId: string): Promise<ShiftDocument | null> {
     if (!Types.ObjectId.isValid(id)) return null;
-    return this.model.findOne({ _id: id, businessId }).lean().exec();
+    const doc = await this.model.findOne({ _id: id, businessId }).lean().exec();
+    if (!doc) return null;
+    const contractSummary = await this._resolveContractSummary((doc as any).contractId, businessId);
+    return { ...(doc as any), contractSummary } as ShiftDocument;
   }
 
   async findByIdOrThrow(id: string, businessId: string): Promise<ShiftDocument> {
@@ -251,12 +336,20 @@ export class ShiftsService {
       throw new BadRequestException('Cannot update a cancelled shift');
     }
 
+    let resolvedContract: any = null;
+
     const $set: Record<string, any> = {};
+    if (dto.contractId   !== undefined) {
+      resolvedContract = await this.assertContractOwnership(dto.contractId, businessId);
+      $set.contractId       = dto.contractId;
+      $set.customerId       = (resolvedContract as any).customerId ?? null;
+      $set.contractAssigned = true;
+    }
     if (dto.title        !== undefined) $set.title        = dto.title?.trim() ?? null;
     if (dto.date         !== undefined) $set.date         = dto.date;
     if (dto.startTime    !== undefined) $set.startTime    = dto.startTime;
     if (dto.endTime      !== undefined) $set.endTime      = dto.endTime;
-    if (dto.breakMinutes !== undefined) $set.breakMinutes = dto.breakMinutes;
+    if (dto.breakTaken !== undefined) $set.breakTaken = dto.breakTaken;
     if (dto.location     !== undefined) $set.location     = dto.location?.trim() ?? null;
     if (dto.notes        !== undefined) $set.notes        = dto.notes?.trim() ?? null;
 
@@ -267,8 +360,16 @@ export class ShiftsService {
 
     if (!updated) throw new NotFoundException('Shift not found');
 
-    const contract = await this.contractModel.findById((existing as any).contractId).lean().exec();
-    this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
+    const effectiveContractId = $set.contractId ?? (existing as any).contractId;
+    const contract = resolvedContract
+      ?? await this.contractModel.findById((existing as any).contractId).lean().exec();
+    const contractSummary = contract
+      ? await this._summaryFromContractDoc(contract).catch(() => null)
+      : await this._resolveContractSummary(effectiveContractId, businessId);
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
 
     // Push changes to external calendar when Shift is linked to a provider event
     const externalOccurrenceId = (existing as any).externalOccurrenceId as string | null;
@@ -282,7 +383,7 @@ export class ShiftsService {
       );
     }
 
-    return updated;
+    return { ...(updated as any), contractSummary } as ShiftDocument;
   }
 
   /**
@@ -354,8 +455,14 @@ export class ShiftsService {
     if (!updated) throw new NotFoundException('Shift not found');
 
     const contract = await this.contractModel.findById((doc as any).contractId).lean().exec();
-    this._notify('shifts.shift_confirmed', updated, contract, actor).catch(() => void 0);
-    return updated;
+    const contractSummary = contract
+      ? await this._summaryFromContractDoc(contract).catch(() => null)
+      : null;
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this._notify('shifts.shift_confirmed', updated, contract, actor).catch(() => void 0);
+    return { ...(updated as any), contractSummary } as ShiftDocument;
   }
 
   async cancel(id: string, businessId: string, actor: ActorContext): Promise<ShiftDocument> {
@@ -374,8 +481,14 @@ export class ShiftsService {
     if (!updated) throw new NotFoundException('Shift not found');
 
     const contract = await this.contractModel.findById((doc as any).contractId).lean().exec();
-    this._notify('shifts.shift_cancelled', updated, contract, actor).catch(() => void 0);
-    return updated;
+    const contractSummary = contract
+      ? await this._summaryFromContractDoc(contract).catch(() => null)
+      : null;
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this._notify('shifts.shift_cancelled', updated, contract, actor).catch(() => void 0);
+    return { ...(updated as any), contractSummary } as ShiftDocument;
   }
 
   /**
@@ -419,8 +532,12 @@ export class ShiftsService {
 
     if (!updated) throw new NotFoundException('Shift not found');
 
-    this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
-    return updated;
+    const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
+    return { ...(updated as any), contractSummary } as ShiftDocument;
   }
 
   /**
@@ -618,48 +735,58 @@ export class ShiftsService {
 
     const contract = await this.contractModel.findById((doc as any).contractId).lean().exec();
     await this.model.findOneAndDelete({ _id: id, businessId }).exec();
-    this._notify('shifts.shift_deleted', doc, contract, actor).catch(() => void 0);
+    // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+    // Shift notification strategy is still under definition.
+    // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
+    // this._notify('shifts.shift_deleted', doc, contract, actor).catch(() => void 0);
   }
 
   // ─── Notifications (fire-and-forget) ─────────────────────────────────────
 
+  // TODO(shifts-notifications): notifyEvent() intentionally disabled.
+  // Shift notification strategy is still under definition.
+  // Final implementation MUST use Platform credentials:
+  //   type: 'platform'   ← required
+  //   businessId must NOT be passed when type is 'platform'
+  // Do NOT restore using type: 'business'.
+  // Re-enable once the notification behavior and delivery channels have been approved.
   private async _notify(
     eventKey: string,
     shift: any,
     contract: any,
     actor: ActorContext,
   ): Promise<void> {
-    try {
-      const businessName = await this.usersService
-        .getCompanyDisplayName(actor.companyId)
-        .catch(() => '');
-
-      const delivered = await this.commClient.notifyEvent({
-        type:     'business',
-        businessId: actor.companyId,
-        event:    eventKey,
-        email:    actor.email,
-        data: {
-          firstName:    actor.firstName,
-          businessName,
-          contractName: contract?.positionName ?? '',
-          shiftDate:    shift.date,
-          startTime:    shift.startTime,
-          endTime:      shift.endTime,
-          shiftStatus:  shift.status,
-          actionDate:   new Date().toISOString(),
-          ...(shift.location ? { location: shift.location } : {}),
-          ...(shift.notes    ? { notes:    shift.notes    } : {}),
-        },
-      });
-
-      this.logger.log(
-        `[Shift notification] ${eventKey} → ${actor.email} delivered=${delivered}`,
-      );
-    } catch (err: any) {
-      this.logger.error(
-        `[Shift notification] ${eventKey} failed: ${err?.message}`,
-      );
-    }
+    void eventKey; void shift; void contract; void actor; // suppress unused-param warnings
+    // try {
+    //   const businessName = await this.usersService
+    //     .getCompanyDisplayName(actor.companyId)
+    //     .catch(() => '');
+    //
+    //   const delivered = await this.commClient.notifyEvent({
+    //     type:  'platform',  // ← MUST be 'platform' — do NOT use 'business'
+    //     event: eventKey,
+    //     email: actor.email,
+    //     data: {
+    //       firstName:    actor.firstName,
+    //       businessName,
+    //       contractName: contract?.positionName ?? '',
+    //       shiftDate:    shift.date,
+    //       startTime:    shift.startTime,
+    //       endTime:      shift.endTime,
+    //       shiftStatus:  shift.status,
+    //       actionDate:   new Date().toISOString(),
+    //       ...(shift.location ? { location: shift.location } : {}),
+    //       ...(shift.notes    ? { notes:    shift.notes    } : {}),
+    //     },
+    //   });
+    //
+    //   this.logger.log(
+    //     `[Shift notification] ${eventKey} → ${actor.email} delivered=${delivered}`,
+    //   );
+    // } catch (err: any) {
+    //   this.logger.error(
+    //     `[Shift notification] ${eventKey} failed: ${err?.message}`,
+    //   );
+    // }
   }
 }

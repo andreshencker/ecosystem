@@ -51,18 +51,29 @@ export class NotificationController {
   @Post('event')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Trigger a notification event' })
-  @ApiResponse({ status: 200, description: 'All channels delivered successfully' })
-  @ApiResponse({ status: 207, description: 'One or more channels failed — inspect results[].success' })
+  @ApiResponse({
+    status: 200,
+    description: 'All channels delivered successfully',
+  })
+  @ApiResponse({
+    status: 207,
+    description: 'One or more channels failed — inspect results[].success',
+  })
   async notifyEvent(
     @Headers('x-api-key') apiKey: string,
     @Req() req: Request,
     @Body() dto: NotifyEventDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const authCtx = (req as any).authContext as { keyId?: string; companyId?: string } | undefined;
-    const authMethod     = authCtx?.keyId === 'integration-token' ? 'integration-token' : 'x-api-key';
-    const isAdminAuth    = authCtx?.keyId === 'internal';
-    const isIntegration  = authCtx?.keyId === 'integration-token';
+    const authCtx = (req as any).authContext as
+      | { keyId?: string; companyId?: string }
+      | undefined;
+    const authMethod =
+      authCtx?.keyId === 'integration-token'
+        ? 'integration-token'
+        : 'x-api-key';
+    const isAdminAuth = authCtx?.keyId === 'internal';
+    const isIntegration = authCtx?.keyId === 'integration-token';
 
     // Admin-key requests still require assertApiKey() as a second confirmation.
     // Integration-token requests were fully validated by GlobalAuthGuard.
@@ -80,27 +91,33 @@ export class NotificationController {
     if (!effectiveCompanyId) {
       this.logger.error(
         `[notifyEvent] No effectiveCompanyId could be resolved — ` +
-        `authMethod=${authMethod} authCtx.companyId=undefined dto.companyId=${dto.companyId}`,
+          `authMethod=${authMethod} authCtx.companyId=undefined dto.companyId=${dto.companyId}`,
       );
-      throw new UnauthorizedException('Could not resolve company from authentication context');
+      throw new UnauthorizedException(
+        'Could not resolve company from authentication context',
+      );
     }
 
     this.logger.log(
       `[notifyEvent] ── Auth & company resolution ──\n` +
-      `  authMethod:          ${authMethod}\n` +
-      `  isAdminAuth:         ${isAdminAuth}${isAdminAuth ? ' (modules company)' : ''}\n` +
-      `  effectiveCompanyId:  ${effectiveCompanyId}  ← used for event lookup\n` +
-      `  dto.companyId:       ${dto.companyId ?? '(not sent)'}  ← from request body (informational)\n` +
-      `  event:               ${dto.event}\n` +
-      `  email:               ${dto.email}`,
+        `  authMethod:          ${authMethod}\n` +
+        `  isAdminAuth:         ${isAdminAuth}${isAdminAuth ? ' (modules company)' : ''}\n` +
+        `  effectiveCompanyId:  ${effectiveCompanyId}  ← used for event lookup\n` +
+        `  dto.companyId:       ${dto.companyId ?? '(not sent)'}  ← from request body (informational)\n` +
+        `  event:               ${dto.event}\n` +
+        `  email:               ${dto.email}`,
     );
 
     // Sanity check for integration-token: body companyId should match resolved companyId.
-    if (isIntegration && dto.companyId && dto.companyId !== effectiveCompanyId) {
+    if (
+      isIntegration &&
+      dto.companyId &&
+      dto.companyId !== effectiveCompanyId
+    ) {
       this.logger.warn(
         `[notifyEvent] MISMATCH — integration token resolved companyId="${effectiveCompanyId}" ` +
-        `but body.companyId="${dto.companyId}". ` +
-        `Using token-resolved companyId. Check Business App CommunicationConnection configuration.`,
+          `but body.companyId="${dto.companyId}". ` +
+          `Using token-resolved companyId. Check Business App CommunicationConnection configuration.`,
       );
     }
 
@@ -112,8 +129,8 @@ export class NotificationController {
 
     this.logger.log(
       `[notifyEvent] status=${allSucceeded ? 'OK' : 'MULTI_STATUS'} ` +
-      `channels=${result.results.length} ` +
-      `succeeded=${result.results.filter((r) => r.success).length}`,
+        `channels=${result.results.length} ` +
+        `succeeded=${result.results.filter((r) => r.success).length}`,
     );
 
     if (!allSucceeded) {
@@ -129,7 +146,10 @@ export class NotificationController {
    */
   @Post('preview/event-by-key')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Preview a notification email by canonical event key — rendering only, no delivery (DEC-017 §10.4)' })
+  @ApiOperation({
+    summary:
+      'Preview a notification email by canonical event key — rendering only, no delivery (DEC-017 §10.4)',
+  })
   async previewByEventKey(
     @Headers('x-api-key') apiKey: string,
     @Req() req: Request,
@@ -137,11 +157,15 @@ export class NotificationController {
   ): Promise<{ subject: string; html: string }> {
     this.assertApiKey(apiKey);
 
-    const authCtx = (req as any).authContext as { companyId?: string } | undefined;
+    const authCtx = (req as any).authContext as
+      | { companyId?: string }
+      | undefined;
     const effectiveCompanyId = authCtx?.companyId;
 
     if (!effectiveCompanyId) {
-      throw new UnauthorizedException('Could not resolve company from authentication context');
+      throw new UnauthorizedException(
+        'Could not resolve company from authentication context',
+      );
     }
 
     const event = await this.eventCatalogue.findByCompanyAndCanonicalKey(
@@ -161,7 +185,9 @@ export class NotificationController {
 
   @Get('logs')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'List execution logs for a company (DEC-018 §10.3)' })
+  @ApiOperation({
+    summary: 'List execution logs for a company (DEC-018 §10.3)',
+  })
   @ApiQuery({ name: 'companyId', required: true })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })

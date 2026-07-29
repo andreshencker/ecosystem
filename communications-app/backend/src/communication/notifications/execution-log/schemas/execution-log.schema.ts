@@ -5,10 +5,11 @@ export type RenderStatus = 'success' | 'failed';
 export type DeliveryStatus = 'pending' | 'sent' | 'failed' | 'skipped';
 export type ExecutionChannel = 'email' | 'sms';
 
-export type NotificationExecutionLogDocument = HydratedDocument<NotificationExecutionLog> & {
-  createdAt: Date;
-  updatedAt: Date;
-};
+export type NotificationExecutionLogDocument =
+  HydratedDocument<NotificationExecutionLog> & {
+    createdAt: Date;
+    updatedAt: Date;
+  };
 
 @Schema({
   collection: 'notification_execution_logs',
@@ -51,7 +52,11 @@ export class NotificationExecutionLog {
   @Prop({ required: true, enum: ['success', 'failed'], index: true })
   renderStatus!: RenderStatus;
 
-  @Prop({ required: true, enum: ['pending', 'sent', 'failed', 'skipped'], index: true })
+  @Prop({
+    required: true,
+    enum: ['pending', 'sent', 'failed', 'skipped'],
+    index: true,
+  })
   deliveryStatus!: DeliveryStatus;
 
   // Timestamp at which the rendering phase completed (null if rendering failed before completing)
@@ -71,7 +76,9 @@ export class NotificationExecutionLog {
   errorMessage!: string | null;
 }
 
-export const NotificationExecutionLogSchema = SchemaFactory.createForClass(NotificationExecutionLog);
+export const NotificationExecutionLogSchema = SchemaFactory.createForClass(
+  NotificationExecutionLog,
+);
 
 NotificationExecutionLogSchema.index(
   { companyId: 1, createdAt: -1 },

@@ -9,10 +9,13 @@ import { TemplateComposerService } from '../common/template-engine/template-comp
 import { SourceOfTruthService } from '../common/source-of-truth/source-of-truth.service';
 import { GeneratorService } from '../../files/generator/generator.service';
 import { ReportContentBuilder } from '../../files/reports/builders/report-content.builder';
+import { DocumentCatalogueService } from '../../files/document-catalogue/document-catalogue.service';
+import { buildPdfStructurePlaceholder } from './builders/pdf-contract-placeholder.builder';
 
 import { PreviewLayoutDto } from './dto/preview-layout.dto';
 import { PreviewNotificationDto } from './dto/preview-notification.dto';
 import { PreviewReportDto } from './dto/preview-report.dto';
+import { PreviewDocumentStructureDto } from './dto/preview-document-structure.dto';
 
 @Injectable()
 export class PreviewService {
@@ -21,6 +24,7 @@ export class PreviewService {
     private readonly composer: TemplateComposerService,
     private readonly generator: GeneratorService,
     private readonly reportBuilder: ReportContentBuilder,
+    private readonly docService: DocumentCatalogueService,
   ) {}
 
   // ─────────────────────────────
@@ -166,6 +170,104 @@ export class PreviewService {
 
   // ─────────────────────────────
   // 3) Report PDF Preview (Buffer)
+
+  // ─────────────────────────────
+  // 4) Document Catalogue — structural PDF preview
+  // ─────────────────────────────
+
+  /**
+   * Generates a structural PDF preview for a stored document contract.
+   *
+   * No runtime business data is used.  Every value is a neutral placeholder
+   * derived from the configured field labels and column headers in the contract.
+   * The real company layout and theme are applied so the output shows the actual
+   * document structure (spacing, typography, section positions, branding chrome).
+   */
+  async previewDocumentStructurePdf(
+    dto: PreviewDocumentStructureDto,
+  ): Promise<Buffer> {
+    // 1. Resolve + validate the contract.
+    //    DocumentCatalogueService already checks: domain active, format allowed,
+    //    document exists & isActive, contract enabled.
+    const resolved = await this.docService.findByCompanyAndCanonicalKey(
+      dto.companyId,
+      dto.canonicalKey,
+    );
+
+    if (resolved.resolvedFormat !== 'pdf') {
+      throw new BadRequestException(
+        `This endpoint only previews PDF contracts. The resolved format is "${resolved.resolvedFormat}".`,
+      );
+    }
+
+    // 2. Build placeholder ReportPayload from the stored contract sections.
+    const reportPayload = buildPdfStructurePlaceholder(
+      resolved.resolvedContract,
+      resolved.displayName,
+    );
+
+    // 3. Resolve company default PDF layout + theme (real branding, no mock).
+    let render: any;
+    try {
+      const result = await this.sot.resolveForPdfReport({
+        companyId: dto.companyId,
+        data: {},
+      });
+      render = result.render;
+    } catch (err: any) {
+      if (
+        err instanceof NotFoundException ||
+        err?.status === 404 ||
+        err?.response?.statusCode === 404
+      ) {
+        throw new BadRequestException(
+          'A PDF layout must be configured before the document structure can be previewed.',
+        );
+      }
+      throw err;
+    }
+
+    const layout = render?.layout ?? {};
+    if (!layout?.html) {
+      throw new BadRequestException(
+        'A PDF layout must be configured before the document structure can be previewed.',
+      );
+    }
+
+    // 4. Build document content HTML from placeholder payload.
+    const contentHtml = this.reportBuilder.build(reportPayload, {});
+
+    // 5. Compose final HTML: layout + CSS + content + company/theme variables.
+    const now = new Date();
+    const finalHtml = this.generator.composeHtml({
+      layoutHtml: layout.html,
+      layoutCss: layout.css ?? '',
+      contentHtml,
+      context: { company: render.company ?? {}, theme: render.theme ?? {} },
+      data: {},
+      meta: {
+        year: now.getFullYear(),
+        generatedAtIso: now.toISOString(),
+        generatedAtPretty: now.toISOString().slice(0, 10),
+        pageNumber: 1,
+        totalPages: 1,
+      },
+      leaveDataPlaceholders: false,
+    });
+
+    // 6. Generate PDF buffer — nothing is saved.
+    const file = await this.generator.handle({
+      format: 'pdf',
+      filename: `${resolved.documentKey}-structure-preview`,
+      payload: { html: finalHtml },
+      meta: {},
+    });
+
+    return file.buffer;
+  }
+
+  // ─────────────────────────────
+  // Helpers
 
   // ─────────────────────────────
   private buildMeta() {

@@ -30,13 +30,13 @@ export interface DefaultEventDefinition {
 }
 
 export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
-
   // ── Authentication ───────────────────────────────────────────────────────────
 
   {
     eventKey: 'company_verify_email',
     displayName: 'Email Verification',
-    description: 'Deliver the email verification link to a user who self-registered. Always routed through the modules company (DEC-009 Rev-2 §2).',
+    description:
+      'Deliver the email verification link to a user who self-registered. Always routed through the modules company (DEC-009 Rev-2 §2).',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -65,7 +65,12 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   <a href="{{data.loginUrl}}" style="color: {{theme.linkColor}};">Log in here</a>.
 </p>
 {{/data.loginUrl}}`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.verificationUrl', 'data.expiresAt'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.verificationUrl',
+          'data.expiresAt',
+        ],
         optionalVariables: ['data.loginUrl'],
       },
     },
@@ -76,7 +81,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'platform_admin_invitation',
     displayName: 'Platform Admin Invitation',
-    description: 'Deliver onboarding credentials to a newly invited modules administrator (platform_admin → platform_admin flow, DEC-013).',
+    description:
+      'Deliver onboarding credentials to a newly invited modules administrator (platform_admin → platform_admin flow, DEC-013).',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -116,7 +122,13 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
 <p style="margin: 16px 0 0; color: {{theme.mutedTextColor}}; font-size: 13px;">
   If you did not expect this invitation, you can safely ignore this email.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.tempPassword', 'data.loginUrl', 'data.role'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.tempPassword',
+          'data.loginUrl',
+          'data.role',
+        ],
         optionalVariables: [],
       },
     },
@@ -125,7 +137,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'company_admin_invitation',
     displayName: 'Company Admin Invitation',
-    description: 'Deliver onboarding credentials to a newly provisioned company administrator. Sent via modules credentials so the tenant does not need SMTP configured yet (DEC-009 §4 Rev-1).',
+    description:
+      'Deliver onboarding credentials to a newly provisioned company administrator. Sent via modules credentials so the tenant does not need SMTP configured yet (DEC-009 §4 Rev-1).',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -165,7 +178,14 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
 <p style="margin: 16px 0 0; color: {{theme.mutedTextColor}}; font-size: 13px;">
   If you did not expect this invitation, you can safely ignore this email.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.companyName', 'data.tempPassword', 'data.loginUrl', 'data.role'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.companyName',
+          'data.tempPassword',
+          'data.loginUrl',
+          'data.role',
+        ],
         optionalVariables: [],
       },
     },
@@ -174,7 +194,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'company_user_invitation',
     displayName: 'Company User Invitation',
-    description: 'Deliver onboarding credentials to a company user invited by a company_owner or company_admin. Sent via modules credentials (DEC-013).',
+    description:
+      'Deliver onboarding credentials to a company user invited by a company_owner or company_admin. Sent via modules credentials (DEC-013).',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -214,7 +235,14 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
 <p style="margin: 16px 0 0; color: {{theme.mutedTextColor}}; font-size: 13px;">
   If you did not expect this invitation, you can safely ignore this email.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.companyName', 'data.role', 'data.email', 'data.tempPassword', 'data.loginUrl'],
+        requiredVariables: [
+          'data.firstName',
+          'data.companyName',
+          'data.role',
+          'data.email',
+          'data.tempPassword',
+          'data.loginUrl',
+        ],
         optionalVariables: ['data.expiresAt'],
       },
     },
@@ -223,7 +251,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'company_invitation_resent',
     displayName: 'Company Invitation Resent',
-    description: 'Re-deliver invitation credentials when an admin resends a pending invitation. Sent via modules credentials (DEC-013).',
+    description:
+      'Re-deliver invitation credentials when an admin resends a pending invitation. Sent via modules credentials (DEC-013).',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -263,7 +292,14 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
 <p style="margin: 16px 0 0; color: {{theme.mutedTextColor}}; font-size: 13px;">
   If you did not expect this invitation, you can safely ignore this email.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.companyName', 'data.tempPassword', 'data.loginUrl', 'data.role'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.companyName',
+          'data.tempPassword',
+          'data.loginUrl',
+          'data.role',
+        ],
         optionalVariables: [],
       },
     },
@@ -272,7 +308,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'company_welcome_message',
     displayName: 'Company Welcome Message',
-    description: 'Welcome an invited company user after they complete their first login and set a permanent password. Sent via modules credentials (DEC-013).',
+    description:
+      'Welcome an invited company user after they complete their first login and set a permanent password. Sent via modules credentials (DEC-013).',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -295,7 +332,13 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
     Log In to Your Account
   </a>
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.companyName', 'data.loginUrl', 'data.role'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.companyName',
+          'data.loginUrl',
+          'data.role',
+        ],
         optionalVariables: [],
       },
     },
@@ -304,7 +347,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'company_password_changed',
     displayName: 'Company Password Changed',
-    description: 'Notify a company user that their password was changed. Sent via modules credentials.',
+    description:
+      'Notify a company user that their password was changed. Sent via modules credentials.',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -326,7 +370,12 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
 <p style="margin: 0 0 16px;">
   If you did not make this change, please contact your company administrator immediately.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.companyName', 'data.when'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.companyName',
+          'data.when',
+        ],
         optionalVariables: ['data.changedAt', 'data.ipAddress'],
       },
     },
@@ -335,7 +384,8 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   {
     eventKey: 'company_forgot_password',
     displayName: 'Company Forgot Password',
-    description: 'Deliver a password reset link to a company user. Sent via modules credentials.',
+    description:
+      'Deliver a password reset link to a company user. Sent via modules credentials.',
     eventType: 'security',
     scope: 'platform',
     senderScope: 'platform',
@@ -360,7 +410,13 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   If you did not request a password reset, you can safely ignore this email —
   your password will not be changed.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.companyName', 'data.resetUrl', 'data.expiresAt'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.companyName',
+          'data.resetUrl',
+          'data.expiresAt',
+        ],
         optionalVariables: [],
       },
     },
@@ -395,7 +451,12 @@ export const DEFAULT_PLATFORM_EVENTS: DefaultEventDefinition[] = [
   If you did not request a password reset, you can safely ignore this email —
   your password will not be changed.
 </p>`,
-        requiredVariables: ['data.firstName', 'data.email', 'data.resetUrl', 'data.expiresAt'],
+        requiredVariables: [
+          'data.firstName',
+          'data.email',
+          'data.resetUrl',
+          'data.expiresAt',
+        ],
         optionalVariables: [],
       },
     },

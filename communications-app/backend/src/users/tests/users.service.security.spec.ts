@@ -11,7 +11,11 @@
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from '../users.service';
 import { User } from '../schemas/user.schema';
 import { Company } from '../../communication/company/company-info/schemas/company.schema';
@@ -21,23 +25,26 @@ import { Company } from '../../communication/company/company-info/schemas/compan
 function mockChain(resolveValue: any) {
   const q: any = {};
   q.select = () => q;
-  q.sort   = () => q;
-  q.skip   = () => q;
-  q.limit  = () => q;
-  q.lean   = () => q;
-  q.exec   = () => Promise.resolve(resolveValue);
+  q.sort = () => q;
+  q.skip = () => q;
+  q.limit = () => q;
+  q.lean = () => q;
+  q.exec = () => Promise.resolve(resolveValue);
   return q;
 }
 
-async function buildModule(userOverrides: any = {}, companyOverrides: any = {}) {
+async function buildModule(
+  userOverrides: any = {},
+  companyOverrides: any = {},
+) {
   const userModel = {
-    findById:          jest.fn(() => mockChain(null)),
-    findOne:           jest.fn(() => mockChain(null)),
-    find:              jest.fn(() => mockChain([])),
-    countDocuments:    jest.fn(() => ({ exec: () => Promise.resolve(0) })),
+    findById: jest.fn(() => mockChain(null)),
+    findOne: jest.fn(() => mockChain(null)),
+    find: jest.fn(() => mockChain([])),
+    countDocuments: jest.fn(() => ({ exec: () => Promise.resolve(0) })),
     findByIdAndUpdate: jest.fn(() => mockChain(null)),
     findByIdAndDelete: jest.fn(() => ({ exec: () => Promise.resolve(null) })),
-    create:            jest.fn(),
+    create: jest.fn(),
     ...userOverrides,
   };
 
@@ -49,13 +56,13 @@ async function buildModule(userOverrides: any = {}, companyOverrides: any = {}) 
   const module: TestingModule = await Test.createTestingModule({
     providers: [
       UsersService,
-      { provide: getModelToken(User.name),    useValue: userModel    },
+      { provide: getModelToken(User.name), useValue: userModel },
       { provide: getModelToken(Company.name), useValue: companyModel },
     ],
   }).compile();
 
   return {
-    service:      module.get<UsersService>(UsersService),
+    service: module.get<UsersService>(UsersService),
     userModel,
     companyModel,
   };
@@ -68,8 +75,12 @@ describe('UsersService — changePassword security', () => {
     const user = {
       _id: 'u1',
       passwordHash: '$2b$12$invalidhashThatWillNeverMatch.......',
-      email: 'a@b.com', firstName: 'A', lastName: 'B',
-      role: 'operator', scope: 'company', companyId: 'cmp_1',
+      email: 'a@b.com',
+      firstName: 'A',
+      lastName: 'B',
+      role: 'operator',
+      scope: 'company',
+      companyId: 'cmp_1',
     };
     const { service } = await buildModule({
       findById: jest.fn(() => mockChain(user)),
@@ -81,7 +92,9 @@ describe('UsersService — changePassword security', () => {
   });
 
   it('throws NotFoundException when user does not exist', async () => {
-    const { service } = await buildModule({ findById: jest.fn(() => mockChain(null)) });
+    const { service } = await buildModule({
+      findById: jest.fn(() => mockChain(null)),
+    });
 
     await expect(
       service.changePassword('ghost', 'any', 'newpass'),
@@ -95,8 +108,10 @@ describe('UsersService — createInvitedUser', () => {
   // Shared created-user stub reused across several tests.
   function createdUserStub(overrides: Record<string, unknown> = {}) {
     return {
-      _id: 'new_u', email: 'inv@x.com',
-      isEmailVerified: true, mustChangePassword: true,
+      _id: 'new_u',
+      email: 'inv@x.com',
+      isEmailVerified: true,
+      mustChangePassword: true,
       toObject: () => ({ _id: 'new_u', email: 'inv@x.com', ...overrides }),
       ...overrides,
     };
@@ -104,12 +119,18 @@ describe('UsersService — createInvitedUser', () => {
 
   it('throws ConflictException when email already exists', async () => {
     const existing = { _id: 'u99', email: 'dup@example.com' };
-    const { service } = await buildModule({ findOne: jest.fn(() => mockChain(existing)) });
+    const { service } = await buildModule({
+      findOne: jest.fn(() => mockChain(existing)),
+    });
 
     await expect(
       service.createInvitedUser({
-        email: 'dup@example.com', firstName: 'D', lastName: 'U',
-        role: 'operator', companyId: 'cmp_1', companyKey: 'c1',
+        email: 'dup@example.com',
+        firstName: 'D',
+        lastName: 'U',
+        role: 'operator',
+        companyId: 'cmp_1',
+        companyKey: 'c1',
       }),
     ).rejects.toThrow(ConflictException);
   });
@@ -118,12 +139,16 @@ describe('UsersService — createInvitedUser', () => {
     const createMock = jest.fn().mockResolvedValue(createdUserStub());
     const { service, userModel } = await buildModule({
       findOne: jest.fn(() => mockChain(null)),
-      create:  createMock,
+      create: createMock,
     });
 
     await service.createInvitedUser({
-      email: 'inv@x.com', firstName: 'I', lastName: 'N',
-      role: 'operator', companyId: 'cmp_1', companyKey: 'c1',
+      email: 'inv@x.com',
+      firstName: 'I',
+      lastName: 'N',
+      role: 'operator',
+      companyId: 'cmp_1',
+      companyKey: 'c1',
     });
 
     expect(createMock).toHaveBeenCalledWith(
@@ -138,12 +163,16 @@ describe('UsersService — createInvitedUser', () => {
     const createMock = jest.fn().mockResolvedValue(createdUserStub());
     const { service } = await buildModule({
       findOne: jest.fn(() => mockChain(null)),
-      create:  createMock,
+      create: createMock,
     });
 
     await service.createInvitedUser({
-      email: 'inv@x.com', firstName: 'I', lastName: 'N',
-      role: 'operator', companyId: 'cmp_1', companyKey: 'c1',
+      email: 'inv@x.com',
+      firstName: 'I',
+      lastName: 'N',
+      role: 'operator',
+      companyId: 'cmp_1',
+      companyKey: 'c1',
     });
 
     expect(createMock).toHaveBeenCalledWith(
@@ -153,28 +182,33 @@ describe('UsersService — createInvitedUser', () => {
 
   it('register flow keeps isEmailVerified=false — createCompanyOwnerWithCompany uses false', async () => {
     const userCreateMock = jest.fn().mockResolvedValue({
-      _id: 'owner_u', email: 'owner@co.com',
+      _id: 'owner_u',
+      email: 'owner@co.com',
       toObject: () => ({ _id: 'owner_u' }),
     });
     const companyCreateMock = jest.fn().mockResolvedValue({
-      _id: 'cmp_1', companyKey: 'acme',
+      _id: 'cmp_1',
+      companyKey: 'acme',
       toObject: () => ({ _id: 'cmp_1' }),
     });
     const { service } = await buildModule(
       {
-        findOne:           jest.fn(() => mockChain(null)),
-        create:            userCreateMock,
+        findOne: jest.fn(() => mockChain(null)),
+        create: userCreateMock,
         findByIdAndUpdate: jest.fn(() => mockChain(null)),
       },
       {
-        create:            companyCreateMock,
+        create: companyCreateMock,
         findByIdAndUpdate: jest.fn(() => mockChain(null)),
       },
     );
 
     await service.createCompanyOwnerWithCompany({
-      companyName: 'Acme', email: 'owner@co.com',
-      passwordHash: '$hash', firstName: 'O', lastName: 'W',
+      companyName: 'Acme',
+      email: 'owner@co.com',
+      passwordHash: '$hash',
+      firstName: 'O',
+      lastName: 'W',
     });
 
     expect(userCreateMock).toHaveBeenCalledWith(
@@ -185,12 +219,16 @@ describe('UsersService — createInvitedUser', () => {
   it('does NOT expose tempPassword through the invitation record (audit record has no raw token)', async () => {
     const { service } = await buildModule({
       findOne: jest.fn(() => mockChain(null)),
-      create:  jest.fn().mockResolvedValue(createdUserStub()),
+      create: jest.fn().mockResolvedValue(createdUserStub()),
     });
 
     const { tempPassword } = await service.createInvitedUser({
-      email: 'inv@x.com', firstName: 'I', lastName: 'N',
-      role: 'operator', companyId: 'cmp_1', companyKey: 'c1',
+      email: 'inv@x.com',
+      firstName: 'I',
+      lastName: 'N',
+      role: 'operator',
+      companyId: 'cmp_1',
+      companyKey: 'c1',
     });
 
     expect(typeof tempPassword).toBe('string');
@@ -206,12 +244,16 @@ describe('UsersService — deleteById security', () => {
       findByIdAndDelete: jest.fn(() => ({ exec: () => Promise.resolve(null) })),
     });
 
-    await expect(service.deleteById('ghost')).rejects.toThrow(NotFoundException);
+    await expect(service.deleteById('ghost')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('completes without error when user exists', async () => {
     const { service } = await buildModule({
-      findByIdAndDelete: jest.fn(() => ({ exec: () => Promise.resolve({ _id: 'u1' }) })),
+      findByIdAndDelete: jest.fn(() => ({
+        exec: () => Promise.resolve({ _id: 'u1' }),
+      })),
     });
 
     await expect(service.deleteById('u1')).resolves.toBeUndefined();

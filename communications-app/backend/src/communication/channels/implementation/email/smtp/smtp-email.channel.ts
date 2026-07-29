@@ -46,7 +46,7 @@ export class SmtpEmailChannel implements IEmailChannel {
       const normalized = SmtpCredentialsContract.normalize(payload.credentials);
       SmtpCredentialsContract.validate(normalized.value);
 
-      const creds = normalized.value as SmtpCredentials;
+      const creds = normalized.value;
       const providerKey = payload.providerKey ?? creds.providerKey ?? 'smtp';
 
       const transporter = this.createTransporter(creds);
@@ -81,7 +81,10 @@ export class SmtpEmailChannel implements IEmailChannel {
           error: null,
         }));
 
-      return await Promise.race([sendOp, emailSendTimeout(String(providerKey))]);
+      return await Promise.race([
+        sendOp,
+        emailSendTimeout(String(providerKey)),
+      ]);
     } catch (err: any) {
       this.logger.error(
         `❌ SMTP error sending to ${payload.to}: ${err?.message}`,
@@ -101,7 +104,10 @@ export class SmtpEmailChannel implements IEmailChannel {
   // ==========================
 
   private createTransporter(creds: SmtpCredentials) {
-    const timeoutMs = Math.max(1000, Number(process.env.CHANNEL_TIMEOUT_MS ?? 10_000));
+    const timeoutMs = Math.max(
+      1000,
+      Number(process.env.CHANNEL_TIMEOUT_MS ?? 10_000),
+    );
     return nodemailer.createTransport({
       host: creds.host,
       port: creds.port,

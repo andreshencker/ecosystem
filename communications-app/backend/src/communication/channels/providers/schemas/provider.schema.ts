@@ -38,7 +38,10 @@ export class Provider {
   })
   channelId!: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['api_key', 'smtp', 'oauth', 'access_keys', 'app_password'] })
+  @Prop({
+    required: true,
+    enum: ['api_key', 'smtp', 'oauth', 'access_keys', 'app_password'],
+  })
   connectionType!: ProviderConnectionType;
 
   @Prop({ default: true, index: true })

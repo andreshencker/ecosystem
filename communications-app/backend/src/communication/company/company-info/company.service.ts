@@ -33,11 +33,21 @@ export class CompanyService {
     const offset = Math.max(0, Number(params?.offset ?? 0));
 
     const [list, total] = await Promise.all([
-      this.model.find(filter).sort({ companyKey: 1 }).skip(offset).limit(limit).lean(),
+      this.model
+        .find(filter)
+        .sort({ companyKey: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
       this.model.countDocuments(filter),
     ]);
 
-    return { data: CompanyMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: CompanyMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async findById(companyId: string): Promise<CompanyResponseDto> {

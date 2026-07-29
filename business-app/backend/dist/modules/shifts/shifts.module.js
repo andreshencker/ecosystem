@@ -12,6 +12,7 @@ const mongoose_1 = require("@nestjs/mongoose");
 const shift_schema_1 = require("./schemas/shift.schema");
 const sync_history_schema_1 = require("./sync/schemas/sync-history.schema");
 const contract_schema_1 = require("../contracts/schemas/contract.schema");
+const customer_schema_1 = require("../customer/schemas/customer.schema");
 const shifts_service_1 = require("./shifts.service");
 const shifts_controller_1 = require("./shifts.controller");
 const shift_sync_service_1 = require("./sync/services/shift-sync.service");
@@ -28,6 +29,7 @@ exports.ShiftsModule = ShiftsModule = __decorate([
             mongoose_1.MongooseModule.forFeature([
                 { name: shift_schema_1.Shift.name, schema: shift_schema_1.ShiftSchema },
                 { name: contract_schema_1.Contract.name, schema: contract_schema_1.ContractSchema },
+                { name: customer_schema_1.Customer.name, schema: customer_schema_1.CustomerSchema },
                 { name: sync_history_schema_1.SyncHistory.name, schema: sync_history_schema_1.SyncHistorySchema },
             ]),
             communications_module_1.CommunicationsModule,

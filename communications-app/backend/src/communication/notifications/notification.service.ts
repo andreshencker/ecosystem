@@ -12,7 +12,11 @@ import { NotifyEventDto } from './dto/notify-event.dto';
 import { NotificationResultDto } from './dto/notification-result.dto';
 import { SendEmailDto } from './dto/send-email.dto';
 import { SendSmsDto } from './dto/send-sms.dto';
-import type { DeliveryStatus, ExecutionChannel, RenderStatus } from './execution-log/schemas/execution-log.schema';
+import type {
+  DeliveryStatus,
+  ExecutionChannel,
+  RenderStatus,
+} from './execution-log/schemas/execution-log.schema';
 
 // Internal type carrying execution context for logging — never exposed externally
 type ChannelExecutionCtx = {
@@ -49,8 +53,12 @@ export class NotificationService {
     companyId: string;
     results: NotificationResultDto[];
   }> {
-    const rawEvent = String(dto.event ?? '').trim().toLowerCase();
-    this.logger.log(`[notifyEvent:TRACE] ── START ── event="${rawEvent}"  companyId="${dto.companyId}"  email="${dto.email}"`);
+    const rawEvent = String(dto.event ?? '')
+      .trim()
+      .toLowerCase();
+    this.logger.log(
+      `[notifyEvent:TRACE] ── START ── event="${rawEvent}"  companyId="${dto.companyId}"  email="${dto.email}"`,
+    );
     if (!rawEvent) {
       this.logger.log('[notifyEvent:TRACE] THROW: event is required');
       throw new HttpException('event is required', HttpStatus.BAD_REQUEST);
@@ -80,7 +88,9 @@ export class NotificationService {
     }
 
     // Bare event key from the resolved document (never contains domain prefix)
-    const eventKey = String(event?.eventKey ?? rawEvent).toLowerCase().trim();
+    const eventKey = String(event?.eventKey ?? rawEvent)
+      .toLowerCase()
+      .trim();
 
     // 2) data (compatibilidad {{data.xxx}})
     const payloadData =
@@ -96,8 +106,10 @@ export class NotificationService {
     };
 
     // 3) Resolve domain metadata (for logging and execution log — NOT the decision source)
-    const domain = (event as any).domainCatalogueId;
-    const domainKey = String(domain?.domainKey ?? '').toLowerCase().trim();
+    const domain = event.domainCatalogueId;
+    const domainKey = String(domain?.domainKey ?? '')
+      .toLowerCase()
+      .trim();
     const canonicalEventKey = domainKey ? `${domainKey}.${eventKey}` : eventKey;
 
     // domain.channelsToUse is read as a SECONDARY source: if an explicit
@@ -106,7 +118,9 @@ export class NotificationService {
     const domainAssignments: Record<string, string> = {};
     if (Array.isArray(domain?.channelsToUse)) {
       for (const x of domain.channelsToUse) {
-        const ch = String(x?.channel ?? '').toLowerCase().trim();
+        const ch = String(x?.channel ?? '')
+          .toLowerCase()
+          .trim();
         const pcId = String(x?.providerCredentialsId ?? '').trim();
         if (ch && pcId) domainAssignments[ch] = pcId;
       }
@@ -114,7 +128,7 @@ export class NotificationService {
 
     this.logger.log(
       `[notifyEvent:TRACE] event resolved: eventKey="${eventKey}"  domainKey="${domainKey}"  ` +
-      `domainAssignments=${JSON.stringify(domainAssignments)}`,
+        `domainAssignments=${JSON.stringify(domainAssignments)}`,
     );
 
     // ── Step 3b: build dispatch list from event.channelContent (PRIMARY decision source) ──
@@ -125,39 +139,49 @@ export class NotificationService {
     //   a. domain.channelsToUse has a specific providerCredentialsId → use it (step 4a)
     //   b. no assignment → resolveDefault(companyId, channelKey)       (step 4b)
 
-    const channelsToDispatch: Array<{ channel: 'email' | 'sms'; providerCredentialsId: string }> = [];
+    const channelsToDispatch: Array<{
+      channel: 'email' | 'sms';
+      providerCredentialsId: string;
+    }> = [];
 
     for (const chKey of ['email', 'sms'] as const) {
-      const content = (event as any).channelContent?.[chKey];
+      const content = event.channelContent?.[chKey];
 
       this.logger.log(
         `[DIAG:notifyEvent] channelContent["${chKey}"]: present=${!!content}  ` +
-        `enabled=${content?.enabled ?? '(not set — default true)'}  ` +
-        `subject=${content?.subject ? `"${String(content.subject).slice(0, 40)}..."` : '(none)'}`,
+          `enabled=${content?.enabled ?? '(not set — default true)'}  ` +
+          `subject=${content?.subject ? `"${String(content.subject).slice(0, 40)}..."` : '(none)'}`,
       );
 
       // Skip if channel is explicitly absent or disabled
       if (!content || content.enabled === false) {
-        this.logger.log(`[DIAG:notifyEvent] SKIP channel="${chKey}": not configured or disabled in event.channelContent`);
+        this.logger.log(
+          `[DIAG:notifyEvent] SKIP channel="${chKey}": not configured or disabled in event.channelContent`,
+        );
         continue;
       }
 
       const assignedCredId = domainAssignments[chKey] ?? '';
-      channelsToDispatch.push({ channel: chKey, providerCredentialsId: assignedCredId });
+      channelsToDispatch.push({
+        channel: chKey,
+        providerCredentialsId: assignedCredId,
+      });
 
       this.logger.log(
         `[DIAG:notifyEvent] DISPATCH channel="${chKey}"  ` +
-        `credentialSource=${assignedCredId
-          ? `domain assignment → providerCredentialsId="${assignedCredId}"`
-          : 'resolveDefault() — no domain.channelsToUse entry for this channel'}`,
+          `credentialSource=${
+            assignedCredId
+              ? `domain assignment → providerCredentialsId="${assignedCredId}"`
+              : 'resolveDefault() — no domain.channelsToUse entry for this channel'
+          }`,
       );
     }
 
     this.logger.log(
       `[DIAG:notifyEvent] ── dispatch summary ──\n` +
-      `  companyId:          ${companyId}\n` +
-      `  canonicalEventKey:  ${canonicalEventKey}\n` +
-      `  channelsToDispatch: ${JSON.stringify(channelsToDispatch)}`,
+        `  companyId:          ${companyId}\n` +
+        `  canonicalEventKey:  ${canonicalEventKey}\n` +
+        `  channelsToDispatch: ${JSON.stringify(channelsToDispatch)}`,
     );
 
     if (channelsToDispatch.length === 0) {
@@ -180,7 +204,7 @@ export class NotificationService {
 
       this.logger.log(
         `[notifyEvent:TRACE] LOOP channel="${channelKey}"  ` +
-        `assignedCredId="${assignedCredId || '(none — will use resolveDefault)'}"`,
+          `assignedCredId="${assignedCredId || '(none — will use resolveDefault)'}"`,
       );
 
       // 4) Resolve runtime credentials
@@ -205,16 +229,18 @@ export class NotificationService {
 
         this.logger.log(
           `[DIAG:notifyEvent] credential resolved:\n` +
-          `  providerCredentialsId: ${ch?.providerCredentialsId}\n` +
-          `  providerKey:           ${ch?.providerKey}\n` +
-          `  connectionType:        ${ch?.connectionType}\n` +
-          `  isActive:              ${ch?.isActive}`,
+            `  providerCredentialsId: ${ch?.providerCredentialsId}\n` +
+            `  providerKey:           ${ch?.providerKey}\n` +
+            `  connectionType:        ${ch?.connectionType}\n` +
+            `  isActive:              ${ch?.isActive}`,
         );
         this.logger.log(
           `[notifyEvent:TRACE] runtime resolved: provider="${ch?.providerKey}"  connectionType="${ch?.connectionType}"  isActive=${ch?.isActive}`,
         );
       } catch (err: any) {
-        this.logger.log(`[notifyEvent:TRACE] CONTINUE: runtime resolve threw: "${err?.message}"`);
+        this.logger.log(
+          `[notifyEvent:TRACE] CONTINUE: runtime resolve threw: "${err?.message}"`,
+        );
 
         const r: NotificationResultDto = {
           channel: channel === 'email' ? 'EMAIL' : 'SMS',
@@ -224,11 +250,19 @@ export class NotificationService {
         };
         results.push(r);
         this.writeLog({
-          companyId, domainKey, eventKey, canonicalEventKey, channel,
-          layoutTemplateId: null, themeId: null,
-          providerId: null, providerCredentialsId: assignedCredId || null,
-          renderStatus: 'failed', deliveryStatus: 'skipped',
-          renderedAt: null, sentAt: null,
+          companyId,
+          domainKey,
+          eventKey,
+          canonicalEventKey,
+          channel,
+          layoutTemplateId: null,
+          themeId: null,
+          providerId: null,
+          providerCredentialsId: assignedCredId || null,
+          renderStatus: 'failed',
+          deliveryStatus: 'skipped',
+          renderedAt: null,
+          sentAt: null,
           providerMessageId: null,
           errorMessage: r.error ?? null,
         });
@@ -236,20 +270,31 @@ export class NotificationService {
       }
 
       if (ch?.isActive === false) {
-        this.logger.log('[notifyEvent:TRACE] CONTINUE: ch.isActive===false (safety-net path)');
+        this.logger.log(
+          '[notifyEvent:TRACE] CONTINUE: ch.isActive===false (safety-net path)',
+        );
         const r: NotificationResultDto = {
           channel: channel === 'email' ? 'EMAIL' : 'SMS',
           provider: String(ch.providerKey ?? channelKey),
           success: false,
-          error: 'Provider or credential is inactive — check Enabled Providers and Credentials pages',
+          error:
+            'Provider or credential is inactive — check Enabled Providers and Credentials pages',
         };
         results.push(r);
         this.writeLog({
-          companyId, domainKey, eventKey, canonicalEventKey, channel,
-          layoutTemplateId: null, themeId: null,
-          providerId: ch.providerId ?? null, providerCredentialsId: ch.providerCredentialsId ?? null,
-          renderStatus: 'failed', deliveryStatus: 'skipped',
-          renderedAt: null, sentAt: null,
+          companyId,
+          domainKey,
+          eventKey,
+          canonicalEventKey,
+          channel,
+          layoutTemplateId: null,
+          themeId: null,
+          providerId: ch.providerId ?? null,
+          providerCredentialsId: ch.providerCredentialsId ?? null,
+          renderStatus: 'failed',
+          deliveryStatus: 'skipped',
+          renderedAt: null,
+          sentAt: null,
           providerMessageId: null,
           errorMessage: r.error ?? null,
         });
@@ -257,12 +302,14 @@ export class NotificationService {
       }
 
       // channelContent already verified in step 3 — guaranteed to exist and be enabled
-      const channelContent = (event as any).channelContent?.[channelKey];
+      const channelContent = event.channelContent?.[channelKey];
       this.logger.log(
         `[notifyEvent:TRACE] channelContent["${channelKey}"]: present=${!!channelContent}  enabled=${channelContent?.enabled}`,
       );
       if (!channelContent || channelContent.enabled === false) {
-        this.logger.log(`[notifyEvent:TRACE] CONTINUE: channelContent missing or disabled`);
+        this.logger.log(
+          `[notifyEvent:TRACE] CONTINUE: channelContent missing or disabled`,
+        );
         const r: NotificationResultDto = {
           channel: channel === 'email' ? 'EMAIL' : 'SMS',
           provider: String(ch.providerKey ?? channelKey),
@@ -273,11 +320,19 @@ export class NotificationService {
         };
         results.push(r);
         this.writeLog({
-          companyId, domainKey, eventKey, canonicalEventKey, channel,
-          layoutTemplateId: null, themeId: null,
-          providerId: ch.providerId ?? null, providerCredentialsId: ch.providerCredentialsId ?? null,
-          renderStatus: 'failed', deliveryStatus: 'skipped',
-          renderedAt: null, sentAt: null,
+          companyId,
+          domainKey,
+          eventKey,
+          canonicalEventKey,
+          channel,
+          layoutTemplateId: null,
+          themeId: null,
+          providerId: ch.providerId ?? null,
+          providerCredentialsId: ch.providerCredentialsId ?? null,
+          renderStatus: 'failed',
+          deliveryStatus: 'skipped',
+          renderedAt: null,
+          sentAt: null,
           providerMessageId: null,
           errorMessage: r.error ?? null,
         });
@@ -297,9 +352,13 @@ export class NotificationService {
         return v === undefined || v === null || v === '';
       });
 
-      this.logger.log(`[notifyEvent:TRACE] required vars check: required=${JSON.stringify(required)}  missing=${JSON.stringify(missing)}`);
+      this.logger.log(
+        `[notifyEvent:TRACE] required vars check: required=${JSON.stringify(required)}  missing=${JSON.stringify(missing)}`,
+      );
       if (missing.length) {
-        this.logger.log(`[notifyEvent:TRACE] CONTINUE: missing required variables: ${missing.join(', ')}`);
+        this.logger.log(
+          `[notifyEvent:TRACE] CONTINUE: missing required variables: ${missing.join(', ')}`,
+        );
         const r: NotificationResultDto = {
           channel: channel === 'email' ? 'EMAIL' : 'SMS',
           provider: String(ch.providerKey ?? channelKey),
@@ -308,29 +367,46 @@ export class NotificationService {
         };
         results.push(r);
         this.writeLog({
-          companyId, domainKey, eventKey, canonicalEventKey, channel,
-          layoutTemplateId: null, themeId: null,
+          companyId,
+          domainKey,
+          eventKey,
+          canonicalEventKey,
+          channel,
+          layoutTemplateId: null,
+          themeId: null,
           providerId: ch.providerId ?? null,
           providerCredentialsId: ch.providerCredentialsId,
-          renderStatus: 'failed', deliveryStatus: 'skipped',
-          renderedAt: null, sentAt: null,
+          renderStatus: 'failed',
+          deliveryStatus: 'skipped',
+          renderedAt: null,
+          sentAt: null,
           providerMessageId: null,
           errorMessage: r.error ?? null,
         });
         continue;
       }
 
-      this.logger.log(`[notifyEvent:TRACE] dispatching to channelKey="${channelKey}"`);
+      this.logger.log(
+        `[notifyEvent:TRACE] dispatching to channelKey="${channelKey}"`,
+      );
       if (channelKey === 'email') {
         const outcome = await this.handleEmailWithLayout(
-          event, ch, dto, companyId, templateData, leavePlaceholders,
+          event,
+          ch,
+          dto,
+          companyId,
+          templateData,
+          leavePlaceholders,
         );
         this.logger.log(
           `[notifyEvent:TRACE] email outcome: success=${outcome.result.success}  error="${outcome.result.error ?? 'none'}"  renderStatus=${outcome.ctx.renderStatus}  deliveryStatus=${outcome.ctx.deliveryStatus}`,
         );
         results.push(outcome.result);
         this.writeLog({
-          companyId, domainKey, eventKey, canonicalEventKey,
+          companyId,
+          domainKey,
+          eventKey,
+          canonicalEventKey,
           channel: outcome.ctx.channel,
           layoutTemplateId: outcome.ctx.layoutTemplateId,
           themeId: outcome.ctx.themeId,
@@ -348,11 +424,18 @@ export class NotificationService {
 
       if (channelKey === 'sms') {
         const outcome = await this.handleSms(
-          event, ch, dto, templateData, leavePlaceholders,
+          event,
+          ch,
+          dto,
+          templateData,
+          leavePlaceholders,
         );
         results.push(outcome.result);
         this.writeLog({
-          companyId, domainKey, eventKey, canonicalEventKey,
+          companyId,
+          domainKey,
+          eventKey,
+          canonicalEventKey,
           channel: outcome.ctx.channel,
           layoutTemplateId: null,
           themeId: null,
@@ -369,7 +452,9 @@ export class NotificationService {
       }
     }
 
-    this.logger.log(`[notifyEvent:TRACE] loop complete. results.length=${results.length}  results=${JSON.stringify(results)}`);
+    this.logger.log(
+      `[notifyEvent:TRACE] loop complete. results.length=${results.length}  results=${JSON.stringify(results)}`,
+    );
 
     if (results.length === 0) {
       this.logger.log('[notifyEvent:TRACE] THROW: no results produced');
@@ -379,7 +464,10 @@ export class NotificationService {
       );
     }
 
-    this.logger.log('[notifyEvent:TRACE] ── RETURN ── ' + JSON.stringify({ eventKey, companyId, results }));
+    this.logger.log(
+      '[notifyEvent:TRACE] ── RETURN ── ' +
+        JSON.stringify({ eventKey, companyId, results }),
+    );
     return { eventKey, companyId, results };
   }
 
@@ -420,11 +508,18 @@ export class NotificationService {
     }
 
     // ── Rendering phase — delegated to NotificationRenderService (shared with preview) ────────
-    let rendered: { subject: string; html: string; layoutTemplateId: string | null; themeId: string | null };
+    let rendered: {
+      subject: string;
+      html: string;
+      layoutTemplateId: string | null;
+      themeId: string | null;
+    };
     try {
       rendered = await this.renderer.renderEmail({
         companyId,
-        eventKey: String(event?.eventKey ?? '').trim().toLowerCase(),
+        eventKey: String(event?.eventKey ?? '')
+          .trim()
+          .toLowerCase(),
         data: templateData,
         leavePlaceholders,
       });

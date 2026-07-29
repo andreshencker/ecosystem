@@ -3,9 +3,9 @@
 import { Module } from '@nestjs/common';
 
 import { CalendarImplementationFactory } from './calendar-implementation.factory';
-import { ICloudCalendarProvider }        from '../providers/icloud/icloud-calendar.provider';
-import { GoogleCalendarProvider }        from '../providers/google/google-calendar.provider';
-import { OutlookCalendarProvider }       from '../providers/outlook/outlook-calendar.provider';
+import { ICloudCalendarProvider } from '../providers/icloud/icloud-calendar.provider';
+import { GoogleCalendarProvider } from '../providers/google/google-calendar.provider';
+import { OutlookCalendarProvider } from '../providers/outlook/outlook-calendar.provider';
 
 /**
  * CalendarImplementationModule

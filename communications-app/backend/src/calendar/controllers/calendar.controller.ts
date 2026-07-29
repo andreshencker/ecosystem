@@ -84,7 +84,12 @@ export class CalendarController {
     @CurrentUser() ctx: AuthContext,
     @Param('credId') credId: string,
   ): Promise<any> {
-    return { data: await this.service.listCalendars(this.resolveCompanyId(ctx), credId) };
+    return {
+      data: await this.service.listCalendars(
+        this.resolveCompanyId(ctx),
+        credId,
+      ),
+    };
   }
 
   @Post('connections/:credId/calendars')
@@ -100,13 +105,19 @@ export class CalendarController {
 
   @Post('connections/:credId/calendars/subscribe')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Subscribe provider account to an external iCal URL' })
+  @ApiOperation({
+    summary: 'Subscribe provider account to an external iCal URL',
+  })
   async subscribeCalendar(
     @CurrentUser() ctx: AuthContext,
     @Param('credId') credId: string,
     @Body() dto: SubscribeCalendarDto,
   ): Promise<any> {
-    return this.service.subscribeCalendar(this.resolveCompanyId(ctx), credId, dto);
+    return this.service.subscribeCalendar(
+      this.resolveCompanyId(ctx),
+      credId,
+      dto,
+    );
   }
 
   @Get('connections/:credId/calendars/:calId')

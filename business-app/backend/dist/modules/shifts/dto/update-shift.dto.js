@@ -12,15 +12,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateShiftDto = void 0;
 const class_validator_1 = require("class-validator");
 class UpdateShiftDto {
+    contractId;
     title;
     date;
     startTime;
     endTime;
-    breakMinutes;
+    breakTaken;
     location;
     notes;
 }
 exports.UpdateShiftDto = UpdateShiftDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsMongoId)(),
+    __metadata("design:type", String)
+], UpdateShiftDto.prototype, "contractId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -48,11 +55,9 @@ __decorate([
 ], UpdateShiftDto.prototype, "endTime", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_validator_1.Max)(480),
-    __metadata("design:type", Object)
-], UpdateShiftDto.prototype, "breakMinutes", void 0);
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateShiftDto.prototype, "breakTaken", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

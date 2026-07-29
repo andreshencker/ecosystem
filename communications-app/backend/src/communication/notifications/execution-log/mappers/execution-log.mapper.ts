@@ -9,13 +9,19 @@ export class ExecutionLogMapper {
       eventKey: doc.eventKey,
       canonicalEventKey: doc.canonicalEventKey,
       channel: doc.channel,
-      layoutTemplateId: doc.layoutTemplateId ? String(doc.layoutTemplateId) : null,
+      layoutTemplateId: doc.layoutTemplateId
+        ? String(doc.layoutTemplateId)
+        : null,
       themeId: doc.themeId ? String(doc.themeId) : null,
       providerId: doc.providerId ? String(doc.providerId) : null,
-      providerCredentialsId: doc.providerCredentialsId ? String(doc.providerCredentialsId) : null,
+      providerCredentialsId: doc.providerCredentialsId
+        ? String(doc.providerCredentialsId)
+        : null,
       renderStatus: doc.renderStatus,
       deliveryStatus: doc.deliveryStatus,
-      renderedAt: doc.renderedAt ? new Date(doc.renderedAt).toISOString() : null,
+      renderedAt: doc.renderedAt
+        ? new Date(doc.renderedAt).toISOString()
+        : null,
       sentAt: doc.sentAt ? new Date(doc.sentAt).toISOString() : null,
       providerMessageId: doc.providerMessageId ?? null,
       errorMessage: doc.errorMessage ?? null,

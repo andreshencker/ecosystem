@@ -31,21 +31,30 @@ const ownerCtx = fakeCtx({ role: 'company_owner' });
 async function buildModule(actorDoc: Record<string, any>) {
   const usersServiceMock = {
     findByIdOrThrow: jest.fn().mockResolvedValue(actorDoc),
-    update:          jest.fn(),
-    changePassword:  jest.fn(),
+    update: jest.fn(),
+    changePassword: jest.fn(),
   };
 
   const module: TestingModule = await Test.createTestingModule({
     controllers: [UsersController],
     providers: [
-      { provide: UsersService,        useValue: usersServiceMock },
-      { provide: EventBusService,     useValue: { emit: jest.fn(), on: jest.fn() } },
-      { provide: ConfigService,       useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') } },
-      { provide: NotificationService, useValue: {
-        notifyEvent: jest.fn().mockResolvedValue({
-          results: [{ success: true, error: null }],
-        }),
-      }},
+      { provide: UsersService, useValue: usersServiceMock },
+      {
+        provide: EventBusService,
+        useValue: { emit: jest.fn(), on: jest.fn() },
+      },
+      {
+        provide: ConfigService,
+        useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') },
+      },
+      {
+        provide: NotificationService,
+        useValue: {
+          notifyEvent: jest.fn().mockResolvedValue({
+            results: [{ success: true, error: null }],
+          }),
+        },
+      },
       RolesGuard,
       Reflector,
     ],
@@ -53,7 +62,7 @@ async function buildModule(actorDoc: Record<string, any>) {
 
   return {
     controller: module.get<UsersController>(UsersController),
-    users:      module.get(UsersService) as jest.Mocked<UsersService>,
+    users: module.get(UsersService),
   };
 }
 
@@ -63,21 +72,37 @@ describe('UsersController — PATCH /users/me privilege escalation prevention', 
 
   beforeEach(async () => {
     const actorDoc = {
-      _id: 'u1', email: 'a@b.com', firstName: 'A', lastName: 'B',
-      role: 'company_owner', scope: 'company', companyId: 'cmp_1',
-      isEmailVerified: true, isActive: true, createdAt: new Date(),
+      _id: 'u1',
+      email: 'a@b.com',
+      firstName: 'A',
+      lastName: 'B',
+      role: 'company_owner',
+      scope: 'company',
+      companyId: 'cmp_1',
+      isEmailVerified: true,
+      isActive: true,
+      createdAt: new Date(),
     };
     ({ controller, users: usersService } = await buildModule(actorDoc));
     (usersService.update as jest.Mock).mockResolvedValue(actorDoc);
   });
 
   it('only passes firstName and lastName — never role/scope', async () => {
-    await controller.updateMe(ownerCtx, { firstName: 'Updated', lastName: 'Name' });
-    expect(usersService.update).toHaveBeenCalledWith('u1', { firstName: 'Updated', lastName: 'Name' });
+    await controller.updateMe(ownerCtx, {
+      firstName: 'Updated',
+      lastName: 'Name',
+    });
+    expect(usersService.update).toHaveBeenCalledWith('u1', {
+      firstName: 'Updated',
+      lastName: 'Name',
+    });
   });
 
   it('ignores role if somehow passed in DTO (whitelist enforcement)', async () => {
-    await controller.updateMe(ownerCtx, { firstName: 'Hacker', lastName: 'Smith' });
+    await controller.updateMe(ownerCtx, {
+      firstName: 'Hacker',
+      lastName: 'Smith',
+    });
     const callArg = (usersService.update as jest.Mock).mock.calls[0][1];
     expect(callArg).not.toHaveProperty('role');
     expect(callArg).not.toHaveProperty('scope');

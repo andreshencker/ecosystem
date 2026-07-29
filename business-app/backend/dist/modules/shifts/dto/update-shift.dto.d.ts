@@ -1,9 +1,10 @@
 export declare class UpdateShiftDto {
+    contractId?: string;
     title?: string;
     date?: string;
     startTime?: string;
     endTime?: string;
-    breakMinutes?: number | null;
+    breakTaken?: boolean;
     location?: string | null;
     notes?: string | null;
 }

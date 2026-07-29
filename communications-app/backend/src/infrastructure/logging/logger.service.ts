@@ -1,4 +1,8 @@
-import { Injectable, LoggerService as NestLoggerService, Scope } from '@nestjs/common';
+import {
+  Injectable,
+  LoggerService as NestLoggerService,
+  Scope,
+} from '@nestjs/common';
 
 export type LogLevel = 'log' | 'error' | 'warn' | 'debug' | 'verbose';
 
@@ -13,7 +17,12 @@ export interface LogMeta {
 export class LoggerService implements NestLoggerService {
   private readonly service: string = 'communication-modules';
 
-  private write(level: LogLevel, message: string, context?: string, meta?: LogMeta): void {
+  private write(
+    level: LogLevel,
+    message: string,
+    context?: string,
+    meta?: LogMeta,
+  ): void {
     const entry = {
       timestamp: new Date().toISOString(),
       level,

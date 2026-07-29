@@ -12,7 +12,7 @@ export declare class Shift {
     startTime: string;
     endDate: string | null;
     endTime: string;
-    breakMinutes: number | null;
+    breakTaken: boolean;
     status: ShiftStatus;
     location: string | null;
     notes: string | null;
@@ -111,7 +111,7 @@ export declare const ShiftSchema: import("mongoose").Schema<Shift, import("mongo
     }, "id"> & {
         id: string;
     }> | undefined;
-    breakMinutes?: import("mongoose").SchemaDefinitionProperty<number | null, Shift, import("mongoose").Document<unknown, {}, Shift, {
+    breakTaken?: import("mongoose").SchemaDefinitionProperty<boolean, Shift, import("mongoose").Document<unknown, {}, Shift, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<Shift & {
         _id: import("mongoose").Types.ObjectId;

@@ -29,11 +29,21 @@ export class ChannelsCatalogService {
     const offset = Math.max(0, Number(params?.offset ?? 0));
 
     const [list, total] = await Promise.all([
-      this.model.find(filter).sort({ channelKey: 1 }).skip(offset).limit(limit).lean(),
+      this.model
+        .find(filter)
+        .sort({ channelKey: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
       this.model.countDocuments(filter),
     ]);
 
-    return { data: ChannelMapper.toResponseList(list as any[]), total, limit, offset };
+    return {
+      data: ChannelMapper.toResponseList(list as any[]),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async findByKey(channelKey: string): Promise<ChannelResponseDto> {

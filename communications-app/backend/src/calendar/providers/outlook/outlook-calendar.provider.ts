@@ -39,29 +39,34 @@ import type { OutlookCalendarCredentials } from './outlook-credentials.types';
 export class OutlookCalendarProvider implements ICalendarProvider {
   private readonly logger = new Logger(OutlookCalendarProvider.name);
 
-  private static readonly GRAPH_BASE  = 'https://graph.microsoft.com/v1.0';
-  private static readonly TOKEN_BASE  = 'https://login.microsoftonline.com';
+  private static readonly GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
+  private static readonly TOKEN_BASE = 'https://login.microsoftonline.com';
 
   // ─── Credential helpers ───────────────────────────────────────────────────
 
-  private normalize(credentials: Record<string, any>): OutlookCalendarCredentials {
+  private normalize(
+    credentials: Record<string, any>,
+  ): OutlookCalendarCredentials {
     const { value } = OutlookCalendarCredentialsContract.normalize(credentials);
     OutlookCalendarCredentialsContract.validate(value);
     return value;
   }
 
-  private async getAccessToken(creds: OutlookCalendarCredentials): Promise<string> {
+  private async getAccessToken(
+    creds: OutlookCalendarCredentials,
+  ): Promise<string> {
     const res = await fetch(
       `${OutlookCalendarProvider.TOKEN_BASE}/${creds.tenantId}/oauth2/v2.0/token`,
       {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          grant_type:    'refresh_token',
-          client_id:     creds.clientId,
+          grant_type: 'refresh_token',
+          client_id: creds.clientId,
           client_secret: creds.clientSecret,
           refresh_token: creds.refreshToken,
-          scope:         'https://graph.microsoft.com/Calendars.ReadWrite offline_access',
+          scope:
+            'https://graph.microsoft.com/Calendars.ReadWrite offline_access',
         }).toString(),
       },
     );
@@ -83,7 +88,7 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     const res = await fetch(`${OutlookCalendarProvider.GRAPH_BASE}${path}`, {
       ...options,
       headers: {
-        Authorization:  `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...(options?.headers ?? {}),
       },
@@ -91,9 +96,7 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     if (res.status === 204) return null;
     if (!res.ok) {
       const err: any = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.error?.message ?? `Graph API error ${res.status}`,
-      );
+      throw new Error(err?.error?.message ?? `Graph API error ${res.status}`);
     }
     return res.json();
   }
@@ -102,14 +105,14 @@ export class OutlookCalendarProvider implements ICalendarProvider {
 
   private mapCalendar(item: any): CalendarInfo {
     return {
-      id:          item.id,
-      name:        item.name ?? '',
+      id: item.id,
+      name: item.name ?? '',
       description: undefined,
-      color:       item.hexColor ?? item.color,
-      timeZone:    undefined,
-      isReadOnly:  !item.canEdit,
-      isPrimary:   item.isDefaultCalendar ?? false,
-      raw:         item,
+      color: item.hexColor ?? item.color,
+      timeZone: undefined,
+      isReadOnly: !item.canEdit,
+      isPrimary: item.isDefaultCalendar ?? false,
+      raw: item,
     };
   }
 
@@ -117,41 +120,47 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     response: string,
   ): 'accepted' | 'declined' | 'tentative' | 'unknown' {
     switch (String(response ?? '').toLowerCase()) {
-      case 'accepted':  return 'accepted';
-      case 'declined':  return 'declined';
-      case 'tentative': return 'tentative';
-      default:          return 'unknown';
+      case 'accepted':
+        return 'accepted';
+      case 'declined':
+        return 'declined';
+      case 'tentative':
+        return 'tentative';
+      default:
+        return 'unknown';
     }
   }
 
   private mapEvent(item: any, calendarId: string): CalendarEventInfo {
     return {
-      id:             item.id,
+      id: item.id,
       calendarId,
-      title:          item.subject ?? '',
-      description:    item.body?.content,
-      location:       item.location?.displayName,
-      startAt:        item.start?.dateTime ? `${item.start.dateTime}Z` : '',
-      endAt:          item.end?.dateTime   ? `${item.end.dateTime}Z`   : '',
-      allDay:         item.isAllDay ?? false,
-      timeZone:       item.originalStartTimeZone,
-      status:         item.isCancelled ? 'cancelled' : 'confirmed',
-      attendees:      (item.attendees ?? []).map((a: any) => ({
-        email:       a.emailAddress?.address,
-        name:        a.emailAddress?.name,
-        status:      this.mapAttendeeStatus(a.status?.response),
+      title: item.subject ?? '',
+      description: item.body?.content,
+      location: item.location?.displayName,
+      startAt: item.start?.dateTime ? `${item.start.dateTime}Z` : '',
+      endAt: item.end?.dateTime ? `${item.end.dateTime}Z` : '',
+      allDay: item.isAllDay ?? false,
+      timeZone: item.originalStartTimeZone,
+      status: item.isCancelled ? 'cancelled' : 'confirmed',
+      attendees: (item.attendees ?? []).map((a: any) => ({
+        email: a.emailAddress?.address,
+        name: a.emailAddress?.name,
+        status: this.mapAttendeeStatus(a.status?.response),
         isOrganizer:
           a.type === 'required' &&
           item.organizer?.emailAddress?.address === a.emailAddress?.address,
       })),
       organizerEmail: item.organizer?.emailAddress?.address,
-      raw:            item,
+      raw: item,
     };
   }
 
   // ─── verifyCredentials ────────────────────────────────────────────────────
 
-  async verifyCredentials(credentials: Record<string, any>): Promise<CalendarVerifyResult> {
+  async verifyCredentials(
+    credentials: Record<string, any>,
+  ): Promise<CalendarVerifyResult> {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
@@ -159,18 +168,26 @@ export class OutlookCalendarProvider implements ICalendarProvider {
       return { ok: true, message: 'Outlook Calendar connection verified' };
     } catch (err: any) {
       this.logger.error(`[Outlook] verifyCredentials: ${err.message}`);
-      return { ok: false, message: err?.message ?? 'Outlook Calendar verification failed' };
+      return {
+        ok: false,
+        message: err?.message ?? 'Outlook Calendar verification failed',
+      };
     }
   }
 
   // ─── Calendar management ─────────────────────────────────────────────────
 
-  async listCalendars(credentials: Record<string, any>): Promise<CalendarListResult> {
+  async listCalendars(
+    credentials: Record<string, any>,
+  ): Promise<CalendarListResult> {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      const data  = await this.graphRequest(token, '/me/calendars');
-      return { ok: true, data: (data.value ?? []).map((i: any) => this.mapCalendar(i)) };
+      const data = await this.graphRequest(token, '/me/calendars');
+      return {
+        ok: true,
+        data: (data.value ?? []).map((i: any) => this.mapCalendar(i)),
+      };
     } catch (err: any) {
       this.logger.error(`[Outlook] listCalendars: ${err.message}`);
       return { ok: false, message: err.message };
@@ -184,7 +201,10 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      const data  = await this.graphRequest(token, `/me/calendars/${calendarId}`);
+      const data = await this.graphRequest(
+        token,
+        `/me/calendars/${calendarId}`,
+      );
       return { ok: true, data: this.mapCalendar(data) };
     } catch (err: any) {
       this.logger.error(`[Outlook] getCalendar: ${err.message}`);
@@ -203,7 +223,7 @@ export class OutlookCalendarProvider implements ICalendarProvider {
       if (params.color) body.color = params.color;
       const data = await this.graphRequest(token, '/me/calendars', {
         method: 'POST',
-        body:   JSON.stringify(body),
+        body: JSON.stringify(body),
       });
       return { ok: true, data: this.mapCalendar(data) };
     } catch (err: any) {
@@ -219,8 +239,9 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     // Microsoft Graph API does not support subscribing to arbitrary iCal URLs
     // via the REST API. This operation is only available through the Outlook UI.
     return {
-      ok:      false,
-      message: 'Automatic holiday subscription is not supported by this calendar provider.',
+      ok: false,
+      message:
+        'Automatic holiday subscription is not supported by this calendar provider.',
     };
   }
 
@@ -233,7 +254,7 @@ export class OutlookCalendarProvider implements ICalendarProvider {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
       const body: any = {};
-      if (params.name  !== undefined) body.name  = params.name;
+      if (params.name !== undefined) body.name = params.name;
       if (params.color !== undefined) body.color = params.color;
       const data = await this.graphRequest(
         token,
@@ -254,7 +275,9 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      await this.graphRequest(token, `/me/calendars/${calendarId}`, { method: 'DELETE' });
+      await this.graphRequest(token, `/me/calendars/${calendarId}`, {
+        method: 'DELETE',
+      });
       return { ok: true, data: { deleted: true } };
     } catch (err: any) {
       this.logger.error(`[Outlook] deleteCalendar: ${err.message}`);
@@ -278,14 +301,14 @@ export class OutlookCalendarProvider implements ICalendarProvider {
 
       const filters: string[] = [];
       if (params?.from) filters.push(`start/dateTime ge '${params.from}'`);
-      if (params?.to)   filters.push(`end/dateTime le '${params.to}'`);
+      if (params?.to) filters.push(`end/dateTime le '${params.to}'`);
       if (filters.length) qs.set('$filter', filters.join(' and '));
 
       if (params?.pageToken) qs.set('$skipToken', params.pageToken);
 
       const qsStr = qs.toString();
-      const path  = `/me/calendars/${calendarId}/events${qsStr ? `?${qsStr}` : ''}`;
-      const data  = await this.graphRequest(token, path);
+      const path = `/me/calendars/${calendarId}/events${qsStr ? `?${qsStr}` : ''}`;
+      const data = await this.graphRequest(token, path);
 
       const nextLink: string | undefined = data['@odata.nextLink'];
       let nextPageToken: string | undefined;
@@ -297,7 +320,9 @@ export class OutlookCalendarProvider implements ICalendarProvider {
       return {
         ok: true,
         data: {
-          items:         (data.value ?? []).map((i: any) => this.mapEvent(i, calendarId)),
+          items: (data.value ?? []).map((i: any) =>
+            this.mapEvent(i, calendarId),
+          ),
           nextPageToken,
         },
       };
@@ -315,7 +340,7 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      const data  = await this.graphRequest(token, `/me/events/${eventId}`);
+      const data = await this.graphRequest(token, `/me/events/${eventId}`);
       return { ok: true, data: this.mapEvent(data, calendarId) };
     } catch (err: any) {
       this.logger.error(`[Outlook] getEvent: ${err.message}`);
@@ -333,17 +358,23 @@ export class OutlookCalendarProvider implements ICalendarProvider {
       const token = await this.getAccessToken(creds);
 
       const body: any = {
-        subject:  params.title,
-        body:     { contentType: 'text', content: params.description ?? '' },
+        subject: params.title,
+        body: { contentType: 'text', content: params.description ?? '' },
         location: { displayName: params.location ?? '' },
-        start:    { dateTime: params.startAt.replace('Z', ''), timeZone: params.timeZone ?? 'UTC' },
-        end:      { dateTime: params.endAt.replace('Z', ''),   timeZone: params.timeZone ?? 'UTC' },
+        start: {
+          dateTime: params.startAt.replace('Z', ''),
+          timeZone: params.timeZone ?? 'UTC',
+        },
+        end: {
+          dateTime: params.endAt.replace('Z', ''),
+          timeZone: params.timeZone ?? 'UTC',
+        },
         isAllDay: params.allDay ?? false,
       };
       if (params.attendees?.length) {
         body.attendees = params.attendees.map((a) => ({
           emailAddress: { address: a.email, name: a.name ?? a.email },
-          type:         'required',
+          type: 'required',
         }));
       }
 
@@ -370,10 +401,12 @@ export class OutlookCalendarProvider implements ICalendarProvider {
       const token = await this.getAccessToken(creds);
 
       const body: any = {};
-      if (params.title       !== undefined) body.subject  = params.title;
-      if (params.description !== undefined) body.body     = { contentType: 'text', content: params.description };
-      if (params.location    !== undefined) body.location = { displayName: params.location };
-      if (params.allDay      !== undefined) body.isAllDay = params.allDay;
+      if (params.title !== undefined) body.subject = params.title;
+      if (params.description !== undefined)
+        body.body = { contentType: 'text', content: params.description };
+      if (params.location !== undefined)
+        body.location = { displayName: params.location };
+      if (params.allDay !== undefined) body.isAllDay = params.allDay;
 
       if (params.startAt !== undefined) {
         body.start = {
@@ -388,11 +421,10 @@ export class OutlookCalendarProvider implements ICalendarProvider {
         };
       }
 
-      const data = await this.graphRequest(
-        token,
-        `/me/events/${eventId}`,
-        { method: 'PATCH', body: JSON.stringify(body) },
-      );
+      const data = await this.graphRequest(token, `/me/events/${eventId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
       return { ok: true, data: this.mapEvent(data, _calendarId) };
     } catch (err: any) {
       this.logger.error(`[Outlook] updateEvent: ${err.message}`);
@@ -408,7 +440,9 @@ export class OutlookCalendarProvider implements ICalendarProvider {
     try {
       const creds = this.normalize(credentials);
       const token = await this.getAccessToken(creds);
-      await this.graphRequest(token, `/me/events/${eventId}`, { method: 'DELETE' });
+      await this.graphRequest(token, `/me/events/${eventId}`, {
+        method: 'DELETE',
+      });
       return { ok: true, data: { deleted: true } };
     } catch (err: any) {
       this.logger.error(`[Outlook] deleteEvent: ${err.message}`);

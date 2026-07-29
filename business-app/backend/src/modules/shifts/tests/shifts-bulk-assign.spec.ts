@@ -15,6 +15,7 @@ import { ShiftsController } from '../shifts.controller';
 import { ShiftSyncService } from '../sync/services/shift-sync.service';
 import { Shift } from '../schemas/shift.schema';
 import { Contract } from '../../contracts/schemas/contract.schema';
+import { Customer } from '../../customer/schemas/customer.schema';
 import { SyncHistory } from '../sync/schemas/sync-history.schema';
 import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
 import { BusinessIntelligenceService } from '../../../integrations/business-intelligence/business-intelligence.service';
@@ -86,7 +87,8 @@ const mockShiftModel: any = {
   updateMany:       jest.fn(),
   db:               { startSession: jest.fn().mockResolvedValue(mockSession) },
 };
-const mockContractModel: any   = { findOne: jest.fn() };
+const mockContractModel: any   = { findOne: jest.fn(), findById: jest.fn() };
+const mockCustomerModel: any   = { findById: jest.fn(), find: jest.fn() };
 const mockHistoryModel: any    = { create: jest.fn(), findOneAndUpdate: jest.fn() };
 const mockCommClient: any      = { notifyEvent: jest.fn().mockResolvedValue(true) };
 const mockBiService: any       = { syncModel: jest.fn().mockResolvedValue({ inserted: 0, updated: 0 }) };
@@ -102,6 +104,7 @@ async function buildModule(): Promise<TestingModule> {
       ShiftSyncService,
       { provide: getModelToken(Shift.name),       useValue: mockShiftModel    },
       { provide: getModelToken(Contract.name),     useValue: mockContractModel },
+      { provide: getModelToken(Customer.name),     useValue: mockCustomerModel },
       { provide: getModelToken(SyncHistory.name),  useValue: mockHistoryModel  },
       { provide: CommunicationsClientService,      useValue: mockCommClient    },
       { provide: BusinessIntelligenceService,      useValue: mockBiService     },
@@ -126,6 +129,8 @@ describe('ShiftsService.bulkAssignContracts', () => {
     mockSession.abortTransaction.mockResolvedValue(undefined);
     mockSession.endSession.mockResolvedValue(undefined);
     mockShiftModel.db.startSession.mockResolvedValue(mockSession);
+    mockCustomerModel.findById.mockReturnValue(leanExec({ _id: CUSTOMER_ID, displayName: 'Test Customer' }));
+    mockCustomerModel.find.mockReturnValue(leanExec([]));
   });
 
   const actor = { email: 'e@biz.com', firstName: 'E', companyId: BIZ_ID };
@@ -429,6 +434,8 @@ describe('Single assignContract — backward compatibility', () => {
     const mod = await buildModule();
     service   = mod.get(ShiftsService);
     jest.clearAllMocks();
+    mockCustomerModel.findById.mockReturnValue(leanExec({ _id: CUSTOMER_ID, displayName: 'Test Customer' }));
+    mockCustomerModel.find.mockReturnValue(leanExec([]));
   });
 
   it('PATCH /shifts/:id/assign-contract still exists and works', async () => {

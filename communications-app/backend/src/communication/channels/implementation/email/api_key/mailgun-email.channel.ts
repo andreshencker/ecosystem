@@ -51,14 +51,14 @@ export class MailgunEmailChannel implements IEmailChannel {
       );
       MailgunCredentialsContract.validate(normalized.value);
 
-      const creds = normalized.value as MailgunEmailCredentials;
+      const creds = normalized.value;
       const providerKey = payload.providerKey ?? creds.providerKey ?? 'mailgun';
 
       const from =
         payload.from ??
         (creds.fromName && creds.fromEmail
           ? `${creds.fromName} <${creds.fromEmail}>`
-          : creds.fromEmail ?? `noreply@${creds.domain}`);
+          : (creds.fromEmail ?? `noreply@${creds.domain}`));
 
       const pairs: string[] = [
         `from=${encodeURIComponent(from)}`,
@@ -122,7 +122,10 @@ export class MailgunEmailChannel implements IEmailChannel {
         req.end();
       });
 
-      return await Promise.race([sendOp, emailSendTimeout(String(providerKey))]);
+      return await Promise.race([
+        sendOp,
+        emailSendTimeout(String(providerKey)),
+      ]);
     } catch (err: any) {
       this.logger.error(
         `❌ Mailgun error preparing send to ${payload.to}: ${err?.message}`,

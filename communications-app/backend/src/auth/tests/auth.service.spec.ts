@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -22,7 +26,7 @@ function mockChain(value: any) {
 }
 
 const FAKE_NOTIFY_SUCCESS = { results: [{ success: true, error: null }] };
-const FAKE_NOTIFY_FAIL    = { results: [{ success: false, error: 'no channel' }] };
+const FAKE_NOTIFY_FAIL = { results: [{ success: false, error: 'no channel' }] };
 
 // ── Test suite ────────────────────────────────────────────────────────────────
 
@@ -38,19 +42,25 @@ describe('AuthService — notification helpers', () => {
     tokenOverrides: Partial<Record<string, jest.Mock>> = {},
   ) {
     usersServiceMock = {
-      findByEmailWithPassword:    jest.fn().mockResolvedValue(null),
+      findByEmailWithPassword: jest.fn().mockResolvedValue(null),
       findByEmailVerificationToken: jest.fn().mockResolvedValue(null),
-      findByPasswordResetToken:   jest.fn().mockResolvedValue(null),
-      setEmailVerificationToken:  jest.fn().mockResolvedValue(undefined),
-      setPasswordResetToken:      jest.fn().mockResolvedValue(undefined),
-      setPasswordHash:            jest.fn().mockResolvedValue(undefined),
-      setEmailVerified:           jest.fn().mockResolvedValue(undefined),
+      findByPasswordResetToken: jest.fn().mockResolvedValue(null),
+      setEmailVerificationToken: jest.fn().mockResolvedValue(undefined),
+      setPasswordResetToken: jest.fn().mockResolvedValue(undefined),
+      setPasswordHash: jest.fn().mockResolvedValue(undefined),
+      setEmailVerified: jest.fn().mockResolvedValue(undefined),
       createCompanyOwnerWithCompany: jest.fn().mockResolvedValue({
         company: { _id: PLATFORM_OBJECT_ID },
-        user:    { _id: OBJECT_ID, email: 'owner@x.com', firstName: 'Owner', scope: 'company', companyId: PLATFORM_OBJECT_ID },
+        user: {
+          _id: OBJECT_ID,
+          email: 'owner@x.com',
+          firstName: 'Owner',
+          scope: 'company',
+          companyId: PLATFORM_OBJECT_ID,
+        },
       }),
-      getPlatformCompanyId:    jest.fn().mockResolvedValue('plat_cmp'),
-      getCompanyDisplayName:   jest.fn().mockResolvedValue('Acme Corp'),
+      getPlatformCompanyId: jest.fn().mockResolvedValue('plat_cmp'),
+      getCompanyDisplayName: jest.fn().mockResolvedValue('Acme Corp'),
       ...userOverrides,
     };
 
@@ -60,22 +70,31 @@ describe('AuthService — notification helpers', () => {
     };
 
     tokenModelMock = {
-      create:           jest.fn().mockResolvedValue({ _id: 'tok_1' }),
-      findOne:          jest.fn(() => mockChain(null)),
+      create: jest.fn().mockResolvedValue({ _id: 'tok_1' }),
+      findOne: jest.fn(() => mockChain(null)),
       findOneAndUpdate: jest.fn(() => mockChain(null)),
-      findByIdAndUpdate:jest.fn(() => mockChain(null)),
-      updateMany:       jest.fn().mockResolvedValue({ modifiedCount: 0 }),
+      findByIdAndUpdate: jest.fn(() => mockChain(null)),
+      updateMany: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
       ...tokenOverrides,
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: UsersService,             useValue: usersServiceMock  },
-        { provide: NotificationService,      useValue: notificationMock  },
-        { provide: CompanyProvisioningService, useValue: { provisionCompany: jest.fn().mockResolvedValue({}) } },
-        { provide: JwtService,               useValue: { signAsync: jest.fn().mockResolvedValue('jwt_token') } },
-        { provide: ConfigService,            useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') } },
+        { provide: UsersService, useValue: usersServiceMock },
+        { provide: NotificationService, useValue: notificationMock },
+        {
+          provide: CompanyProvisioningService,
+          useValue: { provisionCompany: jest.fn().mockResolvedValue({}) },
+        },
+        {
+          provide: JwtService,
+          useValue: { signAsync: jest.fn().mockResolvedValue('jwt_token') },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') },
+        },
         { provide: getModelToken(RefreshToken.name), useValue: tokenModelMock },
       ],
     }).compile();
@@ -90,8 +109,11 @@ describe('AuthService — notification helpers', () => {
       await buildModule();
 
       await service.register({
-        companyName: 'Acme', email: 'owner@x.com',
-        password: 'P@ssw0rd!', firstName: 'Owner', lastName: 'User',
+        companyName: 'Acme',
+        email: 'owner@x.com',
+        password: 'P@ssw0rd!',
+        firstName: 'Owner',
+        lastName: 'User',
       });
 
       // Allow the fire-and-forget to settle
@@ -100,8 +122,8 @@ describe('AuthService — notification helpers', () => {
       expect(notificationMock.notifyEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           companyId: 'plat_cmp',
-          event:     'security.company_verify_email',
-          email:     'owner@x.com',
+          event: 'security.company_verify_email',
+          email: 'owner@x.com',
         }),
       );
     });
@@ -109,26 +131,34 @@ describe('AuthService — notification helpers', () => {
     it('fires verify email with verificationUrl, expiresAt, loginUrl and email in payload', async () => {
       await buildModule();
       await service.register({
-        companyName: 'Acme', email: 'owner@x.com',
-        password: 'P@ssw0rd!', firstName: 'Owner', lastName: 'User',
+        companyName: 'Acme',
+        email: 'owner@x.com',
+        password: 'P@ssw0rd!',
+        firstName: 'Owner',
+        lastName: 'User',
       });
       await new Promise((r) => setImmediate(r));
 
       const call = notificationMock.notifyEvent.mock.calls[0][0];
       expect(call.payload.data).toMatchObject({
-        email:     'owner@x.com',
+        email: 'owner@x.com',
         firstName: 'Owner',
-        loginUrl:  expect.stringContaining('/auth/login'),
+        loginUrl: expect.stringContaining('/auth/login'),
         verificationUrl: expect.stringContaining('/auth/verify-email?token='),
         expiresAt: expect.any(String),
       });
     });
 
     it('skips notification and logs warning when modules company is not found', async () => {
-      await buildModule({ getPlatformCompanyId: jest.fn().mockResolvedValue(null) });
+      await buildModule({
+        getPlatformCompanyId: jest.fn().mockResolvedValue(null),
+      });
       await service.register({
-        companyName: 'Acme', email: 'owner@x.com',
-        password: 'P@ssw0rd!', firstName: 'Owner', lastName: 'User',
+        companyName: 'Acme',
+        email: 'owner@x.com',
+        password: 'P@ssw0rd!',
+        firstName: 'Owner',
+        lastName: 'User',
       });
       await new Promise((r) => setImmediate(r));
       expect(notificationMock.notifyEvent).not.toHaveBeenCalled();
@@ -139,34 +169,42 @@ describe('AuthService — notification helpers', () => {
 
   describe('forgotPassword() — company user', () => {
     const companyUser = {
-      _id: OBJECT_ID, email: 'user@company.com', firstName: 'User',
-      scope: 'company', companyId: 'cmp_1', passwordHash: 'hash',
+      _id: OBJECT_ID,
+      email: 'user@company.com',
+      firstName: 'User',
+      scope: 'company',
+      companyId: 'cmp_1',
+      passwordHash: 'hash',
     };
 
     it('fires security.company_forgot_password routed via modules companyId', async () => {
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(companyUser) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(companyUser),
+      });
       await service.forgotPassword('user@company.com');
       await new Promise((r) => setImmediate(r));
 
       expect(notificationMock.notifyEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           companyId: 'plat_cmp',
-          event:     'security.company_forgot_password',
-          email:     'user@company.com',
+          event: 'security.company_forgot_password',
+          email: 'user@company.com',
         }),
       );
     });
 
     it('fires with resetUrl, expiresAt, firstName, email in payload', async () => {
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(companyUser) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(companyUser),
+      });
       await service.forgotPassword('user@company.com');
       await new Promise((r) => setImmediate(r));
 
       const call = notificationMock.notifyEvent.mock.calls[0][0];
       expect(call.payload.data).toMatchObject({
         firstName: 'User',
-        email:     'user@company.com',
-        resetUrl:  expect.stringContaining('/auth/reset-password?token='),
+        email: 'user@company.com',
+        resetUrl: expect.stringContaining('/auth/reset-password?token='),
         expiresAt: expect.any(String),
       });
     });
@@ -187,14 +225,18 @@ describe('AuthService — notification helpers', () => {
     });
 
     it('does not double-fire fallback when primary succeeds', async () => {
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(companyUser) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(companyUser),
+      });
       await service.forgotPassword('user@company.com');
       await new Promise((r) => setImmediate(r));
       expect(notificationMock.notifyEvent).toHaveBeenCalledTimes(1);
     });
 
     it('returns safe response regardless of notification outcome', async () => {
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(null) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(null),
+      });
       const result = await service.forgotPassword('notfound@x.com');
       expect(result.message).toContain('If an account with that email exists');
     });
@@ -204,32 +246,50 @@ describe('AuthService — notification helpers', () => {
 
   describe('forgotPassword() — modules user', () => {
     const platformUser = {
-      _id: OBJECT_ID, email: 'admin@grapifly.com', firstName: 'Admin',
-      scope: 'global', companyId: 'plat_cmp', passwordHash: 'hash',
+      _id: OBJECT_ID,
+      email: 'admin@grapifly.com',
+      firstName: 'Admin',
+      scope: 'global',
+      companyId: 'plat_cmp',
+      passwordHash: 'hash',
     };
 
     it('fires security.platform_forgot_password via modules companyId', async () => {
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(platformUser) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(platformUser),
+      });
       await service.forgotPassword('admin@grapifly.com');
       await new Promise((r) => setImmediate(r));
 
       expect(notificationMock.notifyEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           companyId: 'plat_cmp',
-          event:     'security.platform_forgot_password',
+          event: 'security.platform_forgot_password',
         }),
       );
     });
 
     it('resolves modules company from UsersService when companyId is null', async () => {
-      const platformUser2 = { _id: OBJECT_ID, email: 'admin@grapifly.com', firstName: 'Admin', scope: 'global', companyId: null, passwordHash: 'hash' };
+      const platformUser2 = {
+        _id: OBJECT_ID,
+        email: 'admin@grapifly.com',
+        firstName: 'Admin',
+        scope: 'global',
+        companyId: null,
+        passwordHash: 'hash',
+      };
       const userNoCompany = platformUser2;
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(userNoCompany) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(userNoCompany),
+      });
       await service.forgotPassword('admin@grapifly.com');
       await new Promise((r) => setImmediate(r));
 
       expect(notificationMock.notifyEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ companyId: 'plat_cmp', event: 'security.platform_forgot_password' }),
+        expect.objectContaining({
+          companyId: 'plat_cmp',
+          event: 'security.platform_forgot_password',
+        }),
       );
     });
   });
@@ -238,8 +298,11 @@ describe('AuthService — notification helpers', () => {
 
   describe('resetPassword() — company user', () => {
     const companyUser = {
-      _id: OBJECT_ID, email: 'user@company.com', firstName: 'User',
-      scope: 'company', companyId: 'cmp_1',
+      _id: OBJECT_ID,
+      email: 'user@company.com',
+      firstName: 'User',
+      scope: 'company',
+      companyId: 'cmp_1',
     };
 
     it('fires security.company_password_changed routed via modules companyId', async () => {
@@ -252,28 +315,34 @@ describe('AuthService — notification helpers', () => {
       expect(notificationMock.notifyEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           companyId: 'plat_cmp',
-          event:     'security.company_password_changed',
+          event: 'security.company_password_changed',
         }),
       );
     });
 
     it('fires with firstName, email, when, changedAt in payload', async () => {
-      await buildModule({ findByPasswordResetToken: jest.fn().mockResolvedValue(companyUser) });
+      await buildModule({
+        findByPasswordResetToken: jest.fn().mockResolvedValue(companyUser),
+      });
       await service.resetPassword('valid_token', 'NewP@ss!');
       await new Promise((r) => setImmediate(r));
 
       const call = notificationMock.notifyEvent.mock.calls[0][0];
       expect(call.payload.data).toMatchObject({
         firstName: 'User',
-        email:     'user@company.com',
-        when:      expect.any(String),      // backward compat alias
-        changedAt: expect.any(String),      // semantic name
+        email: 'user@company.com',
+        when: expect.any(String), // backward compat alias
+        changedAt: expect.any(String), // semantic name
       });
     });
 
     it('throws BadRequestException on invalid token', async () => {
-      await buildModule({ findByPasswordResetToken: jest.fn().mockResolvedValue(null) });
-      await expect(service.resetPassword('bad_token', 'NewP@ss!')).rejects.toThrow(BadRequestException);
+      await buildModule({
+        findByPasswordResetToken: jest.fn().mockResolvedValue(null),
+      });
+      await expect(
+        service.resetPassword('bad_token', 'NewP@ss!'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -281,19 +350,24 @@ describe('AuthService — notification helpers', () => {
 
   describe('resetPassword() — modules user', () => {
     const platformUser = {
-      _id: OBJECT_ID, email: 'admin@grapifly.com', firstName: 'Admin',
-      scope: 'global', companyId: 'plat_cmp',
+      _id: OBJECT_ID,
+      email: 'admin@grapifly.com',
+      firstName: 'Admin',
+      scope: 'global',
+      companyId: 'plat_cmp',
     };
 
     it('fires security.platform_password_changed via modules companyId', async () => {
-      await buildModule({ findByPasswordResetToken: jest.fn().mockResolvedValue(platformUser) });
+      await buildModule({
+        findByPasswordResetToken: jest.fn().mockResolvedValue(platformUser),
+      });
       await service.resetPassword('valid_token', 'NewP@ss!');
       await new Promise((r) => setImmediate(r));
 
       expect(notificationMock.notifyEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           companyId: 'plat_cmp',
-          event:     'security.platform_password_changed',
+          event: 'security.platform_password_changed',
         }),
       );
     });
@@ -310,8 +384,11 @@ describe('AuthService — notification helpers', () => {
       // Should NOT throw despite notification failure
       await expect(
         service.register({
-          companyName: 'Acme', email: 'owner@x.com',
-          password: 'P@ssw0rd!', firstName: 'Owner', lastName: 'User',
+          companyName: 'Acme',
+          email: 'owner@x.com',
+          password: 'P@ssw0rd!',
+          firstName: 'Owner',
+          lastName: 'User',
         }),
       ).resolves.not.toThrow();
     });
@@ -322,15 +399,22 @@ describe('AuthService — notification helpers', () => {
   describe('login()', () => {
     it('does not fire any notification', async () => {
       const user = {
-        _id: 'u1', email: 'user@x.com', passwordHash: 'WILL_NOT_MATCH',
-        isEmailVerified: true, isActive: true, scope: 'company', companyId: 'cmp_1',
+        _id: 'u1',
+        email: 'user@x.com',
+        passwordHash: 'WILL_NOT_MATCH',
+        isEmailVerified: true,
+        isActive: true,
+        scope: 'company',
+        companyId: 'cmp_1',
       };
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(user) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(user),
+      });
 
       // Password won't match — UnauthorizedException is expected
-      await expect(service.login({ email: 'user@x.com', password: 'wrong' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'user@x.com', password: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
       expect(notificationMock.notifyEvent).not.toHaveBeenCalled();
     });
 
@@ -338,10 +422,17 @@ describe('AuthService — notification helpers', () => {
       // Hash of 'P@ssw0rd!' with 4 rounds (fast for tests).
       const passwordHash = await bcrypt.hash('P@ssw0rd!', 4);
       const user = {
-        _id: OBJECT_ID, email: 'user@x.com', passwordHash,
-        isEmailVerified: false, isActive: true, scope: 'company', companyId: 'cmp_1',
+        _id: OBJECT_ID,
+        email: 'user@x.com',
+        passwordHash,
+        isEmailVerified: false,
+        isActive: true,
+        scope: 'company',
+        companyId: 'cmp_1',
       };
-      await buildModule({ findByEmailWithPassword: jest.fn().mockResolvedValue(user) });
+      await buildModule({
+        findByEmailWithPassword: jest.fn().mockResolvedValue(user),
+      });
       await expect(
         service.login({ email: 'user@x.com', password: 'P@ssw0rd!' }),
       ).rejects.toThrow(ForbiddenException);

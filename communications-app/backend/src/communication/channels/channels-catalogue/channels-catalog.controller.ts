@@ -31,8 +31,18 @@ export class ChannelsCatalogController {
   @HttpCode(200)
   @ApiOperation({ summary: 'List channels (catalog)' })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max records (1–200, default 50)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Records to skip (default 0)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max records (1–200, default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Records to skip (default 0)',
+  })
   list(
     @Headers('x-api-key') apiKey: string,
     @Query('active') active?: string,
@@ -42,7 +52,10 @@ export class ChannelsCatalogController {
     this.assertApiKey(apiKey);
     const activeBool =
       active === undefined ? undefined : active === 'true' || active === '1';
-    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(limit, offset);
+    const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
+      limit,
+      offset,
+    );
     return this.service.findAll({
       ...(typeof activeBool === 'boolean' ? { active: activeBool } : {}),
       limit: parsedLimit,

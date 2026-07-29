@@ -1,15 +1,24 @@
 import type { ShiftDocument, ShiftStatus, SyncStatus } from '../schemas/shift.schema';
 
+export interface ContractSummary {
+  id:           string;
+  customerId:   string | null;
+  customerName: string | null;
+  positionName: string;
+}
+
 export interface ShiftResponseDto {
   id:           string;
   businessId:   string;
   contractId:   string | null;
   customerId:   string | null;
+  contract:     ContractSummary | null;
   date:         string;        // YYYY-MM-DD — local start date in the event timezone
   startTime:    string;        // HH:mm — local start time
   endDate:      string | null; // YYYY-MM-DD — local end date; null for pre-endDate records (treat as same as date)
   endTime:      string;        // HH:mm — local end time
-  breakMinutes: number | null;
+  /** Whether the worker took their contractual break. Break duration is resolved by BI from the Contract. */
+  breakTaken: boolean;
   status:       ShiftStatus;
   location:     string | null;
   notes:        string | null;
@@ -42,11 +51,12 @@ export function toShiftResponse(
     businessId:   d.businessId,
     contractId:   d.contractId   ?? null,
     customerId:   d.customerId   ?? null,
+    contract:     d.contractSummary ?? null,
     date:         d.date,
     startTime:    d.startTime,
     endDate:      d.endDate      ?? null,
     endTime:      d.endTime,
-    breakMinutes: d.breakMinutes ?? null,
+    breakTaken:   d.breakTaken  ?? false,
     status:       d.status,
     location:     d.location     ?? null,
     notes:        d.notes        ?? null,

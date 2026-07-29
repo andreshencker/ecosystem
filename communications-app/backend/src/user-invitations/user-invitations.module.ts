@@ -15,7 +15,7 @@ import { NotificationModule } from '../communication/notifications/notification.
   imports: [
     MongooseModule.forFeature([
       { name: Invitation.name, schema: InvitationSchema },
-      { name: Company.name,    schema: CompanySchema    },
+      { name: Company.name, schema: CompanySchema },
     ]),
     UsersModule,
     NotificationModule,

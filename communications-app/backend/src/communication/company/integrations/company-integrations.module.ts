@@ -6,10 +6,7 @@ import {
   CompanyIntegration,
   CompanyIntegrationSchema,
 } from './schemas/company-integration.schema';
-import {
-  Company,
-  CompanySchema,
-} from '../company-info/schemas/company.schema';
+import { Company, CompanySchema } from '../company-info/schemas/company.schema';
 import { User, UserSchema } from '../../../users/schemas/user.schema';
 import { CompanyIntegrationsController } from './company-integrations.controller';
 import { CompanyIntegrationsService } from './company-integrations.service';
@@ -20,8 +17,8 @@ import { NotificationModule } from '../../notifications/notification.module';
     ConfigModule,
     MongooseModule.forFeature([
       { name: CompanyIntegration.name, schema: CompanyIntegrationSchema },
-      { name: Company.name,            schema: CompanySchema            },
-      { name: User.name,               schema: UserSchema               },
+      { name: Company.name, schema: CompanySchema },
+      { name: User.name, schema: UserSchema },
     ]),
     NotificationModule,
   ],
