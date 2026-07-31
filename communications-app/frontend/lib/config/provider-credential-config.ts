@@ -256,6 +256,39 @@ const ACCESS_KEYS_GENERIC: ProviderCredentialConfig = {
   ],
 };
 
+const COINGATE: ProviderCredentialConfig = {
+  connectionTypeLabel: 'Token',
+  helperText:
+    'Generate an API token in your CoinGate merchant dashboard under Settings → API. ' +
+    'For sandbox testing, create a separate token at sandbox.coingate.com. ' +
+    'Tokens from one environment do NOT work in the other.',
+  basicFields: [
+    {
+      key:         'token',
+      label:       'API Token',
+      type:        'password',
+      required:    true,
+      placeholder: 'Enter your CoinGate API token',
+      helperText:  'Never share your API token. It grants full access to your CoinGate merchant account.',
+      section:     'basic',
+    },
+    {
+      key:          'mode',
+      label:        'Environment',
+      type:         'select',
+      required:     true,
+      defaultValue: 'test',
+      helperText:   'Use "test" for sandbox (sandbox.coingate.com token). Use "live" for production (coingate.com token).',
+      section:      'basic',
+      options: [
+        { value: 'test', label: 'Test (Sandbox)' },
+        { value: 'live', label: 'Live (Production)' },
+      ],
+    },
+  ],
+  advancedFields: [],
+};
+
 // ─── Index ────────────────────────────────────────────────────────────────────
 
 const BY_PROVIDER_KEY: Record<string, ProviderCredentialConfig> = {
@@ -269,6 +302,7 @@ const BY_PROVIDER_KEY: Record<string, ProviderCredentialConfig> = {
   google_calendar:  GOOGLE_CALENDAR,
   outlook_calendar: OUTLOOK_CALENDAR,
   stripe:           STRIPE,
+  coingate:         COINGATE,
 };
 
 const APP_PASSWORD_GENERIC: ProviderCredentialConfig = {
@@ -280,12 +314,28 @@ const APP_PASSWORD_GENERIC: ProviderCredentialConfig = {
   advancedFields: [],
 };
 
+const TOKEN_GENERIC: ProviderCredentialConfig = {
+  connectionTypeLabel: 'Token',
+  basicFields: [
+    {
+      key:         'token',
+      label:       'Token',
+      type:        'password',
+      required:    true,
+      section:     'basic',
+      helperText:  'Enter the API token or bearer token for this provider.',
+    },
+  ],
+  advancedFields: [],
+};
+
 const BY_CONNECTION_TYPE: Record<string, ProviderCredentialConfig> = {
   smtp:         SMTP_GENERIC,
   api_key:      API_KEY_GENERIC,
   oauth:        OAUTH_GENERIC,
   access_keys:  ACCESS_KEYS_GENERIC,
   app_password: APP_PASSWORD_GENERIC,
+  token:        TOKEN_GENERIC,
 };
 
 /**

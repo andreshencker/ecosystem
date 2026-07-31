@@ -7,7 +7,9 @@ import { Connection } from 'mongoose';
 import { getConnectionToken } from '@nestjs/mongoose';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true makes req.rawBody available for webhook signature verification
+  // without disabling the global JSON body parser.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
   // CORS — restrict to known origins via ALLOWED_ORIGINS env variable

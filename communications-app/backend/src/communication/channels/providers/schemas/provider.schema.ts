@@ -13,7 +13,8 @@ export type ProviderConnectionType =
   | 'smtp'
   | 'oauth'
   | 'access_keys'
-  | 'app_password';
+  | 'app_password'
+  | 'token';
 
 @Schema({ collection: 'providers', versionKey: false, timestamps: true })
 export class Provider {
@@ -29,6 +30,9 @@ export class Provider {
   @Prop({ required: true, trim: true })
   displayName!: string; // ej: "Gmail", "Twilio", "Amazon S3"
 
+  @Prop({ trim: true })
+  description?: string;
+
   // ✅ SOLO referencia al canal (Channel)
   @Prop({
     type: Types.ObjectId,
@@ -40,7 +44,7 @@ export class Provider {
 
   @Prop({
     required: true,
-    enum: ['api_key', 'smtp', 'oauth', 'access_keys', 'app_password'],
+    enum: ['api_key', 'smtp', 'oauth', 'access_keys', 'app_password', 'token'],
   })
   connectionType!: ProviderConnectionType;
 

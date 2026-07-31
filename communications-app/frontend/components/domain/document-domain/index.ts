@@ -1,0 +1,1 @@
+export { DocumentDomainList } from './DocumentDomainList';

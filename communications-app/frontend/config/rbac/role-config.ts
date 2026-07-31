@@ -26,6 +26,15 @@ import PlayCircleOutlineOutlinedIcon   from '@mui/icons-material/PlayCircleOutli
 import SecurityOutlinedIcon            from '@mui/icons-material/SecurityOutlined';
 import FolderOutlinedIcon              from '@mui/icons-material/FolderOutlined';
 import DescriptionOutlinedIcon         from '@mui/icons-material/DescriptionOutlined';
+import AccountBalanceOutlinedIcon      from '@mui/icons-material/AccountBalanceOutlined';
+
+import CreditCardOutlinedIcon          from '@mui/icons-material/CreditCardOutlined';
+import PaymentsOutlinedIcon            from '@mui/icons-material/PaymentsOutlined';
+import UndoOutlinedIcon                from '@mui/icons-material/UndoOutlined';
+import SendOutlinedIcon                from '@mui/icons-material/SendOutlined';
+import WebhookOutlinedIcon             from '@mui/icons-material/WebhookOutlined';
+import ScienceOutlinedIcon             from '@mui/icons-material/ScienceOutlined';
+import IntegrationInstructionsOutlinedIcon from '@mui/icons-material/IntegrationInstructionsOutlined';
 
 import type { UserRole, Scope } from '@/types/api';
 import { ALLOWED_ROUTES, LANDING_PAGES } from './route-rules';
@@ -207,6 +216,21 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
+        label: 'Payments',
+        items: [
+          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon      },
+
+          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon          },
+          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon             },
+          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon            },
+          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                },
+          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                },
+          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
+          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
+          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
+        ],
+      },
+      {
         label: 'Operations',
         items: [
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
@@ -363,6 +387,21 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
+        label: 'Payments',
+        items: [
+          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon      },
+
+          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon          },
+          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon             },
+          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon            },
+          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                },
+          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                },
+          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
+          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
+          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
+        ],
+      },
+      {
         label: 'Operations',
         items: [
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
@@ -455,6 +494,21 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         items: [
           { href: '/calendar/calendars', label: 'Calendars', icon: CalendarMonthOutlinedIcon },
           { href: '/calendar/events',    label: 'Events',    icon: EventOutlinedIcon          },
+        ],
+      },
+      {
+        label: 'Payments',
+        items: [
+          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon      },
+
+          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon          },
+          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon             },
+          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon            },
+          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                },
+          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                },
+          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
+          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
+          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
         ],
       },
       {

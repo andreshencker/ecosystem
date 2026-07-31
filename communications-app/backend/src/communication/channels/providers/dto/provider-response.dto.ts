@@ -3,6 +3,7 @@ export class ProviderResponseDto {
 
   providerKey!: string;
   displayName!: string;
+  description?: string;
 
   channelId!: string;
 
@@ -14,7 +15,7 @@ export class ProviderResponseDto {
     isActive: boolean;
   };
 
-  connectionType!: 'api_key' | 'smtp' | 'oauth' | 'access_keys';
+  connectionType!: 'api_key' | 'smtp' | 'oauth' | 'access_keys' | 'token';
   isActive!: boolean;
 
   createdAt?: Date;

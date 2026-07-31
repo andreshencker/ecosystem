@@ -186,7 +186,7 @@ export interface Provider {
   displayName: string;
   description?: string;
   channelId: string | Channel;
-  connectionType: 'api_key' | 'smtp' | 'oauth' | 'access_keys';
+  connectionType: 'api_key' | 'smtp' | 'oauth' | 'access_keys' | 'token';
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;

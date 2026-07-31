@@ -54,6 +54,20 @@ export class ProviderCredentials {
    */
   @Prop({ type: String, default: undefined })
   displayIdentifier?: string;
+
+  /**
+   * The execution environment reported by the credential contract at
+   * save / update time.
+   *
+   * This is the canonical source of truth for test vs live.
+   * Set directly from the normalized credential's `mode` field — never
+   * inferred from key prefixes or other presentation fields.
+   *
+   * Null for records created before this field was added (re-save the
+   * credential to populate it).
+   */
+  @Prop({ type: String, default: null })
+  mode?: 'test' | 'live' | null;
 }
 
 export const ProviderCredentialsSchema =

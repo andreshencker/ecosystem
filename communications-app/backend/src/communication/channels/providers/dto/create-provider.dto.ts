@@ -16,11 +16,15 @@ export class CreateProviderDto {
   @IsNotEmpty()
   displayName!: string;
 
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @IsMongoId()
   channelId!: string;
 
-  @IsIn(['api_key', 'smtp', 'oauth', 'access_keys'])
-  connectionType!: 'api_key' | 'smtp' | 'oauth' | 'access_keys';
+  @IsIn(['api_key', 'smtp', 'oauth', 'access_keys', 'token'])
+  connectionType!: 'api_key' | 'smtp' | 'oauth' | 'access_keys' | 'token';
 
   @IsOptional()
   @IsBoolean()

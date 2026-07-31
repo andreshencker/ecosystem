@@ -59,6 +59,7 @@ const CONNECTION_TYPE_LABELS: Record<string, string> = {
   oauth:        'OAuth',
   access_keys:  'Access Keys',
   app_password: 'App Password',
+  token:        'Token',
 };
 
 function getChannelName(item: CompanyChannelProvider): string {

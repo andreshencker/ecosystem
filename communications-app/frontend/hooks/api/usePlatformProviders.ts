@@ -27,7 +27,7 @@ export interface CreateProviderDto {
   displayName: string;
   description?: string;
   channelId: string;
-  connectionType: 'api_key' | 'smtp' | 'oauth' | 'access_keys';
+  connectionType: 'api_key' | 'smtp' | 'oauth' | 'access_keys' | 'token';
   isActive?: boolean;
 }
 

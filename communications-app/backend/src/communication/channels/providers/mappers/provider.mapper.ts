@@ -9,6 +9,7 @@ export class ProviderMapper {
       id: String(doc._id),
       providerKey: doc.providerKey,
       displayName: doc.displayName,
+      description: doc.description,
 
       channelId: channelPopulated
         ? String(doc.channelId._id)

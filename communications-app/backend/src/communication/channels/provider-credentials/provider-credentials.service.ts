@@ -46,6 +46,8 @@ import { ICloudCredentialsContract } from '../../../calendar/contracts/icloud-cr
 import { GoogleCalendarCredentialsContract } from '../../../calendar/contracts/google-credentials.contract';
 import { OutlookCalendarCredentialsContract } from '../../../calendar/contracts/outlook-credentials.contract';
 import { StripeCredentialsContract } from '../../../payments/providers/stripe/stripe.credentials.contract';
+import { CoinGateCredentialsContract } from '../../../payments/providers/coingate/coingate.credentials.contract';
+import { TokenCredentialsContract } from '../implementation/payment/token/token-credentials.contract';
 
 type PopulateOpts = {
   populateCompanyChannelProvider?: boolean;
@@ -279,6 +281,12 @@ export class ProviderCredentialsService {
       providerKey,
     );
 
+    // 6) Extract canonical mode from the normalized credentials.
+    //    Stored in plain text — mode is not a secret.
+    //    Provider-agnostic: any credential contract that normalises to
+    //    { mode: 'test' | 'live' } will populate this field.
+    const mode = this.extractMode(credentials);
+
     try {
       const created = await this.model.create({
         companyChannelProviderId: this.toObjectIdOrThrow(
@@ -289,6 +297,7 @@ export class ProviderCredentialsService {
         encrypted,
         isActive: dto.isActive ?? true,
         displayIdentifier: displayIdentifier || undefined,
+        mode,
       });
 
       const result = ProviderCredentialsMapper.toResponse(
@@ -542,6 +551,9 @@ export class ProviderCredentialsService {
         providerKey,
       );
       $set.displayIdentifier = displayIdentifier || undefined;
+
+      // 6) Re-extract canonical mode from the updated credentials
+      $set.mode = this.extractMode(credentials);
     }
 
     try {
@@ -936,6 +948,11 @@ export class ProviderCredentialsService {
       return str(credentials.publishableKey) || 'Stripe configured';
     }
 
+    // Token (payment/token) — never expose the token value; show a generic label
+    if (ct === 'token') {
+      return 'Token configured';
+    }
+
     // OAuth → client ID (not the secret or tokens)
     // Covers google_calendar, outlook_calendar, and any future OAuth provider.
     if (ct === 'oauth') {
@@ -943,6 +960,24 @@ export class ProviderCredentialsService {
     }
 
     return '';
+  }
+
+  /**
+   * Extracts the canonical execution mode from normalized credentials.
+   *
+   * Provider-agnostic: any credential contract that normalises to an object
+   * containing `{ mode: 'test' | 'live' }` will populate this field.
+   * Providers without an explicit mode concept return null.
+   *
+   * This value is stored in plain text — mode is not a secret.
+   * It must NEVER be derived from key prefixes, displayIdentifier, or other
+   * presentation fields.
+   */
+  private extractMode(
+    credentials: Record<string, unknown>,
+  ): 'test' | 'live' | null {
+    const m = credentials['mode'];
+    return null;
   }
 
   /** Maps channel + connectionType + providerKey to the appropriate credential contract. */
@@ -979,6 +1014,8 @@ export class ProviderCredentialsService {
 
     if (ck === 'payment') {
       if (ct === 'api_key' && pk === 'stripe') return StripeCredentialsContract;
+      if (ct === 'token' && pk === 'coingate') return CoinGateCredentialsContract;
+      if (ct === 'token') return TokenCredentialsContract;
     }
 
     return null;

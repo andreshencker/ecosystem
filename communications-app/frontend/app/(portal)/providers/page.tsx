@@ -56,6 +56,7 @@ const CONNECTION_TYPE_LABELS: Record<string, string> = {
   smtp: 'SMTP',
   oauth: 'OAuth 2.0',
   access_keys: 'Access Keys',
+  token: 'Token',
 };
 
 const CONNECTION_TYPE_OPTIONS = [
@@ -63,6 +64,7 @@ const CONNECTION_TYPE_OPTIONS = [
   { value: 'api_key', label: 'API Key' },
   { value: 'oauth', label: 'OAuth' },
   { value: 'access_keys', label: 'Access Keys' },
+  { value: 'token', label: 'Token' },
 ] as const;
 
 const PAGE_SIZE = 50;
@@ -78,7 +80,7 @@ const providerSchema = z.object({
   displayName: z.string().min(1, 'Required').max(120),
   description: z.string().max(500).optional(),
   channelId: z.string().min(1, 'Required'),
-  connectionType: z.enum(['api_key', 'smtp', 'oauth', 'access_keys']),
+  connectionType: z.enum(['api_key', 'smtp', 'oauth', 'access_keys', 'token']),
   isActive: z.boolean().optional(),
 });
 
@@ -283,6 +285,7 @@ function ProviderDrawer({ open, editTarget, onClose }: ProviderDrawerProps) {
               <MenuItem value="smtp">SMTP</MenuItem>
               <MenuItem value="oauth">OAuth 2.0</MenuItem>
               <MenuItem value="access_keys">Access Keys</MenuItem>
+              <MenuItem value="token">Token</MenuItem>
             </TextField>
           )}
         />

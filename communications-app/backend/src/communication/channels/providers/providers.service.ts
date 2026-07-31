@@ -86,6 +86,9 @@ export class ProvidersService {
       const created = await this.model.create({
         providerKey,
         displayName,
+        ...(dto.description !== undefined
+          ? { description: dto.description.trim() }
+          : {}),
         channelId: new Types.ObjectId(dto.channelId),
         connectionType: dto.connectionType,
         isActive: dto.isActive ?? true,
@@ -128,6 +131,8 @@ export class ProvidersService {
         $set.providerKey = this.normalizeKey(dto.providerKey);
       if (dto.displayName !== undefined)
         $set.displayName = String(dto.displayName ?? '').trim();
+      if (dto.description !== undefined)
+        $set.description = dto.description.trim();
       if (dto.connectionType !== undefined)
         $set.connectionType = dto.connectionType;
       if (dto.isActive !== undefined) $set.isActive = dto.isActive;
