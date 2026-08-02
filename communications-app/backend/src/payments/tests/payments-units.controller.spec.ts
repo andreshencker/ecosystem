@@ -73,17 +73,22 @@ describe('PaymentsUnitsController.listPaymentUnits()', () => {
 
     await ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID);
 
-    expect(service.listPaymentUnits).toHaveBeenCalledWith(COMPANY_ID, ACCOUNT_ID);
+    expect(service.listPaymentUnits).toHaveBeenCalledWith(
+      COMPANY_ID,
+      ACCOUNT_ID,
+    );
   });
 
   it('maps PaymentProviderNotFoundError → NotFoundException', async () => {
     const service = makeService();
-    service.listPaymentUnits.mockRejectedValue(new PaymentProviderNotFoundError('stripe'));
+    service.listPaymentUnits.mockRejectedValue(
+      new PaymentProviderNotFoundError('stripe'),
+    );
     const ctrl = new PaymentsUnitsController(service as never);
 
-    await expect(ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID)).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('maps PaymentProviderNotConfiguredError → UnprocessableEntityException', async () => {
@@ -93,9 +98,9 @@ describe('PaymentsUnitsController.listPaymentUnits()', () => {
     );
     const ctrl = new PaymentsUnitsController(service as never);
 
-    await expect(ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID)).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentProviderCredentialsUnavailableError → UnprocessableEntityException', async () => {
@@ -105,9 +110,9 @@ describe('PaymentsUnitsController.listPaymentUnits()', () => {
     );
     const ctrl = new PaymentsUnitsController(service as never);
 
-    await expect(ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID)).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentCapabilityNotSupportedError → UnprocessableEntityException', async () => {
@@ -117,9 +122,9 @@ describe('PaymentsUnitsController.listPaymentUnits()', () => {
     );
     const ctrl = new PaymentsUnitsController(service as never);
 
-    await expect(ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID)).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentProviderUnavailableError → ServiceUnavailableException', async () => {
@@ -129,9 +134,9 @@ describe('PaymentsUnitsController.listPaymentUnits()', () => {
     );
     const ctrl = new PaymentsUnitsController(service as never);
 
-    await expect(ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID)).rejects.toThrow(
-      ServiceUnavailableException,
-    );
+    await expect(
+      ctrl.listPaymentUnits(makeAuthCtx(), ACCOUNT_ID),
+    ).rejects.toThrow(ServiceUnavailableException);
   });
 
   it('does not expose credential values in the response', async () => {

@@ -42,12 +42,12 @@ export interface CoinGateOrder {
   receive_currency: string;
   receive_amount?: string;
   created_at: string;
-  order_id?: string;            // merchant-supplied external reference
+  order_id?: string; // merchant-supplied external reference
   payment_url?: string;
   underpaid_amount?: string;
   overpaid_amount?: string;
   is_refundable?: boolean;
-  token?: string;               // merchant-set callback validation token
+  token?: string; // merchant-set callback validation token
   title?: string;
   description?: string;
   /** Payment currency (crypto), set after shopper selects */
@@ -109,7 +109,7 @@ export interface CoinGateLedgerAccount {
 export interface CoinGateRefund {
   id: number | string;
   status: CoinGateRefundStatus;
-  amount?: string;              // decimal amount in order price currency
+  amount?: string; // decimal amount in order price currency
   request_amount?: string;
   refund_amount?: string;
   address: string;
@@ -119,7 +119,10 @@ export interface CoinGateRefund {
   reason?: string;
   email?: string;
   rejection_reason?: string;
-  order?: Pick<CoinGateOrder, 'id' | 'order_id' | 'price_currency' | 'price_amount'>;
+  order?: Pick<
+    CoinGateOrder,
+    'id' | 'order_id' | 'price_currency' | 'price_amount'
+  >;
   refund_currency?: CoinGateRefundCurrencyDetail;
   ledger_account?: CoinGateLedgerAccount;
   blockchain_transactions?: CoinGateBlockchainTransaction[];
@@ -142,7 +145,7 @@ export interface CoinGateCurrency {
   id: number;
   title: string;
   symbol: string;
-  type: string;                 // 'crypto', 'native', 'token', 'fiat'
+  type: string; // 'crypto', 'native', 'token', 'fiat'
   platforms?: CoinGatePlatformEntry[];
 }
 

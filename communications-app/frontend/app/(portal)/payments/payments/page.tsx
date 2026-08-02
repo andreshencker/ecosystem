@@ -19,6 +19,7 @@ import ClearOutlinedIcon from '@mui/icons-material/ClearOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import NavigateBeforeOutlinedIcon from '@mui/icons-material/NavigateBeforeOutlined';
 import NavigateNextOutlinedIcon from '@mui/icons-material/NavigateNextOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
@@ -37,14 +38,23 @@ import {
 import { PaymentsFilter } from '@/components/domain/payment/PaymentsFilter';
 import { ProviderFeatureUnavailable } from '@/components/domain/payment/ProviderFeatureUnavailable';
 import { usePaymentsContext, connectionLabel } from '@/providers/PaymentsProvider';
-import { usePaymentsList, usePaymentDetail, usePaymentUnits, usePaymentBalance } from '@/hooks/api/usePayments';
+import {
+  usePaymentsList,
+  usePaymentDetail,
+  usePaymentUnits,
+  usePaymentBalance,
+} from '@/hooks/api/usePayments';
 import { PAGE_CAPABILITY, PAGE_FEATURE_DISPLAY_NAME } from '@/lib/config/payments-capability-map';
 import { formatAmountMinor } from '@/lib/formatBalance';
+import { extractApiMessage } from '@/lib/mapApiError';
 import type {
   PaymentSummary,
   PaymentCanonicalStatus,
   ListPaymentsParams,
   PaymentBalanceLine,
+  PaymentSummaryCardDefinition,
+  PaymentColumnDefinition,
+  PaymentsPageDefinition,
 } from '@/types/payments';
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -65,6 +75,21 @@ const STATUS_CONFIG: Record<
   refunded:              { label: 'Refunded',              color: 'info'     },
   partially_refunded:    { label: 'Partially Refunded',    color: 'info'     },
 };
+
+const STATUS_OPTIONS: Array<{ value: PaymentCanonicalStatus | ''; label: string }> = [
+  { value: '',                    label: 'All statuses'          },
+  { value: 'succeeded',          label: 'Succeeded'             },
+  { value: 'failed',             label: 'Failed'                },
+  { value: 'processing',         label: 'Processing'            },
+  { value: 'pending',            label: 'Pending'               },
+  { value: 'requires_action',    label: 'Requires Action'       },
+  { value: 'requires_confirmation', label: 'Requires Confirmation' },
+  { value: 'requires_capture',   label: 'Requires Capture'      },
+  { value: 'cancelled',          label: 'Cancelled'             },
+  { value: 'expired',            label: 'Expired'               },
+  { value: 'refunded',           label: 'Refunded'              },
+  { value: 'partially_refunded', label: 'Partially Refunded'    },
+];
 
 function PaymentStatusBadge({
   status,
@@ -88,14 +113,24 @@ function PaymentStatusBadge({
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    year: 'numeric', month: 'short', day: 'numeric',
   });
 }
 
 function truncateId(id: string, len = 20): string {
   return id.length > len ? `${id.slice(0, len)}…` : id;
+}
+
+function rowField(row: PaymentSummary, fieldKey: string): unknown {
+  return (row as unknown as Record<string, unknown>)[fieldKey];
+}
+
+function sumLines(lines: PaymentBalanceLine[]): number {
+  return lines.reduce((acc, l) => acc + l.amountMinor, 0);
+}
+
+function primaryCurrency(lines: PaymentBalanceLine[]): string {
+  return lines[0]?.currency ?? '';
 }
 
 // ─── Payment detail drawer ────────────────────────────────────────────────────
@@ -109,10 +144,7 @@ function PaymentDetailDrawer({
   paymentId: string;
   onClose: () => void;
 }) {
-  const { data: detail, isLoading, error } = usePaymentDetail(
-    connectionId,
-    paymentId,
-  );
+  const { data: detail, isLoading, error } = usePaymentDetail(connectionId, paymentId);
 
   return (
     <FormDrawer
@@ -140,7 +172,6 @@ function PaymentDetailDrawer({
 
       {detail && !isLoading && (
         <Stack spacing={2.5}>
-          {/* Status */}
           <Box>
             <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
               Status
@@ -150,11 +181,8 @@ function PaymentDetailDrawer({
 
           <Divider />
 
-          {/* Overview */}
           <Box>
-            <Typography variant="subtitle2" fontWeight={600} mb={1}>
-              Overview
-            </Typography>
+            <Typography variant="subtitle2" fontWeight={600} mb={1}>Overview</Typography>
             <Stack spacing={1}>
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="body2" color="text.secondary">Amount</Typography>
@@ -181,41 +209,18 @@ function PaymentDetailDrawer({
 
           <Divider />
 
-          {/* Provider IDs */}
           <Box>
-            <Typography variant="subtitle2" fontWeight={600} mb={1}>
-              Provider IDs
+            <Typography variant="subtitle2" fontWeight={600} mb={1}>Provider ID</Typography>
+            <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all' }}>
+              {detail.providerPaymentId}
             </Typography>
-            <Stack spacing={1}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
-                  Payment ID
-                </Typography>
-                <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all' }}>
-                  {detail.providerPaymentId}
-                </Typography>
-              </Box>
-              {detail.latestChargeId && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
-                    Charge ID
-                  </Typography>
-                  <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all' }}>
-                    {detail.latestChargeId}
-                  </Typography>
-                </Box>
-              )}
-            </Stack>
           </Box>
 
-          {/* Payment Method */}
           {(detail.paymentMethodType ?? detail.paymentMethodLabel) && (
             <>
               <Divider />
               <Box>
-                <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                  Payment Method
-                </Typography>
+                <Typography variant="subtitle2" fontWeight={600} mb={1}>Payment Method</Typography>
                 <Stack spacing={1}>
                   {detail.paymentMethodType && (
                     <Box display="flex" justifyContent="space-between">
@@ -236,48 +241,7 @@ function PaymentDetailDrawer({
             </>
           )}
 
-          {/* Amounts */}
-          {(detail.amountReceivedMinor !== undefined ||
-            detail.amountCapturableMinor !== undefined ||
-            detail.amountRefundedMinor !== undefined) && (
-            <>
-              <Divider />
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                  Amounts
-                </Typography>
-                <Stack spacing={1}>
-                  {detail.amountReceivedMinor !== undefined && (
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Received</Typography>
-                      <Typography variant="body2">
-                        {formatAmountMinor(detail.amountReceivedMinor, detail.currency)}
-                      </Typography>
-                    </Box>
-                  )}
-                  {detail.amountCapturableMinor !== undefined && (
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Capturable</Typography>
-                      <Typography variant="body2">
-                        {formatAmountMinor(detail.amountCapturableMinor, detail.currency)}
-                      </Typography>
-                    </Box>
-                  )}
-                  {detail.amountRefundedMinor !== undefined && (
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Refunded</Typography>
-                      <Typography variant="body2">
-                        {formatAmountMinor(detail.amountRefundedMinor, detail.currency)}
-                      </Typography>
-                    </Box>
-                  )}
-                </Stack>
-              </Box>
-            </>
-          )}
-
-          {/* Failure details */}
-          {(detail.failureCode ?? detail.declineCode ?? detail.failureMessage) && (
+          {(detail.failureCode ?? detail.failureMessage) && (
             <>
               <Divider />
               <Box>
@@ -288,17 +252,7 @@ function PaymentDetailDrawer({
                   {detail.failureCode && (
                     <Box display="flex" justifyContent="space-between">
                       <Typography variant="body2" color="text.secondary">Code</Typography>
-                      <Typography variant="body2" fontFamily="monospace">
-                        {detail.failureCode}
-                      </Typography>
-                    </Box>
-                  )}
-                  {detail.declineCode && (
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Decline Code</Typography>
-                      <Typography variant="body2" fontFamily="monospace">
-                        {detail.declineCode}
-                      </Typography>
+                      <Typography variant="body2" fontFamily="monospace">{detail.failureCode}</Typography>
                     </Box>
                   )}
                   {detail.failureMessage && (
@@ -306,9 +260,7 @@ function PaymentDetailDrawer({
                       <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
                         Message
                       </Typography>
-                      <Typography variant="body2" color="error.main">
-                        {detail.failureMessage}
-                      </Typography>
+                      <Typography variant="body2" color="error.main">{detail.failureMessage}</Typography>
                     </Box>
                   )}
                 </Stack>
@@ -316,68 +268,39 @@ function PaymentDetailDrawer({
             </>
           )}
 
-          {/* Description */}
-          {detail.description && (
-            <>
-              <Divider />
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  Description
-                </Typography>
-                <Typography variant="body2">{detail.description}</Typography>
-              </Box>
-            </>
-          )}
-
-          {/* Provider Metadata */}
-          {detail.providerMetadata &&
-            Object.keys(detail.providerMetadata).length > 0 && (
-              <>
-                <Divider />
-                <Box>
-                  <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                    Metadata
-                  </Typography>
-                  <Stack spacing={0.75}>
-                    {Object.entries(detail.providerMetadata).map(([k, v]) => (
-                      <Box key={k} display="flex" justifyContent="space-between" gap={1}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          fontFamily="monospace"
-                          sx={{ flexShrink: 0 }}
-                        >
-                          {k}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          fontFamily="monospace"
-                          sx={{ textAlign: 'right', wordBreak: 'break-all' }}
-                        >
-                          {v}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                </Box>
-              </>
-            )}
-
-          {/* Receipt URL */}
           {detail.receiptUrl && (
             <>
               <Divider />
+              <Button
+                variant="outlined"
+                size="small"
+                fullWidth
+                href={detail.receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View Receipt
+              </Button>
+            </>
+          )}
+
+          {detail.providerMetadata && Object.keys(detail.providerMetadata).length > 0 && (
+            <>
+              <Divider />
               <Box>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  href={detail.receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View Receipt
-                </Button>
+                <Typography variant="subtitle2" fontWeight={600} mb={1}>Metadata</Typography>
+                <Stack spacing={0.75}>
+                  {Object.entries(detail.providerMetadata).map(([k, v]) => (
+                    <Box key={k} display="flex" justifyContent="space-between" gap={1}>
+                      <Typography variant="body2" color="text.secondary" fontFamily="monospace" sx={{ flexShrink: 0 }}>
+                        {k}
+                      </Typography>
+                      <Typography variant="body2" fontFamily="monospace" sx={{ textAlign: 'right', wordBreak: 'break-all' }}>
+                        {v}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
               </Box>
             </>
           )}
@@ -387,21 +310,11 @@ function PaymentDetailDrawer({
   );
 }
 
-// ─── Summary cards ────────────────────────────────────────────────────────────
-
-function sumLines(lines: PaymentBalanceLine[]): number {
-  return lines.reduce((acc, l) => acc + l.amountMinor, 0);
-}
-
-function primaryCurrency(lines: PaymentBalanceLine[]): string {
-  return lines[0]?.currency ?? '';
-}
+// ─── Dynamic summary card ─────────────────────────────────────────────────────
 
 interface SummaryCardProps {
   label: string;
-  /** Primary value — large bold number or amount. */
   primary: React.ReactNode;
-  /** Smaller descriptive text rendered below the primary value. */
   secondary?: string;
   loading?: boolean;
 }
@@ -442,144 +355,444 @@ function SummaryCard({ label, primary, secondary, loading }: SummaryCardProps) {
   );
 }
 
-interface PaymentSummaryCardsProps {
-  connectionId: string | null | undefined;
+// ─── Dynamic summary cards renderer ──────────────────────────────────────────
+
+interface DynamicSummaryCardsProps {
+  definition: PaymentsPageDefinition;
+  connectionId: string;
   payments: PaymentSummary[];
 }
 
-function PaymentSummaryCards({ connectionId, payments }: PaymentSummaryCardsProps) {
-  const { data: balance, isLoading: balanceLoading, error: balanceError } = usePaymentBalance(
-    connectionId ?? null,
+function DynamicSummaryCards({ definition, connectionId, payments }: DynamicSummaryCardsProps) {
+  const { getCapabilityStatus, capabilitiesLoading } = usePaymentsContext();
+
+  // Balance data — only fetched when at least one card needs it.
+  const needsBalance = definition.summaryCards.some(
+    (c) => c.source === 'balance.available' || c.source === 'balance.pending',
   );
+  const balanceCapabilityStatus = getCapabilityStatus('balance');
+  const balanceEnabled = needsBalance && balanceCapabilityStatus === 'available';
 
-  const is422 =
-    (balanceError as { response?: { status?: number } } | null)?.response?.status === 422;
-  const balanceUnavailable = !connectionId || Boolean(balanceError);
+  const {
+    data: balance,
+    isLoading: balanceDataLoading,
+    error: balanceError,
+  } = usePaymentBalance(balanceEnabled ? connectionId : null);
 
-  const availableTotal = balance ? sumLines(balance.available) : 0;
-  const pendingTotal   = balance ? sumLines(balance.pending)   : 0;
+  const capabilityKnown = !capabilitiesLoading && balanceCapabilityStatus !== null;
+  const balanceLoading = needsBalance && (!capabilityKnown || (balanceEnabled && balanceDataLoading));
+  const balanceFailed = balanceEnabled && Boolean(balanceError);
+  const balanceReady  = balanceEnabled && !balanceDataLoading && Boolean(balance) && !balanceError;
   const balanceCurrency = balance
     ? primaryCurrency(balance.available) || primaryCurrency(balance.pending)
     : '';
 
-  // Count and sum amounts from the currently loaded payment page.
-  const successPayments = payments.filter((p) => p.status === 'succeeded');
-  const failedPayments  = payments.filter((p) => p.status === 'failed');
-  const successCount    = successPayments.length;
-  const failedCount     = failedPayments.length;
-  const payCurrency     = payments[0]?.currency ?? '';
-  const successAmount   = successPayments.reduce((s, p) => s + p.amountMinor, 0);
-  const failedAmount    = failedPayments.reduce((s, p) => s + p.amountMinor, 0);
-
-  const unavailableLabel = is422 ? 'Not supported' : 'Unavailable';
-
+  const notSupportedNode = (
+    <Typography variant="body2" color="text.disabled" fontStyle="italic">Not supported</Typography>
+  );
   const unavailableNode = (
-    <Typography variant="body2" color="text.disabled" fontStyle="italic">
-      {unavailableLabel}
-    </Typography>
+    <Typography variant="body2" color="text.disabled" fontStyle="italic">Unavailable</Typography>
+  );
+  const dashNode = (
+    <Typography variant="h6" fontWeight={700} color="text.disabled">—</Typography>
   );
 
-  const noConnectionNode = (
-    <Typography variant="h6" fontWeight={700} color="text.disabled">
-      —
-    </Typography>
-  );
+  function renderCardPrimary(card: PaymentSummaryCardDefinition): React.ReactNode {
+    const cap = card.capability;
+    const capStatus = cap ? getCapabilityStatus(cap) : 'available';
+
+    // Balance sources
+    if (card.source === 'balance.available' || card.source === 'balance.pending') {
+      if (balanceLoading) return null; // SummaryCard's loading prop handles spinner
+      if (!capabilityKnown && capStatus === null) return null;
+      if (capStatus !== 'available') {
+        return card.unavailableBehaviour === 'not_supported' ? notSupportedNode : unavailableNode;
+      }
+      if (balanceFailed) return unavailableNode;
+      if (balanceReady && balance) {
+        const lines = card.source === 'balance.available' ? balance.available : balance.pending;
+        const amount = sumLines(lines);
+        const color = card.source === 'balance.available' ? 'success.main' : 'warning.main';
+        return (
+          <Typography variant="h6" fontWeight={700} color={color} noWrap>
+            {formatAmountMinor(amount, balanceCurrency)}
+          </Typography>
+        );
+      }
+      return dashNode;
+    }
+
+    // Status count sources (current_page)
+    if (card.source === 'page.status' && card.status) {
+      const count = payments.filter((p) => p.status === card.status).length;
+      const isPositive = count > 0;
+      const color =
+        card.status === 'succeeded' ? 'success.main'
+        : card.status === 'failed' || card.status === 'expired' ? 'error.main'
+        : card.status === 'requires_action' ? 'warning.main'
+        : 'text.primary';
+      return (
+        <Typography variant="h6" fontWeight={700} color={isPositive ? color : 'text.primary'}>
+          {count}
+        </Typography>
+      );
+    }
+
+    return dashNode;
+  }
+
+  function cardSecondary(card: PaymentSummaryCardDefinition): string | undefined {
+    if (card.source === 'balance.available') return balanceReady ? 'Current available funds' : undefined;
+    if (card.source === 'balance.pending') return balanceReady ? 'Current pending balance' : undefined;
+    if (card.scope === 'current_page') return 'payments on this page';
+    if (card.scope === 'filtered_result') return 'payments matching current filters';
+    return undefined;
+  }
+
+  function isCardLoading(card: PaymentSummaryCardDefinition): boolean {
+    const src = card.source;
+    if (src === 'balance.available' || src === 'balance.pending') return balanceLoading;
+    return false;
+  }
+
+  if (definition.summaryCards.length === 0) return null;
 
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2, alignItems: 'stretch' }}>
-      {/* Available Balance */}
-      <SummaryCard
-        label="Available Balance"
-        loading={balanceLoading}
-        primary={
-          balanceUnavailable ? unavailableNode : (
-            <Typography variant="h6" fontWeight={700} color="success.main" noWrap>
-              {formatAmountMinor(availableTotal, balanceCurrency)}
-            </Typography>
-          )
-        }
-        secondary={!balanceUnavailable ? 'Current available funds' : undefined}
-      />
-
-      {/* Pending Balance */}
-      <SummaryCard
-        label="Pending Balance"
-        loading={balanceLoading}
-        primary={
-          balanceUnavailable ? unavailableNode : (
-            <Typography variant="h6" fontWeight={700} color="warning.main" noWrap>
-              {formatAmountMinor(pendingTotal, balanceCurrency)}
-            </Typography>
-          )
-        }
-        secondary={!balanceUnavailable ? 'Current pending balance' : undefined}
-      />
-
-      {/* Successful Payments */}
-      <SummaryCard
-        label="Successful Payments"
-        primary={
-          !connectionId ? noConnectionNode : (
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              color={successCount > 0 ? 'success.main' : 'text.primary'}
-            >
-              {successCount}
-            </Typography>
-          )
-        }
-        secondary={
-          connectionId && successCount > 0 && payCurrency
-            ? `${formatAmountMinor(successAmount, payCurrency)} processed`
-            : connectionId
-            ? 'payments on this page'
-            : undefined
-        }
-      />
-
-      {/* Failed Payments */}
-      <SummaryCard
-        label="Failed Payments"
-        primary={
-          !connectionId ? noConnectionNode : (
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              color={failedCount > 0 ? 'error.main' : 'text.primary'}
-            >
-              {failedCount}
-            </Typography>
-          )
-        }
-        secondary={
-          connectionId && failedCount > 0 && payCurrency
-            ? `${formatAmountMinor(failedAmount, payCurrency)} failed`
-            : connectionId
-            ? 'payments on this page'
-            : undefined
-        }
-      />
+      {definition.summaryCards.map((card) => (
+        <SummaryCard
+          key={card.key}
+          label={card.label}
+          loading={isCardLoading(card)}
+          primary={renderCardPrimary(card)}
+          secondary={cardSecondary(card)}
+        />
+      ))}
     </Box>
   );
 }
 
-// ─── Status filter options ────────────────────────────────────────────────────
+// ─── Dynamic filter renderer ──────────────────────────────────────────────────
 
-const STATUS_FILTER_OPTIONS: Array<{ value: PaymentCanonicalStatus | ''; label: string }> = [
-  { value: '',                    label: 'All statuses'          },
-  { value: 'succeeded',          label: 'Succeeded'             },
-  { value: 'failed',             label: 'Failed'                },
-  { value: 'processing',         label: 'Processing'            },
-  { value: 'pending',            label: 'Pending'               },
-  { value: 'requires_action',    label: 'Requires Action'       },
-  { value: 'requires_confirmation', label: 'Requires Confirmation' },
-  { value: 'requires_capture',   label: 'Requires Capture'      },
-  { value: 'cancelled',          label: 'Cancelled'             },
-  { value: 'expired',            label: 'Expired'               },
-  { value: 'refunded',           label: 'Refunded'              },
-  { value: 'partially_refunded', label: 'Partially Refunded'    },
-];
+interface DynamicFiltersProps {
+  definition: PaymentsPageDefinition;
+  connectionId: string | null;
+  filters: Record<string, string>;
+  onFilterChange: (key: string, value: string) => void;
+  onClear: () => void;
+  listLoading: boolean;
+  onRefresh: () => void;
+}
+
+function DynamicFilters({
+  definition,
+  connectionId,
+  filters,
+  onFilterChange,
+  onClear,
+  listLoading,
+  onRefresh,
+}: DynamicFiltersProps) {
+  const { data: unitsData, isLoading: unitsLoading } = usePaymentUnits(
+    definition.filters.some((f) => f.optionsSource === 'payment_units') && connectionId
+      ? connectionId
+      : null,
+  );
+  const availableUnits = unitsData?.data ?? [];
+
+  const hasActiveFilters = Object.values(filters).some(Boolean);
+
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: 2 }}>
+      {definition.filters.map((filterDef) => {
+        const value = filters[filterDef.key] ?? '';
+
+        if (filterDef.type === 'search') {
+          return (
+            <TextField
+              key={filterDef.key}
+              size="small"
+              placeholder={filterDef.placeholder ?? `${filterDef.label}…`}
+              value={value}
+              onChange={(e) => onFilterChange(filterDef.key, e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlinedIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ width: { xs: '100%', sm: 180 } }}
+            />
+          );
+        }
+
+        if (filterDef.type === 'select') {
+          if (filterDef.optionsSource === 'payment_statuses') {
+            return (
+              <FormControl key={filterDef.key} size="small" sx={{ minWidth: 160 }}>
+                <Select
+                  value={value}
+                  displayEmpty
+                  onChange={(e) => onFilterChange(filterDef.key, e.target.value as string)}
+                >
+                  {STATUS_OPTIONS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.value === '' ? <em>All statuses</em> : o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            );
+          }
+
+          if (filterDef.optionsSource === 'payment_units') {
+            return (
+              <FormControl
+                key={filterDef.key}
+                size="small"
+                disabled={unitsLoading || !connectionId}
+                sx={{ minWidth: { xs: '100%', sm: 160 } }}
+              >
+                <Select
+                  value={value}
+                  displayEmpty
+                  onChange={(e) => onFilterChange(filterDef.key, e.target.value as string)}
+                >
+                  <MenuItem value="">
+                    <em>
+                      {unitsLoading ? 'Loading…' : !connectionId ? 'Select a connection' : (filterDef.placeholder ?? 'All currencies / assets')}
+                    </em>
+                  </MenuItem>
+                  {availableUnits.map((u) => (
+                    <MenuItem key={u.code} value={u.code}>
+                      {u.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            );
+          }
+        }
+
+        if (filterDef.type === 'date') {
+          return (
+            <TextField
+              key={filterDef.key}
+              size="small"
+              type="date"
+              label={filterDef.label}
+              InputLabelProps={{ shrink: true }}
+              value={value}
+              onChange={(e) => onFilterChange(filterDef.key, e.target.value)}
+              sx={{ width: { xs: '100%', sm: 140 } }}
+            />
+          );
+        }
+
+        return null;
+      })}
+
+      {/* Refresh */}
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={
+          listLoading
+            ? <CircularProgress size={14} color="inherit" />
+            : <RefreshOutlinedIcon />
+        }
+        onClick={onRefresh}
+        disabled={listLoading || !connectionId}
+      >
+        Refresh
+      </Button>
+
+      {hasActiveFilters && (
+        <Button
+          size="small"
+          variant="text"
+          startIcon={<ClearOutlinedIcon fontSize="small" />}
+          onClick={onClear}
+        >
+          Clear
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+// ─── Dynamic column definitions ───────────────────────────────────────────────
+
+function buildGridColumns(
+  colDefs: PaymentColumnDefinition[],
+  onView: (row: PaymentSummary) => void,
+  rowActionDefs: PaymentsPageDefinition['rowActions'],
+): GridColDef[] {
+  return colDefs.map((col): GridColDef | null => {
+    const field = col.field ?? col.key;
+
+    if (col.type === 'identifier') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        flex: col.flex ?? 1.5,
+        minWidth: 160,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          const primary = col.field ? String(rowField(row, col.field) ?? '') : row.providerPaymentId;
+          const secondary = col.secondaryField ? rowField(row, col.secondaryField) as string | undefined : undefined;
+          return (
+            <Box>
+              <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem">
+                {truncateId(primary)}
+              </Typography>
+              {secondary && (
+                <Typography variant="caption" color="text.secondary" display="block">
+                  {secondary}
+                </Typography>
+              )}
+            </Box>
+          );
+        },
+      };
+    }
+
+    if (col.type === 'amount') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        width: col.width ?? 120,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          return (
+            <Typography variant="body2" fontWeight={600}>
+              {formatAmountMinor(row.amountMinor, row.currency)}
+            </Typography>
+          );
+        },
+      };
+    }
+
+    if (col.type === 'payment_unit') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        width: col.width ?? 120,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          const val = field ? rowField(row, field) as string : row.currency;
+          return (
+            <Typography variant="body2" fontFamily="monospace">
+              {String(val ?? '').toUpperCase()}
+            </Typography>
+          );
+        },
+      };
+    }
+
+    if (col.type === 'method') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        width: col.width ?? 150,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          const label = row.paymentMethodLabel ?? row.paymentMethodType ?? '—';
+          return <Typography variant="body2">{label}</Typography>;
+        },
+      };
+    }
+
+    if (col.type === 'status') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        width: col.width ?? 160,
+        renderCell: (p) => <PaymentStatusBadge status={(p.row as PaymentSummary).status} />,
+      };
+    }
+
+    if (col.type === 'date') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        width: col.width ?? 120,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          const val = field ? rowField(row, field) : row.createdAt;
+          return (
+            <Typography variant="body2" color="text.secondary">
+              {formatDate(String(val ?? ''))}
+            </Typography>
+          );
+        },
+      };
+    }
+
+    if (col.type === 'text') {
+      return {
+        field: col.key,
+        headerName: col.label,
+        width: col.width ?? 140,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          const val = field ? rowField(row, field) : undefined;
+          return <Typography variant="body2">{String(val ?? '—')}</Typography>;
+        },
+      };
+    }
+
+    if (col.type === 'actions') {
+      return {
+        field: col.key,
+        headerName: '',
+        width: col.width ?? 80,
+        sortable: false,
+        renderCell: (p) => {
+          const row = p.row as PaymentSummary;
+          return (
+            <RowActions>
+              {rowActionDefs.map((action) => {
+                if (action.type === 'view') {
+                  return (
+                    <Tooltip key={action.key} title={action.label}>
+                      <IconButton size="small" onClick={() => onView(row)}>
+                        <VisibilityOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  );
+                }
+
+                if (action.type === 'open_url' && action.field) {
+                  const url = action.field ? rowField(row, action.field!) as string | undefined : undefined;
+                  if (!url) return null;
+                  return (
+                    <Tooltip key={action.key} title={action.label}>
+                      <IconButton
+                        size="small"
+                        component="a"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <OpenInNewOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  );
+                }
+
+                return null;
+              })}
+            </RowActions>
+          );
+        },
+      };
+    }
+
+    return null;
+  }).filter((col): col is GridColDef => col !== null);
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -593,6 +806,9 @@ export default function PaymentsPaymentsPage() {
     selectedProvider,
     getCapabilityStatus,
     selectedConnection,
+    pageDefinition,
+    pageDefinitionLoading,
+    pageDefinitionError,
   } = usePaymentsContext();
 
   const capabilityStatus = getCapabilityStatus(PAGE_CAPABILITY.payments);
@@ -601,75 +817,62 @@ export default function PaymentsPaymentsPage() {
     Boolean(capabilityStatus) &&
     capabilityStatus !== 'available';
 
-  // ── Filters ─────────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<PaymentCanonicalStatus | ''>('');
-  const [filterCurrency, setFilterCurrency] = useState('');
-  const [createdFrom, setCreatedFrom] = useState('');
-  const [createdTo, setCreatedTo] = useState('');
-
-  // ── Cursor-based pagination ──────────────────────────────────────────────────
+  // ── Dynamic filter state ──────────────────────────────────────────────────
+  // Keyed by filter.key from the active definition. Reset when connection changes.
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
-
-  // ── Drawer ───────────────────────────────────────────────────────────────────
   const [viewPaymentId, setViewPaymentId] = useState<string | null>(null);
 
-  // ── Payment units (provider-driven currency / asset options) ────────────────
-  const {
-    data: unitsData,
-    isLoading: unitsLoading,
-  } = usePaymentUnits(capabilityBlocks ? null : resolvedConnectionId || null);
-  const availableUnits = unitsData?.data ?? [];
-
-  // Reset pagination + drawer when connection changes; also clear the selected unit
-  // so stale options from the previous connection are never preserved.
+  // Clear all state when connection changes.
   useEffect(() => {
+    setFilterValues({});
     setCursor(undefined);
     setCursorStack([]);
     setViewPaymentId(null);
-    setFilterCurrency('');
   }, [resolvedConnectionId]);
 
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+    setCursor(undefined);
+    setCursorStack([]);
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilterValues({});
+    setCursor(undefined);
+    setCursorStack([]);
+  }, []);
+
+  // ── Build list query params from active filter values ─────────────────────
   const queryParams = useMemo<ListPaymentsParams>(() => {
-    const p: ListPaymentsParams = { limit: 20 };
+    const p: ListPaymentsParams = {
+      limit: pageDefinition?.list.defaultPageSize ?? 20,
+    };
     if (cursor) p.cursor = cursor;
-    if (filterStatus) p.status = filterStatus;
-    if (filterCurrency.trim()) p.currency = filterCurrency.trim();
-    if (createdFrom) p.createdFrom = createdFrom;
-    if (createdTo) p.createdTo = createdTo;
-    if (search.trim()) p.search = search.trim();
+    if (filterValues['status']) p.status = filterValues['status'] as PaymentCanonicalStatus;
+    if (filterValues['currency']?.trim()) p.currency = filterValues['currency'].trim();
+    if (filterValues['createdFrom']) p.createdFrom = filterValues['createdFrom'];
+    if (filterValues['createdTo']) p.createdTo = filterValues['createdTo'];
+    if (filterValues['search']?.trim()) p.search = filterValues['search'].trim();
     return p;
-  }, [cursor, filterStatus, filterCurrency, createdFrom, createdTo, search]);
+  }, [cursor, filterValues, pageDefinition]);
 
   const {
     data: listData,
     isLoading: listLoading,
     error: listError,
     refetch,
-  } = usePaymentsList(capabilityBlocks ? null : resolvedConnectionId || null, queryParams);
+  } = usePaymentsList(
+    capabilityBlocks || !pageDefinition || !resolvedConnectionId ? null : resolvedConnectionId,
+    queryParams,
+  );
 
   const payments = useMemo(() => listData?.data ?? [], [listData]);
   const hasMore = listData?.hasMore ?? false;
   const nextCursor = listData?.nextCursor;
 
-  const hasActiveFilters = Boolean(
-    search || filterStatus || filterCurrency || createdFrom || createdTo,
-  );
-
-  const clearFilters = useCallback(() => {
-    setSearch('');
-    setFilterStatus('');
-    setFilterCurrency('');
-    setCreatedFrom('');
-    setCreatedTo('');
-    setCursor(undefined);
-    setCursorStack([]);
-  }, []);
-
-  const handleRefresh = useCallback(() => {
-    void refetch();
-  }, [refetch]);
+  const handleRefresh = useCallback(() => { void refetch(); }, [refetch]);
 
   const handleNext = useCallback(() => {
     if (!nextCursor) return;
@@ -684,94 +887,15 @@ export default function PaymentsPaymentsPage() {
     setCursor(prev ?? undefined);
   }, [cursorStack]);
 
-  const pageSubtitle = selectedConnection
-    ? `Connection: ${connectionLabel(selectedConnection)}`
-    : undefined;
-
-  // ── Table columns ────────────────────────────────────────────────────────────
-  const columns = useMemo<GridColDef[]>(
-    () => [
-      {
-        field: 'id',
-        headerName: 'Payment',
-        flex: 1.5,
-        minWidth: 160,
-        renderCell: (p) => {
-          const row = p.row as PaymentSummary;
-          return (
-            <Box>
-              <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem">
-                {truncateId(row.providerPaymentId)}
-              </Typography>
-              {row.description && (
-                <Typography variant="caption" color="text.secondary" display="block">
-                  {row.description}
-                </Typography>
-              )}
-            </Box>
-          );
-        },
-      },
-      {
-        field: 'amountMinor',
-        headerName: 'Amount',
-        width: 120,
-        renderCell: (p) => {
-          const row = p.row as PaymentSummary;
-          return (
-            <Typography variant="body2" fontWeight={600}>
-              {formatAmountMinor(row.amountMinor, row.currency)}
-            </Typography>
-          );
-        },
-      },
-      {
-        field: 'paymentMethodLabel',
-        headerName: 'Method',
-        width: 150,
-        renderCell: (p) => {
-          const row = p.row as PaymentSummary;
-          return (
-            <Typography variant="body2">
-              {row.paymentMethodLabel ?? row.paymentMethodType ?? '—'}
-            </Typography>
-          );
-        },
-      },
-      {
-        field: 'status',
-        headerName: 'Status',
-        width: 160,
-        renderCell: (p) => (
-          <PaymentStatusBadge status={(p.row as PaymentSummary).status} />
-        ),
-      },
-      {
-        field: 'createdAt',
-        headerName: 'Created',
-        width: 120,
-        renderCell: (p) => (
-          <Typography variant="body2" color="text.secondary">
-            {formatDate((p.row as PaymentSummary).createdAt)}
-          </Typography>
-        ),
-      },
-    ],
-    [],
-  );
-
-  const rowActions = useCallback(
-    (row: PaymentSummary) => (
-      <RowActions>
-        <Tooltip title="View details">
-          <IconButton size="small" onClick={() => setViewPaymentId(row.id)}>
-            <VisibilityOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </RowActions>
-    ),
-    [],
-  );
+  // ── Build MUI DataGrid columns from definition ────────────────────────────
+  const columns = useMemo<GridColDef[]>(() => {
+    if (!pageDefinition) return [];
+    return buildGridColumns(
+      pageDefinition.columns,
+      (row) => setViewPaymentId(row.id),
+      pageDefinition.rowActions,
+    );
+  }, [pageDefinition]);
 
   const mobileCardConfig = useMemo<MobileCardConfig<PaymentSummary>>(
     () => ({
@@ -779,45 +903,18 @@ export default function PaymentsPaymentsPage() {
       secondaryText: (row) => row.description ?? row.paymentMethodLabel ?? '',
       badge: (row) => <PaymentStatusBadge status={row.status} />,
       fields: [
-        {
-          field: 'amountMinor',
-          label: 'Amount',
-          render: (_v, row) =>
-            formatAmountMinor(
-              (row as PaymentSummary).amountMinor,
-              (row as PaymentSummary).currency,
-            ),
-        },
-        {
-          field: 'createdAt',
-          label: 'Created',
-          render: (v) => formatDate(String(v)),
-        },
+        { field: 'amountMinor', label: 'Amount', render: (_v, row) => formatAmountMinor((row as PaymentSummary).amountMinor, (row as PaymentSummary).currency) },
+        { field: 'createdAt',   label: 'Created', render: (v) => formatDate(String(v)) },
       ],
     }),
     [],
   );
 
-  const emptyState = (
-    <EmptyState
-      icon={PaymentsOutlinedIcon}
-      title={hasActiveFilters ? 'No payments match your filters' : 'No payments found'}
-      description={
-        hasActiveFilters
-          ? 'Try adjusting your search or filters.'
-          : 'Payments from the connected provider will appear here.'
-      }
-      action={
-        hasActiveFilters ? (
-          <Button variant="outlined" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        ) : undefined
-      }
-    />
-  );
+  const pageSubtitle = selectedConnection
+    ? `Connection: ${connectionLabel(selectedConnection)}`
+    : undefined;
 
-  // ── Guard states ─────────────────────────────────────────────────────────────
+  // ── Guard states ──────────────────────────────────────────────────────────
 
   if (connectionsLoading) {
     return (
@@ -872,185 +969,131 @@ export default function PaymentsPaymentsPage() {
     );
   }
 
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <PageHeader
-        title="Payments"
-        subtitle={pageSubtitle}
-        count={
-          resolvedConnectionId && !listLoading ? payments.length : undefined
-        }
-        breadcrumbs={[
-          { label: 'Payments', href: '/payments' },
-          { label: 'Payments' },
-        ]}
-      />
-
-      {/* 1. Provider + Connection selectors */}
-      <PaymentsFilter />
-
-      {/* 2. Summary cards — balance (provider) + counts (current page data) */}
-      <PaymentSummaryCards connectionId={capabilityBlocks ? null : resolvedConnectionId} payments={payments} />
-
-      {/* 3. Page-specific filters: Search · Status · Currency · Dates · Refresh · Clear */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 1,
-          alignItems: 'center',
-          mb: 2,
-        }}
-      >
-        {/* Search */}
-        <TextField
-          size="small"
-          placeholder="Search payments…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCursor(undefined);
-            setCursorStack([]);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchOutlinedIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ width: { xs: '100%', sm: 180 } }}
+  // No connection selected
+  if (!resolvedConnectionId) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <PageHeader
+          title="Payments"
+          breadcrumbs={[{ label: 'Payments', href: '/payments' }, { label: 'Payments' }]}
         />
-
-        {/* Status */}
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select
-            value={filterStatus}
-            displayEmpty
-            onChange={(e) => {
-              setFilterStatus(e.target.value as PaymentCanonicalStatus | '');
-              setCursor(undefined);
-              setCursorStack([]);
-            }}
-          >
-            {STATUS_FILTER_OPTIONS.map((o) => (
-              <MenuItem key={o.value} value={o.value}>
-                {o.value === '' ? <em>{o.label}</em> : o.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Currency / Asset — options driven by the selected connection */}
-        <FormControl
-          size="small"
-          disabled={unitsLoading || !resolvedConnectionId}
-          sx={{ minWidth: { xs: '100%', sm: 160 } }}
-        >
-          <Select
-            value={filterCurrency}
-            displayEmpty
-            onChange={(e) => {
-              setFilterCurrency(e.target.value);
-              setCursor(undefined);
-              setCursorStack([]);
-            }}
-          >
-            <MenuItem value="">
-              <em>
-                {unitsLoading
-                  ? 'Loading…'
-                  : !resolvedConnectionId
-                    ? 'Select a connection'
-                    : 'All currencies / assets'}
-              </em>
-            </MenuItem>
-            {availableUnits.map((u) => (
-              <MenuItem key={u.code} value={u.code}>
-                {u.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Date range */}
-        <TextField
-          size="small"
-          type="date"
-          label="From"
-          InputLabelProps={{ shrink: true }}
-          value={createdFrom}
-          onChange={(e) => {
-            setCreatedFrom(e.target.value);
-            setCursor(undefined);
-            setCursorStack([]);
-          }}
-          sx={{ width: { xs: '100%', sm: 140 } }}
-        />
-        <TextField
-          size="small"
-          type="date"
-          label="To"
-          InputLabelProps={{ shrink: true }}
-          value={createdTo}
-          onChange={(e) => {
-            setCreatedTo(e.target.value);
-            setCursor(undefined);
-            setCursorStack([]);
-          }}
-          sx={{ width: { xs: '100%', sm: 140 } }}
-        />
-
-        {/* Refresh */}
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={
-            listLoading ? (
-              <CircularProgress size={14} color="inherit" />
-            ) : (
-              <RefreshOutlinedIcon />
-            )
-          }
-          onClick={handleRefresh}
-          disabled={listLoading || !resolvedConnectionId}
-        >
-          Refresh
-        </Button>
-
-        {hasActiveFilters && (
-          <Button
-            size="small"
-            variant="text"
-            startIcon={<ClearOutlinedIcon fontSize="small" />}
-            onClick={clearFilters}
-          >
-            Clear
-          </Button>
-        )}
-      </Box>
-
-      {/* 4. No connection selected */}
-      {!resolvedConnectionId && (
+        <PaymentsFilter />
         <EmptyState
           icon={LinkOutlinedIcon}
           title="No connection selected"
           description="Select a provider and connection above to view payments."
         />
-      )}
+      </Box>
+    );
+  }
+
+  // Page definition loading
+  if (pageDefinitionLoading) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <PageHeader title="Payments" breadcrumbs={[{ label: 'Payments', href: '/payments' }, { label: 'Payments' }]} />
+        <PaymentsFilter />
+        <Box display="flex" justifyContent="center" pt={8}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
+
+  // Page definition error — prevent list queries, show safe error
+  if (pageDefinitionError || !pageDefinition) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <PageHeader title="Payments" breadcrumbs={[{ label: 'Payments', href: '/payments' }, { label: 'Payments' }]} />
+        <PaymentsFilter />
+        <ErrorState
+          title="Could not load page configuration"
+          description={
+            pageDefinitionError
+              ? extractApiMessage(pageDefinitionError, 'The provider configuration could not be loaded. Please try again.')
+              : 'The page configuration could not be loaded. Please try again.'
+          }
+          action={
+            <Button
+              variant="outlined"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              Retry
+            </Button>
+          }
+        />
+      </Box>
+    );
+  }
+
+  const hasActiveFilters = Object.values(filterValues).some(Boolean);
+
+  const emptyStateEl = (
+    <EmptyState
+      icon={PaymentsOutlinedIcon}
+      title={hasActiveFilters ? 'No payments match your filters' : (pageDefinition.emptyState.title)}
+      description={
+        hasActiveFilters
+          ? 'Try adjusting your search or filters.'
+          : pageDefinition.emptyState.description
+      }
+      action={
+        hasActiveFilters ? (
+          <Button variant="outlined" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <PageHeader
+        title="Payments"
+        subtitle={pageSubtitle}
+        count={resolvedConnectionId && !listLoading ? payments.length : undefined}
+        breadcrumbs={[{ label: 'Payments', href: '/payments' }, { label: 'Payments' }]}
+      />
+
+      {/* 1. Provider + Connection selectors */}
+      <PaymentsFilter />
+
+      {/* 2. Definition-driven summary cards */}
+      <DynamicSummaryCards
+        definition={pageDefinition}
+        connectionId={resolvedConnectionId}
+        payments={payments}
+      />
+
+      {/* 3. Definition-driven filters + refresh/clear */}
+      <DynamicFilters
+        definition={pageDefinition}
+        connectionId={resolvedConnectionId}
+        filters={filterValues}
+        onFilterChange={handleFilterChange}
+        onClear={clearFilters}
+        listLoading={listLoading}
+        onRefresh={handleRefresh}
+      />
 
       {/* 4. Loading */}
-      {resolvedConnectionId && listLoading && (
+      {listLoading && (
         <Box display="flex" justifyContent="center" pt={4}>
           <CircularProgress />
         </Box>
       )}
 
-      {/* 5. Error — only shown when capability is available but request fails */}
-      {resolvedConnectionId && listError && !listLoading && (
+      {/* 5. Error */}
+      {listError && !listLoading && (
         <ErrorState
           title="Could not retrieve payments"
-          description="The provider API returned an error. Check your credentials and try again."
+          description={extractApiMessage(
+            listError,
+            'The provider API returned an error. Check your credentials and try again.',
+          )}
           action={
             <Button variant="outlined" onClick={handleRefresh}>
               Retry
@@ -1059,43 +1102,31 @@ export default function PaymentsPaymentsPage() {
         />
       )}
 
-      {/* 6. Data table — fixed-height card with internal scroll */}
-      {resolvedConnectionId && !listLoading && !listError && (
+      {/* 6. Definition-driven data table */}
+      {!listLoading && !listError && (
         <Box
           sx={{
-            // Outer card: provides the visual border and clips the DataGrid
-            // border (which is set to 'none' inside DataTable).
             border: 1,
             borderColor: 'divider',
             borderRadius: 2,
             overflow: 'hidden',
           }}
         >
-          {/* DataGrid with fixed height:
-              - sticky column headers (MUI DataGrid default when autoHeight=false)
-              - scrollable rows
-              - footer with row count pinned at bottom of the fixed-height box
-              max(300px, ...) ensures a usable minimum on small viewports.
-              The 380px offset accounts for the app bar, page header, filter
-              area, breadcrumbs, and the cursor-pagination row below. */}
           <DataTable<PaymentSummary>
             rows={payments}
             columns={columns}
             total={payments.length}
             page={0}
-            pageSize={payments.length || 20}
+            pageSize={payments.length || pageDefinition.list.defaultPageSize}
             onPageChange={() => {}}
             onPageSizeChange={() => {}}
-            rowActions={rowActions}
             mobileCardConfig={mobileCardConfig}
-            emptyState={emptyState}
+            emptyState={emptyStateEl}
             noRowsLabel="No payments found."
             getRowId={(row) => row.id}
             tableHeight="max(300px, calc(100vh - 380px))"
           />
 
-          {/* Cursor pagination — pinned inside the table card at the bottom.
-              Uses borderTop so it visually connects to the DataGrid footer. */}
           {(cursorStack.length > 0 || hasMore) && (
             <Box
               sx={{

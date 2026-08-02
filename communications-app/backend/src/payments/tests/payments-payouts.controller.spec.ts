@@ -63,7 +63,9 @@ function makePayoutDetail(id = 'po_001'): PayoutDetail {
   };
 }
 
-function makeListResult(overrides: Partial<PayoutListResult> = {}): PayoutListResult {
+function makeListResult(
+  overrides: Partial<PayoutListResult> = {},
+): PayoutListResult {
   return {
     data: [makePayoutSummary()],
     hasMore: false,
@@ -114,7 +116,11 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
 
     await ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {});
 
-    expect(service.listPayouts).toHaveBeenCalledWith(COMPANY_ID, ACCOUNT_ID, {});
+    expect(service.listPayouts).toHaveBeenCalledWith(
+      COMPANY_ID,
+      ACCOUNT_ID,
+      {},
+    );
   });
 
   it('serialises estimatedArrivalAt to ISO string when present', async () => {
@@ -139,9 +145,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('maps PaymentProviderNotConfiguredError → UnprocessableEntityException', async () => {
@@ -151,9 +157,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentCapabilityNotSupportedError → UnprocessableEntityException', async () => {
@@ -163,9 +169,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentProviderCredentialsUnavailableError → UnprocessableEntityException', async () => {
@@ -175,9 +181,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentCredentialChannelMismatchError → UnprocessableEntityException', async () => {
@@ -187,9 +193,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentCredentialsInvalidError → UnprocessableEntityException', async () => {
@@ -199,9 +205,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      UnprocessableEntityException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('maps PaymentProviderUnavailableError → ServiceUnavailableException', async () => {
@@ -211,9 +217,9 @@ describe('PaymentsPayoutsController.listPayouts()', () => {
     );
     const ctrl = new PaymentsPayoutsController(service as never);
 
-    await expect(ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {})).rejects.toThrow(
-      ServiceUnavailableException,
-    );
+    await expect(
+      ctrl.listPayouts(makeAuthCtx(), ACCOUNT_ID, {}),
+    ).rejects.toThrow(ServiceUnavailableException);
   });
 
   it('response does not contain credential values', async () => {
@@ -260,7 +266,11 @@ describe('PaymentsPayoutsController.getPayout()', () => {
     const ctrl = new PaymentsPayoutsController(service as never);
 
     await expect(
-      ctrl.getPayout({ actorType: 'user' } as AuthContext, ACCOUNT_ID, 'po_001'),
+      ctrl.getPayout(
+        { actorType: 'user' } as AuthContext,
+        ACCOUNT_ID,
+        'po_001',
+      ),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -271,12 +281,18 @@ describe('PaymentsPayoutsController.getPayout()', () => {
 
     await ctrl.getPayout(makeAuthCtx(), ACCOUNT_ID, 'po_001');
 
-    expect(service.getPayout).toHaveBeenCalledWith(COMPANY_ID, ACCOUNT_ID, 'po_001');
+    expect(service.getPayout).toHaveBeenCalledWith(
+      COMPANY_ID,
+      ACCOUNT_ID,
+      'po_001',
+    );
   });
 
   it('maps PaymentProviderNotFoundError → NotFoundException', async () => {
     const service = makeServiceMock();
-    service.getPayout.mockRejectedValue(new PaymentProviderNotFoundError('stripe'));
+    service.getPayout.mockRejectedValue(
+      new PaymentProviderNotFoundError('stripe'),
+    );
     const ctrl = new PaymentsPayoutsController(service as never);
 
     await expect(

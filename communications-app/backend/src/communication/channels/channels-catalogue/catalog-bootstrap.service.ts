@@ -16,11 +16,15 @@ import {
  *
  * Seed data represents the canonical communication layer:
  *
- *   Channels: email · sms · storage
+ *   Channels: email · sms · storage · calendar · payment · accounting · billing
  *   Providers:
- *     email  → gmail (smtp)  · sendgrid (api_key) · mailgun (api_key)
- *     sms    → twilio (api_key)
- *     storage→ aws-s3 (access_keys)
+ *     email      → gmail (smtp) · sendgrid (api_key) · mailgun (api_key)
+ *     sms        → twilio (api_key)
+ *     storage    → aws-s3 (access_keys)
+ *     calendar   → icloud (app_password) · google_calendar (oauth) · outlook_calendar (oauth)
+ *     payment    → stripe (api_key) · coingate (token)
+ *     accounting → xero (oauth)   ← also assigned to billing
+ *     billing    → xero (oauth)   ← same provider record as above
  */
 @Injectable()
 export class CatalogBootstrapService implements OnApplicationBootstrap {
@@ -95,6 +99,25 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         supportsFiles: false,
         isActive: true,
       },
+      {
+        channelKey: 'accounting',
+        displayName: 'Accounting',
+        description:
+          'Accounting provider integrations and accounting-related capabilities',
+        contentFormat: 'text' as const,
+        supportsTemplates: false,
+        supportsFiles: false,
+        isActive: true,
+      },
+      {
+        channelKey: 'billing',
+        displayName: 'Billing',
+        description: 'Billing and invoicing provider integrations',
+        contentFormat: 'text' as const,
+        supportsTemplates: false,
+        supportsFiles: false,
+        isActive: true,
+      },
     ];
 
     for (const ch of channels) {
@@ -121,26 +144,27 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
   // ─── Providers ────────────────────────────────────────────────────────────
 
   private async seedProviders(): Promise<void> {
-    const emailChannel = await this.channelModel
-      .findOne({ channelKey: 'email' })
-      .lean();
-    const smsChannel = await this.channelModel
-      .findOne({ channelKey: 'sms' })
-      .lean();
-    const storageChannel = await this.channelModel
-      .findOne({ channelKey: 'storage' })
-      .lean();
-    const calendarChannel = await this.channelModel
-      .findOne({ channelKey: 'calendar' })
-      .lean();
-
-    const paymentChannel = await this.channelModel
-      .findOne({ channelKey: 'payment' })
-      .lean();
+    const [
+      emailChannel,
+      smsChannel,
+      storageChannel,
+      calendarChannel,
+      paymentChannel,
+      accountingChannel,
+      billingChannel,
+    ] = await Promise.all([
+      this.channelModel.findOne({ channelKey: 'email' }).lean(),
+      this.channelModel.findOne({ channelKey: 'sms' }).lean(),
+      this.channelModel.findOne({ channelKey: 'storage' }).lean(),
+      this.channelModel.findOne({ channelKey: 'calendar' }).lean(),
+      this.channelModel.findOne({ channelKey: 'payment' }).lean(),
+      this.channelModel.findOne({ channelKey: 'accounting' }).lean(),
+      this.channelModel.findOne({ channelKey: 'billing' }).lean(),
+    ]);
 
     if (!emailChannel || !smsChannel || !storageChannel) {
       this.logger.warn(
-        'Catalog: one or more channels missing — skipping provider seed.',
+        'Catalog: one or more core channels missing — skipping provider seed.',
       );
       return;
     }
@@ -151,7 +175,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         providerKey: 'gmail',
         displayName: 'Gmail',
         description: 'Google Gmail SMTP — for personal and small-team email',
-        channelId: emailChannel._id,
+        channelIds: [emailChannel._id],
         connectionType: 'smtp' as const,
         isActive: true,
       },
@@ -159,7 +183,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         providerKey: 'sendgrid',
         displayName: 'SendGrid',
         description: 'Twilio SendGrid — high-volume transactional email API',
-        channelId: emailChannel._id,
+        channelIds: [emailChannel._id],
         connectionType: 'api_key' as const,
         isActive: true,
       },
@@ -167,7 +191,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         providerKey: 'mailgun',
         displayName: 'Mailgun',
         description: 'Mailgun — developer-friendly email delivery API',
-        channelId: emailChannel._id,
+        channelIds: [emailChannel._id],
         connectionType: 'api_key' as const,
         isActive: true,
       },
@@ -176,7 +200,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         providerKey: 'twilio',
         displayName: 'Twilio',
         description: 'Twilio Programmable Messaging — SMS and WhatsApp',
-        channelId: smsChannel._id,
+        channelIds: [smsChannel._id],
         connectionType: 'api_key' as const,
         isActive: true,
       },
@@ -185,7 +209,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         providerKey: 'aws-s3',
         displayName: 'Amazon S3',
         description: 'AWS S3 — object storage for files and reports',
-        channelId: storageChannel._id,
+        channelIds: [storageChannel._id],
         connectionType: 'access_keys' as const,
         isActive: true,
       },
@@ -198,7 +222,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
               displayName: 'iCloud Calendar',
               description:
                 'Apple iCloud Calendar via CalDAV (app-specific password)',
-              channelId: calendarChannel._id,
+              channelIds: [calendarChannel._id],
               connectionType: 'app_password' as const,
               isActive: true,
             },
@@ -206,7 +230,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
               providerKey: 'google_calendar',
               displayName: 'Google Calendar',
               description: 'Google Calendar API v3 via OAuth 2.0',
-              channelId: calendarChannel._id,
+              channelIds: [calendarChannel._id],
               connectionType: 'oauth' as const,
               isActive: true,
             },
@@ -215,7 +239,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
               displayName: 'Outlook Calendar',
               description:
                 'Microsoft Outlook Calendar via Microsoft Graph API (OAuth 2.0)',
-              channelId: calendarChannel._id,
+              channelIds: [calendarChannel._id],
               connectionType: 'oauth' as const,
               isActive: true,
             },
@@ -229,8 +253,34 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
               providerKey: 'stripe',
               displayName: 'Stripe',
               description: 'Stripe — online payment processing via API keys',
-              channelId: paymentChannel._id,
+              channelIds: [paymentChannel._id],
               connectionType: 'api_key' as const,
+              isActive: true,
+            },
+            {
+              providerKey: 'coingate',
+              displayName: 'CoinGate',
+              description:
+                'CoinGate cryptocurrency payment gateway. Accept Bitcoin, Ethereum, and 70+ other cryptocurrencies.',
+              channelIds: [paymentChannel._id],
+              connectionType: 'token' as const,
+              isActive: true,
+            },
+          ]
+        : []),
+
+      // ── Accounting + Billing providers ───────────────────────────────────
+      // Xero is a single provider assigned to both Accounting and Billing channels.
+      // OAuth implementation is deferred; the provider is registered now.
+      ...(accountingChannel && billingChannel
+        ? [
+            {
+              providerKey: 'xero',
+              displayName: 'Xero',
+              description:
+                'Xero cloud accounting platform — accounting and billing integrations via OAuth 2.0',
+              channelIds: [accountingChannel._id, billingChannel._id],
+              connectionType: 'oauth' as const,
               isActive: true,
             },
           ]
@@ -238,9 +288,15 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
     ];
 
     for (const p of providers) {
+      // $set keeps channelIds up-to-date on existing records (migration from old channelId field).
+      // $setOnInsert handles all remaining fields only on first insert.
+      const { channelIds, ...rest } = p;
       const result = await this.providerModel.updateOne(
         { providerKey: p.providerKey },
-        { $setOnInsert: p },
+        {
+          $set: { channelIds },
+          $setOnInsert: { channelIds, ...rest },
+        },
         { upsert: true },
       );
 

@@ -110,6 +110,12 @@ import {
 } from './stripe.constants';
 import { STRIPE_CAPABILITIES } from './stripe.capabilities';
 import { StripeCredentialsContract } from './stripe.credentials.contract';
+import type { IPaymentsPageDefinitionProvider } from '../../interfaces/payment-provider.interface';
+import type {
+  PaymentsPageDefinition,
+  PaymentsPageDefinitionContext,
+} from '../../contracts/payments-page-definition.contract';
+import { buildStripePageDefinition } from './stripe.page-definition';
 import {
   extractStripeMethodEntries,
   mapStripeMethodToCanonical,
@@ -248,7 +254,8 @@ export class StripePaymentProvider
     IPaymentRefundProvider,
     IPaymentPayoutProvider,
     IPaymentWebhookProvider,
-    IGatewayGuideProvider
+    IGatewayGuideProvider,
+    IPaymentsPageDefinitionProvider
 {
   readonly providerKey: string = STRIPE_PROVIDER_KEY;
   readonly displayName: string = STRIPE_DISPLAY_NAME;
@@ -264,6 +271,7 @@ export class StripePaymentProvider
   readonly supportsPayoutListing = true as const;
   readonly supportsWebhookEndpoints = true as const;
   readonly supportsGatewayGuide = true as const;
+  readonly supportsPaymentsPageDefinition = true as const;
 
   getCapabilities(): PaymentProviderCapabilities {
     return STRIPE_CAPABILITIES;
@@ -994,5 +1002,11 @@ export class StripePaymentProvider
 
   getGatewayGuide(): GatewayGuide {
     return STRIPE_GATEWAY_GUIDE;
+  }
+
+  getPaymentsPageDefinition(
+    context: PaymentsPageDefinitionContext,
+  ): Promise<PaymentsPageDefinition> {
+    return buildStripePageDefinition(context);
   }
 }

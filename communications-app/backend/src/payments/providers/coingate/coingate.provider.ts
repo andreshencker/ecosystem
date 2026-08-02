@@ -20,7 +20,13 @@ import type {
   IPaymentRefundProvider,
   IGatewayGuideProvider,
   IPaymentTestingProvider,
+  IPaymentsPageDefinitionProvider,
 } from '../../interfaces/payment-provider.interface';
+import type {
+  PaymentsPageDefinition,
+  PaymentsPageDefinitionContext,
+} from '../../contracts/payments-page-definition.contract';
+import { buildCoinGatePageDefinition } from './coingate.page-definition';
 import type { GatewayGuide } from '../../contracts/payment-gateway-guide.contract';
 import type {
   PaymentProviderCapabilities,
@@ -53,16 +59,12 @@ import {
   listCoinGateOrders,
   getCoinGateOrder,
   createCoinGateOrder,
-  generateCallbackToken,
 } from './coingate.orders';
 import {
   listCoinGateRefunds,
   getCoinGateRefund,
   createCoinGateRefund,
 } from './coingate.refunds';
-import { CoinGateCredentialsContract } from './coingate.credentials.contract';
-import type { CoinGateCredentials } from './coingate.credentials.contract';
-import { PaymentCredentialsInvalidError } from '../../errors/payment.errors';
 import { mapCoinGateError } from './coingate.errors';
 
 export const COINGATE_PROVIDER_KEY = 'coingate';
@@ -74,9 +76,7 @@ export const COINGATE_CONNECTION_TYPE = 'token';
 // CoinGate testing: sandbox-only order creation with a small EUR amount.
 // Developers open the payment URL to simulate the crypto payment flow.
 // CoinGate maps only to Success since the sandbox redirect handles all scenarios.
-const COINGATE_TEST_SCENARIOS = [
-  PaymentTestScenario.Success,
-] as const;
+const COINGATE_TEST_SCENARIOS = [PaymentTestScenario.Success] as const;
 
 @Injectable()
 export class CoingatePaymentProvider
@@ -87,7 +87,8 @@ export class CoingatePaymentProvider
     IPaymentUnitProvider,
     IPaymentRefundProvider,
     IGatewayGuideProvider,
-    IPaymentTestingProvider
+    IPaymentTestingProvider,
+    IPaymentsPageDefinitionProvider
 {
   // ── IPaymentProvider ────────────────────────────────────────────────────────
 
@@ -113,46 +114,45 @@ export class CoingatePaymentProvider
   readonly supportsConnection = true as const;
 
   /**
-   * Validates CoinGate credentials by performing a safe read-only API call.
+   * Validates CoinGate credentials using the dedicated auth test endpoint.
    *
-   * Validation operation: GET /orders?per_page=1&page=1
-   * Rationale: The most universally available authenticated endpoint that
-   * confirms the token is valid without creating any resource or side-effects.
-   * CoinGate does not expose a dedicated /me or /account/ping endpoint.
+   * Validation operation: GET /auth/test
+   * This is the safest CoinGate endpoint for authentication validation:
+   *   - Requires only a valid API token.
+   *   - Makes no side-effects.
+   *   - Does not list or create orders.
    *
-   * No order is created. No mutation occurs.
+   * Normalization (including legacy secretKey → token mapping) is handled
+   * by createCoinGateClient, which throws PaymentCredentialsInvalidError
+   * locally if the token is absent after normalization.
    */
   async validateConnection(
     credentials: Record<string, unknown>,
   ): Promise<PaymentProviderConnectionResult> {
-    let typed: CoinGateCredentials;
-    try {
-      const result = CoinGateCredentialsContract.normalize(credentials);
-      CoinGateCredentialsContract.validate(result.value);
-      typed = result.value;
-    } catch {
-      throw new PaymentCredentialsInvalidError(
-        'CoinGate credentials format is invalid. Ensure token and mode are provided.',
-      );
-    }
-
+    // createCoinGateClient normalizes legacy field names and throws
+    // PaymentCredentialsInvalidError if the token is missing — propagate it.
     const client = createCoinGateClient(credentials);
 
+    // Derive mode from the resolved base URL to avoid duplicating normalization.
+    const mode: 'test' | 'live' = client.baseUrl.includes('sandbox')
+      ? 'test'
+      : 'live';
+
     try {
-      await client.get('/orders', { per_page: 1, page: 1 });
+      // Use the dedicated authentication test endpoint — no order access needed.
+      await client.get('/auth/test');
 
       return {
         connected: true,
         providerKey: COINGATE_PROVIDER_KEY,
         checkedAt: new Date(),
-        message: `CoinGate ${typed.mode} credentials validated successfully.`,
+        message: `CoinGate ${mode} credentials validated successfully.`,
         metadata: {
-          environment: typed.mode,
+          environment: mode,
           baseUrl: client.baseUrl,
         },
       };
     } catch (err) {
-      // Map to a non-throwing result for credential validation.
       try {
         mapCoinGateError(err);
       } catch (mapped: unknown) {
@@ -164,7 +164,7 @@ export class CoingatePaymentProvider
             mapped instanceof Error
               ? mapped.message
               : 'CoinGate credential validation failed.',
-          metadata: { environment: typed.mode },
+          metadata: { environment: mode },
         };
       }
       return {
@@ -172,7 +172,7 @@ export class CoingatePaymentProvider
         providerKey: COINGATE_PROVIDER_KEY,
         checkedAt: new Date(),
         message: 'CoinGate credential validation failed.',
-        metadata: { environment: typed.mode },
+        metadata: { environment: mode },
       };
     }
   }
@@ -181,7 +181,9 @@ export class CoingatePaymentProvider
 
   readonly supportsPaymentUnits = true as const;
 
-  async listPaymentUnits(context: PaymentProviderContext): Promise<PaymentUnit[]> {
+  async listPaymentUnits(
+    context: PaymentProviderContext,
+  ): Promise<PaymentUnit[]> {
     const client = createCoinGateClient(context.credentials);
     return listCoinGatePaymentUnits(client);
   }
@@ -237,7 +239,9 @@ export class CoingatePaymentProvider
 
   async createRefund(
     context: PaymentProviderContext,
-    params: CreateRefundParams & { providerExtensions?: Record<string, unknown> },
+    params: CreateRefundParams & {
+      providerExtensions?: Record<string, unknown>;
+    },
   ): Promise<RefundDetail> {
     const client = createCoinGateClient(context.credentials);
     return createCoinGateRefund(client, context.credentialsId, params);
@@ -247,6 +251,7 @@ export class CoingatePaymentProvider
 
   readonly supportsPaymentTesting = true as const;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getSupportedTestScenarios(_paymentMethodKey: string): PaymentTestScenario[] {
     // CoinGate testing uses sandbox environment only.
     // The only supported test scenario is a standard purchase (create sandbox order).
@@ -261,14 +266,14 @@ export class CoingatePaymentProvider
     const mode = context.credentials['mode'] as string;
 
     const testReference = `graphify-test-${Date.now()}`;
-    const callbackToken = generateCallbackToken(context.credentialsId, testReference);
 
     const { detail, paymentUrl } = await createCoinGateOrder(client, context, {
       amountMinor: params.amountMinor,
       priceCurrency: params.currency,
       externalReference: testReference,
       title: `Graphify Payment Test ${new Date().toISOString()}`,
-      description: params.description ?? 'Payment Testing — Graphify sandbox order',
+      description:
+        params.description ?? 'Payment Testing — Graphify sandbox order',
     });
 
     return {
@@ -296,5 +301,15 @@ export class CoingatePaymentProvider
 
   getGatewayGuide(): GatewayGuide {
     return COINGATE_GATEWAY_GUIDE;
+  }
+
+  // ── IPaymentsPageDefinitionProvider ─────────────────────────────────────────
+
+  readonly supportsPaymentsPageDefinition = true as const;
+
+  getPaymentsPageDefinition(
+    context: PaymentsPageDefinitionContext,
+  ): Promise<PaymentsPageDefinition> {
+    return buildCoinGatePageDefinition(context);
   }
 }

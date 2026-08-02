@@ -29,63 +29,65 @@ describe('CoinGate capabilities', () => {
 
   describe('page-level capabilities reflect implementation', () => {
     it('dashboard is available (provider+connection metadata shown without API call)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Dashboard]).toBe(
-        CapabilityStatus.Available,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Dashboard],
+      ).toBe(CapabilityStatus.Available);
     });
 
     it('gateway is available', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Gateway]).toBe(
-        CapabilityStatus.Available,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Gateway],
+      ).toBe(CapabilityStatus.Available);
     });
 
     it('payments is available (order list/detail implemented)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Payments]).toBe(
-        CapabilityStatus.Available,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Payments],
+      ).toBe(CapabilityStatus.Available);
     });
 
     it('paymentTesting is available (sandbox order creation implemented)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.PaymentTesting]).toBe(
-        CapabilityStatus.Available,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.PaymentTesting],
+      ).toBe(CapabilityStatus.Available);
     });
 
     it('paymentMethods is unsupported (crypto assets ≠ configurable payment methods)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.PaymentMethods]).toBe(
-        CapabilityStatus.Unsupported,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.PaymentMethods],
+      ).toBe(CapabilityStatus.Unsupported);
     });
 
     it('refunds is available (list/detail/create implemented)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Refunds]).toBe(
-        CapabilityStatus.Available,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Refunds],
+      ).toBe(CapabilityStatus.Available);
     });
 
     it('payouts is planned (requires account feature activation)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Payouts]).toBe(
-        CapabilityStatus.Planned,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Payouts],
+      ).toBe(CapabilityStatus.Planned);
     });
 
     it('webhooks is available (callback delivery monitoring implemented)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Webhooks]).toBe(
-        CapabilityStatus.Available,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Webhooks],
+      ).toBe(CapabilityStatus.Available);
     });
 
     it('webhookEndpointListing is unsupported (CoinGate uses per-order callback URLs)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.WebhookEndpointListing]).toBe(
-        CapabilityStatus.Unsupported,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[
+          PaymentCapability.WebhookEndpointListing
+        ],
+      ).toBe(CapabilityStatus.Unsupported);
     });
 
     it('balance is unsupported (no authoritative balance endpoint in CoinGate API)', () => {
-      expect(COINGATE_CAPABILITIES.capabilities[PaymentCapability.Balance]).toBe(
-        CapabilityStatus.Unsupported,
-      );
+      expect(
+        COINGATE_CAPABILITIES.capabilities[PaymentCapability.Balance],
+      ).toBe(CapabilityStatus.Unsupported);
     });
   });
 
@@ -174,17 +176,35 @@ describe('CoinGate capabilities', () => {
 
 describe('Stripe capabilities accuracy', () => {
   it('page-level capabilities match implementation reality', () => {
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Dashboard]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Payments]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.PaymentTesting]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Gateway]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.PaymentMethods]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Refunds]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Payouts]).toBe(CapabilityStatus.Available);
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Webhooks]).toBe(CapabilityStatus.Available);
+    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Dashboard]).toBe(
+      CapabilityStatus.Available,
+    );
+    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Payments]).toBe(
+      CapabilityStatus.Available,
+    );
+    expect(
+      STRIPE_CAPABILITIES.capabilities[PaymentCapability.PaymentTesting],
+    ).toBe(CapabilityStatus.Available);
+    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Gateway]).toBe(
+      CapabilityStatus.Available,
+    );
+    expect(
+      STRIPE_CAPABILITIES.capabilities[PaymentCapability.PaymentMethods],
+    ).toBe(CapabilityStatus.Available);
+    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Refunds]).toBe(
+      CapabilityStatus.Available,
+    );
+    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Payouts]).toBe(
+      CapabilityStatus.Available,
+    );
+    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.Webhooks]).toBe(
+      CapabilityStatus.Available,
+    );
   });
 
   it('OneTimePayments is still planned (payment session creation not yet implemented)', () => {
-    expect(STRIPE_CAPABILITIES.capabilities[PaymentCapability.OneTimePayments]).toBe(CapabilityStatus.Planned);
+    expect(
+      STRIPE_CAPABILITIES.capabilities[PaymentCapability.OneTimePayments],
+    ).toBe(CapabilityStatus.Planned);
   });
 });

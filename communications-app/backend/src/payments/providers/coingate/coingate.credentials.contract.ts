@@ -38,14 +38,23 @@ export const CoinGateCredentialsContract: ContractSpec<CoinGateCredentials> = {
   normalize(input) {
     const c: Record<string, unknown> = (input as Record<string, unknown>) ?? {};
 
-    const token = strTrim(c['token'] ?? c['COINGATE_TOKEN'] ?? c['apiToken']);
+    // Resolution order: token → COINGATE_TOKEN → apiToken → secretKey (legacy).
+    // secretKey is included for backward compatibility with credentials stored
+    // before the CoinGate-specific contract was applied (e.g. via a generic
+    // Stripe-style form that stored the API key under secretKey).
+    const token = strTrim(
+      c['token'] ?? c['COINGATE_TOKEN'] ?? c['apiToken'] ?? c['secretKey'],
+    );
     const rawMode = strTrim(c['mode'] ?? c['COINGATE_MODE']) || 'test';
     const mode: 'test' | 'live' = rawMode === 'live' ? 'live' : 'test';
 
     const normalized: CoinGateCredentials = { token, mode };
 
     return {
-      value: pick<CoinGateCredentials>(normalized, ALLOWED) as CoinGateCredentials,
+      value: pick<CoinGateCredentials>(
+        normalized,
+        ALLOWED,
+      ) as CoinGateCredentials,
     };
   },
 

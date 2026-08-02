@@ -58,7 +58,9 @@ type MockPaymentsService = {
   resolveRuntime: jest.Mock;
 };
 
-function makePaymentsService(provider: unknown = makeUnitProvider()): MockPaymentsService {
+function makePaymentsService(
+  provider: unknown = makeUnitProvider(),
+): MockPaymentsService {
   return {
     resolveRuntime: jest.fn().mockResolvedValue({
       accountId: ACCOUNT_ID,
@@ -81,7 +83,10 @@ describe('PaymentsUnitsService.listPaymentUnits()', () => {
 
     await service.listPaymentUnits(COMPANY_ID, ACCOUNT_ID);
 
-    expect(paymentsService.resolveRuntime).toHaveBeenCalledWith(COMPANY_ID, ACCOUNT_ID);
+    expect(paymentsService.resolveRuntime).toHaveBeenCalledWith(
+      COMPANY_ID,
+      ACCOUNT_ID,
+    );
   });
 
   it('returns { data: PaymentUnit[] } from the provider', async () => {
@@ -99,9 +104,9 @@ describe('PaymentsUnitsService.listPaymentUnits()', () => {
     const paymentsService = makePaymentsService(makeNoUnitProvider());
     const service = new PaymentsUnitsService(paymentsService as never);
 
-    await expect(service.listPaymentUnits(COMPANY_ID, ACCOUNT_ID)).rejects.toThrow(
-      PaymentCapabilityNotSupportedError,
-    );
+    await expect(
+      service.listPaymentUnits(COMPANY_ID, ACCOUNT_ID),
+    ).rejects.toThrow(PaymentCapabilityNotSupportedError);
   });
 
   it('propagates PaymentProviderUnavailableError from the provider', async () => {
@@ -111,9 +116,9 @@ describe('PaymentsUnitsService.listPaymentUnits()', () => {
     const paymentsService = makePaymentsService(makeUnitProvider(listFn));
     const service = new PaymentsUnitsService(paymentsService as never);
 
-    await expect(service.listPaymentUnits(COMPANY_ID, ACCOUNT_ID)).rejects.toThrow(
-      PaymentProviderUnavailableError,
-    );
+    await expect(
+      service.listPaymentUnits(COMPANY_ID, ACCOUNT_ID),
+    ).rejects.toThrow(PaymentProviderUnavailableError);
   });
 
   it('returned units do not contain credential values', async () => {

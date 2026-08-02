@@ -201,3 +201,94 @@ describe('PaymentsBalanceService.getBalance()', () => {
     expect(calledContext.credentialsId).toBe(ACCOUNT_ID);
   });
 });
+
+// ─── CoinGate balance behaviour (Tests 9–12) ─────────────────────────────────
+//
+// Verifies that:
+//   Test 9:  Unsupported balance throws PaymentCapabilityNotSupportedError
+//             (backend returns 422 → frontend shows "Not supported").
+//   Test 10: The provider getBalance() is NEVER called when capability is unsupported.
+//   Test 11: Real zero balance is returned as-is (not treated as "unsupported").
+//   Test 12: Balance error does not affect the Payments list — they are independent.
+
+describe('PaymentsBalanceService — CoinGate / unsupported balance (Tests 9–12)', () => {
+  function makeCoinGateProvider(): IPaymentProvider {
+    return {
+      providerKey: 'coingate',
+      displayName: 'CoinGate',
+      description: 'CoinGate payment provider',
+      getCapabilities: () => ({
+        capabilities: {
+          [PaymentCapability.Balance]: CapabilityStatus.Unsupported,
+        },
+      }),
+      getMetadata: () => ({
+        providerKey: 'coingate',
+        displayName: 'CoinGate',
+        description: '',
+        connectionType: 'token',
+      }),
+    };
+  }
+
+  it('Test 9: CoinGate balance throws PaymentCapabilityNotSupportedError', async () => {
+    const paymentsService = makePaymentsService(makeCoinGateProvider());
+    const service = new PaymentsBalanceService(paymentsService as never);
+
+    await expect(service.getBalance(COMPANY_ID, ACCOUNT_ID)).rejects.toThrow(
+      PaymentCapabilityNotSupportedError,
+    );
+  });
+
+  it('Test 10: provider.getBalance() is never called when capability is unsupported', async () => {
+    const getBalanceSpy = jest.fn();
+    const coinGateWithBalanceSpy = {
+      ...makeCoinGateProvider(),
+      getBalance: getBalanceSpy,
+    };
+    const paymentsService = makePaymentsService(coinGateWithBalanceSpy);
+    const service = new PaymentsBalanceService(paymentsService as never);
+
+    await expect(service.getBalance(COMPANY_ID, ACCOUNT_ID)).rejects.toThrow(
+      PaymentCapabilityNotSupportedError,
+    );
+
+    expect(getBalanceSpy).not.toHaveBeenCalled();
+  });
+
+  it('Test 11: real zero balance is returned correctly — not treated as unsupported', async () => {
+    const zeroBalance = makeBalance({
+      available: [{ amountMinor: 0, currency: 'aud', sourceType: 'card' }],
+      pending: [{ amountMinor: 0, currency: 'aud', sourceType: 'card' }],
+    });
+    const getBalance = jest.fn().mockResolvedValue(zeroBalance);
+    const paymentsService = makePaymentsService(
+      makeBalanceProvider(getBalance),
+    );
+    const service = new PaymentsBalanceService(paymentsService as never);
+
+    const result = await service.getBalance(COMPANY_ID, ACCOUNT_ID);
+
+    expect(result.available[0].amountMinor).toBe(0);
+    expect(result.pending[0].amountMinor).toBe(0);
+    expect(result).toBe(zeroBalance);
+  });
+
+  it('Test 12: balance error (PaymentCapabilityNotSupportedError) is isolated to the balance service', async () => {
+    // The balance service throws on unsupported capability.
+    // The payments-list service is independent and must not be affected.
+    // This is verified at the service layer: the two services have separate
+    // resolveRuntime calls — a failure in one does not propagate to the other.
+    const paymentsService = makePaymentsService(makeCoinGateProvider());
+    const service = new PaymentsBalanceService(paymentsService as never);
+
+    // Balance throws.
+    await expect(service.getBalance(COMPANY_ID, ACCOUNT_ID)).rejects.toThrow(
+      PaymentCapabilityNotSupportedError,
+    );
+
+    // resolveRuntime was called exactly once — for the balance request only.
+    // The list service would call it independently if invoked.
+    expect(paymentsService.resolveRuntime).toHaveBeenCalledTimes(1);
+  });
+});

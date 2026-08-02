@@ -4,18 +4,50 @@
 // All CoinGate-specific terminology stays in this file.
 
 import { PaymentCanonicalStatus } from '../../enums/payment-canonical-status.enum';
-import type { CoinGateOrderStatus, CoinGateRefundStatus } from './coingate.types';
+import type {
+  CoinGateOrderStatus,
+  CoinGateRefundStatus,
+} from './coingate.types';
 import type { RefundCanonicalStatus } from '../../contracts/payment-refund-list.contract';
 
 // ─── Amount helpers ───────────────────────────────────────────────────────────
 
 /** Map of ISO 4217 fiat currency codes to their minor-unit exponent. */
 const FIAT_EXPONENTS: Record<string, number> = {
-  USD: 2, EUR: 2, GBP: 2, AUD: 2, CAD: 2, CHF: 2, NZD: 2, SGD: 2,
-  HKD: 2, SEK: 2, NOK: 2, DKK: 2, PLN: 2, CZK: 2, HUF: 2, RON: 2,
-  BGN: 2, HRK: 2, MXN: 2, BRL: 2, ZAR: 2, INR: 2, THB: 2, PHP: 2,
-  MYR: 2, IDR: 2, KRW: 0, JPY: 0, VND: 0, CLP: 0, KWD: 3, BHD: 3,
-  OMR: 3, JOD: 3,
+  USD: 2,
+  EUR: 2,
+  GBP: 2,
+  AUD: 2,
+  CAD: 2,
+  CHF: 2,
+  NZD: 2,
+  SGD: 2,
+  HKD: 2,
+  SEK: 2,
+  NOK: 2,
+  DKK: 2,
+  PLN: 2,
+  CZK: 2,
+  HUF: 2,
+  RON: 2,
+  BGN: 2,
+  HRK: 2,
+  MXN: 2,
+  BRL: 2,
+  ZAR: 2,
+  INR: 2,
+  THB: 2,
+  PHP: 2,
+  MYR: 2,
+  IDR: 2,
+  KRW: 0,
+  JPY: 0,
+  VND: 0,
+  CLP: 0,
+  KWD: 3,
+  BHD: 3,
+  OMR: 3,
+  JOD: 3,
 };
 
 /**

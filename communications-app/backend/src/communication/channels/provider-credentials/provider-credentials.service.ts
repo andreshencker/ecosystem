@@ -977,6 +977,7 @@ export class ProviderCredentialsService {
     credentials: Record<string, unknown>,
   ): 'test' | 'live' | null {
     const m = credentials['mode'];
+    if (m === 'test' || m === 'live') return m;
     return null;
   }
 
@@ -1014,7 +1015,8 @@ export class ProviderCredentialsService {
 
     if (ck === 'payment') {
       if (ct === 'api_key' && pk === 'stripe') return StripeCredentialsContract;
-      if (ct === 'token' && pk === 'coingate') return CoinGateCredentialsContract;
+      if (ct === 'token' && pk === 'coingate')
+        return CoinGateCredentialsContract;
       if (ct === 'token') return TokenCredentialsContract;
     }
 

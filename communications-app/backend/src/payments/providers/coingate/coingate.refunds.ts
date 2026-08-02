@@ -43,7 +43,8 @@ function mapRefundToSummary(
     refund.order?.price_currency?.toLowerCase() ??
     'unknown';
 
-  const amount = refund.refund_amount ?? refund.request_amount ?? refund.amount ?? '0';
+  const amount =
+    refund.refund_amount ?? refund.request_amount ?? refund.amount ?? '0';
   const amountMinor = toMinorUnits(amount, currency.toUpperCase());
 
   return {
@@ -118,14 +119,18 @@ export async function listCoinGateRefunds(
     return { data: [], hasMore: false };
   }
 
-  const response = await client.get<CoinGateRefundListResponse | CoinGateRefund[]>(
-    `/orders/${orderId}/refunds`,
-  );
+  const response = await client.get<
+    CoinGateRefundListResponse | CoinGateRefund[]
+  >(`/orders/${orderId}/refunds`);
 
   let refunds: CoinGateRefund[] = [];
   if (Array.isArray(response)) {
     refunds = response;
-  } else if (response && 'refunds' in response && Array.isArray(response.refunds)) {
+  } else if (
+    response &&
+    'refunds' in response &&
+    Array.isArray(response.refunds)
+  ) {
     refunds = response.refunds;
   }
 
@@ -173,25 +178,36 @@ export async function createCoinGateRefund(
   const { paymentId, amountMinor, reason, providerExtensions = {} } = params;
 
   if (!providerExtensions['address']) {
-    throw new Error('CoinGate refund requires a destination wallet address (providerExtensions.address)');
+    throw new Error(
+      'CoinGate refund requires a destination wallet address (providerExtensions.address)',
+    );
   }
   if (!providerExtensions['currency_id']) {
-    throw new Error('CoinGate refund requires a currency_id (providerExtensions.currency_id)');
+    throw new Error(
+      'CoinGate refund requires a currency_id (providerExtensions.currency_id)',
+    );
   }
   if (!providerExtensions['platform_id']) {
-    throw new Error('CoinGate refund requires a platform_id (providerExtensions.platform_id)');
+    throw new Error(
+      'CoinGate refund requires a platform_id (providerExtensions.platform_id)',
+    );
   }
   if (!providerExtensions['email']) {
-    throw new Error('CoinGate refund requires an email for customer notification (providerExtensions.email)');
+    throw new Error(
+      'CoinGate refund requires an email for customer notification (providerExtensions.email)',
+    );
   }
   if (!providerExtensions['ledger_account_id']) {
-    throw new Error('CoinGate refund requires a ledger_account_id (providerExtensions.ledger_account_id)');
+    throw new Error(
+      'CoinGate refund requires a ledger_account_id (providerExtensions.ledger_account_id)',
+    );
   }
 
   // First fetch the order to get price_currency for amount conversion.
-  const order = await client.get<{ price_amount: string; price_currency: string }>(
-    `/orders/${paymentId}`,
-  );
+  const order = await client.get<{
+    price_amount: string;
+    price_currency: string;
+  }>(`/orders/${paymentId}`);
   const priceCurrency = order.price_currency;
 
   // CoinGate refund amount is a decimal in the order's price currency.
@@ -221,7 +237,8 @@ export async function createCoinGateRefund(
     body['callback_url'] = providerExtensions['callback_url'];
   }
   if (providerExtensions['skip_user_address_confirmation'] !== undefined) {
-    body['skip_user_address_confirmation'] = providerExtensions['skip_user_address_confirmation'];
+    body['skip_user_address_confirmation'] =
+      providerExtensions['skip_user_address_confirmation'];
   }
 
   const refund = await client.post<CoinGateRefund>(

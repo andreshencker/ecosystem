@@ -104,6 +104,8 @@ const credentialFormSchema = z.object({
   publishableKey: z.string().optional(),
   webhookSecret:  z.string().optional(),
   mode:           z.string().optional(),
+  // Token-based providers (CoinGate, generic token)
+  token: z.string().optional(),
 });
 
 type CredentialFormValues = z.infer<typeof credentialFormSchema>;
@@ -185,7 +187,6 @@ function buildCredentialPayload(
     }
   }
 
-  // In edit mode with nothing filled → keep existing encrypted values
   if (isEditing && !hasAnyFilled) return null;
 
   // Boolean fields — always included in create; included in edit only when

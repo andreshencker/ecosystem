@@ -224,6 +224,12 @@ export interface PaymentSummary {
   failureCode?: string;
   declineCode?: string;
   failureMessage?: string;
+  /**
+   * Safe canonical URL for completing or viewing the payment.
+   * Populated by CoinGate (order payment page). Never a credential.
+   * Action type 'open_url' uses this field; hidden when absent/falsy.
+   */
+  paymentUrl?: string;
 }
 
 export interface PaymentDetail extends PaymentSummary {
@@ -582,4 +588,111 @@ export interface GatewayGuide {
   testingInstructions: string[];
   limitations: string[];
   webhookReceiverPath: string;
+}
+
+// ─── Payments Page Definition ─────────────────────────────────────────────────
+//
+// Canonical definition returned by GET /payments/connections/:id/page-definition.
+// Drives all UI components on the Payments list page — no provider branching in the
+// generic frontend. Never contains credentials, tokens, or executable code.
+
+export type SummaryCardSource =
+  | 'balance.available'
+  | 'balance.pending'
+  | 'page.status'
+  | 'aggregate.status'
+  | 'provider.metric';
+
+export type SummaryCardScope = 'connection' | 'filtered_result' | 'current_page';
+
+export type SummaryCardUnavailableBehaviour = 'hide' | 'not_supported' | 'unavailable';
+
+export interface PaymentSummaryCardDefinition {
+  key: string;
+  label: string;
+  type: 'amount' | 'count' | 'text';
+  source: SummaryCardSource;
+  status?: PaymentCanonicalStatus;
+  capability?: string;
+  scope: SummaryCardScope;
+  unavailableBehaviour: SummaryCardUnavailableBehaviour;
+  format?: { currencySource?: string; decimals?: number };
+}
+
+export type FilterType = 'search' | 'select' | 'multi_select' | 'date' | 'date_range';
+
+export type FilterOptionsSource =
+  | 'payment_units'
+  | 'payment_statuses'
+  | 'payment_methods'
+  | 'provider';
+
+export interface PaymentFilterDefinition {
+  key: string;
+  label: string;
+  type: FilterType;
+  queryParam: string;
+  capability?: string;
+  optionsSource?: FilterOptionsSource;
+  placeholder?: string;
+  resetOnProviderChange: boolean;
+  resetOnConnectionChange: boolean;
+}
+
+export type ColumnType =
+  | 'identifier'
+  | 'amount'
+  | 'payment_unit'
+  | 'method'
+  | 'status'
+  | 'date'
+  | 'text'
+  | 'actions';
+
+export interface PaymentColumnDefinition {
+  key: string;
+  label: string;
+  type: ColumnType;
+  field?: string;
+  secondaryField?: string;
+  capability?: string;
+  width?: number;
+  flex?: number;
+  align?: 'left' | 'center' | 'right';
+  hiddenWhenEmpty?: boolean;
+}
+
+export type ActionType = 'view' | 'open_url' | 'refund' | 'cancel' | 'capture';
+
+export interface PaymentActionDefinition {
+  key: string;
+  label: string;
+  type: ActionType;
+  capability?: string;
+  field?: string;
+  confirmationRequired?: boolean;
+  permission?: string;
+}
+
+export interface PaymentsPageDefinition {
+  providerKey: string;
+  connectionId: string;
+  version: string;
+  capabilities: Partial<Record<string, ProviderCapabilityStatus>>;
+  summaryCards: PaymentSummaryCardDefinition[];
+  filters: PaymentFilterDefinition[];
+  columns: PaymentColumnDefinition[];
+  rowActions: PaymentActionDefinition[];
+  list: {
+    supported: boolean;
+    defaultPageSize: number;
+    allowedPageSizes: number[];
+    paginationType: 'cursor' | 'page' | 'none';
+    defaultSort?: string;
+  };
+  emptyState: {
+    title: string;
+    description: string;
+  };
+  metadata?: Record<string, unknown>;
 }

@@ -17,6 +17,13 @@ export interface PaymentSummary {
   failureCode?: string;
   declineCode?: string;
   failureMessage?: string;
+  /**
+   * Safe canonical URL for the buyer to complete or view the payment.
+   * Populated by providers that surface a per-order payment page (e.g. CoinGate).
+   * Never populated for Stripe (receipt URLs live on the detail record only).
+   * Never a credential, token or signing secret.
+   */
+  paymentUrl?: string;
 }
 
 export interface PaymentDetail extends PaymentSummary {

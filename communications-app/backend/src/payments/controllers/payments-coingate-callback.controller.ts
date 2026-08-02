@@ -48,9 +48,7 @@ import {
   WebhookDelivery,
   WebhookDeliveryDocument,
 } from '../schemas/webhook-delivery.schema';
-import {
-  verifyCallbackToken,
-} from '../providers/coingate/coingate.orders';
+import { verifyCallbackToken } from '../providers/coingate/coingate.orders';
 import type { CoinGateCallbackPayload } from '../providers/coingate/coingate.callbacks';
 
 const DELIVERY_RETENTION_DAYS = 30;
@@ -105,7 +103,9 @@ export class PaymentsCoinGateCallbackController {
       .exec();
 
     if (!cred) {
-      this.logger.warn(`[coingate-cb] No active credential for id=${credentialId}`);
+      this.logger.warn(
+        `[coingate-cb] No active credential for id=${credentialId}`,
+      );
       return { received: true };
     }
 
@@ -130,7 +130,9 @@ export class PaymentsCoinGateCallbackController {
     try {
       payload = JSON.parse(rawBody.toString('utf8')) as CoinGateCallbackPayload;
     } catch {
-      this.logger.warn(`[coingate-cb] Invalid JSON from credentialId=${credentialId}`);
+      this.logger.warn(
+        `[coingate-cb] Invalid JSON from credentialId=${credentialId}`,
+      );
       return { received: true };
     }
 
@@ -143,7 +145,11 @@ export class PaymentsCoinGateCallbackController {
     let signatureStatus: 'valid' | 'invalid' | 'missing' = 'missing';
 
     if (receivedToken && externalReference) {
-      const tokenValid = verifyCallbackToken(receivedToken, credentialId, externalReference);
+      const tokenValid = verifyCallbackToken(
+        receivedToken,
+        credentialId,
+        externalReference,
+      );
       signatureStatus = tokenValid ? 'valid' : 'invalid';
 
       if (!tokenValid) {
@@ -164,7 +170,8 @@ export class PaymentsCoinGateCallbackController {
       Date.now() + DELIVERY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    const processingStatus = signatureStatus === 'valid' ? 'verified' : 'received';
+    const processingStatus =
+      signatureStatus === 'valid' ? 'verified' : 'received';
 
     const safePayload: Record<string, unknown> = {
       orderId,
@@ -196,7 +203,10 @@ export class PaymentsCoinGateCallbackController {
 
       if (signatureStatus === 'valid') {
         await this.deliveryModel.updateOne(
-          { providerCredentialId: new Types.ObjectId(credentialId), providerEventId },
+          {
+            providerCredentialId: new Types.ObjectId(credentialId),
+            providerEventId,
+          },
           { $set: { processingStatus: 'processed', processedAt: new Date() } },
         );
       }
@@ -204,7 +214,10 @@ export class PaymentsCoinGateCallbackController {
       const mongoErr = err as { code?: number };
       if (mongoErr?.code === 11000) {
         await this.deliveryModel.updateOne(
-          { providerCredentialId: new Types.ObjectId(credentialId), providerEventId },
+          {
+            providerCredentialId: new Types.ObjectId(credentialId),
+            providerEventId,
+          },
           { $set: { duplicate: true } },
         );
         this.logger.debug(
@@ -212,8 +225,12 @@ export class PaymentsCoinGateCallbackController {
         );
         return { received: true };
       }
-      this.logger.error(`[coingate-cb] Failed to record delivery: ${String(err)}`);
-      throw new InternalServerErrorException('Failed to record callback delivery.');
+      this.logger.error(
+        `[coingate-cb] Failed to record delivery: ${String(err)}`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to record callback delivery.',
+      );
     }
 
     return { received: true };

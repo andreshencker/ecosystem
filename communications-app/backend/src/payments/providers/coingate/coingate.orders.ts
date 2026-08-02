@@ -36,7 +36,9 @@ export function encodeCursor(page: number): string {
 
 export function decodeCursor(cursor: string): number {
   try {
-    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as { page?: number };
+    const parsed = JSON.parse(
+      Buffer.from(cursor, 'base64url').toString('utf8'),
+    ) as { page?: number };
     return Math.max(1, Number(parsed.page) || 1);
   } catch {
     return 1;
@@ -95,7 +97,10 @@ function mapOrderToSummary(
   const requiresUserAction =
     order.status === 'new' || order.status === 'pending';
 
-  const priceMinor = toMinorUnits(order.price_amount ?? '0', order.price_currency);
+  const priceMinor = toMinorUnits(
+    order.price_amount ?? '0',
+    order.price_currency,
+  );
 
   return {
     id: String(order.id),
@@ -109,6 +114,7 @@ function mapOrderToSummary(
     description: order.order_id ?? order.description,
     createdAt: new Date(order.created_at),
     requiresUserAction,
+    paymentUrl: order.payment_url || undefined,
   };
 }
 
@@ -122,9 +128,6 @@ function mapOrderToDetail(
 
   const paidMinor = order.pay_amount
     ? toMinorUnits(order.pay_amount, order.pay_currency ?? order.price_currency)
-    : undefined;
-  const receiveMinor = order.receive_amount
-    ? toMinorUnits(order.receive_amount, order.receive_currency)
     : undefined;
 
   // Collect safe blockchain TX hashes for display (not sensitive).
@@ -228,8 +231,20 @@ export interface CreateCoinGateOrderParams {
 /**
  * Lists CoinGate orders as canonical PaymentListResult.
  *
- * CoinGate uses page/per_page pagination. The next page number is encoded
- * as a base64 JSON cursor so the canonical hasMore + nextCursor contract works.
+ * CoinGate uses page/per_page pagination (not cursor-based).
+ * The next page number is encoded as an opaque base64 cursor to preserve
+ * the canonical hasMore + nextCursor contract.
+ *
+ * Supported CoinGate filters:
+ *   status         → passed as-is to CoinGate (raw CoinGate status)
+ *   createdFrom    → created_at[from] (YYYY-MM-DD)
+ *   createdTo      → created_at[to]   (YYYY-MM-DD)
+ *
+ * NOT forwarded (CoinGate list orders does not support these):
+ *   currency       → CoinGate list does not support a price_currency filter
+ *   search         → CoinGate list does not support server-side text search
+ *
+ * Filters with no/empty values are always omitted from the request.
  */
 export async function listCoinGateOrders(
   client: CoinGateClient,
@@ -245,26 +260,83 @@ export async function listCoinGateOrders(
     sort: 'created_at_desc',
   };
 
-  if (params.status) queryParams['status'] = params.status;
-  if (params.currency) queryParams['price_currency'] = params.currency.toUpperCase();
-  if (params.createdFrom) {
+  // Map canonical status to CoinGate raw status.
+  // Only include when a specific status is selected (not 'all' or empty).
+  if (params.status && params.status !== 'all') {
+    queryParams['status'] = mapCanonicalStatusToCoinGate(params.status);
+  }
+
+  // Date filters use CoinGate bracket notation.
+  if (params.createdFrom instanceof Date) {
     queryParams['created_at[from]'] = formatDate(params.createdFrom);
   }
-  if (params.createdTo) {
+  if (params.createdTo instanceof Date) {
     queryParams['created_at[to]'] = formatDate(params.createdTo);
   }
 
-  const response = await client.get<CoinGateListOrdersResponse>('/orders', queryParams);
+  const response = await client.get<CoinGateListOrdersResponse>(
+    '/orders',
+    queryParams,
+  );
 
+  // Defensive parsing: CoinGate sandbox may return slightly different field names.
   const orders = response.orders ?? [];
-  const hasMore = response.current_page < response.total_pages;
-  const nextPage = response.current_page + 1;
+  const currentPage = response.current_page ?? page;
+  const totalPages = response.total_pages ?? 1;
+  const hasMore = totalPages > 1 && currentPage < totalPages;
 
   return {
     data: orders.map((o) => mapOrderToSummary(o, accountId)),
     hasMore,
-    nextCursor: hasMore ? encodeCursor(nextPage) : undefined,
+    nextCursor: hasMore ? encodeCursor(currentPage + 1) : undefined,
   };
+}
+
+/**
+ * Maps a canonical PaymentCanonicalStatus value back to the CoinGate raw
+ * status string for use as a filter.
+ *
+ * This is a best-effort mapping: canonical statuses that map to multiple
+ * CoinGate statuses (e.g. requires_action → new OR pending) are not
+ * filtered — the full list is returned and the frontend displays all.
+ */
+function mapCanonicalStatusToCoinGate(canonical: string): string | undefined {
+  // When the filter is a raw CoinGate status (used by search flows),
+  // pass it through unchanged.
+  const coinGateStatuses = new Set([
+    'new',
+    'pending',
+    'confirming',
+    'paid',
+    'invalid',
+    'expired',
+    'canceled',
+    'refunded',
+    'partially_refunded',
+  ]);
+  if (coinGateStatuses.has(canonical)) return canonical;
+
+  // Canonical → CoinGate (approximate; only unambiguous mappings are forwarded)
+  switch (canonical) {
+    case 'succeeded':
+      return 'paid';
+    case 'failed':
+      return 'invalid';
+    case 'processing':
+      return 'confirming';
+    case 'cancelled':
+      return 'canceled';
+    case 'expired':
+      return 'expired';
+    case 'refunded':
+      return 'refunded';
+    case 'partially_refunded':
+      return 'partially_refunded';
+    // requires_action maps to both 'new' and 'pending' — cannot filter by one
+    // pending, requires_confirmation, requires_capture — no direct CoinGate match
+    default:
+      return undefined; // omit filter
+  }
 }
 
 /**

@@ -19,9 +19,11 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { mapCoinGateError } from './coingate.errors';
+import { CoinGateCredentialsContract } from './coingate.credentials.contract';
+import { PaymentCredentialsInvalidError } from '../../errors/payment.errors';
 
-export const COINGATE_SANDBOX_BASE = 'https://api-sandbox.coingate.com/api/v2';
-export const COINGATE_PRODUCTION_BASE = 'https://api.coingate.com/api/v2';
+export const COINGATE_SANDBOX_BASE = 'https://api-sandbox.coingate.com/v2';
+export const COINGATE_PRODUCTION_BASE = 'https://api.coingate.com/v2';
 export const COINGATE_REQUEST_TIMEOUT_MS = 15_000;
 
 export class CoinGateClient {
@@ -36,7 +38,7 @@ export class CoinGateClient {
       baseURL: this.baseUrl,
       timeout: COINGATE_REQUEST_TIMEOUT_MS,
       headers: {
-        // Token is injected here, not logged anywhere else.
+        // Token is injected here, never logged or returned.
         Authorization: `Token ${token}`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -74,8 +76,10 @@ export class CoinGateClient {
     }
   }
 
-  /** Removes undefined and null values from query params. */
-  private cleanParams(params: Record<string, unknown>): Record<string, string | number | boolean> {
+  /** Removes undefined, null and empty-string values from query params. */
+  private cleanParams(
+    params: Record<string, unknown>,
+  ): Record<string, string | number | boolean> {
     const out: Record<string, string | number | boolean> = {};
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== null && v !== '') {
@@ -96,20 +100,31 @@ export class CoinGateClient {
 }
 
 /**
- * Factory: creates a CoinGateClient from decrypted credentials.
- * Must not be called with credentials that haven't been validated.
+ * Factory: creates a CoinGateClient from a raw decrypted credential payload.
+ *
+ * Normalizes the payload through CoinGateCredentialsContract before creating
+ * the client. This resolves legacy field names (e.g. secretKey → token) so
+ * that credentials stored before the CoinGate-specific contract was applied
+ * continue to work without requiring the user to recreate the connection.
+ *
+ * Resolution order (handled by the contract's normalize):
+ *   token → COINGATE_TOKEN → apiToken → secretKey
+ *
+ * Throws PaymentCredentialsInvalidError locally — before any HTTP request —
+ * if the token is absent or empty after normalization.
  */
 export function createCoinGateClient(
   credentials: Record<string, unknown>,
 ): CoinGateClient {
-  const token = credentials['token'];
-  const mode = credentials['mode'];
+  const { value: normalized } =
+    CoinGateCredentialsContract.normalize(credentials);
 
-  if (!token || typeof token !== 'string') {
-    throw new Error('CoinGate credentials missing token field');
+  if (!normalized.token) {
+    throw new PaymentCredentialsInvalidError(
+      'CoinGate credentials are missing a valid token. ' +
+        'Re-save the CoinGate connection in the Credentials page to fix this.',
+    );
   }
 
-  const resolvedMode: 'test' | 'live' = mode === 'live' ? 'live' : 'test';
-
-  return new CoinGateClient(token, resolvedMode);
+  return new CoinGateClient(normalized.token, normalized.mode);
 }

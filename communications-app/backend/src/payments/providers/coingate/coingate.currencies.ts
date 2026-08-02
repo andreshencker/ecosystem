@@ -13,7 +13,10 @@
 
 import type { CoinGateClient } from './coingate.client';
 import type { CoinGateCurrency } from './coingate.types';
-import type { PaymentUnit, PaymentUnitKind } from '../../contracts/payment-unit.contract';
+import type {
+  PaymentUnit,
+  PaymentUnitKind,
+} from '../../contracts/payment-unit.contract';
 
 /** Maps CoinGate type strings to canonical PaymentUnitKind. */
 function mapKind(type: string | undefined): PaymentUnitKind {

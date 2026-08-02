@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { apiClient } from '@/lib/axios';
 import { extractApiMessage } from '@/lib/mapApiError';
 import { useUIStore } from '@/stores/ui.store';
@@ -38,6 +39,7 @@ import type {
   ListWebhookDeliveriesParams,
   GatewayGuide,
   ProviderCapabilitiesResponse,
+  PaymentsPageDefinition,
 } from '@/types/payments';
 
 export interface ListPaymentAccountsParams {
@@ -107,6 +109,26 @@ export function usePaymentAccounts(params: ListPaymentAccountsParams = {}) {
   });
 }
 
+// ─── Retry policy for optional capability queries ─────────────────────────────
+//
+// Balance and PaymentUnits are OPTIONAL capabilities. Some providers (e.g.
+// CoinGate) declare them as unsupported. When the backend returns 422 for an
+// unsupported capability it will never succeed on retry — the provider simply
+// does not implement the endpoint. Using the global retry:1 would fire a
+// second, identical request that is guaranteed to fail too.
+//
+// This retry function:
+//   - 4xx  → false  (never retry; the error is definitively from the provider)
+//   - 5xx / network → retry once (transient failures may recover)
+//
+// This keeps optional-capability failures fast (error state on first response)
+// and completely independent of the payments-list query.
+function retrySkip4xx(failureCount: number, error: unknown): boolean {
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  if (status !== undefined && status >= 400 && status < 500) return false;
+  return failureCount < 1;
+}
+
 // ─── Balance (live provider call) ─────────────────────────────────────────────
 
 export function usePaymentBalance(connectionId: string | null | undefined) {
@@ -117,6 +139,7 @@ export function usePaymentBalance(connectionId: string | null | undefined) {
         .get<PaymentBalance>(`/payments/accounts/${connectionId!}/balance`)
         .then((r) => r.data),
     enabled: Boolean(connectionId),
+    retry: retrySkip4xx,
   });
 }
 
@@ -221,6 +244,7 @@ export function usePaymentUnits(connectionId: string | null | undefined) {
         )
         .then((r) => r.data),
     enabled: Boolean(connectionId),
+    retry: retrySkip4xx,
   });
 }
 
@@ -550,6 +574,28 @@ export function useProviderCapabilities(providerKey: string | null | undefined) 
 }
 
 // ─── Gateway Guide ────────────────────────────────────────────────────────────
+
+// ─── Payments page definition ─────────────────────────────────────────────────
+//
+// Fetches the canonical page definition for the selected connection.
+// The definition drives every UI component (cards, filters, columns, actions).
+// Query key includes connectionId so that switching connections causes a fresh fetch.
+// staleTime is short (60 s) so the definition stays current after capability changes.
+
+export function usePaymentsPageDefinition(connectionId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['payments', 'page-definition', connectionId],
+    queryFn: () =>
+      apiClient
+        .get<PaymentsPageDefinition>(
+          `/payments/connections/${connectionId!}/page-definition`,
+        )
+        .then((r) => r.data),
+    enabled: Boolean(connectionId),
+    staleTime: 60 * 1000,
+    retry: retrySkip4xx,
+  });
+}
 
 export function useGatewayGuide(providerKey: string | null | undefined) {
   return useQuery({

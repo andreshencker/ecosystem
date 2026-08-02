@@ -30,11 +30,13 @@ import {
   usePaymentProviders,
   usePaymentAccounts,
   useProviderCapabilities,
+  usePaymentsPageDefinition,
 } from '@/hooks/api/usePayments';
 import type {
   PaymentProviderOption,
   PaymentAccountSummary,
   ProviderCapabilityStatus,
+  PaymentsPageDefinition,
 } from '@/types/payments';
 
 // ─── Context shape ────────────────────────────────────────────────────────────
@@ -78,6 +80,15 @@ export interface PaymentsContextValue {
   /** Map of capability key → status for the resolved provider. Null while loading or no provider. */
   providerCapabilities: Partial<Record<string, ProviderCapabilityStatus>> | null;
   capabilitiesLoading: boolean;
+
+  // ── Page definition level — sourced from GET /payments/connections/:id/page-definition
+  // Fetched once per resolved connection; stale after 60 s.
+  // Drives all Payments list page UI: cards, filters, columns, actions.
+
+  /** Canonical page definition for the resolved connection. Null while loading or no connection. */
+  pageDefinition: PaymentsPageDefinition | null;
+  pageDefinitionLoading: boolean;
+  pageDefinitionError: Error | null;
 
   /**
    * Returns the status for a single capability key.
@@ -220,6 +231,13 @@ export function PaymentsProvider({
     [availableConnections, resolvedConnectionId],
   );
 
+  // ── Load page definition (re-fetches when resolved connection changes) ──────
+  const {
+    data: pageDefinitionData,
+    isLoading: pageDefinitionLoading,
+    error: pageDefinitionError,
+  } = usePaymentsPageDefinition(resolvedConnectionId || null);
+
   // ── Setters ───────────────────────────────────────────────────────────────
 
   // Changing provider clears the connection selection so auto-selection re-runs.
@@ -251,6 +269,9 @@ export function PaymentsProvider({
       setSelectedConnectionId,
       resolvedConnectionId,
       selectedConnection,
+      pageDefinition: pageDefinitionData ?? null,
+      pageDefinitionLoading,
+      pageDefinitionError: pageDefinitionError as Error | null,
     }),
     [
       availableProviderOptions,
@@ -271,6 +292,9 @@ export function PaymentsProvider({
       selectedConnectionId,
       resolvedConnectionId,
       selectedConnection,
+      pageDefinitionData,
+      pageDefinitionLoading,
+      pageDefinitionError,
     ],
   );
 

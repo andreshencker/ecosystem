@@ -72,12 +72,14 @@ function makeStripePaymentIntent(
   } as unknown as Stripe.PaymentIntent;
 }
 
-function makeMockClient(overrides: {
-  refundsListFn?: jest.Mock;
-  refundsRetrieveFn?: jest.Mock;
-  refundsCreateFn?: jest.Mock;
-  paymentIntentsRetrieveFn?: jest.Mock;
-} = {}): Stripe {
+function makeMockClient(
+  overrides: {
+    refundsListFn?: jest.Mock;
+    refundsRetrieveFn?: jest.Mock;
+    refundsCreateFn?: jest.Mock;
+    paymentIntentsRetrieveFn?: jest.Mock;
+  } = {},
+): Stripe {
   return {
     refunds: {
       list:
@@ -108,9 +110,9 @@ describe('mapStripeRefundStatus()', () => {
   });
 
   it('maps "pending" → "pending"', () => {
-    expect(
-      mapStripeRefundStatus(makeStripeRefund({ status: 'pending' })),
-    ).toBe('pending');
+    expect(mapStripeRefundStatus(makeStripeRefund({ status: 'pending' }))).toBe(
+      'pending',
+    );
   });
 
   it('maps "requires_action" → "requires_action"', () => {
@@ -120,9 +122,9 @@ describe('mapStripeRefundStatus()', () => {
   });
 
   it('maps "failed" → "failed"', () => {
-    expect(
-      mapStripeRefundStatus(makeStripeRefund({ status: 'failed' })),
-    ).toBe('failed');
+    expect(mapStripeRefundStatus(makeStripeRefund({ status: 'failed' }))).toBe(
+      'failed',
+    );
   });
 
   it('maps "canceled" (Stripe US spelling) → "cancelled" (canonical)', () => {
@@ -139,9 +141,9 @@ describe('mapStripeRefundStatus()', () => {
   });
 
   it('maps null/undefined status → "unknown"', () => {
-    expect(
-      mapStripeRefundStatus(makeStripeRefund({ status: null })),
-    ).toBe('unknown');
+    expect(mapStripeRefundStatus(makeStripeRefund({ status: null }))).toBe(
+      'unknown',
+    );
   });
 });
 
@@ -284,7 +286,10 @@ describe('mapStripeRefundToDetail()', () => {
 
   it('sets balanceTransactionId from expanded balance_transaction object', () => {
     const refund = makeStripeRefund({
-      balance_transaction: { id: 'txn_expanded', object: 'balance_transaction' },
+      balance_transaction: {
+        id: 'txn_expanded',
+        object: 'balance_transaction',
+      },
     });
     const result = mapStripeRefundToDetail(refund, ACCOUNT_ID);
     expect(result.balanceTransactionId).toBe('txn_expanded');
@@ -312,9 +317,7 @@ describe('listStripeRefunds()', () => {
 
     await listStripeRefunds(client, ACCOUNT_ID, { limit: 10 });
 
-    expect(listFn).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 10 }),
-    );
+    expect(listFn).toHaveBeenCalledWith(expect.objectContaining({ limit: 10 }));
   });
 
   it('passes cursor as starting_after', async () => {
@@ -330,7 +333,9 @@ describe('listStripeRefunds()', () => {
 
   it('returns mapped data', async () => {
     const refund = makeStripeRefund({ id: 're_xyz', amount: 3000 });
-    const listFn = jest.fn().mockResolvedValue({ data: [refund], has_more: false });
+    const listFn = jest
+      .fn()
+      .mockResolvedValue({ data: [refund], has_more: false });
     const client = makeMockClient({ refundsListFn: listFn });
 
     const result = await listStripeRefunds(client, ACCOUNT_ID, {});
@@ -342,7 +347,9 @@ describe('listStripeRefunds()', () => {
 
   it('sets hasMore and nextCursor correctly when has_more is true', async () => {
     const refund = makeStripeRefund({ id: 're_last' });
-    const listFn = jest.fn().mockResolvedValue({ data: [refund], has_more: true });
+    const listFn = jest
+      .fn()
+      .mockResolvedValue({ data: [refund], has_more: true });
     const client = makeMockClient({ refundsListFn: listFn });
 
     const result = await listStripeRefunds(client, ACCOUNT_ID, {});
@@ -353,7 +360,9 @@ describe('listStripeRefunds()', () => {
 
   it('nextCursor is undefined when has_more is false', async () => {
     const refund = makeStripeRefund({ id: 're_only' });
-    const listFn = jest.fn().mockResolvedValue({ data: [refund], has_more: false });
+    const listFn = jest
+      .fn()
+      .mockResolvedValue({ data: [refund], has_more: false });
     const client = makeMockClient({ refundsListFn: listFn });
 
     const result = await listStripeRefunds(client, ACCOUNT_ID, {});
@@ -387,9 +396,10 @@ describe('listStripeRefunds()', () => {
   it('filters by refund ID client-side when search starts with re_', async () => {
     const matchingRefund = makeStripeRefund({ id: 're_match' });
     const otherRefund = makeStripeRefund({ id: 're_other' });
-    const listFn = jest
-      .fn()
-      .mockResolvedValue({ data: [matchingRefund, otherRefund], has_more: false });
+    const listFn = jest.fn().mockResolvedValue({
+      data: [matchingRefund, otherRefund],
+      has_more: false,
+    });
     const client = makeMockClient({ refundsListFn: listFn });
 
     const result = await listStripeRefunds(client, ACCOUNT_ID, {
@@ -455,7 +465,10 @@ describe('getStripeRefund()', () => {
     expect(retrieveFn).toHaveBeenCalledWith(
       're_test_abc',
       expect.objectContaining({
-        expand: expect.arrayContaining(['balance_transaction', 'charge']) as string[],
+        expand: expect.arrayContaining([
+          'balance_transaction',
+          'charge',
+        ]) as string[],
       }),
     );
   });
@@ -488,7 +501,9 @@ describe('getStripeRefund()', () => {
 
 describe('createStripeRefund()', () => {
   it('creates a full refund when amountMinor is omitted', async () => {
-    const createFn = jest.fn().mockResolvedValue(makeStripeRefund({ amount: 5000 }));
+    const createFn = jest
+      .fn()
+      .mockResolvedValue(makeStripeRefund({ amount: 5000 }));
     const intentRetrieveFn = jest.fn().mockResolvedValue(
       makeStripePaymentIntent({
         amount_received: 5000,
@@ -514,7 +529,9 @@ describe('createStripeRefund()', () => {
   });
 
   it('creates a partial refund when amountMinor is specified', async () => {
-    const createFn = jest.fn().mockResolvedValue(makeStripeRefund({ amount: 1000 }));
+    const createFn = jest
+      .fn()
+      .mockResolvedValue(makeStripeRefund({ amount: 1000 }));
     const intentRetrieveFn = jest.fn().mockResolvedValue(
       makeStripePaymentIntent({
         amount_received: 5000,
@@ -537,10 +554,12 @@ describe('createStripeRefund()', () => {
   });
 
   it('throws PaymentCredentialsInvalidError when payment is not succeeded', async () => {
-    const intentRetrieveFn = jest.fn().mockResolvedValue(
-      makeStripePaymentIntent({ status: 'processing' }),
-    );
-    const client = makeMockClient({ paymentIntentsRetrieveFn: intentRetrieveFn });
+    const intentRetrieveFn = jest
+      .fn()
+      .mockResolvedValue(makeStripePaymentIntent({ status: 'processing' }));
+    const client = makeMockClient({
+      paymentIntentsRetrieveFn: intentRetrieveFn,
+    });
 
     await expect(
       createStripeRefund(client, ACCOUNT_ID, {
@@ -559,7 +578,9 @@ describe('createStripeRefund()', () => {
         }),
       }),
     );
-    const client = makeMockClient({ paymentIntentsRetrieveFn: intentRetrieveFn });
+    const client = makeMockClient({
+      paymentIntentsRetrieveFn: intentRetrieveFn,
+    });
 
     await expect(
       createStripeRefund(client, ACCOUNT_ID, {
@@ -578,7 +599,9 @@ describe('createStripeRefund()', () => {
         }),
       }),
     );
-    const client = makeMockClient({ paymentIntentsRetrieveFn: intentRetrieveFn });
+    const client = makeMockClient({
+      paymentIntentsRetrieveFn: intentRetrieveFn,
+    });
 
     await expect(
       createStripeRefund(client, ACCOUNT_ID, {
@@ -595,7 +618,9 @@ describe('createStripeRefund()', () => {
         latest_charge: makeStripeCharge({ amount: 5000, amount_refunded: 0 }),
       }),
     );
-    const client = makeMockClient({ paymentIntentsRetrieveFn: intentRetrieveFn });
+    const client = makeMockClient({
+      paymentIntentsRetrieveFn: intentRetrieveFn,
+    });
 
     await expect(
       createStripeRefund(client, ACCOUNT_ID, {
@@ -673,7 +698,9 @@ describe('createStripeRefund()', () => {
     const intentRetrieveFn = jest
       .fn()
       .mockRejectedValue(new PaymentProviderUnavailableError('stripe'));
-    const client = makeMockClient({ paymentIntentsRetrieveFn: intentRetrieveFn });
+    const client = makeMockClient({
+      paymentIntentsRetrieveFn: intentRetrieveFn,
+    });
 
     await expect(
       createStripeRefund(client, ACCOUNT_ID, {

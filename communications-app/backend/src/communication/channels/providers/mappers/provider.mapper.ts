@@ -1,38 +1,70 @@
 import { ProviderResponseDto } from '../dto/provider-response.dto';
 
+type ChannelRef = {
+  _id: unknown;
+  channelKey: string;
+  displayName: string;
+  isActive: boolean;
+};
+
 export class ProviderMapper {
-  static toResponse(doc: any): ProviderResponseDto {
-    const channelPopulated =
-      doc?.channelId && typeof doc.channelId === 'object' && doc.channelId._id;
+  static toResponse(doc: Record<string, unknown>): ProviderResponseDto {
+    const rawIds: unknown[] = Array.isArray(doc['channelIds'])
+      ? (doc['channelIds'] as unknown[])
+      : [];
+
+    // Detect whether the elements are populated Channel documents.
+    const firstPopulated =
+      rawIds.length > 0 &&
+      rawIds[0] !== null &&
+      typeof rawIds[0] === 'object' &&
+      '_id' in rawIds[0];
+
+    const toIdStr = (ch: unknown): string =>
+      firstPopulated ? String((ch as ChannelRef)._id) : String(ch);
+
+    const channelId = rawIds.length > 0 ? toIdStr(rawIds[0]) : '';
+    const channelIds = rawIds.map(toIdStr);
+
+    const channels = firstPopulated
+      ? rawIds.map((ch) => {
+          const c = ch as ChannelRef;
+          return {
+            id: String(c._id),
+            channelKey: c.channelKey,
+            displayName: c.displayName,
+            isActive: c.isActive,
+          };
+        })
+      : undefined;
 
     return {
-      id: String(doc._id),
-      providerKey: doc.providerKey,
-      displayName: doc.displayName,
-      description: doc.description,
+      id: String(doc['_id']),
+      providerKey: String((doc['providerKey'] as string | undefined) ?? ''),
+      displayName: String((doc['displayName'] as string | undefined) ?? ''),
+      description:
+        doc['description'] !== undefined
+          ? String(doc['description'] as string)
+          : undefined,
 
-      channelId: channelPopulated
-        ? String(doc.channelId._id)
-        : String(doc.channelId),
+      channelId,
+      channelIds,
+      channel: channels?.[0],
+      channels,
 
-      channel: channelPopulated
-        ? {
-            id: String(doc.channelId._id),
-            channelKey: doc.channelId.channelKey,
-            displayName: doc.channelId.displayName,
-            isActive: doc.channelId.isActive,
-          }
-        : undefined,
+      connectionType: doc[
+        'connectionType'
+      ] as ProviderResponseDto['connectionType'],
+      isActive: Boolean(doc['isActive']),
 
-      connectionType: doc.connectionType,
-      isActive: doc.isActive,
-
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
+      createdAt: doc['createdAt'] as Date | undefined,
+      updatedAt: doc['updatedAt'] as Date | undefined,
     };
   }
 
-  static toResponseList(list: any[]): ProviderResponseDto[] {
+  static toResponseList(
+    list: Record<string, unknown>[],
+  ): ProviderResponseDto[] {
     return (list ?? []).map((x) => this.toResponse(x));
   }
 }

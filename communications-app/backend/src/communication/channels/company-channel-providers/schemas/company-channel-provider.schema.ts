@@ -39,10 +39,11 @@ export const CompanyChannelProviderSchema = SchemaFactory.createForClass(
   CompanyChannelProvider,
 );
 
-// ✅ Evita duplicados: misma company + mismo provider solo una vez
+// A company may assign the same provider to different channels (e.g. Xero to
+// both Accounting and Billing). The unique constraint is per (company, provider, channel).
 CompanyChannelProviderSchema.index(
-  { companyId: 1, providerId: 1 },
-  { unique: true, name: 'uniq_company_provider' },
+  { companyId: 1, providerId: 1, channelId: 1 },
+  { unique: true, name: 'uniq_company_provider_channel' },
 );
 
 // ✅ Solo 1 default por canal (company + channel) usando índice parcial

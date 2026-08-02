@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsMongoId,
@@ -6,6 +7,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateProviderDto {
   @IsString()
@@ -20,11 +22,25 @@ export class CreateProviderDto {
   @IsString()
   description?: string;
 
-  @IsMongoId()
-  channelId!: string;
+  /**
+   * One or more channel IDs this provider belongs to.
+   * Accepts a single MongoId string or an array of MongoId strings.
+   */
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value) ? (value as string[]) : [value as string],
+  )
+  @IsArray()
+  @IsMongoId({ each: true })
+  channelId!: string | string[];
 
-  @IsIn(['api_key', 'smtp', 'oauth', 'access_keys', 'token'])
-  connectionType!: 'api_key' | 'smtp' | 'oauth' | 'access_keys' | 'token';
+  @IsIn(['api_key', 'smtp', 'oauth', 'access_keys', 'token', 'app_password'])
+  connectionType!:
+    | 'api_key'
+    | 'smtp'
+    | 'oauth'
+    | 'access_keys'
+    | 'token'
+    | 'app_password';
 
   @IsOptional()
   @IsBoolean()

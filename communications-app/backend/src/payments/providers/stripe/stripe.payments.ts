@@ -325,11 +325,9 @@ export async function listStripePaymentUnits(
     // Non-fatal: return whatever was collected from PaymentIntents.
   }
 
-  return [...codesSet]
-    .sort()
-    .map((code) => ({
-      code,
-      label: code,
-      kind: 'fiat' as const,
-    }));
+  return [...codesSet].sort().map((code) => ({
+    code,
+    label: code,
+    kind: 'fiat' as const,
+  }));
 }

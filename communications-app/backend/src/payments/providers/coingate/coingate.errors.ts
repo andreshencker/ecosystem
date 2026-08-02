@@ -72,7 +72,10 @@ function safeMessage(body: CoinGateErrorBody): string {
  *   - No API token, raw body, or HTTP headers are included in the thrown error.
  *   - Only the safe provider message and error codes are preserved.
  */
-export function mapCoinGateError(err: unknown, providerKey = 'coingate'): never {
+export function mapCoinGateError(
+  err: unknown,
+  providerKey = 'coingate',
+): never {
   if (!isAxiosError(err)) {
     if (err instanceof Error) throw err;
     throw new PaymentProviderUnavailableError(providerKey, String(err));
@@ -91,7 +94,9 @@ export function mapCoinGateError(err: unknown, providerKey = 'coingate'): never 
       );
 
     case 404:
-      throw new PaymentProviderNotFoundError(`CoinGate resource not found: ${msg}`);
+      throw new PaymentProviderNotFoundError(
+        `CoinGate resource not found: ${msg}`,
+      );
 
     case 422: {
       const detail = errors.length > 0 ? ` — ${errors.join('; ')}` : '';
@@ -99,7 +104,8 @@ export function mapCoinGateError(err: unknown, providerKey = 'coingate'): never 
     }
 
     case 429: {
-      const retryAfter = Number(err.response?.headers?.['retry-after']) || undefined;
+      const retryAfter =
+        Number(err.response?.headers?.['retry-after']) || undefined;
       throw new CoinGateRateLimitError(retryAfter);
     }
 
@@ -138,7 +144,9 @@ function isAxiosError(err: unknown): err is AxiosError {
  * Returns a safe human-readable message from a CoinGate validation error.
  * Used by controllers mapping to HTTP 422.
  */
-export function getCoinGateValidationMessage(err: CoinGateValidationError): string {
+export function getCoinGateValidationMessage(
+  err: CoinGateValidationError,
+): string {
   const parts = [err.providerMessage];
   if (err.providerReason) parts.push(err.providerReason);
   if (err.providerErrors.length > 0) parts.push(err.providerErrors.join('; '));

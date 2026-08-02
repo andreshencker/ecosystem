@@ -154,7 +154,11 @@ describe('PaymentsRefundsService.listRefunds()', () => {
     const paymentsService = makePaymentsService(makeRefundProvider(listFn));
     const service = new PaymentsRefundsService(paymentsService as never);
 
-    const result = await service.listRefunds(COMPANY_ID, ACCOUNT_ID, makeQuery());
+    const result = await service.listRefunds(
+      COMPANY_ID,
+      ACCOUNT_ID,
+      makeQuery(),
+    );
 
     expect(result).toBe(listResult);
   });

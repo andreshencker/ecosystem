@@ -45,6 +45,7 @@ import { PaymentsWebhookEndpointsController } from './controllers/payments-webho
 import { PaymentsWebhookDeliveriesController } from './controllers/payments-webhook-deliveries.controller';
 import { PaymentsWebhookReceiverController } from './controllers/payments-webhook-receiver.controller';
 import { PaymentsCoinGateCallbackController } from './controllers/payments-coingate-callback.controller';
+import { PaymentsPageDefinitionController } from './controllers/payments-page-definition.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentsResolverService } from './services/payments-resolver.service';
 import { PaymentsAccountsService } from './services/payments-accounts.service';
@@ -57,6 +58,7 @@ import { PaymentsRefundsService } from './services/payments-refunds.service';
 import { PaymentsPayoutsService } from './services/payments-payouts.service';
 import { PaymentsWebhookEndpointsService } from './services/payments-webhook-endpoints.service';
 import { PaymentsWebhookDeliveriesService } from './services/payments-webhook-deliveries.service';
+import { PaymentsPageDefinitionService } from './services/payments-page-definition.service';
 import { PaymentProviderRegistry } from './registry/payment-provider.registry';
 
 // ─── Provider adapters ────────────────────────────────────────────────────────
@@ -68,7 +70,10 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     MongooseModule.forFeature([
       // Existing models — reused, no new collections here.
       { name: Provider.name, schema: ProviderSchema },
-      { name: CompanyChannelProvider.name, schema: CompanyChannelProviderSchema },
+      {
+        name: CompanyChannelProvider.name,
+        schema: CompanyChannelProviderSchema,
+      },
       { name: ProviderCredentials.name, schema: ProviderCredentialsSchema },
 
       // Webhook technical models.
@@ -92,6 +97,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsWebhookDeliveriesController,
     PaymentsWebhookReceiverController,
     PaymentsCoinGateCallbackController,
+    PaymentsPageDefinitionController,
   ],
   providers: [
     // ── Provider adapters ──────────────────────────────────────────────────────
@@ -104,7 +110,8 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
       useFactory: (
         stripe: StripePaymentProvider,
         coingate: CoingatePaymentProvider,
-      ): PaymentProviderRegistry => new PaymentProviderRegistry([stripe, coingate]),
+      ): PaymentProviderRegistry =>
+        new PaymentProviderRegistry([stripe, coingate]),
       inject: [StripePaymentProvider, CoingatePaymentProvider],
     },
 
@@ -124,6 +131,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsPayoutsService,
     PaymentsWebhookEndpointsService,
     PaymentsWebhookDeliveriesService,
+    PaymentsPageDefinitionService,
   ],
   exports: [PaymentsService, PaymentProviderRegistry],
 })

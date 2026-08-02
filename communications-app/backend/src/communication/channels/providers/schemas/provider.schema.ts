@@ -33,14 +33,15 @@ export class Provider {
   @Prop({ trim: true })
   description?: string;
 
-  // ✅ SOLO referencia al canal (Channel)
+  // Multi-channel: a provider may belong to one or more channels.
+  // Single-channel providers have exactly one element (e.g. [emailChannelId]).
+  // Multi-channel providers (e.g. Xero) have two or more.
   @Prop({
-    type: Types.ObjectId,
-    ref: Channel.name,
+    type: [{ type: Types.ObjectId, ref: Channel.name }],
     required: true,
-    index: true,
+    default: [],
   })
-  channelId!: Types.ObjectId;
+  channelIds!: Types.ObjectId[];
 
   @Prop({
     required: true,
@@ -54,7 +55,7 @@ export class Provider {
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);
 
-// búsquedas útiles
-ProviderSchema.index({ channelId: 1, providerKey: 1 });
+// búsquedas útiles (channelIds is an array — MongoDB matches any element)
+ProviderSchema.index({ channelIds: 1, providerKey: 1 });
 ProviderSchema.index({ isActive: 1, providerKey: 1 });
-ProviderSchema.index({ isActive: 1, channelId: 1 });
+ProviderSchema.index({ isActive: 1, channelIds: 1 });

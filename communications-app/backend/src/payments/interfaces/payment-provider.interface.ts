@@ -539,3 +539,40 @@ export function isGatewayGuideProvider(
       'function'
   );
 }
+
+// ─── Page definition provider ─────────────────────────────────────────────────
+
+import type {
+  PaymentsPageDefinition,
+  PaymentsPageDefinitionContext,
+} from '../contracts/payments-page-definition.contract';
+
+/**
+ * Provider that can supply a canonical Payments page definition.
+ *
+ * The definition drives all UI components: summary cards, filters, columns,
+ * and row actions. It must never contain credentials, secrets, or executable
+ * expressions — only controlled canonical configuration.
+ *
+ * Providers that do not implement this interface receive the generic default
+ * definition built by buildGenericPageDefinition() in the contract module.
+ */
+export interface IPaymentsPageDefinitionProvider extends IPaymentProvider {
+  readonly supportsPaymentsPageDefinition: true;
+  getPaymentsPageDefinition(
+    context: PaymentsPageDefinitionContext,
+  ): Promise<PaymentsPageDefinition>;
+}
+
+export function isPageDefinitionProvider(
+  provider: IPaymentProvider | PaymentProviderRef,
+): provider is IPaymentsPageDefinitionProvider {
+  return (
+    'supportsPaymentsPageDefinition' in provider &&
+    provider.supportsPaymentsPageDefinition === true &&
+    'getPaymentsPageDefinition' in provider &&
+    typeof (provider as Record<string, unknown>)[
+      'getPaymentsPageDefinition'
+    ] === 'function'
+  );
+}

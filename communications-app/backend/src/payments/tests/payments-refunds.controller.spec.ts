@@ -426,7 +426,11 @@ describe('PaymentsRefundsController.createRefund()', () => {
     const controller = new PaymentsRefundsController(
       service as unknown as PaymentsRefundsService,
     );
-    await controller.createRefund(makeAuthContext(), ACCOUNT_ID, makeCreateDto());
+    await controller.createRefund(
+      makeAuthContext(),
+      ACCOUNT_ID,
+      makeCreateDto(),
+    );
 
     expect(service.createRefund).toHaveBeenCalledWith(
       COMPANY_ID,

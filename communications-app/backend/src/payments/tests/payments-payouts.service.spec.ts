@@ -45,7 +45,9 @@ function makePayoutDetail(id = 'po_001'): PayoutDetail {
   };
 }
 
-function makeListResult(overrides: Partial<PayoutListResult> = {}): PayoutListResult {
+function makeListResult(
+  overrides: Partial<PayoutListResult> = {},
+): PayoutListResult {
   return {
     data: [makePayoutSummary()],
     hasMore: false,
@@ -132,7 +134,11 @@ describe('PaymentsPayoutsService.listPayouts()', () => {
       makePaymentsService(makePayoutProvider(listFn)) as never,
     );
 
-    const result = await service.listPayouts(COMPANY_ID, ACCOUNT_ID, makeQuery());
+    const result = await service.listPayouts(
+      COMPANY_ID,
+      ACCOUNT_ID,
+      makeQuery(),
+    );
     expect(result).toBe(listResult);
   });
 
@@ -207,7 +213,11 @@ describe('PaymentsPayoutsService.listPayouts()', () => {
       makePaymentsService(makePayoutProvider(listFn)) as never,
     );
 
-    const result = await service.listPayouts(COMPANY_ID, ACCOUNT_ID, makeQuery());
+    const result = await service.listPayouts(
+      COMPANY_ID,
+      ACCOUNT_ID,
+      makeQuery(),
+    );
     expect(JSON.stringify(result)).not.toContain('secretKey');
     expect(JSON.stringify(result)).not.toContain('sk_test_mock');
   });

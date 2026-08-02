@@ -39,14 +39,15 @@ export class ProvidersService {
       if (!Types.ObjectId.isValid(params.channelId)) {
         throw new HttpException('Invalid channelId', HttpStatus.BAD_REQUEST);
       }
-      filter.channelId = new Types.ObjectId(params.channelId);
+      // channelIds is an array; MongoDB matches documents where any element equals the value.
+      filter.channelIds = new Types.ObjectId(params.channelId);
     }
 
     const limit = Math.min(Number(params?.limit ?? 50), 200);
     const offset = Math.max(0, Number(params?.offset ?? 0));
 
     const q = this.model.find(filter).sort({ providerKey: 1 });
-    if (params?.populate) q.populate('channelId');
+    if (params?.populate) q.populate('channelIds');
 
     const [list, total] = await Promise.all([
       q.skip(offset).limit(limit).lean(),
@@ -67,7 +68,7 @@ export class ProvidersService {
     }
 
     const q = this.model.findById(new Types.ObjectId(id));
-    if (populate) q.populate('channelId');
+    if (populate) q.populate('channelIds');
 
     const doc = await q.lean();
     if (!doc)
@@ -81,7 +82,13 @@ export class ProvidersService {
       const providerKey = this.normalizeKey(dto.providerKey);
       const displayName = (dto.displayName ?? '').trim();
 
-      await this.assertChannelExists(dto.channelId);
+      const rawChannelIds = Array.isArray(dto.channelId)
+        ? dto.channelId
+        : [dto.channelId];
+
+      for (const cid of rawChannelIds) {
+        await this.assertChannelExists(cid);
+      }
 
       const created = await this.model.create({
         providerKey,
@@ -89,14 +96,14 @@ export class ProvidersService {
         ...(dto.description !== undefined
           ? { description: dto.description.trim() }
           : {}),
-        channelId: new Types.ObjectId(dto.channelId),
+        channelIds: rawChannelIds.map((id) => new Types.ObjectId(id)),
         connectionType: dto.connectionType,
         isActive: dto.isActive ?? true,
       });
 
       const populated = await this.model
         .findById(created._id)
-        .populate('channelId')
+        .populate('channelIds')
         .lean();
 
       return ProviderMapper.toResponse(populated as any);
@@ -138,13 +145,20 @@ export class ProvidersService {
       if (dto.isActive !== undefined) $set.isActive = dto.isActive;
 
       if (dto.channelId !== undefined) {
-        await this.assertChannelExists(dto.channelId);
-        $set.channelId = new Types.ObjectId(dto.channelId);
+        const rawChannelIds = Array.isArray(dto.channelId)
+          ? dto.channelId
+          : [dto.channelId];
+        for (const cid of rawChannelIds) {
+          await this.assertChannelExists(cid);
+        }
+        $set.channelIds = rawChannelIds.map(
+          (id: string) => new Types.ObjectId(id),
+        );
       }
 
       const updated = await this.model
         .findByIdAndUpdate(_id, { $set }, { new: true, runValidators: true })
-        .populate('channelId')
+        .populate('channelIds')
         .lean();
 
       if (!updated)

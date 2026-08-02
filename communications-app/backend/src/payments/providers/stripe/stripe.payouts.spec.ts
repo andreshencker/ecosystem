@@ -53,12 +53,14 @@ function makeBankAccountDest(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-function makeMockClient(overrides: {
-  listResult?: Partial<Stripe.ApiList<Stripe.Payout>>;
-  retrieveResult?: Partial<Stripe.Payout>;
-  listFn?: jest.Mock;
-  retrieveFn?: jest.Mock;
-} = {}): Stripe {
+function makeMockClient(
+  overrides: {
+    listResult?: Partial<Stripe.ApiList<Stripe.Payout>>;
+    retrieveResult?: Partial<Stripe.Payout>;
+    listFn?: jest.Mock;
+    retrieveFn?: jest.Mock;
+  } = {},
+): Stripe {
   const listFn =
     overrides.listFn ??
     jest.fn().mockResolvedValue({
@@ -69,9 +71,7 @@ function makeMockClient(overrides: {
 
   const retrieveFn =
     overrides.retrieveFn ??
-    jest
-      .fn()
-      .mockResolvedValue(overrides.retrieveResult ?? makePayout());
+    jest.fn().mockResolvedValue(overrides.retrieveResult ?? makePayout());
 
   return {
     payouts: { list: listFn, retrieve: retrieveFn },
@@ -82,15 +82,18 @@ function makeMockClient(overrides: {
 
 describe('mapStripePayoutStatus()', () => {
   it.each([
-    ['pending',    'pending'],
+    ['pending', 'pending'],
     ['in_transit', 'in_transit'],
-    ['paid',       'paid'],
-    ['failed',     'failed'],
-    ['canceled',   'cancelled'],  // Stripe uses US spelling; canonical uses double-l
-  ] as const)('maps Stripe "%s" → canonical "%s"', (stripeStatus, canonical) => {
-    const payout = makePayout({ status: stripeStatus });
-    expect(mapStripePayoutStatus(payout)).toBe(canonical);
-  });
+    ['paid', 'paid'],
+    ['failed', 'failed'],
+    ['canceled', 'cancelled'], // Stripe uses US spelling; canonical uses double-l
+  ] as const)(
+    'maps Stripe "%s" → canonical "%s"',
+    (stripeStatus, canonical) => {
+      const payout = makePayout({ status: stripeStatus });
+      expect(mapStripePayoutStatus(payout)).toBe(canonical);
+    },
+  );
 
   it('maps unknown status → "unknown"', () => {
     const payout = makePayout({ status: 'some_future_status' });
@@ -122,7 +125,10 @@ describe('mapStripePayoutToSummary()', () => {
   });
 
   it('maps Stripe unix timestamp to Date for createdAt', () => {
-    const s = mapStripePayoutToSummary(makePayout({ created: 1700000000 }), ACCOUNT_ID);
+    const s = mapStripePayoutToSummary(
+      makePayout({ created: 1700000000 }),
+      ACCOUNT_ID,
+    );
     expect(s.createdAt).toBeInstanceOf(Date);
     expect(s.createdAt.getTime()).toBe(1700000000 * 1000);
   });
@@ -145,7 +151,10 @@ describe('mapStripePayoutToSummary()', () => {
   });
 
   it('sets automatic flag', () => {
-    const s = mapStripePayoutToSummary(makePayout({ automatic: true }), ACCOUNT_ID);
+    const s = mapStripePayoutToSummary(
+      makePayout({ automatic: true }),
+      ACCOUNT_ID,
+    );
     expect(s.automatic).toBe(true);
   });
 
@@ -169,7 +178,10 @@ describe('mapStripePayoutToSummary()', () => {
   });
 
   it('returns undefined metadata when metadata is empty', () => {
-    const s = mapStripePayoutToSummary(makePayout({ metadata: {} }), ACCOUNT_ID);
+    const s = mapStripePayoutToSummary(
+      makePayout({ metadata: {} }),
+      ACCOUNT_ID,
+    );
     expect(s.metadata).toBeUndefined();
   });
 
@@ -193,7 +205,12 @@ describe('mapStripePayoutToSummary()', () => {
 
   it('does not expose full bank account numbers — only last 4 digits', () => {
     const s = mapStripePayoutToSummary(
-      makePayout({ destination: makeBankAccountDest({ last4: '1234', account_number: '000123456789' }) }),
+      makePayout({
+        destination: makeBankAccountDest({
+          last4: '1234',
+          account_number: '000123456789',
+        }),
+      }),
       ACCOUNT_ID,
     );
     const json = JSON.stringify(s);
@@ -236,7 +253,9 @@ describe('mapStripePayoutToDetail()', () => {
 
   it('extracts destinationId and destinationLast4 for bank account', () => {
     const d = mapStripePayoutToDetail(
-      makePayout({ destination: makeBankAccountDest({ id: 'ba_safe_001', last4: '4242' }) }),
+      makePayout({
+        destination: makeBankAccountDest({ id: 'ba_safe_001', last4: '4242' }),
+      }),
       ACCOUNT_ID,
     );
     expect(d.destinationId).toBe('ba_safe_001');
@@ -266,7 +285,10 @@ describe('mapStripePayoutToDetail()', () => {
 describe('listStripePayouts()', () => {
   it('returns paginated results', async () => {
     const client = makeMockClient({
-      listResult: { data: [makePayout(), makePayout({ id: 'po_002' })], has_more: false },
+      listResult: {
+        data: [makePayout(), makePayout({ id: 'po_002' })],
+        has_more: false,
+      },
     });
     const result = await listStripePayouts(client, ACCOUNT_ID, {});
     expect(result.data).toHaveLength(2);

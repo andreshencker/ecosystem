@@ -33,6 +33,11 @@ import {
   PaymentProviderNotFoundError,
   PaymentProviderUnavailableError,
 } from '../errors/payment.errors';
+import {
+  CoinGateValidationError,
+  CoinGateRateLimitError,
+  getCoinGateValidationMessage,
+} from '../providers/coingate/coingate.errors';
 import type {
   PaymentSummary,
   PaymentDetail,
@@ -240,6 +245,12 @@ export class PaymentsListController {
       err instanceof PaymentCredentialsInvalidError
     ) {
       throw new UnprocessableEntityException(err.message);
+    }
+    if (err instanceof CoinGateValidationError) {
+      throw new UnprocessableEntityException(getCoinGateValidationMessage(err));
+    }
+    if (err instanceof CoinGateRateLimitError) {
+      throw new ServiceUnavailableException(err.message);
     }
     if (err instanceof PaymentProviderUnavailableError) {
       throw new ServiceUnavailableException(err.message);

@@ -325,7 +325,9 @@ export class ChannelsRuntimeResolverService {
       k !== 'sms' &&
       k !== 'storage' &&
       k !== 'calendar' &&
-      k !== 'payment'
+      k !== 'payment' &&
+      k !== 'accounting' &&
+      k !== 'billing'
     ) {
       throw new HttpException(
         `Invalid channelKey "${v}"`,

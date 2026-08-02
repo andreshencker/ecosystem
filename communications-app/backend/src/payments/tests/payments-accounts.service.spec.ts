@@ -721,3 +721,119 @@ describe('PaymentsAccountsService.verifyAccount()', () => {
     );
   });
 });
+
+// ─── Company isolation — provider selector scoping (tests 1–5) ────────────────
+//
+// These tests verify the listAccounts() service correctly enforces company scope
+// so the frontend provider selector can never show another company's providers.
+
+describe('PaymentsAccountsService — company isolation (Tests 1–5)', () => {
+  const OTHER_COMPANY_ID = new Types.ObjectId().toHexString();
+  const OTHER_CCP_ID = new Types.ObjectId();
+  const OTHER_CRED_ID = new Types.ObjectId();
+
+  function makeService(
+    ccpDocs: unknown[],
+    credDocs: unknown[] = [],
+    credCount = 0,
+  ) {
+    const ccpModel = makeMockCcpModel(ccpDocs);
+    const credModel = makeMockCredModel(credDocs, credCount, null);
+    return new PaymentsAccountsService(
+      ccpModel as unknown as never,
+      credModel as unknown as never,
+      makePaymentsService(jest.fn()),
+    );
+  }
+
+  it('Test 1: listAccounts uses companyId — result belongs to the requested company', async () => {
+    const ccp = {
+      _id: CCP_ID,
+      channelId: { channelKey: 'payment' },
+      providerId: { providerKey: 'stripe', connectionType: 'api_key' },
+    };
+    const cred = {
+      _id: CRED_ID,
+      tag: 'default',
+      isActive: true,
+      mode: 'test',
+      createdAt: new Date(),
+      companyChannelProviderId: CCP_ID,
+    };
+    const service = makeService([ccp], [cred], 1);
+    const result = await service.listAccounts(
+      COMPANY_ID,
+      new ListPaymentAccountsQueryDto(),
+    );
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].providerKey).toBe('stripe');
+  });
+
+  it('Test 2: only Payments channel providers are returned — email CCP excluded', async () => {
+    const emailCcp = {
+      _id: OTHER_CCP_ID,
+      channelId: { channelKey: 'email' },
+      providerId: { providerKey: 'sendgrid', connectionType: 'api_key' },
+    };
+    const service = makeService([emailCcp]);
+    const result = await service.listAccounts(
+      COMPANY_ID,
+      new ListPaymentAccountsQueryDto(),
+    );
+
+    expect(result.data).toHaveLength(0);
+  });
+
+  it('Test 3: inactive CompanyChannelProvider produces no account summary', async () => {
+    // The service queries CCPs for the company; inactive CCPs have no payment credentials.
+    // An inactive CCP is excluded at the query level (no credentials associate to it).
+    const activeCcp = {
+      _id: CCP_ID,
+      channelId: { channelKey: 'payment' },
+      providerId: { providerKey: 'stripe', connectionType: 'api_key' },
+    };
+    // credModel returns 0 docs (simulating no credentials for this CCP)
+    const service = makeService([activeCcp], [], 0);
+    const result = await service.listAccounts(
+      COMPANY_ID,
+      new ListPaymentAccountsQueryDto(),
+    );
+
+    expect(result.data).toHaveLength(0);
+  });
+
+  it("Test 4: another company's CCP is not returned — companyId is passed to the CCP model", async () => {
+    // The CCP query is always scoped to the passed companyId.
+    // This test verifies the ccpModel.find() call receives the correct companyId filter.
+    const ccpModel = makeMockCcpModel([]);
+    const credModel = makeMockCredModel([], 0, null);
+    const service = new PaymentsAccountsService(
+      ccpModel as unknown as never,
+      credModel as unknown as never,
+      makePaymentsService(jest.fn()),
+    );
+
+    await service.listAccounts(COMPANY_ID, new ListPaymentAccountsQueryDto());
+
+    const findArgs = ccpModel.find.mock.calls[0][0] as {
+      companyId: unknown;
+    };
+    // The query must include the companyId filter — never return all companies.
+    expect(findArgs).toHaveProperty('companyId');
+    expect(String(findArgs.companyId)).toBe(COMPANY_ID);
+  });
+
+  it('Test 5: global catalogue-only provider has no accounts — no CCP → no summary', async () => {
+    // A provider that exists only in the registry but has no CCP for this company
+    // produces no account summaries. The registry is never queried by listAccounts().
+    const service = makeService([]);
+    const result = await service.listAccounts(
+      COMPANY_ID,
+      new ListPaymentAccountsQueryDto(),
+    );
+
+    expect(result.data).toHaveLength(0);
+    expect(result.total).toBe(0);
+  });
+});

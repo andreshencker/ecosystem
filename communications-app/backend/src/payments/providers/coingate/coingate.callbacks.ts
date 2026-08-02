@@ -26,7 +26,7 @@ import type { VerifiedWebhookEvent } from '../../contracts/payment-webhook-deliv
 export interface CoinGateCallbackPayload {
   id?: number | string;
   status?: string;
-  order_id?: string;   // merchant-supplied external reference
+  order_id?: string; // merchant-supplied external reference
   price_currency?: string;
   price_amount?: string;
   receive_currency?: string;
@@ -34,7 +34,7 @@ export interface CoinGateCallbackPayload {
   pay_currency?: string;
   pay_amount?: string;
   created_at?: string;
-  token?: string;      // set by us on order creation; sent back for validation
+  token?: string; // set by us on order creation; sent back for validation
 }
 
 export interface CoinGateCallbackResult {
@@ -119,11 +119,20 @@ export async function processCoinGateCallback(
     // Still process if we can re-fetch the order (lower security).
     signatureStatus = 'missing';
   } else if (externalReference) {
-    const tokenValid = verifyCallbackToken(receivedToken, credentialId, externalReference);
+    const tokenValid = verifyCallbackToken(
+      receivedToken,
+      credentialId,
+      externalReference,
+    );
     signatureStatus = tokenValid ? 'valid' : 'invalid';
 
     if (!tokenValid) {
-      return { valid: false, signatureStatus: 'invalid', orderId, externalReference };
+      return {
+        valid: false,
+        signatureStatus: 'invalid',
+        orderId,
+        externalReference,
+      };
     }
   } else {
     // Token present but no externalReference to derive against.
