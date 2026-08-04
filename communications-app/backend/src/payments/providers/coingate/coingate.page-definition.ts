@@ -16,6 +16,7 @@ import type {
   PaymentsPageDefinitionContext,
 } from '../../contracts/payments-page-definition.contract';
 import { PaymentCapability, CapabilityStatus } from '../../enums/payment.enums';
+import { PaymentCanonicalStatus } from '../../enums/payment-canonical-status.enum';
 
 export async function buildCoinGatePageDefinition(
   ctx: PaymentsPageDefinitionContext,
@@ -37,7 +38,7 @@ export async function buildCoinGatePageDefinition(
         label: 'Paid Orders',
         type: 'count',
         source: 'page.status',
-        status: 'succeeded',
+        status: PaymentCanonicalStatus.Succeeded,
         scope: 'current_page',
         unavailableBehaviour: 'hide',
       },
@@ -46,7 +47,7 @@ export async function buildCoinGatePageDefinition(
         label: 'Awaiting Payment',
         type: 'count',
         source: 'page.status',
-        status: 'requires_action',
+        status: PaymentCanonicalStatus.RequiresAction,
         scope: 'current_page',
         unavailableBehaviour: 'hide',
       },
@@ -55,7 +56,7 @@ export async function buildCoinGatePageDefinition(
         label: 'Failed Orders',
         type: 'count',
         source: 'page.status',
-        status: 'failed',
+        status: PaymentCanonicalStatus.Failed,
         scope: 'current_page',
         unavailableBehaviour: 'hide',
       },
@@ -64,7 +65,7 @@ export async function buildCoinGatePageDefinition(
         label: 'Expired Orders',
         type: 'count',
         source: 'page.status',
-        status: 'expired',
+        status: PaymentCanonicalStatus.Expired,
         scope: 'current_page',
         unavailableBehaviour: 'hide',
       },

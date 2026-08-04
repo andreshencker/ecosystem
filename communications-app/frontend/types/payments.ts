@@ -173,7 +173,8 @@ export interface PaymentTestResult {
   amountMinor: number;
   currency: string;
   status: PaymentTestStatus;
-  scenario: PaymentTestScenario;
+  /** Scenario may be undefined for providers without discrete scenarios (e.g. CoinGate). */
+  scenario?: PaymentTestScenario;
   requiresUserAction: boolean;
   /** CoinGate sandbox payment URL — open in browser to simulate payment. */
   paymentUrl?: string;
@@ -184,12 +185,23 @@ export interface PaymentTestResult {
 
 export interface CreatePaymentTestInput {
   connectionId: string;
-  paymentMethodKey: string;
+  /** Required for Stripe; not needed for CoinGate. */
+  paymentMethodKey?: string;
   amountMinor: number;
-  currency: string;
-  scenario: PaymentTestScenario;
+  /** ISO 4217 currency code or provider asset code. */
+  currency?: string;
+  /**
+   * Provider payment unit code — uppercase (e.g. 'EUR', 'BTC').
+   * Takes precedence over currency when both are supplied.
+   * Used for CoinGate price_currency.
+   */
+  paymentUnitCode?: string;
+  /** Required for Stripe; not needed for CoinGate (sandbox always runs success). */
+  scenario?: PaymentTestScenario;
   description?: string;
   reference?: string;
+  /** Provider-specific extension fields; never contains credentials. */
+  providerExtensions?: Record<string, unknown>;
 }
 
 // ─── Payments list ────────────────────────────────────────────────────────────
@@ -349,6 +361,8 @@ export interface CreateRefundInput {
   amountMinor?: number;
   reason?: RefundCanonicalReason | '';
   metadata?: Record<string, string>;
+  /** Provider-specific fields; never contains credentials. */
+  providerExtensions?: Record<string, unknown>;
 }
 
 // ─── Payouts ──────────────────────────────────────────────────────────────────
@@ -694,5 +708,195 @@ export interface PaymentsPageDefinition {
     title: string;
     description: string;
   };
+  metadata?: Record<string, unknown>;
+}
+
+// ─── Refunds Page Definition ──────────────────────────────────────────────────
+//
+// Canonical definition returned by
+// GET /payments/connections/:id/refunds/page-definition.
+// Drives all Refunds page UI components — toolbar actions, filters, columns,
+// row actions, and create form. No provider branching in the generic frontend.
+// Never contains credentials, tokens, or executable code.
+
+export type RefundToolbarActionType = 'refresh' | 'create_refund';
+
+export interface RefundToolbarActionDefinition {
+  key: string;
+  label: string;
+  type: RefundToolbarActionType;
+  capability?: string;
+  permission?: string;
+  disabledReason?: string;
+}
+
+export type RefundFilterType = 'search' | 'select' | 'date' | 'date_range';
+
+export type RefundFilterOptionsSource =
+  | 'refund_statuses'
+  | 'payment_units'
+  | 'provider';
+
+export interface RefundFilterDefinition {
+  key: string;
+  label: string;
+  type: RefundFilterType;
+  queryParam: string;
+  capability?: string;
+  optionsSource?: RefundFilterOptionsSource;
+  placeholder?: string;
+  resetOnProviderChange: boolean;
+  resetOnConnectionChange: boolean;
+}
+
+export type RefundColumnType =
+  | 'identifier'
+  | 'amount'
+  | 'payment_unit'
+  | 'reason'
+  | 'status'
+  | 'date'
+  | 'text'
+  | 'actions';
+
+export interface RefundColumnDefinition {
+  key: string;
+  label: string;
+  type: RefundColumnType;
+  field?: string;
+  secondaryField?: string;
+  capability?: string;
+  width?: number;
+  flex?: number;
+  align?: 'left' | 'center' | 'right';
+  hiddenWhenEmpty?: boolean;
+}
+
+export type RefundActionType = 'view';
+
+export interface RefundActionDefinition {
+  key: string;
+  label: string;
+  type: RefundActionType;
+  capability?: string;
+  permission?: string;
+}
+
+export type RefundCreateFieldType =
+  | 'payment_reference'
+  | 'amount'
+  | 'select'
+  | 'text'
+  | 'email'
+  | 'payment_unit';
+
+export interface RefundCreateFieldDefinition {
+  key: string;
+  label: string;
+  type: RefundCreateFieldType;
+  required: boolean;
+  capability?: string;
+  optionsSource?: 'payment_units' | 'refund_reasons' | 'provider';
+  placeholder?: string;
+  helpText?: string;
+  providerExtension?: boolean;
+  /**
+   * For payment_unit + providerExtension=true fields:
+   * maps providerMetadata keys → providerExtensions keys.
+   * e.g. { currencyId: 'currency_id', platformId: 'platform_id' }
+   */
+  providerMetadataMapping?: Record<string, string>;
+}
+
+export interface RefundCreateFormDefinition {
+  supported: boolean;
+  title: string;
+  description?: string;
+  submitLabel: string;
+  fields: RefundCreateFieldDefinition[];
+}
+
+export interface RefundsPageDefinition {
+  providerKey: string;
+  connectionId: string;
+  version: string;
+  capabilities: Partial<Record<string, ProviderCapabilityStatus>>;
+  toolbarActions: RefundToolbarActionDefinition[];
+  filters: RefundFilterDefinition[];
+  columns: RefundColumnDefinition[];
+  rowActions: RefundActionDefinition[];
+  createForm?: RefundCreateFormDefinition;
+  list: {
+    supported: boolean;
+    defaultPageSize: number;
+    allowedPageSizes: number[];
+    paginationType: 'cursor' | 'page' | 'none';
+    defaultSort?: string;
+  };
+  emptyState: {
+    title: string;
+    description: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
+// ─── Payment Testing Page Definition ─────────────────────────────────────────
+//
+// Canonical definition returned by
+// GET /payments/connections/:id/testing/page-definition.
+// Drives the Payment Testing page UI — form fields, submit label, result
+// presentation, instructions. No provider branching in the generic frontend.
+// Never contains credentials, tokens, or executable code.
+
+export type PaymentTestingFieldType =
+  | 'scenario'
+  | 'amount'
+  | 'payment_unit'
+  | 'text'
+  | 'email'
+  | 'select';
+
+export type PaymentTestingFieldOptionsSource =
+  | 'test_scenarios'
+  | 'payment_units'
+  | 'provider';
+
+export interface PaymentTestingFieldDefinition {
+  key: string;
+  label: string;
+  type: PaymentTestingFieldType;
+  required: boolean;
+  capability?: string;
+  optionsSource?: PaymentTestingFieldOptionsSource;
+  placeholder?: string;
+  helpText?: string;
+  defaultValue?: string | number;
+  providerExtension?: boolean;
+}
+
+export interface PaymentTestingFormDefinition {
+  supported: boolean;
+  title: string;
+  description?: string;
+  submitLabel: string;
+  fields: PaymentTestingFieldDefinition[];
+}
+
+export interface PaymentTestingResultDefinition {
+  presentationType: 'redirect' | 'embedded' | 'none';
+  successTitle?: string;
+  successDescription?: string;
+}
+
+export interface PaymentTestingPageDefinition {
+  providerKey: string;
+  connectionId: string;
+  environment: 'test' | 'live' | 'unknown';
+  version: string;
+  capabilities: Partial<Record<string, ProviderCapabilityStatus>>;
+  form: PaymentTestingFormDefinition;
+  result: PaymentTestingResultDefinition;
+  instructions?: string[];
+  limitations?: string[];
   metadata?: Record<string, unknown>;
 }

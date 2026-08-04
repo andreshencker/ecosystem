@@ -547,6 +547,16 @@ import type {
   PaymentsPageDefinitionContext,
 } from '../contracts/payments-page-definition.contract';
 
+import type {
+  RefundsPageDefinition,
+  RefundsPageDefinitionContext,
+} from '../contracts/refunds-page-definition.contract';
+
+import type {
+  PaymentTestingPageDefinition,
+  PaymentTestingPageDefinitionContext,
+} from '../contracts/payment-testing-page-definition.contract';
+
 /**
  * Provider that can supply a canonical Payments page definition.
  *
@@ -573,6 +583,71 @@ export function isPageDefinitionProvider(
     'getPaymentsPageDefinition' in provider &&
     typeof (provider as Record<string, unknown>)[
       'getPaymentsPageDefinition'
+    ] === 'function'
+  );
+}
+
+// ─── Refunds page definition provider ────────────────────────────────────────
+
+/**
+ * Provider that can supply a canonical Refunds page definition.
+ *
+ * The definition drives all Refunds page UI components: toolbar actions,
+ * filters, columns, row actions, and the create form. It must never contain
+ * credentials, secrets, or executable expressions — only controlled canonical
+ * configuration.
+ *
+ * Providers that do not implement this interface receive the generic default
+ * definition built by buildGenericRefundsPageDefinition() in the contract module.
+ */
+export interface IRefundsPageDefinitionProvider extends IPaymentProvider {
+  readonly supportsRefundsPageDefinition: true;
+  getRefundsPageDefinition(
+    context: RefundsPageDefinitionContext,
+  ): Promise<RefundsPageDefinition>;
+}
+
+export function isRefundsPageDefinitionProvider(
+  provider: IPaymentProvider | PaymentProviderRef,
+): provider is IRefundsPageDefinitionProvider {
+  return (
+    'supportsRefundsPageDefinition' in provider &&
+    provider.supportsRefundsPageDefinition === true &&
+    'getRefundsPageDefinition' in provider &&
+    typeof (provider as Record<string, unknown>)['getRefundsPageDefinition'] ===
+      'function'
+  );
+}
+
+// ─── Testing page definition provider ────────────────────────────────────────
+
+/**
+ * Provider that can supply a canonical Payment Testing page definition.
+ *
+ * The definition drives all Testing page UI components: the test form fields,
+ * submit label, result presentation type, instructions, and limitations.
+ * It must never contain credentials, secrets, or executable expressions —
+ * only controlled canonical configuration.
+ *
+ * Providers that do not implement this interface receive the generic default
+ * definition built by buildGenericTestingPageDefinition() in the contract module.
+ */
+export interface IPaymentTestingPageDefinitionProvider extends IPaymentProvider {
+  readonly supportsPaymentTestingPageDefinition: true;
+  getPaymentTestingPageDefinition(
+    context: PaymentTestingPageDefinitionContext,
+  ): Promise<PaymentTestingPageDefinition>;
+}
+
+export function isPaymentTestingPageDefinitionProvider(
+  provider: IPaymentProvider | PaymentProviderRef,
+): provider is IPaymentTestingPageDefinitionProvider {
+  return (
+    'supportsPaymentTestingPageDefinition' in provider &&
+    provider.supportsPaymentTestingPageDefinition === true &&
+    'getPaymentTestingPageDefinition' in provider &&
+    typeof (provider as Record<string, unknown>)[
+      'getPaymentTestingPageDefinition'
     ] === 'function'
   );
 }

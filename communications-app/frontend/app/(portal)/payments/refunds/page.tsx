@@ -9,7 +9,6 @@ import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
-import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
@@ -46,19 +45,26 @@ import {
   useRefundsList,
   useRefundDetail,
   useCreateRefundMutation,
-  usePaymentsList,
-  usePaymentDetail,
   usePaymentUnits,
+  useRefundsPageDefinition,
 } from '@/hooks/api/usePayments';
 import { formatAmountMinor } from '@/lib/formatBalance';
-import { PAGE_CAPABILITY, PAGE_FEATURE_DISPLAY_NAME } from '@/lib/config/payments-capability-map';
+import {
+  PAGE_CAPABILITY,
+  PAGE_FEATURE_DISPLAY_NAME,
+} from '@/lib/config/payments-capability-map';
 import type {
   RefundSummary,
   RefundCanonicalStatus,
+  RefundCanonicalReason,
   ListRefundsParams,
   CreateRefundInput,
-  RefundCanonicalReason,
+  RefundsPageDefinition,
+  RefundFilterDefinition,
+  RefundColumnDefinition,
+  RefundCreateFieldDefinition,
 } from '@/types/payments';
+import type { PaymentUnit } from '@/types/payments';
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -66,12 +72,12 @@ const REFUND_STATUS_CONFIG: Record<
   RefundCanonicalStatus,
   { label: string; color: 'success' | 'error' | 'warning' | 'info' | 'default' }
 > = {
-  succeeded:       { label: 'Succeeded',       color: 'success' },
-  failed:          { label: 'Failed',           color: 'error'   },
-  pending:         { label: 'Pending',          color: 'default' },
-  cancelled:       { label: 'Cancelled',        color: 'default' },
-  requires_action: { label: 'Requires Action',  color: 'warning' },
-  unknown:         { label: 'Unknown',          color: 'default' },
+  succeeded: { label: 'Succeeded', color: 'success' },
+  failed: { label: 'Failed', color: 'error' },
+  pending: { label: 'Pending', color: 'default' },
+  cancelled: { label: 'Cancelled', color: 'default' },
+  requires_action: { label: 'Requires Action', color: 'warning' },
+  unknown: { label: 'Unknown', color: 'default' },
 };
 
 function RefundStatusBadge({
@@ -95,6 +101,33 @@ function RefundStatusBadge({
   );
 }
 
+// ─── Canonical refund status options for 'refund_statuses' optionsSource ─────
+
+const REFUND_STATUS_OPTIONS: Array<{
+  value: RefundCanonicalStatus | '';
+  label: string;
+}> = [
+  { value: '', label: 'All statuses' },
+  { value: 'succeeded', label: 'Succeeded' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'requires_action', label: 'Requires Action' },
+  { value: 'unknown', label: 'Unknown' },
+];
+
+// ─── Canonical refund reason options for 'refund_reasons' optionsSource ───────
+
+const REFUND_REASON_OPTIONS: Array<{
+  value: RefundCanonicalReason | '';
+  label: string;
+}> = [
+  { value: '', label: 'No reason specified' },
+  { value: 'duplicate', label: 'Duplicate' },
+  { value: 'fraudulent', label: 'Fraudulent' },
+  { value: 'requested_by_customer', label: 'Requested by customer' },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -109,10 +142,10 @@ function truncateId(id: string, len = 20): string {
   return id.length > len ? `${id.slice(0, len)}…` : id;
 }
 
-/**
- * Converts a human-typed major-unit amount string to integer minor units.
- * Uses Intl.NumberFormat to determine the correct exponent per currency.
- */
+function rowField(row: RefundSummary, field: string): unknown {
+  return (row as unknown as Record<string, unknown>)[field];
+}
+
 function majorToMinor(major: string, currency: string): number {
   try {
     const formatter = new Intl.NumberFormat(undefined, {
@@ -126,45 +159,579 @@ function majorToMinor(major: string, currency: string): number {
   }
 }
 
-/**
- * Converts integer minor units to a major-unit number for display in inputs.
- */
-function minorToMajor(minor: number, currency: string): number {
-  try {
-    const formatter = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-    });
-    const exp = formatter.resolvedOptions().minimumFractionDigits ?? 2;
-    return minor / Math.pow(10, exp);
-  } catch {
-    return minor / 100;
+// ─── Column renderer (definition-driven) ─────────────────────────────────────
+
+function buildColumnDef(
+  col: RefundColumnDefinition,
+  onView: (id: string) => void,
+  rowActions: RefundsPageDefinition['rowActions'],
+): GridColDef {
+  const base: Partial<GridColDef> = {
+    field: col.key,
+    headerName: col.label,
+    width: col.width,
+    flex: col.flex,
+  };
+
+  switch (col.type) {
+    case 'identifier':
+      return {
+        ...base,
+        field: col.key,
+        minWidth: 160,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          const primary = col.field
+            ? String(rowField(row, col.field) ?? '')
+            : row.providerRefundId;
+          const secondary = col.secondaryField
+            ? String(rowField(row, col.secondaryField) ?? '')
+            : undefined;
+          return (
+            <Box>
+              <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem">
+                {truncateId(primary)}
+              </Typography>
+              {secondary && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  fontFamily="monospace"
+                  fontSize="0.7rem"
+                >
+                  {truncateId(secondary, 18)}
+                </Typography>
+              )}
+            </Box>
+          );
+        },
+      } as GridColDef;
+
+    case 'amount':
+      return {
+        ...base,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          return (
+            <Typography variant="body2" fontWeight={600}>
+              {formatAmountMinor(row.amountMinor, row.currency)}
+            </Typography>
+          );
+        },
+      } as GridColDef;
+
+    case 'payment_unit':
+      return {
+        ...base,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          const val = col.field ? String(rowField(row, col.field) ?? '') : row.currency;
+          return (
+            <Typography variant="body2" fontFamily="monospace">
+              {val.toUpperCase()}
+            </Typography>
+          );
+        },
+      } as GridColDef;
+
+    case 'reason':
+      return {
+        ...base,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          return (
+            <Typography variant="body2" color="text.secondary">
+              {row.reason ?? '—'}
+            </Typography>
+          );
+        },
+      } as GridColDef;
+
+    case 'status':
+      return {
+        ...base,
+        renderCell: (p) => (
+          <RefundStatusBadge status={(p.row as RefundSummary).status} />
+        ),
+      } as GridColDef;
+
+    case 'date':
+      return {
+        ...base,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          const val = col.field ? rowField(row, col.field) : row.createdAt;
+          return (
+            <Typography variant="body2" color="text.secondary">
+              {val ? formatDate(String(val)) : '—'}
+            </Typography>
+          );
+        },
+      } as GridColDef;
+
+    case 'text':
+      return {
+        ...base,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          const val = col.field ? rowField(row, col.field) : undefined;
+          return (
+            <Typography variant="body2">{val ? String(val) : '—'}</Typography>
+          );
+        },
+      } as GridColDef;
+
+    case 'actions':
+      return {
+        field: 'actions',
+        headerName: '',
+        width: col.width ?? 64,
+        sortable: false,
+        renderCell: (p) => {
+          const row = p.row as RefundSummary;
+          return (
+            <RowActions>
+              {rowActions.map((action) => {
+                if (action.type === 'view') {
+                  return (
+                    <Tooltip key={action.key} title={action.label}>
+                      <IconButton
+                        size="small"
+                        onClick={() => onView(row.id)}
+                      >
+                        <VisibilityOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  );
+                }
+                return null;
+              })}
+            </RowActions>
+          );
+        },
+      } as GridColDef;
+
+    default:
+      return { ...base, field: col.key } as GridColDef;
   }
 }
 
-// ─── Status filter options ────────────────────────────────────────────────────
+// ─── Dynamic filter renderer ──────────────────────────────────────────────────
 
-const STATUS_FILTER_OPTIONS: Array<{
-  value: RefundCanonicalStatus | '';
-  label: string;
-}> = [
-  { value: '',                label: 'All statuses'    },
-  { value: 'succeeded',       label: 'Succeeded'       },
-  { value: 'failed',          label: 'Failed'          },
-  { value: 'pending',         label: 'Pending'         },
-  { value: 'cancelled',       label: 'Cancelled'       },
-  { value: 'requires_action', label: 'Requires Action' },
-  { value: 'unknown',         label: 'Unknown'         },
-];
+function DynamicRefundFilters({
+  filterDefs,
+  filterValues,
+  onFilterChange,
+  onClearFilters,
+  hasActiveFilters,
+  availableUnits,
+  unitsLoading,
+  connectionId,
+}: {
+  filterDefs: RefundFilterDefinition[];
+  filterValues: Record<string, string>;
+  onFilterChange: (key: string, value: string) => void;
+  onClearFilters: () => void;
+  hasActiveFilters: boolean;
+  availableUnits: PaymentUnit[];
+  unitsLoading: boolean;
+  connectionId: string | null;
+}) {
+  return (
+    <PaymentsFilter>
+      {filterDefs.map((f) => {
+        const value = filterValues[f.queryParam] ?? '';
 
-// ─── Refund reason options ─────────────────────────────────────────────────────
+        if (f.type === 'search') {
+          return (
+            <TextField
+              key={f.key}
+              size="small"
+              placeholder={f.placeholder ?? 'Search…'}
+              value={value}
+              onChange={(e) => onFilterChange(f.queryParam, e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlinedIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ width: { xs: '100%', sm: 180 } }}
+            />
+          );
+        }
 
-const REASON_OPTIONS: Array<{ value: RefundCanonicalReason | ''; label: string }> = [
-  { value: '',                       label: 'No reason specified'    },
-  { value: 'duplicate',              label: 'Duplicate'              },
-  { value: 'fraudulent',             label: 'Fraudulent'             },
-  { value: 'requested_by_customer',  label: 'Requested by customer'  },
-];
+        if (f.type === 'select') {
+          if (f.optionsSource === 'refund_statuses') {
+            return (
+              <FormControl key={f.key} size="small" sx={{ minWidth: 160 }}>
+                <Select
+                  value={value}
+                  displayEmpty
+                  onChange={(e) => onFilterChange(f.queryParam, e.target.value)}
+                >
+                  {REFUND_STATUS_OPTIONS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.value === '' ? <em>{o.label}</em> : o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            );
+          }
+
+          if (f.optionsSource === 'payment_units') {
+            return (
+              <FormControl
+                key={f.key}
+                size="small"
+                disabled={unitsLoading || !connectionId}
+                sx={{ minWidth: { xs: '100%', sm: 160 } }}
+              >
+                <Select
+                  value={value}
+                  displayEmpty
+                  onChange={(e) => {
+                    onFilterChange(f.queryParam, e.target.value);
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>
+                      {unitsLoading
+                        ? 'Loading…'
+                        : !connectionId
+                          ? 'Select a connection'
+                          : (f.placeholder ?? 'All currencies / assets')}
+                    </em>
+                  </MenuItem>
+                  {availableUnits.map((u) => (
+                    <MenuItem key={u.code + (u.network ?? '')} value={u.code}>
+                      {u.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            );
+          }
+
+          return null;
+        }
+
+        if (f.type === 'date') {
+          return (
+            <TextField
+              key={f.key}
+              size="small"
+              type="date"
+              label={f.label}
+              InputLabelProps={{ shrink: true }}
+              value={value}
+              onChange={(e) => onFilterChange(f.queryParam, e.target.value)}
+              sx={{ width: { xs: '100%', sm: 140 } }}
+            />
+          );
+        }
+
+        return null;
+      })}
+
+      {hasActiveFilters && (
+        <Button
+          size="small"
+          variant="text"
+          startIcon={<ClearOutlinedIcon fontSize="small" />}
+          onClick={onClearFilters}
+        >
+          Clear
+        </Button>
+      )}
+    </PaymentsFilter>
+  );
+}
+
+// ─── Dynamic create form ──────────────────────────────────────────────────────
+
+function DynamicCreateRefundDrawer({
+  definition,
+  connectionId,
+  availableUnits,
+  onClose,
+}: {
+  definition: RefundsPageDefinition;
+  connectionId: string;
+  availableUnits: PaymentUnit[];
+  onClose: () => void;
+}) {
+  const createRefundMutation = useCreateRefundMutation(connectionId);
+  const formDef = definition.createForm;
+
+  // Store field values keyed by field.key
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  // Track selected payment unit objects keyed by field.key
+  const [selectedUnits, setSelectedUnits] = useState<
+    Record<string, PaymentUnit>
+  >({});
+
+  const setField = (key: string, value: string) =>
+    setFieldValues((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = () => {
+    if (!formDef) return;
+
+    const providerExtensions: Record<string, unknown> = {};
+    let paymentId = '';
+    let amountMinor: number | undefined;
+    let reason: RefundCanonicalReason | undefined;
+
+    for (const field of formDef.fields) {
+      const val = fieldValues[field.key] ?? '';
+
+      if (field.key === 'paymentId' && !field.providerExtension) {
+        paymentId = val;
+        continue;
+      }
+
+      if (field.key === 'amount' && !field.providerExtension) {
+        if (val.trim()) {
+          const currency =
+            fieldValues['currency'] ??
+            selectedUnits['currency_id']?.code ??
+            'usd';
+          amountMinor = majorToMinor(val, currency);
+        }
+        continue;
+      }
+
+      if (field.key === 'reason' && !field.providerExtension) {
+        if (val.trim()) reason = val as RefundCanonicalReason;
+        continue;
+      }
+
+      if (field.providerExtension) {
+        if (
+          field.type === 'payment_unit' &&
+          field.providerMetadataMapping &&
+          selectedUnits[field.key]
+        ) {
+          // Extract values from providerMetadata using the mapping
+          const unit = selectedUnits[field.key];
+          for (const [srcKey, destKey] of Object.entries(
+            field.providerMetadataMapping,
+          )) {
+            const metaVal = (unit.providerMetadata as Record<string, unknown> | undefined)?.[srcKey];
+            if (metaVal !== undefined) {
+              providerExtensions[destKey] = metaVal;
+            }
+          }
+        } else if (val.trim()) {
+          providerExtensions[field.key] = val;
+        }
+      }
+    }
+
+    const dto: CreateRefundInput = {
+      paymentId,
+      ...(amountMinor !== undefined ? { amountMinor } : {}),
+      ...(reason ? { reason } : {}),
+      ...(Object.keys(providerExtensions).length > 0
+        ? { providerExtensions }
+        : {}),
+    };
+
+    createRefundMutation.mutate(dto, { onSuccess: () => onClose() });
+  };
+
+  const isFormValid = () => {
+    if (!formDef) return false;
+    for (const field of formDef.fields) {
+      if (!field.required) continue;
+      if (field.type === 'payment_unit') {
+        if (!selectedUnits[field.key]) return false;
+      } else {
+        const val = fieldValues[field.key] ?? '';
+        if (!val.trim()) return false;
+      }
+    }
+    return true;
+  };
+
+  if (!formDef || !formDef.supported) return null;
+
+  return (
+    <FormDrawer
+      open
+      onClose={onClose}
+      title={formDef.title}
+      actions={
+        <Stack direction="row" spacing={1} width="100%">
+          <Button variant="outlined" onClick={onClose} fullWidth>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={!isFormValid() || createRefundMutation.isPending}
+            fullWidth
+          >
+            {createRefundMutation.isPending ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              formDef.submitLabel
+            )}
+          </Button>
+        </Stack>
+      }
+    >
+      <Stack spacing={2.5}>
+        {formDef.description && (
+          <Typography variant="body2" color="text.secondary">
+            {formDef.description}
+          </Typography>
+        )}
+
+        {formDef.fields.map((field) =>
+          renderFormField(
+            field,
+            fieldValues,
+            selectedUnits,
+            availableUnits,
+            setField,
+            (key, unit) =>
+              setSelectedUnits((prev) => ({ ...prev, [key]: unit })),
+          ),
+        )}
+      </Stack>
+    </FormDrawer>
+  );
+}
+
+function renderFormField(
+  field: RefundCreateFieldDefinition,
+  fieldValues: Record<string, string>,
+  selectedUnits: Record<string, PaymentUnit>,
+  availableUnits: PaymentUnit[],
+  setField: (key: string, value: string) => void,
+  setUnit: (key: string, unit: PaymentUnit) => void,
+) {
+  const value = fieldValues[field.key] ?? '';
+
+  switch (field.type) {
+    case 'payment_reference':
+    case 'text':
+      return (
+        <TextField
+          key={field.key}
+          size="small"
+          label={field.label}
+          placeholder={field.placeholder}
+          value={value}
+          onChange={(e) => setField(field.key, e.target.value)}
+          helperText={field.helpText}
+          required={field.required}
+          fullWidth
+        />
+      );
+
+    case 'email':
+      return (
+        <TextField
+          key={field.key}
+          size="small"
+          label={field.label}
+          type="email"
+          placeholder={field.placeholder}
+          value={value}
+          onChange={(e) => setField(field.key, e.target.value)}
+          helperText={field.helpText}
+          required={field.required}
+          fullWidth
+        />
+      );
+
+    case 'amount':
+      return (
+        <TextField
+          key={field.key}
+          size="small"
+          label={field.label}
+          type="number"
+          inputProps={{ step: 'any', min: 0 }}
+          placeholder={field.placeholder ?? '0.00'}
+          value={value}
+          onChange={(e) => setField(field.key, e.target.value)}
+          helperText={field.helpText}
+          required={field.required}
+          fullWidth
+        />
+      );
+
+    case 'select':
+      if (field.optionsSource === 'refund_reasons') {
+        return (
+          <FormControl key={field.key} size="small" fullWidth>
+            <Select
+              value={value}
+              displayEmpty
+              onChange={(e) => setField(field.key, e.target.value)}
+            >
+              {REFUND_REASON_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.value === '' ? <em>{o.label}</em> : o.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {field.helpText && (
+              <Typography variant="caption" color="text.secondary" mt={0.5} ml={1.5}>
+                {field.helpText}
+              </Typography>
+            )}
+          </FormControl>
+        );
+      }
+      return null;
+
+    case 'payment_unit': {
+      const selected = selectedUnits[field.key];
+      return (
+        <FormControl key={field.key} size="small" fullWidth>
+          <Select
+            value={selected ? `${selected.code}:${selected.network ?? ''}` : ''}
+            displayEmpty
+            onChange={(e) => {
+              const [code, network] = e.target.value.split(':');
+              const unit = availableUnits.find(
+                (u) => u.code === code && (u.network ?? '') === (network ?? ''),
+              );
+              if (unit) setUnit(field.key, unit);
+            }}
+          >
+            <MenuItem value="">
+              <em>{field.placeholder ?? 'Select asset'}</em>
+            </MenuItem>
+            {availableUnits.map((u) => (
+              <MenuItem
+                key={u.code + ':' + (u.network ?? '')}
+                value={u.code + ':' + (u.network ?? '')}
+              >
+                {u.label}
+              </MenuItem>
+            ))}
+          </Select>
+          {field.helpText && (
+            <Typography variant="caption" color="text.secondary" mt={0.5} ml={1.5}>
+              {field.helpText}
+            </Typography>
+          )}
+        </FormControl>
+      );
+    }
+
+    default:
+      return null;
+  }
+}
 
 // ─── Refund detail drawer ─────────────────────────────────────────────────────
 
@@ -208,7 +775,6 @@ function RefundDetailDrawer({
 
       {detail && !isLoading && (
         <Stack spacing={2.5}>
-          {/* Status */}
           <Box>
             <Typography
               variant="caption"
@@ -223,7 +789,6 @@ function RefundDetailDrawer({
 
           <Divider />
 
-          {/* Overview */}
           <Box>
             <Typography variant="subtitle2" fontWeight={600} mb={1}>
               Overview
@@ -257,14 +822,15 @@ function RefundDetailDrawer({
                 <Typography variant="body2" color="text.secondary">
                   Created
                 </Typography>
-                <Typography variant="body2">{formatDate(detail.createdAt)}</Typography>
+                <Typography variant="body2">
+                  {formatDate(detail.createdAt)}
+                </Typography>
               </Box>
             </Stack>
           </Box>
 
           <Divider />
 
-          {/* Provider IDs */}
           <Box>
             <Typography variant="subtitle2" fontWeight={600} mb={1}>
               Provider IDs
@@ -326,7 +892,6 @@ function RefundDetailDrawer({
             </Stack>
           </Box>
 
-          {/* Amounts */}
           {(detail.paymentAmountMinor !== undefined ||
             detail.refundedAmountMinor !== undefined ||
             detail.remainingRefundableAmountMinor !== undefined) && (
@@ -381,7 +946,6 @@ function RefundDetailDrawer({
             </>
           )}
 
-          {/* Failure details */}
           {(detail.failureCode ?? detail.failureMessage) && (
             <>
               <Divider />
@@ -425,7 +989,6 @@ function RefundDetailDrawer({
             </>
           )}
 
-          {/* Receipt number */}
           {detail.receiptNumber && (
             <>
               <Divider />
@@ -440,7 +1003,6 @@ function RefundDetailDrawer({
             </>
           )}
 
-          {/* Provider Metadata */}
           {detail.providerMetadata &&
             Object.keys(detail.providerMetadata).length > 0 && (
               <>
@@ -484,258 +1046,6 @@ function RefundDetailDrawer({
   );
 }
 
-// ─── Create Refund drawer ─────────────────────────────────────────────────────
-
-function CreateRefundDrawer({
-  connectionId,
-  onClose,
-}: {
-  connectionId: string;
-  onClose: () => void;
-}) {
-  const [selectedPaymentId, setSelectedPaymentId] = useState('');
-  const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
-  const [amountInput, setAmountInput] = useState('');
-  const [reason, setReason] = useState<RefundCanonicalReason | ''>('');
-
-  const createRefundMutation = useCreateRefundMutation(connectionId);
-
-  // Fetch recently succeeded payments to use as options in the selector
-  const { data: paymentsData, isLoading: paymentsLoading } = usePaymentsList(
-    connectionId,
-    { status: 'succeeded', limit: 50 },
-  );
-
-  // Fetch detail of selected payment to get amounts
-  const { data: paymentDetail, isLoading: paymentDetailLoading } =
-    usePaymentDetail(
-      connectionId,
-      selectedPaymentId || null,
-    );
-
-  const currency = paymentDetail?.currency ?? 'usd';
-
-  // Derived refundable amount
-  const remainingMinor =
-    paymentDetail !== undefined
-      ? (paymentDetail.amountReceivedMinor ?? paymentDetail.amountMinor) -
-        (paymentDetail.amountRefundedMinor ?? 0)
-      : 0;
-
-  // Pre-fill full refund amount when payment is selected
-  useEffect(() => {
-    if (refundType === 'full' && remainingMinor > 0) {
-      setAmountInput(String(minorToMajor(remainingMinor, currency)));
-    }
-  }, [refundType, remainingMinor, currency]);
-
-  const handleSubmit = () => {
-    if (!selectedPaymentId) return;
-
-    const amountMinor =
-      refundType === 'full'
-        ? undefined // let backend determine full refund
-        : majorToMinor(amountInput, currency);
-
-    const dto: CreateRefundInput = {
-      paymentId: selectedPaymentId,
-      amountMinor,
-      reason: reason || undefined,
-    };
-
-    createRefundMutation.mutate(dto, { onSuccess: () => onClose() });
-  };
-
-  const payments = paymentsData?.data ?? [];
-  const canSubmit =
-    Boolean(selectedPaymentId) &&
-    !createRefundMutation.isPending &&
-    (refundType === 'full' ||
-      (amountInput.trim() !== '' &&
-        !isNaN(parseFloat(amountInput)) &&
-        parseFloat(amountInput) > 0));
-
-  return (
-    <FormDrawer
-      open
-      onClose={onClose}
-      title="Create Refund"
-      actions={
-        <Stack direction="row" spacing={1} width="100%">
-          <Button variant="outlined" onClick={onClose} fullWidth>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            fullWidth
-          >
-            {createRefundMutation.isPending ? (
-              <CircularProgress size={18} color="inherit" />
-            ) : (
-              'Create Refund'
-            )}
-          </Button>
-        </Stack>
-      }
-    >
-      <Stack spacing={2.5}>
-        {/* Payment selector */}
-        <FormControl size="small" fullWidth>
-          <InputLabel>Payment</InputLabel>
-          <Select
-            value={selectedPaymentId}
-            label="Payment"
-            onChange={(e) => {
-              setSelectedPaymentId(e.target.value);
-              setAmountInput('');
-            }}
-            disabled={paymentsLoading}
-          >
-            {paymentsLoading && (
-              <MenuItem value="" disabled>
-                Loading payments…
-              </MenuItem>
-            )}
-            {!paymentsLoading && payments.length === 0 && (
-              <MenuItem value="" disabled>
-                No succeeded payments found
-              </MenuItem>
-            )}
-            {payments.map((p) => (
-              <MenuItem key={p.id} value={p.id}>
-                <Box>
-                  <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem">
-                    {truncateId(p.providerPaymentId, 28)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatAmountMinor(p.amountMinor, p.currency)}
-                  </Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Payment amounts summary */}
-        {selectedPaymentId && paymentDetailLoading && (
-          <Box display="flex" justifyContent="center" py={1}>
-            <CircularProgress size={20} />
-          </Box>
-        )}
-
-        {selectedPaymentId && paymentDetail && !paymentDetailLoading && (
-          <Box
-            sx={{
-              bgcolor: 'background.default',
-              border: 1,
-              borderColor: 'divider',
-              borderRadius: 1,
-              p: 1.5,
-            }}
-          >
-            <Stack spacing={0.75}>
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="caption" color="text.secondary">
-                  Original amount
-                </Typography>
-                <Typography variant="caption" fontWeight={600}>
-                  {formatAmountMinor(
-                    paymentDetail.amountReceivedMinor ?? paymentDetail.amountMinor,
-                    currency,
-                  )}
-                </Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="caption" color="text.secondary">
-                  Already refunded
-                </Typography>
-                <Typography variant="caption">
-                  {formatAmountMinor(
-                    paymentDetail.amountRefundedMinor ?? 0,
-                    currency,
-                  )}
-                </Typography>
-              </Box>
-              <Divider sx={{ my: 0.25 }} />
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="caption" color="text.secondary">
-                  Refundable amount
-                </Typography>
-                <Typography variant="caption" fontWeight={600} color="success.main">
-                  {formatAmountMinor(remainingMinor, currency)}
-                </Typography>
-              </Box>
-            </Stack>
-          </Box>
-        )}
-
-        {/* Refund type */}
-        <FormControl size="small" fullWidth>
-          <InputLabel>Refund type</InputLabel>
-          <Select
-            value={refundType}
-            label="Refund type"
-            onChange={(e) => {
-              const val = e.target.value as 'full' | 'partial';
-              setRefundType(val);
-              if (val === 'full') {
-                setAmountInput(
-                  remainingMinor > 0
-                    ? String(minorToMajor(remainingMinor, currency))
-                    : '',
-                );
-              } else {
-                setAmountInput('');
-              }
-            }}
-            disabled={!selectedPaymentId}
-          >
-            <MenuItem value="full">Full refund</MenuItem>
-            <MenuItem value="partial">Partial refund</MenuItem>
-          </Select>
-        </FormControl>
-
-        {/* Amount input — only editable for partial refunds */}
-        <TextField
-          size="small"
-          label={`Amount (${currency.toUpperCase()})`}
-          value={amountInput}
-          onChange={(e) => setAmountInput(e.target.value)}
-          disabled={refundType === 'full' || !selectedPaymentId}
-          type="number"
-          inputProps={{ step: 'any', min: 0 }}
-          helperText={
-            refundType === 'full'
-              ? 'Full amount will be refunded'
-              : 'Enter amount in major units (e.g. 10.00)'
-          }
-          fullWidth
-        />
-
-        {/* Reason */}
-        <FormControl size="small" fullWidth>
-          <InputLabel>Reason (optional)</InputLabel>
-          <Select
-            value={reason}
-            label="Reason (optional)"
-            onChange={(e) =>
-              setReason(e.target.value as RefundCanonicalReason | '')
-            }
-          >
-            {REASON_OPTIONS.map((o) => (
-              <MenuItem key={o.value} value={o.value}>
-                {o.value === '' ? <em>{o.label}</em> : o.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Stack>
-    </FormDrawer>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PaymentsRefundsPage() {
@@ -756,12 +1066,17 @@ export default function PaymentsRefundsPage() {
     Boolean(capabilityStatus) &&
     capabilityStatus !== 'available';
 
-  // ── Filters ─────────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<RefundCanonicalStatus | ''>('');
-  const [filterCurrency, setFilterCurrency] = useState('');
-  const [createdFrom, setCreatedFrom] = useState('');
-  const [createdTo, setCreatedTo] = useState('');
+  // ── Refunds page definition ──────────────────────────────────────────────────
+  const {
+    data: pageDefinition,
+    isLoading: definitionLoading,
+    error: definitionError,
+  } = useRefundsPageDefinition(
+    capabilityBlocks ? null : resolvedConnectionId || null,
+  );
+
+  // ── Filters state (keyed by queryParam) ─────────────────────────────────────
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   // ── Cursor-based pagination ──────────────────────────────────────────────────
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -771,65 +1086,70 @@ export default function PaymentsRefundsPage() {
   const [viewRefundId, setViewRefundId] = useState<string | null>(null);
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
 
-  // ── Payment units (provider-driven currency / asset options) ────────────────
+  // ── Payment units (for currency filter + create form payment_unit fields) ───
   const { data: unitsData, isLoading: unitsLoading } = usePaymentUnits(
     capabilityBlocks ? null : resolvedConnectionId || null,
   );
   const availableUnits = unitsData?.data ?? [];
 
-  // Reset pagination + drawers when connection changes
+  // Reset all state when connection changes — no stale definitions or drawer state
   useEffect(() => {
     setCursor(undefined);
     setCursorStack([]);
     setViewRefundId(null);
-    setFilterStatus('');
-    setFilterCurrency('');
-    setSearch('');
+    setFilterValues({});
     setShowCreateDrawer(false);
   }, [resolvedConnectionId]);
 
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+    setCursor(undefined);
+    setCursorStack([]);
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilterValues({});
+    setCursor(undefined);
+    setCursorStack([]);
+  }, []);
+
+  const hasActiveFilters = Object.values(filterValues).some(Boolean);
+
+  // Build query params from filter state
   const queryParams = useMemo<ListRefundsParams>(() => {
     const p: ListRefundsParams = { limit: 20 };
     if (cursor) p.cursor = cursor;
-    if (filterCurrency.trim()) p.currency = filterCurrency.trim();
-    if (createdFrom) p.createdFrom = createdFrom;
-    if (createdTo) p.createdTo = createdTo;
-    if (search.trim()) p.search = search.trim();
+    if (filterValues['currency']) p.currency = filterValues['currency'];
+    if (filterValues['createdFrom']) p.createdFrom = filterValues['createdFrom'];
+    if (filterValues['createdTo']) p.createdTo = filterValues['createdTo'];
+    if (filterValues['search']) p.search = filterValues['search'];
     return p;
-  }, [cursor, filterCurrency, createdFrom, createdTo, search]);
+  }, [cursor, filterValues]);
 
   const {
     data: listData,
     isLoading: listLoading,
     error: listError,
     refetch,
-  } = useRefundsList(capabilityBlocks ? null : resolvedConnectionId || null, queryParams);
+  } = useRefundsList(
+    capabilityBlocks || !pageDefinition?.list.supported
+      ? null
+      : resolvedConnectionId || null,
+    queryParams,
+  );
 
-  // Client-side status filter (Stripe refunds API has no server-side status filter)
+  // Client-side status filter (neither Stripe nor CoinGate supports server-side status filtering)
   const allRefunds = useMemo(() => listData?.data ?? [], [listData]);
+  const statusFilter = filterValues['status'] ?? '';
   const refunds = useMemo(
     () =>
-      filterStatus
-        ? allRefunds.filter((r) => r.status === filterStatus)
+      statusFilter
+        ? allRefunds.filter((r) => r.status === statusFilter)
         : allRefunds,
-    [allRefunds, filterStatus],
+    [allRefunds, statusFilter],
   );
   const hasMore = listData?.hasMore ?? false;
   const nextCursor = listData?.nextCursor;
-
-  const hasActiveFilters = Boolean(
-    search || filterStatus || filterCurrency || createdFrom || createdTo,
-  );
-
-  const clearFilters = useCallback(() => {
-    setSearch('');
-    setFilterStatus('');
-    setFilterCurrency('');
-    setCreatedFrom('');
-    setCreatedTo('');
-    setCursor(undefined);
-    setCursorStack([]);
-  }, []);
 
   const handleRefresh = useCallback(() => {
     void refetch();
@@ -852,98 +1172,15 @@ export default function PaymentsRefundsPage() {
     ? `Connection: ${connectionLabel(selectedConnection)}`
     : undefined;
 
-  // ── Table columns ────────────────────────────────────────────────────────────
-  const columns = useMemo<GridColDef[]>(
-    () => [
-      {
-        field: 'id',
-        headerName: 'Refund',
-        flex: 1.5,
-        minWidth: 160,
-        renderCell: (p) => {
-          const row = p.row as RefundSummary;
-          return (
-            <Box>
-              <Typography
-                variant="body2"
-                fontFamily="monospace"
-                fontSize="0.75rem"
-              >
-                {truncateId(row.providerRefundId)}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                fontFamily="monospace"
-                fontSize="0.7rem"
-              >
-                {truncateId(row.providerPaymentId, 18)}
-              </Typography>
-            </Box>
-          );
-        },
-      },
-      {
-        field: 'amountMinor',
-        headerName: 'Amount',
-        width: 120,
-        renderCell: (p) => {
-          const row = p.row as RefundSummary;
-          return (
-            <Typography variant="body2" fontWeight={600}>
-              {formatAmountMinor(row.amountMinor, row.currency)}
-            </Typography>
-          );
-        },
-      },
-      {
-        field: 'reason',
-        headerName: 'Reason',
-        width: 180,
-        renderCell: (p) => {
-          const row = p.row as RefundSummary;
-          return (
-            <Typography variant="body2" color="text.secondary">
-              {row.reason ?? '—'}
-            </Typography>
-          );
-        },
-      },
-      {
-        field: 'status',
-        headerName: 'Status',
-        width: 150,
-        renderCell: (p) => (
-          <RefundStatusBadge status={(p.row as RefundSummary).status} />
-        ),
-      },
-      {
-        field: 'createdAt',
-        headerName: 'Created',
-        width: 120,
-        renderCell: (p) => (
-          <Typography variant="body2" color="text.secondary">
-            {formatDate((p.row as RefundSummary).createdAt)}
-          </Typography>
-        ),
-      },
-    ],
-    [],
-  );
-
-  const rowActions = useCallback(
-    (row: RefundSummary) => (
-      <RowActions>
-        <Tooltip title="View details">
-          <IconButton size="small" onClick={() => setViewRefundId(row.id)}>
-            <VisibilityOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </RowActions>
-    ),
-    [],
-  );
+  // ── Build columns from definition ────────────────────────────────────────────
+  const columns = useMemo<GridColDef[]>(() => {
+    if (!pageDefinition) return [];
+    return pageDefinition.columns
+      .map((col) =>
+        buildColumnDef(col, setViewRefundId, pageDefinition.rowActions),
+      )
+      .filter(Boolean) as GridColDef[];
+  }, [pageDefinition]);
 
   const mobileCardConfig = useMemo<MobileCardConfig<RefundSummary>>(
     () => ({
@@ -961,11 +1198,6 @@ export default function PaymentsRefundsPage() {
             ),
         },
         {
-          field: 'reason',
-          label: 'Reason',
-          render: (v) => (v ? String(v) : '—'),
-        },
-        {
           field: 'createdAt',
           label: 'Created',
           render: (v) => formatDate(String(v)),
@@ -975,25 +1207,9 @@ export default function PaymentsRefundsPage() {
     [],
   );
 
-  const emptyState = (
-    <EmptyState
-      icon={MoneyOffOutlinedIcon}
-      title={
-        hasActiveFilters ? 'No refunds match your filters' : 'No refunds found'
-      }
-      description={
-        hasActiveFilters
-          ? 'Try adjusting your search or filters.'
-          : 'Refunds processed through the connected provider will appear here.'
-      }
-      action={
-        hasActiveFilters ? (
-          <Button variant="outlined" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        ) : undefined
-      }
-    />
+  // ── Toolbar actions ──────────────────────────────────────────────────────────
+  const showNewRefund = Boolean(
+    pageDefinition?.toolbarActions.some((a) => a.type === 'create_refund'),
   );
 
   // ── Guard states ─────────────────────────────────────────────────────────────
@@ -1042,17 +1258,79 @@ export default function PaymentsRefundsPage() {
       <Box sx={{ minWidth: 0 }}>
         <PageHeader
           title="Refunds"
-          breadcrumbs={[{ label: 'Payments', href: '/payments' }, { label: 'Refunds' }]}
+          breadcrumbs={[
+            { label: 'Payments', href: '/payments' },
+            { label: 'Refunds' },
+          ]}
         />
         <PaymentsFilter />
         <ProviderFeatureUnavailable
           featureDisplayName={PAGE_FEATURE_DISPLAY_NAME.refunds}
-          providerDisplayName={selectedProvider?.displayName ?? resolvedProviderKey}
+          providerDisplayName={
+            selectedProvider?.displayName ?? resolvedProviderKey
+          }
           status={capabilityStatus as 'planned' | 'unsupported'}
         />
       </Box>
     );
   }
+
+  // Definition loading state — render filter bar without page content
+  if (resolvedConnectionId && definitionLoading) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <PageHeader
+          title="Refunds"
+          breadcrumbs={[
+            { label: 'Payments', href: '/payments' },
+            { label: 'Refunds' },
+          ]}
+        />
+        <PaymentsFilter />
+        <Box display="flex" justifyContent="center" pt={4}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
+
+  // Definition error state
+  if (resolvedConnectionId && definitionError) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <PageHeader title="Refunds" />
+        <PaymentsFilter />
+        <ErrorState
+          title="Could not load refunds configuration"
+          description="The provider returned an error while loading the refunds page layout. Check your credentials and try again."
+        />
+      </Box>
+    );
+  }
+
+  const emptyState = (
+    <EmptyState
+      icon={MoneyOffOutlinedIcon}
+      title={
+        hasActiveFilters
+          ? 'No refunds match your filters'
+          : pageDefinition?.emptyState.title ?? 'No refunds found'
+      }
+      description={
+        hasActiveFilters
+          ? 'Try adjusting your search or filters.'
+          : pageDefinition?.emptyState.description ??
+            'Refunds processed through the connected provider will appear here.'
+      }
+      action={
+        hasActiveFilters ? (
+          <Button variant="outlined" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        ) : undefined
+      }
+    />
+  );
 
   return (
     <Box sx={{ minWidth: 0 }}>
@@ -1067,146 +1345,66 @@ export default function PaymentsRefundsPage() {
           { label: 'Refunds' },
         ]}
         actions={
-          resolvedConnectionId ? (
+          resolvedConnectionId && pageDefinition ? (
             <Stack direction="row" spacing={1}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={
-                  listLoading ? (
-                    <CircularProgress size={14} color="inherit" />
-                  ) : (
-                    <RefreshOutlinedIcon />
-                  )
+              {/* Render toolbar actions from definition */}
+              {pageDefinition.toolbarActions.map((action) => {
+                if (action.type === 'refresh') {
+                  return (
+                    <Button
+                      key={action.key}
+                      variant="outlined"
+                      size="small"
+                      startIcon={
+                        listLoading ? (
+                          <CircularProgress size={14} color="inherit" />
+                        ) : (
+                          <RefreshOutlinedIcon />
+                        )
+                      }
+                      onClick={handleRefresh}
+                      disabled={listLoading}
+                    >
+                      {action.label}
+                    </Button>
+                  );
                 }
-                onClick={handleRefresh}
-                disabled={listLoading}
-              >
-                Refresh
-              </Button>
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<AddOutlinedIcon />}
-                onClick={() => setShowCreateDrawer(true)}
-              >
-                New Refund
-              </Button>
+                if (action.type === 'create_refund') {
+                  return (
+                    <Button
+                      key={action.key}
+                      variant="contained"
+                      size="small"
+                      startIcon={<AddOutlinedIcon />}
+                      onClick={() => setShowCreateDrawer(true)}
+                      disabled={Boolean(action.disabledReason)}
+                    >
+                      {action.label}
+                    </Button>
+                  );
+                }
+                return null;
+              })}
             </Stack>
           ) : undefined
         }
       />
 
-      {/* 1. Shared filter: Provider + Connection + page-specific filters */}
-      <PaymentsFilter>
-        {/* Search */}
-        <TextField
-          size="small"
-          placeholder="Search by ID…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCursor(undefined);
-            setCursorStack([]);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchOutlinedIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ width: { xs: '100%', sm: 180 } }}
+      {/* 1. Shared filter: Provider + Connection + definition-driven page filters */}
+      {pageDefinition ? (
+        <DynamicRefundFilters
+          filterDefs={pageDefinition.filters}
+          filterValues={filterValues}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          availableUnits={availableUnits}
+          unitsLoading={unitsLoading}
+          connectionId={resolvedConnectionId ?? null}
         />
-
-        {/* Status */}
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select
-            value={filterStatus}
-            displayEmpty
-            onChange={(e) => {
-              setFilterStatus(e.target.value as RefundCanonicalStatus | '');
-            }}
-          >
-            {STATUS_FILTER_OPTIONS.map((o) => (
-              <MenuItem key={o.value} value={o.value}>
-                {o.value === '' ? <em>{o.label}</em> : o.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Currency / Asset */}
-        <FormControl
-          size="small"
-          disabled={unitsLoading || !resolvedConnectionId}
-          sx={{ minWidth: { xs: '100%', sm: 160 } }}
-        >
-          <Select
-            value={filterCurrency}
-            displayEmpty
-            onChange={(e) => {
-              setFilterCurrency(e.target.value);
-              setCursor(undefined);
-              setCursorStack([]);
-            }}
-          >
-            <MenuItem value="">
-              <em>
-                {unitsLoading
-                  ? 'Loading…'
-                  : !resolvedConnectionId
-                    ? 'Select a connection'
-                    : 'All currencies / assets'}
-              </em>
-            </MenuItem>
-            {availableUnits.map((u) => (
-              <MenuItem key={u.code} value={u.code}>
-                {u.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Date range */}
-        <TextField
-          size="small"
-          type="date"
-          label="From"
-          InputLabelProps={{ shrink: true }}
-          value={createdFrom}
-          onChange={(e) => {
-            setCreatedFrom(e.target.value);
-            setCursor(undefined);
-            setCursorStack([]);
-          }}
-          sx={{ width: { xs: '100%', sm: 140 } }}
-        />
-        <TextField
-          size="small"
-          type="date"
-          label="To"
-          InputLabelProps={{ shrink: true }}
-          value={createdTo}
-          onChange={(e) => {
-            setCreatedTo(e.target.value);
-            setCursor(undefined);
-            setCursorStack([]);
-          }}
-          sx={{ width: { xs: '100%', sm: 140 } }}
-        />
-
-        {hasActiveFilters && (
-          <Button
-            size="small"
-            variant="text"
-            startIcon={<ClearOutlinedIcon fontSize="small" />}
-            onClick={clearFilters}
-          >
-            Clear
-          </Button>
-        )}
-      </PaymentsFilter>
+      ) : (
+        <PaymentsFilter />
+      )}
 
       {/* 2. No connection selected */}
       {!resolvedConnectionId && (
@@ -1217,14 +1415,14 @@ export default function PaymentsRefundsPage() {
         />
       )}
 
-      {/* 3. Loading */}
-      {resolvedConnectionId && listLoading && (
+      {/* 3. Loading list */}
+      {resolvedConnectionId && pageDefinition && listLoading && (
         <Box display="flex" justifyContent="center" pt={4}>
           <CircularProgress />
         </Box>
       )}
 
-      {/* 4. Error */}
+      {/* 4. List error */}
       {resolvedConnectionId && listError && !listLoading && (
         <ErrorState
           title={
@@ -1247,8 +1445,8 @@ export default function PaymentsRefundsPage() {
         />
       )}
 
-      {/* 5. Data table */}
-      {resolvedConnectionId && !listLoading && !listError && (
+      {/* 5. Definition-driven data table */}
+      {resolvedConnectionId && pageDefinition && !listLoading && !listError && (
         <Box
           sx={{
             border: 1,
@@ -1262,10 +1460,9 @@ export default function PaymentsRefundsPage() {
             columns={columns}
             total={refunds.length}
             page={0}
-            pageSize={refunds.length || 20}
+            pageSize={refunds.length || pageDefinition.list.defaultPageSize}
             onPageChange={() => {}}
             onPageSizeChange={() => {}}
-            rowActions={rowActions}
             mobileCardConfig={mobileCardConfig}
             emptyState={emptyState}
             noRowsLabel="No refunds found."
@@ -1320,10 +1517,12 @@ export default function PaymentsRefundsPage() {
         />
       )}
 
-      {/* 7. Create refund drawer */}
-      {showCreateDrawer && resolvedConnectionId && (
-        <CreateRefundDrawer
+      {/* 7. Create refund drawer — only when definition says it's supported */}
+      {showCreateDrawer && resolvedConnectionId && pageDefinition && showNewRefund && (
+        <DynamicCreateRefundDrawer
+          definition={pageDefinition}
           connectionId={resolvedConnectionId}
+          availableUnits={availableUnits}
           onClose={() => setShowCreateDrawer(false)}
         />
       )}

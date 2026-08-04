@@ -10,6 +10,7 @@ import type {
   PaymentsPageDefinitionContext,
 } from '../../contracts/payments-page-definition.contract';
 import { PaymentCapability, CapabilityStatus } from '../../enums/payment.enums';
+import { PaymentCanonicalStatus } from '../../enums/payment-canonical-status.enum';
 
 export async function buildStripePageDefinition(
   ctx: PaymentsPageDefinitionContext,
@@ -48,7 +49,7 @@ export async function buildStripePageDefinition(
         label: 'Successful Payments',
         type: 'count',
         source: 'page.status',
-        status: 'succeeded',
+        status: PaymentCanonicalStatus.Succeeded,
         scope: 'current_page',
         unavailableBehaviour: 'hide',
       },
@@ -57,7 +58,7 @@ export async function buildStripePageDefinition(
         label: 'Failed Payments',
         type: 'count',
         source: 'page.status',
-        status: 'failed',
+        status: PaymentCanonicalStatus.Failed,
         scope: 'current_page',
         unavailableBehaviour: 'hide',
       },

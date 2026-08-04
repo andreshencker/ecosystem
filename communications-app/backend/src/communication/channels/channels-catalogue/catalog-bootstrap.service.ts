@@ -288,14 +288,15 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
     ];
 
     for (const p of providers) {
-      // $set keeps channelIds up-to-date on existing records (migration from old channelId field).
-      // $setOnInsert handles all remaining fields only on first insert.
+      // $addToSet with $each preserves existing channel associations and adds
+      // any missing IDs without duplicates, on both insert and update.
+      // $setOnInsert handles non-channel fields only on first insert.
       const { channelIds, ...rest } = p;
       const result = await this.providerModel.updateOne(
         { providerKey: p.providerKey },
         {
-          $set: { channelIds },
-          $setOnInsert: { channelIds, ...rest },
+          $addToSet: { channelIds: { $each: channelIds } },
+          $setOnInsert: rest,
         },
         { upsert: true },
       );

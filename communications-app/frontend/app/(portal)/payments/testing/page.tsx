@@ -15,13 +15,12 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
-import ConstructionOutlinedIcon from '@mui/icons-material/ConstructionOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { PageHeader } from '@/components/layout';
@@ -35,6 +34,8 @@ import {
 import {
   usePaymentMethodConfigurations,
   usePaymentTestScenarios,
+  usePaymentUnits,
+  usePaymentTestingPageDefinition,
   useCreatePaymentTestMutation,
 } from '@/hooks/api/usePayments';
 import { PAGE_CAPABILITY, PAGE_FEATURE_DISPLAY_NAME } from '@/lib/config/payments-capability-map';
@@ -43,11 +44,11 @@ import type {
   PaymentTestResult,
   PaymentTestScenario,
   PaymentTestStatus,
+  PaymentTestingFieldDefinition,
+  PaymentTestingPageDefinition,
 } from '@/types/payments';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const SUPPORTED_CURRENCIES = ['AUD', 'USD', 'EUR', 'GBP', 'CAD', 'JPY', 'NZD'];
 
 const SCENARIO_LABELS: Record<PaymentTestScenario, string> = {
   success: 'Success',
@@ -72,9 +73,8 @@ function displayToMinor(display: number, currency: string): number {
   }
 }
 
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+function formatDate(iso: string | Date): string {
+  return new Date(iso as string).toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -231,14 +231,16 @@ function ResultDrawer({
             <Typography variant="body2">{result.paymentMethod}</Typography>
           </Box>
 
-          <Box display="flex" justifyContent="space-between">
-            <Typography variant="body2" color="text.secondary">
-              Scenario
-            </Typography>
-            <Typography variant="body2">
-              {SCENARIO_LABELS[result.scenario] ?? result.scenario}
-            </Typography>
-          </Box>
+          {result.scenario && (
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="body2" color="text.secondary">
+                Scenario
+              </Typography>
+              <Typography variant="body2">
+                {SCENARIO_LABELS[result.scenario] ?? result.scenario}
+              </Typography>
+            </Box>
+          )}
 
           <Box display="flex" justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">
@@ -276,6 +278,7 @@ function ResultDrawer({
                 target="_blank"
                 rel="noopener noreferrer"
                 fullWidth
+                startIcon={<OpenInNewOutlinedIcon />}
               >
                 Open Payment Page
               </Button>
@@ -371,7 +374,7 @@ function SessionHistory({
                   {r.testId}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {SCENARIO_LABELS[r.scenario] ?? r.scenario}
+                  {r.scenario ? (SCENARIO_LABELS[r.scenario] ?? r.scenario) : 'sandbox test'}
                   {' · '}
                   {formatAmountMinor(r.amountMinor, r.currency)}
                   {' · '}
@@ -389,6 +392,361 @@ function SessionHistory({
         ))}
       </Stack>
     </Box>
+  );
+}
+
+// ─── Definition-driven form field renderer ────────────────────────────────────
+
+interface FieldRendererProps {
+  field: PaymentTestingFieldDefinition;
+  connectionId: string;
+  formValues: Record<string, string>;
+  onValueChange: (key: string, value: string) => void;
+  // For scenario type, we need the selected paymentMethodKey
+  selectedMethodKey?: string;
+}
+
+function FieldRenderer({
+  field,
+  connectionId,
+  formValues,
+  onValueChange,
+  selectedMethodKey,
+}: FieldRendererProps) {
+  const value = formValues[field.key] ?? '';
+
+  // Scenario field — loads options from usePaymentTestScenarios
+  if (field.type === 'scenario') {
+    return (
+      <ScenarioField
+        fieldDef={field}
+        connectionId={connectionId}
+        value={value}
+        methodKey={selectedMethodKey}
+        onChange={(v) => onValueChange(field.key, v)}
+      />
+    );
+  }
+
+  // Payment unit / currency field — loads options from usePaymentUnits
+  if (field.type === 'payment_unit' && field.optionsSource === 'payment_units') {
+    return (
+      <PaymentUnitField
+        fieldDef={field}
+        connectionId={connectionId}
+        value={value}
+        onChange={(v) => onValueChange(field.key, v)}
+      />
+    );
+  }
+
+  // Provider select (payment methods)
+  if (field.type === 'select' && field.optionsSource === 'provider') {
+    return (
+      <PaymentMethodField
+        fieldDef={field}
+        connectionId={connectionId}
+        value={value}
+        onChange={(v) => onValueChange(field.key, v)}
+      />
+    );
+  }
+
+  // Amount field
+  if (field.type === 'amount') {
+    return (
+      <TextField
+        label={field.label}
+        size="small"
+        type="number"
+        fullWidth
+        value={value || String(field.defaultValue ?? '')}
+        onChange={(e) => onValueChange(field.key, e.target.value)}
+        inputProps={{ min: '0.01', step: '0.01' }}
+        placeholder={field.placeholder}
+        helperText={field.helpText}
+        required={field.required}
+      />
+    );
+  }
+
+  // Text / email fields
+  return (
+    <TextField
+      label={field.label}
+      size="small"
+      fullWidth
+      type={field.type === 'email' ? 'email' : 'text'}
+      value={value}
+      onChange={(e) => onValueChange(field.key, e.target.value)}
+      placeholder={field.placeholder}
+      helperText={field.helpText}
+      required={field.required}
+    />
+  );
+}
+
+// Sub-components for complex field types
+
+function ScenarioField({
+  fieldDef,
+  connectionId,
+  value,
+  methodKey,
+  onChange,
+}: {
+  fieldDef: PaymentTestingFieldDefinition;
+  connectionId: string;
+  value: string;
+  methodKey?: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: scenarios, isLoading } = usePaymentTestScenarios(
+    connectionId,
+    methodKey || null,
+  );
+
+  if (isLoading) {
+    return (
+      <Box display="flex" alignItems="center" gap={1} py={1}>
+        <CircularProgress size={16} />
+        <Typography variant="caption" color="text.secondary">
+          Loading scenarios…
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <FormControl fullWidth size="small" required={fieldDef.required}>
+      <InputLabel id={`${fieldDef.key}-label`}>{fieldDef.label}</InputLabel>
+      <Select
+        labelId={`${fieldDef.key}-label`}
+        label={fieldDef.label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={!scenarios?.length}
+      >
+        {(scenarios ?? []).map((s) => (
+          <MenuItem key={s} value={s}>
+            {SCENARIO_LABELS[s as PaymentTestScenario] ?? s}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}
+
+function PaymentUnitField({
+  fieldDef,
+  connectionId,
+  value,
+  onChange,
+}: {
+  fieldDef: PaymentTestingFieldDefinition;
+  connectionId: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: unitsData, isLoading } = usePaymentUnits(connectionId);
+  const units = unitsData?.data ?? [];
+
+  if (isLoading) {
+    return (
+      <Box display="flex" alignItems="center" gap={1} py={1}>
+        <CircularProgress size={16} />
+        <Typography variant="caption" color="text.secondary">
+          Loading currencies…
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <FormControl fullWidth size="small" required={fieldDef.required}>
+      <InputLabel id={`${fieldDef.key}-label`}>{fieldDef.label}</InputLabel>
+      <Select
+        labelId={`${fieldDef.key}-label`}
+        label={fieldDef.label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        displayEmpty={Boolean(fieldDef.placeholder)}
+      >
+        {units.map((u) => (
+          <MenuItem key={u.code} value={u.code}>
+            {u.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}
+
+function PaymentMethodField({
+  fieldDef,
+  connectionId,
+  value,
+  onChange,
+}: {
+  fieldDef: PaymentTestingFieldDefinition;
+  connectionId: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: methodsData, isLoading } = usePaymentMethodConfigurations(connectionId);
+  const enabledMethods = methodsData?.data.filter((m) => m.enabled) ?? [];
+
+  if (isLoading) {
+    return (
+      <Box display="flex" alignItems="center" gap={1} py={1}>
+        <CircularProgress size={16} />
+        <Typography variant="caption" color="text.secondary">
+          Loading methods…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (enabledMethods.length === 0) {
+    return (
+      <Box py={1}>
+        <Typography variant="caption" color="text.secondary">
+          No enabled payment methods for this connection.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <FormControl fullWidth size="small" required={fieldDef.required}>
+      <InputLabel id={`${fieldDef.key}-label`}>{fieldDef.label}</InputLabel>
+      <Select
+        labelId={`${fieldDef.key}-label`}
+        label={fieldDef.label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {enabledMethods.map((m) => (
+          <MenuItem key={m.id} value={m.id}>
+            {m.displayName}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}
+
+// ─── Definition-driven test form ──────────────────────────────────────────────
+
+function DefinitionDrivenForm({
+  definition,
+  connectionId,
+  onSubmit,
+  isPending,
+}: {
+  definition: PaymentTestingPageDefinition;
+  connectionId: string;
+  onSubmit: (formValues: Record<string, string>) => void;
+  isPending: boolean;
+}) {
+  const [formValues, setFormValues] = useState<Record<string, string>>(() => {
+    // Pre-populate default values from the definition
+    const defaults: Record<string, string> = {};
+    for (const field of definition.form.fields) {
+      if (field.defaultValue !== undefined) {
+        defaults[field.key] = String(field.defaultValue);
+      }
+    }
+    return defaults;
+  });
+
+  const handleValueChange = useCallback((key: string, value: string) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Check if all required fields are filled
+  const allRequiredFilled = definition.form.fields
+    .filter((f) => f.required)
+    .every((f) => {
+      const v = formValues[f.key];
+      return v !== undefined && v.trim() !== '';
+    });
+
+  const canSubmit =
+    allRequiredFilled &&
+    !isPending &&
+    definition.environment === 'test';
+
+  // The paymentMethodKey field value — needed for scenario options
+  const selectedMethodKey = formValues['paymentMethodKey'];
+
+  return (
+    <Card variant="outlined" sx={{ borderRadius: 2 }}>
+      <CardContent>
+        <Stack spacing={2.5}>
+          <Typography variant="subtitle2">
+            {definition.form.title}
+          </Typography>
+
+          {definition.form.description && (
+            <Typography variant="body2" color="text.secondary">
+              {definition.form.description}
+            </Typography>
+          )}
+
+          {definition.instructions && definition.instructions.length > 0 && (
+            <Alert severity="info" sx={{ fontSize: '0.8rem' }}>
+              <Stack spacing={0.5}>
+                {definition.instructions.map((inst, i) => (
+                  <Typography key={i} variant="caption" display="block">
+                    {inst}
+                  </Typography>
+                ))}
+              </Stack>
+            </Alert>
+          )}
+
+          {definition.form.fields.map((field) => (
+            <FieldRenderer
+              key={field.key}
+              field={field}
+              connectionId={connectionId}
+              formValues={formValues}
+              onValueChange={handleValueChange}
+              selectedMethodKey={selectedMethodKey}
+            />
+          ))}
+
+          {definition.limitations && definition.limitations.length > 0 && (
+            <Alert severity="warning" sx={{ fontSize: '0.8rem' }}>
+              <Stack spacing={0.5}>
+                {definition.limitations.map((lim, i) => (
+                  <Typography key={i} variant="caption" display="block">
+                    {lim}
+                  </Typography>
+                ))}
+              </Stack>
+            </Alert>
+          )}
+
+          <Button
+            variant="contained"
+            onClick={() => onSubmit(formValues)}
+            disabled={!canSubmit}
+            startIcon={
+              isPending ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <ScienceOutlinedIcon />
+              )
+            }
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            {isPending ? 'Running…' : definition.form.submitLabel}
+          </Button>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -412,94 +770,77 @@ export default function PaymentsTestingPage() {
     Boolean(capabilityStatus) &&
     capabilityStatus !== 'available';
 
-  // ── Form state ────────────────────────────────────────────────────────────
-  const [selectedMethod, setSelectedMethod] = useState<string>('');
-  const [selectedScenario, setSelectedScenario] =
-    useState<PaymentTestScenario | ''>('');
-  const [amountDisplay, setAmountDisplay] = useState<string>('10');
-  const [currency, setCurrency] = useState<string>('AUD');
-  const [description, setDescription] = useState<string>('');
-
   // ── Session history + result drawer ───────────────────────────────────────
   const [sessionHistory, setSessionHistory] = useState<PaymentTestResult[]>([]);
   const [viewingResult, setViewingResult] = useState<PaymentTestResult | null>(
     null,
   );
 
-  // ── Clear selections when connection changes ──────────────────────────────
+  // ── Clear session history when connection changes ─────────────────────────
   useEffect(() => {
-    setSelectedMethod('');
-    setSelectedScenario('');
     setSessionHistory([]);
   }, [resolvedConnectionId]);
 
-  // ── Clear scenario when method changes ────────────────────────────────────
-  useEffect(() => {
-    setSelectedScenario('');
-  }, [selectedMethod]);
-
   // ── Data queries ──────────────────────────────────────────────────────────
-  const { data: methodsData, isLoading: methodsLoading } =
-    usePaymentMethodConfigurations(capabilityBlocks ? null : resolvedConnectionId || null);
-
-  const enabledMethods =
-    methodsData?.data.filter((m) => m.enabled) ?? [];
-
-  const { data: scenarios, isLoading: scenariosLoading } =
-    usePaymentTestScenarios(
-      capabilityBlocks ? null : resolvedConnectionId || null,
-      selectedMethod || null,
-    );
+  const {
+    data: definition,
+    isLoading: definitionLoading,
+    isError: definitionError,
+  } = usePaymentTestingPageDefinition(
+    capabilityBlocks ? null : resolvedConnectionId || null,
+  );
 
   const mutation = useCreatePaymentTestMutation();
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const isTestConnection = selectedConnection?.environment === 'test';
-
   const pageSubtitle = selectedConnection
     ? `Connection: ${connectionLabel(selectedConnection)}`
     : undefined;
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleRunTest = useCallback(() => {
-    if (
-      !resolvedConnectionId ||
-      !selectedMethod ||
-      !selectedScenario ||
-      !amountDisplay
-    )
-      return;
+  // Determine if this is a test connection:
+  // Prefer the definition's environment (authoritative from server), fall back
+  // to the selectedConnection.environment derived from displayIdentifier.
+  const definitionEnvironment = definition?.environment;
+  const isTestConnection =
+    definitionEnvironment === 'test' ||
+    (definitionEnvironment === undefined && selectedConnection?.environment === 'test');
 
-    const parsedDisplay = parseFloat(amountDisplay);
-    if (isNaN(parsedDisplay) || parsedDisplay <= 0) return;
+  // ── Submit handler ────────────────────────────────────────────────────────
+  const handleSubmit = useCallback(
+    (formValues: Record<string, string>) => {
+      if (!resolvedConnectionId || !definition) return;
 
-    const amountMinor = displayToMinor(parsedDisplay, currency);
+      const amountRaw = parseFloat(formValues['amount'] ?? '');
+      if (isNaN(amountRaw) || amountRaw <= 0) return;
 
-    mutation.mutate(
-      {
-        connectionId: resolvedConnectionId,
-        paymentMethodKey: selectedMethod,
-        amountMinor,
-        currency,
-        scenario: selectedScenario,
-        description: description.trim() || undefined,
-      },
-      {
-        onSuccess: (result) => {
-          setSessionHistory((prev) => [...prev, result]);
-          setViewingResult(result);
+      // The currency/unit key — look for 'price_currency' (CoinGate) first,
+      // then 'currency' (Stripe generic), default to empty string
+      const unitCode =
+        formValues['price_currency'] ??
+        formValues['currency'] ??
+        '';
+
+      const amountMinor = displayToMinor(amountRaw, unitCode || 'USD');
+
+      mutation.mutate(
+        {
+          connectionId: resolvedConnectionId,
+          paymentMethodKey: formValues['paymentMethodKey'] || undefined,
+          amountMinor,
+          paymentUnitCode: unitCode || undefined,
+          scenario: (formValues['scenario'] as PaymentTestScenario) || undefined,
+          description: formValues['description']?.trim() || undefined,
         },
-      },
-    );
-  }, [
-    resolvedConnectionId,
-    selectedMethod,
-    selectedScenario,
-    amountDisplay,
-    currency,
-    description,
-    mutation,
-  ]);
+        {
+          onSuccess: (result) => {
+            setSessionHistory((prev) => [...prev, result]);
+            setViewingResult(result);
+          },
+        },
+      );
+    },
+    [resolvedConnectionId, definition, mutation],
+  );
 
   // ── Loading / error states ────────────────────────────────────────────────
 
@@ -584,180 +925,45 @@ export default function PaymentsTestingPage() {
 
       {resolvedConnectionId && (
         <Stack spacing={3}>
-          {/* Live connection guard */}
-          {!isTestConnection && (
+          {/* Live connection guard — shown when definition reports live OR when we can't determine */}
+          {resolvedConnectionId && !isTestConnection && !definitionLoading && (
             <Alert
               severity="warning"
               icon={<WarningAmberOutlinedIcon />}
             >
               <strong>Test mode only.</strong> Payment Testing requires a
-              connection using test credentials (pk_test_...). The selected
-              connection uses live credentials and cannot be used for testing.
-              Switch to a test connection to continue.
+              connection using test or sandbox credentials. The selected
+              connection appears to use live credentials and cannot be used for
+              testing. Switch to a test connection to continue.
             </Alert>
           )}
 
-          {/* Test form — only shown for test connections */}
-          {isTestConnection && (
-            <Card variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent>
-                <Stack spacing={2.5}>
-                  <Typography variant="subtitle2">Run a payment test</Typography>
+          {/* Definition loading */}
+          {definitionLoading && (
+            <Box display="flex" alignItems="center" gap={1.5} py={2}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">
+                Loading test configuration…
+              </Typography>
+            </Box>
+          )}
 
-                  {/* Payment method selector */}
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="method-label">Payment Method</InputLabel>
-                    {methodsLoading ? (
-                      <Box display="flex" alignItems="center" gap={1} py={1}>
-                        <CircularProgress size={16} />
-                        <Typography variant="caption" color="text.secondary">
-                          Loading methods…
-                        </Typography>
-                      </Box>
-                    ) : enabledMethods.length === 0 ? (
-                      <Box py={1}>
-                        <Typography variant="caption" color="text.secondary">
-                          No enabled payment methods for this connection.
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Select
-                        labelId="method-label"
-                        label="Payment Method"
-                        value={selectedMethod}
-                        onChange={(e) => setSelectedMethod(e.target.value)}
-                      >
-                        {enabledMethods.map((m) => (
-                          <MenuItem key={m.id} value={m.id}>
-                            {m.displayName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  </FormControl>
+          {/* Definition error */}
+          {definitionError && !definitionLoading && (
+            <Alert severity="error">
+              Could not load the testing configuration for this connection.
+              Please try again.
+            </Alert>
+          )}
 
-                  {/* Scenario selector */}
-                  <FormControl fullWidth size="small" disabled={!selectedMethod}>
-                    <InputLabel id="scenario-label">Scenario</InputLabel>
-                    {scenariosLoading ? (
-                      <Box display="flex" alignItems="center" gap={1} py={1}>
-                        <CircularProgress size={16} />
-                        <Typography variant="caption" color="text.secondary">
-                          Loading scenarios…
-                        </Typography>
-                      </Box>
-                    ) : selectedMethod && scenarios && scenarios.length === 0 ? (
-                      <Box py={1}>
-                        <Tooltip
-                          title={`${resolvedProviderKey} does not support programmatic testing for this method.`}
-                        >
-                          <Box display="flex" alignItems="center" gap={0.5}>
-                            <ConstructionOutlinedIcon
-                              fontSize="small"
-                              color="disabled"
-                            />
-                            <Typography variant="caption" color="text.secondary">
-                              No test scenarios available for this method.
-                            </Typography>
-                          </Box>
-                        </Tooltip>
-                      </Box>
-                    ) : (
-                      <Select
-                        labelId="scenario-label"
-                        label="Scenario"
-                        value={selectedScenario}
-                        onChange={(e) =>
-                          setSelectedScenario(
-                            e.target.value as PaymentTestScenario,
-                          )
-                        }
-                        disabled={!selectedMethod || !scenarios?.length}
-                      >
-                        {(scenarios ?? []).map((s) => (
-                          <MenuItem key={s} value={s}>
-                            {SCENARIO_LABELS[s] ?? s}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  </FormControl>
-
-                  {/* Amount + Currency row */}
-                  <Box display="flex" gap={1.5}>
-                    <TextField
-                      label="Amount"
-                      size="small"
-                      type="number"
-                      value={amountDisplay}
-                      onChange={(e) => setAmountDisplay(e.target.value)}
-                      inputProps={{ min: '0.01', step: '0.01' }}
-                      sx={{ flexGrow: 1 }}
-                    />
-                    <FormControl size="small" sx={{ minWidth: 100 }}>
-                      <InputLabel id="currency-label">Currency</InputLabel>
-                      <Select
-                        labelId="currency-label"
-                        label="Currency"
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
-                      >
-                        {SUPPORTED_CURRENCIES.map((c) => (
-                          <MenuItem key={c} value={c}>
-                            {c}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Box>
-
-                  {/* Description (optional) */}
-                  <TextField
-                    label="Description (optional)"
-                    size="small"
-                    fullWidth
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Test payment for invoice #123"
-                  />
-
-                  {/* Amount preview */}
-                  {amountDisplay && !isNaN(parseFloat(amountDisplay)) && (
-                    <Typography variant="caption" color="text.secondary">
-                      Will charge:{' '}
-                      {formatAmountMinor(
-                        displayToMinor(parseFloat(amountDisplay), currency),
-                        currency,
-                      )}
-                    </Typography>
-                  )}
-
-                  {/* Submit */}
-                  <Button
-                    variant="contained"
-                    onClick={handleRunTest}
-                    disabled={
-                      !selectedMethod ||
-                      !selectedScenario ||
-                      !amountDisplay ||
-                      isNaN(parseFloat(amountDisplay)) ||
-                      parseFloat(amountDisplay) <= 0 ||
-                      mutation.isPending
-                    }
-                    startIcon={
-                      mutation.isPending ? (
-                        <CircularProgress size={16} color="inherit" />
-                      ) : (
-                        <ScienceOutlinedIcon />
-                      )
-                    }
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
-                    {mutation.isPending ? 'Running test…' : 'Run payment test'}
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
+          {/* Definition-driven form — shown only for test connections */}
+          {definition && isTestConnection && (
+            <DefinitionDrivenForm
+              definition={definition}
+              connectionId={resolvedConnectionId}
+              onSubmit={handleSubmit}
+              isPending={mutation.isPending}
+            />
           )}
 
           {/* Session history */}

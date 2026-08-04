@@ -46,6 +46,8 @@ import { PaymentsWebhookDeliveriesController } from './controllers/payments-webh
 import { PaymentsWebhookReceiverController } from './controllers/payments-webhook-receiver.controller';
 import { PaymentsCoinGateCallbackController } from './controllers/payments-coingate-callback.controller';
 import { PaymentsPageDefinitionController } from './controllers/payments-page-definition.controller';
+import { PaymentsRefundsPageDefinitionController } from './controllers/payments-refunds-page-definition.controller';
+import { PaymentsTestingPageDefinitionController } from './controllers/payments-testing-page-definition.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentsResolverService } from './services/payments-resolver.service';
 import { PaymentsAccountsService } from './services/payments-accounts.service';
@@ -59,6 +61,8 @@ import { PaymentsPayoutsService } from './services/payments-payouts.service';
 import { PaymentsWebhookEndpointsService } from './services/payments-webhook-endpoints.service';
 import { PaymentsWebhookDeliveriesService } from './services/payments-webhook-deliveries.service';
 import { PaymentsPageDefinitionService } from './services/payments-page-definition.service';
+import { PaymentsRefundsPageDefinitionService } from './services/payments-refunds-page-definition.service';
+import { PaymentsTestingPageDefinitionService } from './services/payments-testing-page-definition.service';
 import { PaymentProviderRegistry } from './registry/payment-provider.registry';
 
 // ─── Provider adapters ────────────────────────────────────────────────────────
@@ -98,6 +102,8 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsWebhookReceiverController,
     PaymentsCoinGateCallbackController,
     PaymentsPageDefinitionController,
+    PaymentsRefundsPageDefinitionController,
+    PaymentsTestingPageDefinitionController,
   ],
   providers: [
     // ── Provider adapters ──────────────────────────────────────────────────────
@@ -132,6 +138,8 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsWebhookEndpointsService,
     PaymentsWebhookDeliveriesService,
     PaymentsPageDefinitionService,
+    PaymentsRefundsPageDefinitionService,
+    PaymentsTestingPageDefinitionService,
   ],
   exports: [PaymentsService, PaymentProviderRegistry],
 })

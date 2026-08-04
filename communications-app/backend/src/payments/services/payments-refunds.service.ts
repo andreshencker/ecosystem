@@ -149,11 +149,16 @@ export class PaymentsRefundsService {
       credentials: runtime.credentials,
     };
 
-    const params: CreateRefundParams = {
+    const params: CreateRefundParams & {
+      providerExtensions?: Record<string, unknown>;
+    } = {
       paymentId: dto.paymentId,
       amountMinor: dto.amountMinor,
       reason: dto.reason as CreateRefundParams['reason'],
       metadata: dto.metadata,
+      ...(dto.providerExtensions
+        ? { providerExtensions: dto.providerExtensions }
+        : {}),
     };
 
     return runtime.provider.createRefund(context, params);

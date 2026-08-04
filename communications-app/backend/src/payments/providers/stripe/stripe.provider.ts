@@ -110,12 +110,26 @@ import {
 } from './stripe.constants';
 import { STRIPE_CAPABILITIES } from './stripe.capabilities';
 import { StripeCredentialsContract } from './stripe.credentials.contract';
-import type { IPaymentsPageDefinitionProvider } from '../../interfaces/payment-provider.interface';
+import type {
+  IPaymentsPageDefinitionProvider,
+  IRefundsPageDefinitionProvider,
+  IPaymentTestingPageDefinitionProvider,
+} from '../../interfaces/payment-provider.interface';
 import type {
   PaymentsPageDefinition,
   PaymentsPageDefinitionContext,
 } from '../../contracts/payments-page-definition.contract';
 import { buildStripePageDefinition } from './stripe.page-definition';
+import type {
+  RefundsPageDefinition,
+  RefundsPageDefinitionContext,
+} from '../../contracts/refunds-page-definition.contract';
+import { buildStripeRefundsPageDefinition } from './stripe.refunds-page-definition';
+import type {
+  PaymentTestingPageDefinition,
+  PaymentTestingPageDefinitionContext,
+} from '../../contracts/payment-testing-page-definition.contract';
+import { buildStripeTestingPageDefinition } from './stripe.testing-page-definition';
 import {
   extractStripeMethodEntries,
   mapStripeMethodToCanonical,
@@ -255,7 +269,9 @@ export class StripePaymentProvider
     IPaymentPayoutProvider,
     IPaymentWebhookProvider,
     IGatewayGuideProvider,
-    IPaymentsPageDefinitionProvider
+    IPaymentsPageDefinitionProvider,
+    IRefundsPageDefinitionProvider,
+    IPaymentTestingPageDefinitionProvider
 {
   readonly providerKey: string = STRIPE_PROVIDER_KEY;
   readonly displayName: string = STRIPE_DISPLAY_NAME;
@@ -272,6 +288,8 @@ export class StripePaymentProvider
   readonly supportsWebhookEndpoints = true as const;
   readonly supportsGatewayGuide = true as const;
   readonly supportsPaymentsPageDefinition = true as const;
+  readonly supportsRefundsPageDefinition = true as const;
+  readonly supportsPaymentTestingPageDefinition = true as const;
 
   getCapabilities(): PaymentProviderCapabilities {
     return STRIPE_CAPABILITIES;
@@ -1008,5 +1026,17 @@ export class StripePaymentProvider
     context: PaymentsPageDefinitionContext,
   ): Promise<PaymentsPageDefinition> {
     return buildStripePageDefinition(context);
+  }
+
+  getRefundsPageDefinition(
+    context: RefundsPageDefinitionContext,
+  ): Promise<RefundsPageDefinition> {
+    return buildStripeRefundsPageDefinition(context);
+  }
+
+  getPaymentTestingPageDefinition(
+    context: PaymentTestingPageDefinitionContext,
+  ): Promise<PaymentTestingPageDefinition> {
+    return buildStripeTestingPageDefinition(context);
   }
 }

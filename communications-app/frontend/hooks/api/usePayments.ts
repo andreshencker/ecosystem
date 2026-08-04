@@ -40,6 +40,8 @@ import type {
   GatewayGuide,
   ProviderCapabilitiesResponse,
   PaymentsPageDefinition,
+  RefundsPageDefinition,
+  PaymentTestingPageDefinition,
 } from '@/types/payments';
 
 export interface ListPaymentAccountsParams {
@@ -589,6 +591,52 @@ export function usePaymentsPageDefinition(connectionId: string | null | undefine
       apiClient
         .get<PaymentsPageDefinition>(
           `/payments/connections/${connectionId!}/page-definition`,
+        )
+        .then((r) => r.data),
+    enabled: Boolean(connectionId),
+    staleTime: 60 * 1000,
+    retry: retrySkip4xx,
+  });
+}
+
+// ─── Refunds page definition ──────────────────────────────────────────────────
+//
+// Fetches the canonical Refunds page definition for the selected connection.
+// The definition drives all Refunds page components: toolbar actions, filters,
+// columns, row actions, and the create form.
+// Query key includes connectionId — switching connections triggers a fresh fetch
+// and the previous definition is discarded.
+// Stale time is short (60 s) so definitions stay current.
+
+export function useRefundsPageDefinition(connectionId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['payments', 'refunds', 'page-definition', connectionId],
+    queryFn: () =>
+      apiClient
+        .get<RefundsPageDefinition>(
+          `/payments/connections/${connectionId!}/refunds/page-definition`,
+        )
+        .then((r) => r.data),
+    enabled: Boolean(connectionId),
+    staleTime: 60 * 1000,
+    retry: retrySkip4xx,
+  });
+}
+
+// ─── Payment Testing page definition ─────────────────────────────────────────
+//
+// Fetches the canonical Payment Testing page definition for the selected connection.
+// The definition drives the test form: fields, submit label, result presentation.
+// Query key includes connectionId — switching connections triggers a fresh fetch.
+// Stale time is short (60 s) so definitions stay current.
+
+export function usePaymentTestingPageDefinition(connectionId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['payments', 'testing', 'page-definition', connectionId],
+    queryFn: () =>
+      apiClient
+        .get<PaymentTestingPageDefinition>(
+          `/payments/connections/${connectionId!}/testing/page-definition`,
         )
         .then((r) => r.data),
     enabled: Boolean(connectionId),

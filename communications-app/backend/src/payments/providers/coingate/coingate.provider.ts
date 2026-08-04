@@ -21,12 +21,24 @@ import type {
   IGatewayGuideProvider,
   IPaymentTestingProvider,
   IPaymentsPageDefinitionProvider,
+  IRefundsPageDefinitionProvider,
+  IPaymentTestingPageDefinitionProvider,
 } from '../../interfaces/payment-provider.interface';
 import type {
   PaymentsPageDefinition,
   PaymentsPageDefinitionContext,
 } from '../../contracts/payments-page-definition.contract';
 import { buildCoinGatePageDefinition } from './coingate.page-definition';
+import type {
+  RefundsPageDefinition,
+  RefundsPageDefinitionContext,
+} from '../../contracts/refunds-page-definition.contract';
+import { buildCoinGateRefundsPageDefinition } from './coingate.refunds-page-definition';
+import type {
+  PaymentTestingPageDefinition,
+  PaymentTestingPageDefinitionContext,
+} from '../../contracts/payment-testing-page-definition.contract';
+import { buildCoinGateTestingPageDefinition } from './coingate.testing-page-definition';
 import type { GatewayGuide } from '../../contracts/payment-gateway-guide.contract';
 import type {
   PaymentProviderCapabilities,
@@ -88,7 +100,9 @@ export class CoingatePaymentProvider
     IPaymentRefundProvider,
     IGatewayGuideProvider,
     IPaymentTestingProvider,
-    IPaymentsPageDefinitionProvider
+    IPaymentsPageDefinitionProvider,
+    IRefundsPageDefinitionProvider,
+    IPaymentTestingPageDefinitionProvider
 {
   // ── IPaymentProvider ────────────────────────────────────────────────────────
 
@@ -311,5 +325,25 @@ export class CoingatePaymentProvider
     context: PaymentsPageDefinitionContext,
   ): Promise<PaymentsPageDefinition> {
     return buildCoinGatePageDefinition(context);
+  }
+
+  // ── IRefundsPageDefinitionProvider ──────────────────────────────────────────
+
+  readonly supportsRefundsPageDefinition = true as const;
+
+  getRefundsPageDefinition(
+    context: RefundsPageDefinitionContext,
+  ): Promise<RefundsPageDefinition> {
+    return buildCoinGateRefundsPageDefinition(context);
+  }
+
+  // ── IPaymentTestingPageDefinitionProvider ────────────────────────────────────
+
+  readonly supportsPaymentTestingPageDefinition = true as const;
+
+  getPaymentTestingPageDefinition(
+    context: PaymentTestingPageDefinitionContext,
+  ): Promise<PaymentTestingPageDefinition> {
+    return buildCoinGateTestingPageDefinition(context);
   }
 }

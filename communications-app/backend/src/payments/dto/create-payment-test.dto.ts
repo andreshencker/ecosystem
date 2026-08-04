@@ -5,8 +5,10 @@ import {
   IsInt,
   IsMongoId,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
+  IsUppercase,
   Length,
   Min,
 } from 'class-validator';
@@ -16,20 +18,45 @@ export class CreatePaymentTestDto {
   @IsMongoId()
   connectionId!: string;
 
+  /**
+   * Payment method key (e.g. 'card').
+   * Required for Stripe, not needed for CoinGate.
+   */
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  paymentMethodKey!: string;
+  paymentMethodKey?: string;
 
   @IsInt()
   @Min(1)
   amountMinor!: number;
 
+  /**
+   * ISO 4217 currency code (e.g. 'AUD', 'EUR') or provider asset code.
+   * Used by Stripe (fiat currency) and as fallback.
+   */
+  @IsOptional()
   @IsString()
   @Length(3, 3)
-  currency!: string;
+  currency?: string;
 
+  /**
+   * Provider payment unit code — uppercase asset code (e.g. 'EUR', 'BTC').
+   * Takes precedence over currency when both are supplied.
+   * Used for CoinGate price_currency and future provider-agnostic callers.
+   */
+  @IsOptional()
+  @IsString()
+  @IsUppercase()
+  paymentUnitCode?: string;
+
+  /**
+   * Test scenario to simulate.
+   * Required for Stripe, not used for CoinGate (sandbox always runs success flow).
+   */
+  @IsOptional()
   @IsEnum(PaymentTestScenario)
-  scenario!: PaymentTestScenario;
+  scenario?: PaymentTestScenario;
 
   @IsOptional()
   @IsString()
@@ -38,6 +65,15 @@ export class CreatePaymentTestDto {
   @IsOptional()
   @IsString()
   reference?: string;
+
+  /**
+   * Provider-specific extension fields.
+   * Never used for credentials or secrets — only for provider-specific
+   * parameters that do not map to canonical fields.
+   */
+  @IsOptional()
+  @IsObject()
+  providerExtensions?: Record<string, unknown>;
 }
 
 export class GetTestScenariosQueryDto {

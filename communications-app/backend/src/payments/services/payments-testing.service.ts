@@ -51,9 +51,10 @@ export class PaymentsTestingService {
    *   1. Resolve runtime context (company isolation + credential decryption).
    *   2. Assert the provider implements IPaymentTestingProvider.
    *   3. Confirm the credentials belong to a test environment.
-   *   4. Confirm the payment method supports programmatic testing.
-   *   5. Confirm the requested scenario is supported.
-   *   6. Delegate to the provider's createPaymentTest() method.
+   *   4. For Stripe: confirm the payment method supports programmatic testing
+   *      and the requested scenario is supported.
+   *      For CoinGate: use the default success scenario.
+   *   5. Delegate to the provider's createPaymentTest() method.
    *
    * Security invariants:
    *   - No test result is persisted locally — ephemeral by design.
@@ -70,11 +71,15 @@ export class PaymentsTestingService {
       connectionId,
       paymentMethodKey,
       amountMinor,
+      paymentUnitCode,
       currency,
       scenario,
       description,
       reference,
     } = dto;
+
+    // Resolve the effective currency: paymentUnitCode takes precedence over currency.
+    const effectiveCurrency = paymentUnitCode ?? currency ?? 'USD';
 
     this.logger.debug(
       `[createPaymentTest] companyId=${companyId} connectionId=${connectionId}`,
@@ -99,20 +104,31 @@ export class PaymentsTestingService {
       );
     }
 
+    // For providers that use a payment method key (e.g. Stripe), validate the
+    // method and scenario. For providers without a method concept (e.g. CoinGate),
+    // the provider's getSupportedTestScenarios() returns a single default scenario
+    // and the provider handles it internally.
+    const effectiveMethodKey = paymentMethodKey ?? '';
     const supportedScenarios =
-      runtime.provider.getSupportedTestScenarios(paymentMethodKey);
+      runtime.provider.getSupportedTestScenarios(effectiveMethodKey);
 
     if (supportedScenarios.length === 0) {
       throw new PaymentCapabilityNotSupportedError(
         runtime.providerKey,
-        `paymentTesting.${paymentMethodKey}`,
+        effectiveMethodKey
+          ? `paymentTesting.${effectiveMethodKey}`
+          : 'paymentTesting',
       );
     }
 
-    if (!supportedScenarios.includes(scenario)) {
+    // Use the provided scenario, or fall back to the first supported scenario
+    // (for providers like CoinGate that have a single implicit default).
+    const effectiveScenario = scenario ?? supportedScenarios[0];
+
+    if (!supportedScenarios.includes(effectiveScenario)) {
       throw new PaymentCapabilityNotSupportedError(
         runtime.providerKey,
-        `paymentTesting.scenario.${scenario}`,
+        `paymentTesting.scenario.${effectiveScenario}`,
       );
     }
 
@@ -125,22 +141,43 @@ export class PaymentsTestingService {
     };
 
     return runtime.provider.createPaymentTest(context, {
-      paymentMethodKey,
+      paymentMethodKey: effectiveMethodKey,
       amountMinor,
-      currency,
-      scenario,
+      currency: effectiveCurrency,
+      scenario: effectiveScenario,
       description,
       reference,
     });
   }
 
+  /**
+   * Extracts the connection environment from the decrypted credentials.
+   *
+   * Checks in order:
+   *   1. credentials.secretKey prefix (Stripe: sk_test_ → test, sk_live_ → live).
+   *      When secretKey is present with a recognised prefix it is authoritative —
+   *      a live Stripe key always means live regardless of any mode field.
+   *   2. credentials.mode field (CoinGate and future providers that use mode
+   *      without a secretKey field).
+   *
+   * Returns null when neither check resolves a known environment.
+   */
   private extractEnvironment(
     credentials: Record<string, unknown>,
   ): 'test' | 'live' | null {
+    // Stripe: secretKey prefix is authoritative when present.
     const key = credentials['secretKey'];
-    if (typeof key !== 'string') return null;
-    if (key.startsWith('sk_test_')) return 'test';
-    if (key.startsWith('sk_live_')) return 'live';
+    if (typeof key === 'string') {
+      if (key.startsWith('sk_test_')) return 'test';
+      if (key.startsWith('sk_live_')) return 'live';
+      // secretKey exists but has an unrecognised prefix — treat as unknown.
+      return null;
+    }
+
+    // CoinGate (and future providers): use the explicit mode field.
+    const mode = credentials['mode'];
+    if (mode === 'test' || mode === 'live') return mode;
+
     return null;
   }
 }
