@@ -124,7 +124,12 @@ function makeStripeDefinition(): RefundsPageDefinition {
       },
     ],
     columns: [
-      { key: 'id', label: 'Refund', type: 'identifier', field: 'providerRefundId' },
+      {
+        key: 'id',
+        label: 'Refund',
+        type: 'identifier',
+        field: 'providerRefundId',
+      },
       { key: 'reason', label: 'Reason', type: 'reason', field: 'reason' },
       { key: 'status', label: 'Status', type: 'status', field: 'status' },
       { key: 'actions', label: '', type: 'actions' },
@@ -135,7 +140,12 @@ function makeStripeDefinition(): RefundsPageDefinition {
       title: 'Create Refund',
       submitLabel: 'Create Refund',
       fields: [
-        { key: 'paymentId', label: 'Payment ID', type: 'payment_reference', required: true },
+        {
+          key: 'paymentId',
+          label: 'Payment ID',
+          type: 'payment_reference',
+          required: true,
+        },
       ],
     },
     list: {
@@ -174,8 +184,18 @@ function makeCoinGateDefinition(): RefundsPageDefinition {
       },
     ],
     columns: [
-      { key: 'id', label: 'Refund', type: 'identifier', field: 'providerRefundId' },
-      { key: 'currency', label: 'Asset', type: 'payment_unit', field: 'currency' },
+      {
+        key: 'id',
+        label: 'Refund',
+        type: 'identifier',
+        field: 'providerRefundId',
+      },
+      {
+        key: 'currency',
+        label: 'Asset',
+        type: 'payment_unit',
+        field: 'currency',
+      },
       { key: 'status', label: 'Status', type: 'status', field: 'status' },
       { key: 'actions', label: '', type: 'actions' },
     ],
@@ -185,7 +205,12 @@ function makeCoinGateDefinition(): RefundsPageDefinition {
       title: 'Create Refund',
       submitLabel: 'Create Refund',
       fields: [
-        { key: 'paymentId', label: 'Order ID', type: 'payment_reference', required: true },
+        {
+          key: 'paymentId',
+          label: 'Order ID',
+          type: 'payment_reference',
+          required: true,
+        },
         {
           key: 'currency_id',
           label: 'Destination Asset',
@@ -193,11 +218,32 @@ function makeCoinGateDefinition(): RefundsPageDefinition {
           required: true,
           optionsSource: 'payment_units',
           providerExtension: true,
-          providerMetadataMapping: { currencyId: 'currency_id', platformId: 'platform_id' },
+          providerMetadataMapping: {
+            currencyId: 'currency_id',
+            platformId: 'platform_id',
+          },
         },
-        { key: 'address', label: 'Wallet Address', type: 'text', required: true, providerExtension: true },
-        { key: 'email', label: 'Email', type: 'email', required: true, providerExtension: true },
-        { key: 'ledger_account_id', label: 'Ledger Account', type: 'text', required: true, providerExtension: true },
+        {
+          key: 'address',
+          label: 'Wallet Address',
+          type: 'text',
+          required: true,
+          providerExtension: true,
+        },
+        {
+          key: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true,
+          providerExtension: true,
+        },
+        {
+          key: 'ledger_account_id',
+          label: 'Ledger Account',
+          type: 'text',
+          required: true,
+          providerExtension: true,
+        },
       ],
     },
     list: {
@@ -285,7 +331,10 @@ describe('Test 3: Provider adapter resolution', () => {
     const svc = makePaymentsService(runtime);
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.providerKey).toBe('stripe');
     expect(provider.getCapabilities).toHaveBeenCalled();
@@ -304,7 +353,10 @@ describe('Test 4: Effective refund capabilities', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.capabilities[PaymentCapability.RefundCreation]).toBe(
       CapabilityStatus.Available,
@@ -322,7 +374,10 @@ describe('Test 4: Effective refund capabilities', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.capabilities[PaymentCapability.RefundCreation]).toBe(
       CapabilityStatus.Unsupported,
@@ -338,7 +393,10 @@ describe('Test 5: Generic default definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.filters.some((f) => f.key === 'status')).toBe(true);
     expect(result.columns.some((c) => c.type === 'identifier')).toBe(true);
@@ -350,7 +408,10 @@ describe('Test 5: Generic default definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.providerKey).toBe('some-future-provider');
   });
@@ -360,7 +421,10 @@ describe('Test 5: Generic default definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.toolbarActions.some((a) => a.type === 'refresh')).toBe(true);
   });
@@ -370,11 +434,14 @@ describe('Test 5: Generic default definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
-    expect(
-      result.toolbarActions.some((a) => a.type === 'create_refund'),
-    ).toBe(true);
+    expect(result.toolbarActions.some((a) => a.type === 'create_refund')).toBe(
+      true,
+    );
   });
 
   it('generic default omits create_refund when RefundCreation is unsupported', async () => {
@@ -388,11 +455,14 @@ describe('Test 5: Generic default definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
-    expect(
-      result.toolbarActions.some((a) => a.type === 'create_refund'),
-    ).toBe(false);
+    expect(result.toolbarActions.some((a) => a.type === 'create_refund')).toBe(
+      false,
+    );
   });
 });
 
@@ -427,7 +497,10 @@ describe('Test 6: Stripe definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.columns.some((c) => c.type === 'reason')).toBe(true);
   });
@@ -437,7 +510,10 @@ describe('Test 6: Stripe definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.columns.some((c) => c.type === 'payment_unit')).toBe(false);
   });
@@ -459,7 +535,10 @@ describe('Test 7: CoinGate definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.columns.some((c) => c.type === 'payment_unit')).toBe(true);
   });
@@ -469,7 +548,10 @@ describe('Test 7: CoinGate definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.columns.some((c) => c.type === 'reason')).toBe(false);
   });
@@ -479,7 +561,10 @@ describe('Test 7: CoinGate definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     const currencyField = result.createForm?.fields.find(
       (f) => f.key === 'currency_id',
@@ -494,9 +579,14 @@ describe('Test 7: CoinGate definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
-    const addressField = result.createForm?.fields.find((f) => f.key === 'address');
+    const addressField = result.createForm?.fields.find(
+      (f) => f.key === 'address',
+    );
     expect(addressField).toBeDefined();
     expect(addressField?.providerExtension).toBe(true);
   });
@@ -506,7 +596,10 @@ describe('Test 7: CoinGate definition', () => {
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     const searchFilter = result.filters.find((f) => f.key === 'search');
     expect(searchFilter?.label).toBe('Order ID');
@@ -526,11 +619,16 @@ describe('Test 8: Unsupported toolbar controls removed', () => {
     });
     const defn = makeStripeDefinition();
     (provider as any).supportsRefundsPageDefinition = true;
-    (provider as any).getRefundsPageDefinition = jest.fn().mockResolvedValue(defn);
+    (provider as any).getRefundsPageDefinition = jest
+      .fn()
+      .mockResolvedValue(defn);
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(
       result.toolbarActions.find((a) => a.type === 'create_refund'),
@@ -542,9 +640,14 @@ describe('Test 8: Unsupported toolbar controls removed', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
-    expect(result.toolbarActions.find((a) => a.type === 'refresh')).toBeDefined();
+    expect(
+      result.toolbarActions.find((a) => a.type === 'refresh'),
+    ).toBeDefined();
   });
 });
 
@@ -555,13 +658,20 @@ describe('Test 9: CoinGate provider extension fields mapped safely', () => {
     const provider = makeProvider({ providerKey: 'coingate' });
     const defn = makeCoinGateDefinition();
     (provider as any).supportsRefundsPageDefinition = true;
-    (provider as any).getRefundsPageDefinition = jest.fn().mockResolvedValue(defn);
+    (provider as any).getRefundsPageDefinition = jest
+      .fn()
+      .mockResolvedValue(defn);
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
-    const field = result.createForm?.fields.find((f) => f.key === 'currency_id');
+    const field = result.createForm?.fields.find(
+      (f) => f.key === 'currency_id',
+    );
     expect(field?.providerMetadataMapping).toBeDefined();
     expect(field?.providerMetadataMapping?.['currencyId']).toBe('currency_id');
     expect(field?.providerMetadataMapping?.['platformId']).toBe('platform_id');
@@ -571,11 +681,16 @@ describe('Test 9: CoinGate provider extension fields mapped safely', () => {
     const provider = makeProvider({ providerKey: 'coingate' });
     const defn = makeCoinGateDefinition();
     (provider as any).supportsRefundsPageDefinition = true;
-    (provider as any).getRefundsPageDefinition = jest.fn().mockResolvedValue(defn);
+    (provider as any).getRefundsPageDefinition = jest
+      .fn()
+      .mockResolvedValue(defn);
     const svc = makePaymentsService(makeRuntime(provider as any));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     const extensionFields = result.createForm?.fields.filter(
       (f) => f.providerExtension,
@@ -602,7 +717,10 @@ describe('Test 10: Secrets never returned', () => {
     );
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
     const json = JSON.stringify(result);
 
     expect(json).not.toContain('sk_test_DO_NOT_EXPOSE');
@@ -616,7 +734,10 @@ describe('Test 10: Secrets never returned', () => {
     const svc = makePaymentsService(runtime);
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result).not.toHaveProperty('credentials');
     expect(JSON.stringify(result)).not.toContain('sk_test_x');
@@ -631,7 +752,10 @@ describe('Test 11: Filters rendered from definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.filters.some((f) => f.key === 'status')).toBe(true);
   });
@@ -647,7 +771,10 @@ describe('Test 11: Filters rendered from definition', () => {
     const svc = makePaymentsService(makeRuntime(provider));
     const service = new PaymentsRefundsPageDefinitionService(svc as never);
 
-    const result = await service.getRefundsPageDefinition(COMPANY_A, CONNECTION_ID);
+    const result = await service.getRefundsPageDefinition(
+      COMPANY_A,
+      CONNECTION_ID,
+    );
 
     expect(result.filters.find((f) => f.key === 'currency')).toBeUndefined();
   });

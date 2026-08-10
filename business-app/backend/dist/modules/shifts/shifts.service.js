@@ -182,17 +182,25 @@ let ShiftsService = ShiftsService_1 = class ShiftsService {
         return { ...doc, contractSummary };
     }
     async findAll(businessId, params) {
-        const { page, limit, contractId, customerId, status, date, search, source, linkedCalendarId } = params;
+        const { page, limit, contractId, customerId, status, date, dateFrom, dateTo, search, source, linkedCalendarId } = params;
         const skip = (page - 1) * limit;
-        const filter = { businessId };
+        const filter = { businessId, syncStatus: { $ne: 'deleted' } };
         if (contractId)
             filter.contractId = contractId;
         if (customerId)
             filter.customerId = customerId;
         if (status)
             filter.status = status;
-        if (date)
+        if (date) {
             filter.date = date;
+        }
+        else if (dateFrom || dateTo) {
+            filter.date = {};
+            if (dateFrom)
+                filter.date.$gte = dateFrom;
+            if (dateTo)
+                filter.date.$lte = dateTo;
+        }
         if (linkedCalendarId)
             filter.linkedCalendarId = linkedCalendarId;
         if (source === 'calendar')

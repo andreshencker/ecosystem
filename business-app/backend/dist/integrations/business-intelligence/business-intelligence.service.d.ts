@@ -27,10 +27,12 @@ import type { BiSemanticMetadata } from './dto/responses/bi-semantic-metadata.dt
 import type { SyncResult } from './dto/responses/sync-result.dto';
 import type { SyncStatus } from './dto/responses/sync-status.dto';
 import type { PendingInvoiceGroupsResult } from './dto/responses/pending-invoice-groups.dto';
+import type { ShiftInvoiceBiResult } from './contracts/invoice/shift-invoice';
 export declare class BusinessIntelligenceService {
     private readonly client;
     private readonly logger;
     constructor(client: BIHttpClient);
+    getShiftInvoiceDocument(businessId: string, invoiceId: string): Promise<ShiftInvoiceBiResult>;
     getCustomerSummary(businessId: string, period?: string): Promise<CustomerSummaryResult | null>;
     getDashboardSummary(businessId: string, period?: string): Promise<DashboardSummaryResult | null>;
     getInvoiceSummary(params: InvoiceSummaryParams): Promise<InvoiceSummaryResult | null>;
@@ -63,5 +65,59 @@ export declare class BusinessIntelligenceService {
     getPendingShiftAssignments(params: BiShiftAssignmentListParams): Promise<BiShiftPendingAssignmentListResponse>;
     getPendingShiftAssignmentDetail(shiftId: string, businessId?: string): Promise<BiShiftPendingAssignmentItem | null>;
     getPendingInvoiceGroups(businessId: string): Promise<PendingInvoiceGroupsResult | null>;
+    getReceivablesSummary(businessId: string, filters?: Record<string, string | undefined>): Promise<{
+        currency: string;
+        totalIncome: string;
+        outstanding: string;
+        paid: string;
+        invoiceCount: number;
+        trend: Array<{
+            label: string;
+            totalIncome: string;
+            paid: string;
+            outstanding: string;
+        }>;
+        statuses: Array<{
+            label: string;
+            value: string;
+            count: number;
+        }>;
+        customers: Array<{
+            label: string;
+            totalIncome: string;
+            paid: string;
+            outstanding: string;
+            overdue: string;
+            count: number;
+        }>;
+        aging: Array<{
+            label: string;
+            value: string;
+            count: number;
+        }>;
+        paymentTrend: Array<{
+            label: string;
+            paid: string;
+            count: number;
+        }>;
+        overdue: string;
+        overdueCount: number;
+        collectionRate: string;
+        customerTimeline: Array<{
+            label: string;
+            customer: string;
+            totalIncome: string;
+            paid: string;
+            outstanding: string;
+            share: string;
+        }>;
+        customerGrowth: Array<{
+            label: string;
+            current: string;
+            previous: string;
+            growthRate: string;
+        }>;
+    }>;
+    getInvoiceCashFlow(businessId: string, filters?: Record<string, string | undefined>): Promise<unknown>;
 }
 export { BusinessIntelligenceService as BiClientService };

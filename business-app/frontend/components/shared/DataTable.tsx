@@ -60,6 +60,10 @@ export interface DataTableProps<T extends { id?: string }> {
    * Accepts any CSS height value (e.g. 600, "60vh", "calc(100vh - 300px)").
    */
   height?: number | string;
+  /** Desktop row height. Defaults to 52px. */
+  rowHeight?: number;
+  /** Width reserved for the desktop actions column. */
+  actionsColumnWidth?: number;
 }
 
 // ─── Mobile card sub-component ────────────────────────────────────────────────
@@ -215,6 +219,8 @@ export function DataTable<T extends { id?: string }>({
   getRowId,
   checkboxSelection = false,
   height,
+  rowHeight = 52,
+  actionsColumnWidth = 160,
 }: DataTableProps<T>) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -232,7 +238,7 @@ export function DataTable<T extends { id?: string }>({
         {
           field: '__actions__',
           headerName: 'Actions',
-          width: 160,
+          width: actionsColumnWidth,
           sortable: false,
           disableColumnMenu: true,
           align: 'right' as const,
@@ -382,7 +388,7 @@ export function DataTable<T extends { id?: string }>({
     checkboxSelection,
     onRowClick: onRowClick ? (params: any) => onRowClick(params.row as T) : undefined,
     disableRowSelectionOnClick: !onRowClick,
-    getRowHeight: () => 52,
+    getRowHeight: () => rowHeight,
     slots: gridSlots,
     sx: gridSx,
   };

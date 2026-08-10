@@ -18,6 +18,10 @@ const swagger_1 = require("@nestjs/swagger");
 const invoices_service_1 = require("./invoices.service");
 const approve_invoice_dto_1 = require("./dto/approve-invoice.dto");
 const current_user_decorator_1 = require("../../infrastructure/security/decorators/current-user.decorator");
+const create_invoice_review_item_dto_1 = require("./dto/create-invoice-review-item.dto");
+const mark_invoice_paid_dto_1 = require("./dto/mark-invoice-paid.dto");
+const void_invoice_dto_1 = require("./dto/void-invoice.dto");
+const mark_invoice_sent_dto_1 = require("./dto/mark-invoice-sent.dto");
 let InvoicesController = class InvoicesController {
     invoicesService;
     constructor(invoicesService) {
@@ -28,12 +32,110 @@ let InvoicesController = class InvoicesController {
             throw new common_1.ForbiddenException('No business assigned');
         return ctx.companyId;
     }
+    async listApproved(ctx) {
+        return this.invoicesService.listApproved(this.resolveContext(ctx));
+    }
+    async previewPdf(ctx, invoiceId, response) {
+        const file = await this.invoicesService.previewPdf(this.resolveContext(ctx), invoiceId);
+        response.setHeader('Content-Type', file.contentType);
+        response.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+        response.setHeader('Cache-Control', 'no-store');
+        return response.send(file.buffer);
+    }
+    async addReviewItem(ctx, dto) {
+        return this.invoicesService.addReviewItem(this.resolveContext(ctx), dto);
+    }
+    async removeReviewItem(ctx, itemId) {
+        await this.invoicesService.removeReviewItem(this.resolveContext(ctx), itemId);
+    }
+    async markPaid(ctx, invoiceId, dto) {
+        return this.invoicesService.markPaid(this.resolveContext(ctx), invoiceId, dto);
+    }
+    async markSent(ctx, invoiceId, dto) {
+        return this.invoicesService.markSent(this.resolveContext(ctx), invoiceId, dto);
+    }
+    async recordReminder(ctx, invoiceId) {
+        return this.invoicesService.recordReminder(this.resolveContext(ctx), invoiceId);
+    }
+    async voidInvoice(ctx, invoiceId, dto) {
+        return this.invoicesService.voidInvoice(this.resolveContext(ctx), invoiceId, dto);
+    }
     async approve(ctx, dto) {
         const businessId = this.resolveContext(ctx);
         return this.invoicesService.approve(businessId, dto);
     }
 };
 exports.InvoicesController = InvoicesController;
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'List approved invoices for the authenticated business' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "listApproved", null);
+__decorate([
+    (0, common_1.Get)(':invoiceId/preview.pdf'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('invoiceId')),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "previewPdf", null);
+__decorate([
+    (0, common_1.Post)('review-items'),
+    (0, common_1.HttpCode)(201),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_invoice_review_item_dto_1.CreateInvoiceReviewItemDto]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "addReviewItem", null);
+__decorate([
+    (0, common_1.Delete)('review-items/:itemId'),
+    (0, common_1.HttpCode)(204),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('itemId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "removeReviewItem", null);
+__decorate([
+    (0, common_1.Patch)(':invoiceId/mark-paid'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('invoiceId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, mark_invoice_paid_dto_1.MarkInvoicePaidDto]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "markPaid", null);
+__decorate([
+    (0, common_1.Patch)(':invoiceId/mark-sent'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('invoiceId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, mark_invoice_sent_dto_1.MarkInvoiceSentDto]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "markSent", null);
+__decorate([
+    (0, common_1.Post)(':invoiceId/reminders'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('invoiceId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "recordReminder", null);
+__decorate([
+    (0, common_1.Patch)(':invoiceId/void'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('invoiceId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, void_invoice_dto_1.VoidInvoiceDto]),
+    __metadata("design:returntype", Promise)
+], InvoicesController.prototype, "voidInvoice", null);
 __decorate([
     (0, common_1.Post)('approve'),
     (0, common_1.HttpCode)(201),

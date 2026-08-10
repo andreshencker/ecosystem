@@ -4,6 +4,7 @@
 // PaymentsService and the provider adapter are fully mocked.
 
 import { Types } from 'mongoose';
+import type { ConfigService } from '@nestjs/config';
 import { PaymentsTestingService } from '../services/payments-testing.service';
 import {
   PaymentCapabilityNotSupportedError,
@@ -15,6 +16,15 @@ import type { IPaymentProvider } from '../interfaces/payment-provider.interface'
 import type { PaymentProviderRuntimeContext } from '../types/payment.types';
 import type { PaymentTestResult } from '../types/payment-testing.types';
 import { CreatePaymentTestDto } from '../dto/create-payment-test.dto';
+
+function makeConfigService(apiBaseUrl = ''): ConfigService {
+  return {
+    get: jest.fn().mockImplementation((key: string, defaultValue?: string) => {
+      if (key === 'API_BASE_URL') return apiBaseUrl;
+      return defaultValue ?? '';
+    }),
+  } as unknown as ConfigService;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,6 +144,7 @@ describe('PaymentsTestingService.getSupportedScenarios()', () => {
     const paymentsService = makePaymentsService();
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await service.getSupportedScenarios(COMPANY_ID, CONNECTION_ID, 'card');
@@ -148,6 +159,7 @@ describe('PaymentsTestingService.getSupportedScenarios()', () => {
     const paymentsService = makePaymentsService();
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     const result = await service.getSupportedScenarios(
@@ -163,6 +175,7 @@ describe('PaymentsTestingService.getSupportedScenarios()', () => {
     const paymentsService = makePaymentsService(makeNoTestingProvider());
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     const result = await service.getSupportedScenarios(
@@ -182,6 +195,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     const paymentsService = makePaymentsService();
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await service.createPaymentTest(COMPANY_ID, makeDto());
@@ -200,6 +214,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     );
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     const result = await service.createPaymentTest(COMPANY_ID, makeDto());
@@ -211,6 +226,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     const paymentsService = makePaymentsService(makeNoTestingProvider());
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await expect(
@@ -225,6 +241,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     );
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await expect(
@@ -239,6 +256,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     );
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await expect(
@@ -252,6 +270,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     );
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await expect(
@@ -271,6 +290,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     );
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     await expect(
@@ -288,6 +308,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     const paymentsService = makePaymentsService();
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     // Verify constructor shape — only paymentsService, no model injections
@@ -303,6 +324,7 @@ describe('PaymentsTestingService.createPaymentTest()', () => {
     const paymentsService = makePaymentsService();
     const service = new PaymentsTestingService(
       paymentsService as unknown as never,
+      makeConfigService(),
     );
 
     const result = await service.createPaymentTest(COMPANY_ID, makeDto());

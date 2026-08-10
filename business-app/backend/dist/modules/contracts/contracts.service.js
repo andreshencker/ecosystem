@@ -145,6 +145,7 @@ let ContractsService = ContractsService_1 = class ContractsService {
             invoiceDescription: dto.invoiceDescription.trim(),
             status: 'active',
             billingCycle: dto.billingCycle,
+            invoiceDueRule: dto.invoiceDueRule ?? 'from_invoice_date',
             paymentTermsDays: (dto.scheduledPaymentEnabled ?? false) ? null : (dto.paymentTermsDays ?? null),
             scheduledPaymentEnabled: dto.scheduledPaymentEnabled ?? false,
             scheduledPaymentDay: ((dto.scheduledPaymentEnabled ?? false) ? (dto.scheduledPaymentDay ?? null) : null),
@@ -282,6 +283,8 @@ let ContractsService = ContractsService_1 = class ContractsService {
             $set.invoiceDescription = dto.invoiceDescription.trim();
         if (dto.billingCycle !== undefined)
             $set.billingCycle = dto.billingCycle;
+        if (dto.invoiceDueRule !== undefined)
+            $set.invoiceDueRule = dto.invoiceDueRule;
         if (dto.scheduledPaymentEnabled !== undefined) {
             $set.scheduledPaymentEnabled = dto.scheduledPaymentEnabled;
             $set.paymentTermsDays = dto.scheduledPaymentEnabled ? null : (dto.paymentTermsDays ?? null);

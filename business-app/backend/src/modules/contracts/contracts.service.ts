@@ -213,6 +213,7 @@ export class ContractsService {
       invoiceDescription: dto.invoiceDescription.trim(),
       status: 'active',
       billingCycle: dto.billingCycle,
+      invoiceDueRule: dto.invoiceDueRule ?? 'from_invoice_date',
       // Mutual exclusion: exactly one payment method is active
       paymentTermsDays: (dto.scheduledPaymentEnabled ?? false) ? null : (dto.paymentTermsDays ?? null),
       scheduledPaymentEnabled: dto.scheduledPaymentEnabled ?? false,
@@ -370,6 +371,7 @@ export class ContractsService {
     if (dto.workType !== undefined)           $set.workType = dto.workType;
     if (dto.invoiceDescription !== undefined) $set.invoiceDescription = dto.invoiceDescription.trim();
     if (dto.billingCycle !== undefined)             $set.billingCycle = dto.billingCycle;
+    if (dto.invoiceDueRule !== undefined)           $set.invoiceDueRule = dto.invoiceDueRule;
     // Mutual exclusion enforced on every write
     if (dto.scheduledPaymentEnabled !== undefined) {
       $set.scheduledPaymentEnabled = dto.scheduledPaymentEnabled;

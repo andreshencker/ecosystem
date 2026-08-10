@@ -26,7 +26,7 @@ export declare class ShiftsController {
         page: number;
         limit: number;
     }>;
-    findAll(ctx: AuthContext, page?: string, limit?: string, contractId?: string, customerId?: string, status?: string, date?: string, search?: string, source?: string, linkedCalendarId?: string): Promise<{
+    findAll(ctx: AuthContext, page?: string, limit?: string, contractId?: string, customerId?: string, status?: string, date?: string, dateFrom?: string, dateTo?: string, search?: string, source?: string, linkedCalendarId?: string): Promise<{
         items: import("./dto/shift-response.dto").ShiftResponseDto[];
         total: number;
         page: number;

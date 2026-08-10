@@ -1,4 +1,5 @@
 // src/channels/runtime/channels-runtime.types.ts
+
 export type ChannelKey =
   | 'email'
   | 'sms'
@@ -8,27 +9,57 @@ export type ChannelKey =
   | 'accounting'
   | 'billing';
 
+/**
+ * Canonical runtime context produced by ChannelsRuntimeResolverService.
+ *
+ * Every field is always populated — the resolver throws before returning
+ * an incomplete context. Callers can trust all fields unconditionally.
+ *
+ * Resolution path:
+ *   Company → Channel → Provider → CompanyChannelProvider → Credentials
+ *
+ * Security rules:
+ *   - `credentials` are decrypted in-memory only; never persisted or logged.
+ *   - `channelId` and `companyChannelProviderId` are safe MongoDB ObjectId
+ *     strings suitable for audit logging.
+ */
 export type ChannelsRuntimeResolved = {
+  /** Channel business responsibility (e.g. 'payment', 'accounting'). */
   channelKey: ChannelKey;
 
-  providerKey: string; // gmail, twilio, aws, etc
-  connectionType: string; // smtp, api_key, oauth, access_keys, etc
+  /** MongoDB ObjectId of the Channel document. */
+  channelId: string;
 
-  providerCredentialsId: string;
-  providerId: string | null; // MongoDB ObjectId of the Platform Provider (DEC-018 §10.3)
-  tag: string;
+  /** Stable provider identifier (e.g. 'stripe', 'xero'). */
+  providerKey: string;
+
+  /** MongoDB ObjectId of the Provider document. */
+  providerId: string | null;
+
+  /** Auth mechanism declared on the provider (e.g. 'oauth', 'api_key'). */
+  connectionType: string;
 
   /**
-   * ✅ runtime actives
-   * - isActive = CCP activo AND credentials activo
-   * - credentialsIsActive = credentials activo
+   * MongoDB ObjectId of the CompanyChannelProvider record.
+   * This is the ownership proof: company × channel × provider.
    */
+  companyChannelProviderId: string;
+
+  /** MongoDB ObjectId of the ProviderCredentials record. */
+  providerCredentialsId: string;
+
+  /** Credential tag (e.g. 'live', 'sandbox', 'default'). */
+  tag: string;
+
+  /** True when both the CCP and the credential record are active. */
   isActive: boolean;
+
+  /** True when the credential record itself is active. */
   credentialsIsActive: boolean;
 
   /**
-   * Credenciales YA desencriptadas.
-   * ⚠️ Solo existen en memoria (runtime), nunca se guardan ni se exponen.
+   * Decrypted credential fields — in-memory only for this request.
+   * Never persisted, never returned to callers outside the runtime layer.
    */
   credentials: Record<string, any>;
 };

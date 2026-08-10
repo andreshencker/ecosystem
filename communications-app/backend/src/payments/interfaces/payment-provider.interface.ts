@@ -651,3 +651,41 @@ export function isPaymentTestingPageDefinitionProvider(
     ] === 'function'
   );
 }
+
+// ─── Reference data provider ──────────────────────────────────────────────────
+
+import type {
+  PaymentReferenceDataContext,
+  PaymentReferenceDataResponse,
+  PaymentReferenceDataSource,
+} from '../contracts/payment-reference-data.contract';
+
+/**
+ * Provider that can supply controlled reference-data option lists.
+ *
+ * Each source (price_currencies, receive_currencies, payment_assets, …) is a
+ * semantically distinct concept. The provider adapter is responsible for
+ * returning exactly the dataset appropriate for each source — the generic
+ * frontend must not derive one source from another.
+ *
+ * Never return decrypted credentials in any reference-data response.
+ */
+export interface IPaymentReferenceDataProvider extends IPaymentProvider {
+  readonly supportsPaymentReferenceData: true;
+  getPaymentReferenceData(
+    context: PaymentReferenceDataContext,
+    source: PaymentReferenceDataSource,
+  ): Promise<PaymentReferenceDataResponse>;
+}
+
+export function isReferenceDataProvider(
+  provider: IPaymentProvider | PaymentProviderRef,
+): provider is IPaymentReferenceDataProvider {
+  return (
+    'supportsPaymentReferenceData' in provider &&
+    provider.supportsPaymentReferenceData === true &&
+    'getPaymentReferenceData' in provider &&
+    typeof (provider as Record<string, unknown>)['getPaymentReferenceData'] ===
+      'function'
+  );
+}

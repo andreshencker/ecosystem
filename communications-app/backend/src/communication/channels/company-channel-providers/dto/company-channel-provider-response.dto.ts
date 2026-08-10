@@ -11,6 +11,9 @@ export type ProviderMiniDto = {
   displayName?: string;
   connectionType?: string;
   isActive?: boolean;
+  /** All channel ObjectId strings this provider belongs to. */
+  channelIds?: string[];
+  /** First channelId — kept for backwards compatibility. */
   channelId?: string;
 };
 

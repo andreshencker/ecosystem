@@ -48,6 +48,7 @@ import {
   getProviderCredentialConfig,
   type CredentialFieldConfig,
 } from '@/lib/config/provider-credential-config';
+import { OAuthConnectPanel } from './OAuthConnectPanel';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCompanyChannelProviders } from '@/hooks/api/useCompanyChannelProviders';
 import type { CompanyChannelProvider, ProviderCredentials } from '@/types/api';
@@ -400,8 +401,13 @@ export function CredentialForm({
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const oauthConfig = config?.oauthConfig;
+  const oauthSuccessMessage = oauthConfig && !isEditing
+    ? `Credentials saved. Open Edit to connect with ${getProviderName(effectiveProvider as any)}.`
+    : undefined;
+
   const feedback = useCrudFeedback({
-    successMessage: isEditing ? 'Credentials updated' : 'Credentials added',
+    successMessage: oauthSuccessMessage ?? (isEditing ? 'Credentials updated' : 'Credentials added'),
     queryKeys: [['provider-credentials']],
     onSuccess: onClose,
   });
@@ -569,6 +575,18 @@ export function CredentialForm({
             placeholder="marketing"
             helperText="Identifier for this credential set, e.g. marketing, support, transactional"
           />
+
+          {/* ── OAuth connection panel (OAuth providers only, edit mode) ── */}
+          {isEditing && oauthConfig && credential && (
+            <OAuthConnectPanel
+              oauthBasePath={oauthConfig.basePath}
+              credentialId={credential.id}
+              providerName={effectiveProvider ? getProviderName(effectiveProvider) : 'Provider'}
+              displayIdentifier={credential.displayIdentifier}
+              supportsOrganisations={oauthConfig.supportsOrganisations}
+              onDisconnected={onClose}
+            />
+          )}
 
           {/* ── Edit mode: encrypted-values notice ──────────────────────── */}
           {isEditing && (

@@ -64,6 +64,7 @@ function toContractResponse(doc) {
         invoiceDescription: d.invoiceDescription,
         status: d.status,
         billingCycle: d.billingCycle,
+        invoiceDueRule: d.invoiceDueRule ?? 'from_invoice_date',
         paymentTermsDays: d.paymentTermsDays,
         scheduledPaymentEnabled: d.scheduledPaymentEnabled ?? false,
         scheduledPaymentDay: (d.scheduledPaymentEnabled ?? false) ? (d.scheduledPaymentDay ?? null) : null,

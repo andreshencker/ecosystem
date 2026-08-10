@@ -26,7 +26,12 @@ import PlayCircleOutlineOutlinedIcon   from '@mui/icons-material/PlayCircleOutli
 import SecurityOutlinedIcon            from '@mui/icons-material/SecurityOutlined';
 import FolderOutlinedIcon              from '@mui/icons-material/FolderOutlined';
 import DescriptionOutlinedIcon         from '@mui/icons-material/DescriptionOutlined';
-import AccountBalanceOutlinedIcon      from '@mui/icons-material/AccountBalanceOutlined';
+import AccountBalanceOutlinedIcon        from '@mui/icons-material/AccountBalanceOutlined';
+import LinkOutlinedIcon                 from '@mui/icons-material/LinkOutlined';
+import ReceiptLongOutlinedIcon          from '@mui/icons-material/ReceiptLongOutlined';
+import MenuBookOutlinedIcon             from '@mui/icons-material/MenuBookOutlined';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import CompareArrowsOutlinedIcon        from '@mui/icons-material/CompareArrowsOutlined';
 
 import CreditCardOutlinedIcon          from '@mui/icons-material/CreditCardOutlined';
 import PaymentsOutlinedIcon            from '@mui/icons-material/PaymentsOutlined';
@@ -231,6 +236,18 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
+        label: 'Accounting',
+        items: [
+          { href: '/accounting/bank-connections',       label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
+          { href: '/accounting/bank-feed',            label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
+          { href: '/accounting/accounting-transactions', label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon           },
+          { href: '/accounting/reconciliation',       label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
+          { href: '/accounting/manual-journals',      label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/accounting/general-ledger',       label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
+          { href: '/accounting/chart-of-accounts',    label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
+        ],
+      },
+      {
         label: 'Operations',
         items: [
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
@@ -402,6 +419,18 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
+        label: 'Accounting',
+        items: [
+          { href: '/accounting/bank-connections',       label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
+          { href: '/accounting/bank-feed',            label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
+          { href: '/accounting/accounting-transactions', label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon           },
+          { href: '/accounting/reconciliation',       label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
+          { href: '/accounting/manual-journals',      label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/accounting/general-ledger',       label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
+          { href: '/accounting/chart-of-accounts',    label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
+        ],
+      },
+      {
         label: 'Operations',
         items: [
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
@@ -509,6 +538,18 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
           { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
           { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
+        ],
+      },
+      {
+        label: 'Accounting',
+        items: [
+          { href: '/accounting/bank-connections',       label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
+          { href: '/accounting/bank-feed',            label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
+          { href: '/accounting/accounting-transactions', label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon           },
+          { href: '/accounting/reconciliation',       label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
+          { href: '/accounting/manual-journals',      label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/accounting/general-ledger',       label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
+          { href: '/accounting/chart-of-accounts',    label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
         ],
       },
       {

@@ -14,9 +14,12 @@ Architecture notes:
 import calendar
 import hashlib
 import logging
+import re
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Dict, List, Optional, Tuple
+
+from bson import ObjectId
 
 from app.database.mongo import get_database
 
@@ -24,6 +27,7 @@ from .schema import (
     PendingGroupStatus,
     PendingInvoiceGroup,
     PendingInvoiceGroupsResponse,
+    PendingAdditionalConcept,
     PendingShiftCalculation,
     ShiftCalcStatus,
 )
@@ -41,6 +45,7 @@ _DAY_MAP = {
     5: "saturday",
     6: "sunday",
 }
+_WEEKDAY_NUMBER = {name: number for number, name in _DAY_MAP.items()}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -73,6 +78,19 @@ def _to_date(value: Any) -> Optional[date]:
         return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return None
+
+
+def _mongo_id_candidates(values: List[str]) -> List[Any]:
+    """Return string IDs plus valid ObjectId equivalents for legacy references.
+
+    Business App stores contractId/customerId on Shift as strings, while the
+    referenced Mongo documents use native ObjectId values for `_id`.
+    Supporting both representations keeps the live calculation compatible with
+    existing data and with tests/imports that use string `_id` values.
+    """
+    candidates: List[Any] = list(values)
+    candidates.extend(ObjectId(value) for value in values if ObjectId.is_valid(value))
+    return candidates
 
 
 def _gross_hours(
@@ -225,6 +243,7 @@ class PendingInvoiceGroupsService:
                 "businessId": business_id,
                 "status": "confirmed",
                 "invoiceStatus": "pending",
+                "syncStatus": {"$ne": "deleted"},
             }
         ).to_list(length=None)
 
@@ -246,15 +265,43 @@ class PendingInvoiceGroupsService:
         })
 
         contracts_raw = await db["contracts"].find(
-            {"_id": {"$in": contract_ids}}
+            {
+                "businessId": business_id,
+                "_id": {"$in": _mongo_id_candidates(contract_ids)},
+            }
         ).to_list(length=None)
         contracts_by_id: Dict[str, dict] = {str(c["_id"]): c for c in contracts_raw}
 
-        customers_raw = await db["customers"].find(
-            {"_id": {"$in": customer_ids}}
+        invoices_raw = await db["invoices"].find(
+            {"businessId": business_id, "contractId": {"$in": contract_ids}}
         ).to_list(length=None)
-        customers_by_id: Dict[str, str] = {
-            str(c["_id"]): c.get("name") or c.get("companyName") or "Unknown Customer"
+        last_invoice_sequence: Dict[str, int] = {}
+        for invoice in invoices_raw:
+            match = re.search(r"(\d+)$", str(invoice.get("invoiceNumber") or ""))
+            if not match:
+                continue
+            contract_key = str(invoice.get("contractId") or "")
+            last_invoice_sequence[contract_key] = max(
+                last_invoice_sequence.get(contract_key, 0), int(match.group(1))
+            )
+
+        customers_raw = await db["customers"].find(
+            {
+                "companyId": business_id,
+                "_id": {"$in": _mongo_id_candidates(customer_ids)},
+            }
+        ).to_list(length=None)
+        customers_by_id: Dict[str, dict] = {
+            str(c["_id"]): {
+                "name": (
+                    c.get("displayName")
+                    or c.get("name")
+                    or c.get("companyName")
+                    or "Unknown Customer"
+                ),
+                "email": (c.get("contact") or {}).get("email") or c.get("email"),
+                "phone": (c.get("contact") or {}).get("phone") or c.get("phone"),
+            }
             for c in customers_raw
         }
 
@@ -296,10 +343,27 @@ class PendingInvoiceGroupsService:
             currency = contract.get("currency") or "AUD"
             contract_start = _to_date(contract.get("startDate"))
             default_break_min = int(contract.get("defaultBreakMinutes") or 0)
+            minimum_hours = Decimal(str(contract.get("minimumHours") or 0))
             rates = contract.get("rates") or []
             position_name = contract.get("positionName") or "—"
+            invoice_description = contract.get("invoiceDescription") or position_name
+            starting_invoice_number = int(contract.get("startingInvoiceNumber") or 1)
+            next_sequence = max(
+                starting_invoice_number,
+                last_invoice_sequence.get(contract_id, starting_invoice_number - 1) + 1,
+            )
+            invoice_prefix = (
+                str(contract.get("invoicePrefix") or "").strip()
+                if contract.get("useInvoicePrefix")
+                else ""
+            )
+            preview_invoice_number = f"{invoice_prefix}{next_sequence}"
             charge_gst = bool(contract.get("chargeGst", False))
             gst_rate_val = contract.get("gstRate")
+            payment_terms_days = contract.get("paymentTermsDays")
+            invoice_due_rule = contract.get("invoiceDueRule") or "from_invoice_date"
+            scheduled_payment_enabled = bool(contract.get("scheduledPaymentEnabled", False))
+            scheduled_payment_day = contract.get("scheduledPaymentDay")
 
             # Billing period
             shift_date = _to_date(shift_date_str)
@@ -326,6 +390,10 @@ class PendingInvoiceGroupsService:
                 Decimal("0"),
                 gross_h - Decimal(applied_break) / Decimal(60),
             ).quantize(TWO, rounding=ROUND_HALF_UP)
+            billable_h = max(worked_h, minimum_hours).quantize(
+                TWO, rounding=ROUND_HALF_UP
+            )
+            minimum_applied = billable_h > worked_h
 
             # Rate resolution
             rate, rate_err = _resolve_rate(shift_date, start_time, rate_type, rates)
@@ -345,7 +413,7 @@ class PendingInvoiceGroupsService:
                 calc_status = "error"
 
             amount = (
-                (worked_h * rate).quantize(TWO, rounding=ROUND_HALF_UP)
+                (billable_h * rate).quantize(TWO, rounding=ROUND_HALF_UP)
                 if rate is not None and calc_status != "error"
                 else Decimal("0")
             )
@@ -353,7 +421,7 @@ class PendingInvoiceGroupsService:
             row = PendingShiftCalculation(
                 shiftId=shift_id,
                 workDate=shift_date_str,
-                description=s.get("description") or s.get("title"),
+                description=invoice_description,
                 startTime=start_time,
                 endTime=end_time,
                 endDate=end_date_str,
@@ -361,6 +429,9 @@ class PendingInvoiceGroupsService:
                 breakTaken=break_taken,
                 appliedBreakMinutes=applied_break,
                 workedHours=_d2(worked_h),
+                minimumHours=_d2(minimum_hours),
+                minimumHoursApplied=minimum_applied,
+                billableHours=_d2(billable_h),
                 rateType=rate_type,
                 appliedRate=_d2(rate) if rate is not None else "0.00",
                 currency=currency,
@@ -375,6 +446,11 @@ class PendingInvoiceGroupsService:
                 business_id, customer_id, contract_id, position_name,
                 billing_cycle, period_start_str, period_end_str, currency,
                 charge_gst=charge_gst, gst_rate=gst_rate_val,
+                payment_terms_days=payment_terms_days,
+                invoice_due_rule=invoice_due_rule,
+                scheduled_payment_enabled=scheduled_payment_enabled,
+                scheduled_payment_day=scheduled_payment_day,
+                invoice_number=preview_invoice_number,
             )
 
         # ── 4. Aggregate groups ────────────────────────────────────────────────
@@ -386,6 +462,10 @@ class PendingInvoiceGroupsService:
 
             total_worked = sum(
                 Decimal(r.workedHours) for r in rows
+            ).quantize(TWO, rounding=ROUND_HALF_UP)
+
+            total_billable = sum(
+                Decimal(r.billableHours) for r in rows
             ).quantize(TWO, rounding=ROUND_HALF_UP)
 
             subtotal = sum(
@@ -436,19 +516,53 @@ class PendingInvoiceGroupsService:
                 period_start_str, period_end_str,
             )
 
+            customer = customers_by_id.get(customer_id, {})
+            payment_terms_days = meta.get("payment_terms_days")
+            due_date = None
+            invoice_date = date.today()
+            due_rule = meta.get("invoice_due_rule") or "from_invoice_date"
+            period_end_date = _to_date(period_end_str) or invoice_date
+            if due_rule == "end_of_week":
+                due_base = period_end_date
+            elif due_rule == "end_of_month":
+                due_base = period_end_date.replace(
+                    day=calendar.monthrange(period_end_date.year, period_end_date.month)[1]
+                )
+            else:
+                due_base = invoice_date
+            if payment_terms_days is not None:
+                try:
+                    due_date = (
+                        due_base
+                        + timedelta(days=int(payment_terms_days))
+                    ).isoformat()
+                except (TypeError, ValueError):
+                    due_date = None
+            elif meta.get("scheduled_payment_enabled") and meta.get("scheduled_payment_day") in _WEEKDAY_NUMBER:
+                target_weekday = _WEEKDAY_NUMBER[meta["scheduled_payment_day"]]
+                days_ahead = (target_weekday - invoice_date.weekday()) % 7
+                if days_ahead == 0:
+                    days_ahead = 7
+                due_date = (invoice_date + timedelta(days=days_ahead)).isoformat()
+
             groups.append(PendingInvoiceGroup(
                 groupId=group_id,
                 companyId=meta["company_id"],
                 customerId=customer_id,
-                customerName=customers_by_id.get(customer_id, "Unknown Customer"),
+                customerName=customer.get("name", "Unknown Customer"),
+                customerEmail=customer.get("email"),
+                customerPhone=customer.get("phone"),
                 contractId=contract_id,
                 contractTitle=meta["contract_title"],
+                invoiceNumber=meta["invoice_number"],
                 billingCycle=meta["billing_cycle"],
                 periodStart=period_start_str,
                 periodEnd=period_end_str,
+                dueDate=due_date,
                 currency=meta["currency"],
                 shiftCount=len(rows),
                 totalWorkedHours=_d2(total_worked),
+                totalBillableHours=_d2(total_billable),
                 subtotal=_d2(subtotal),
                 taxRate=tax_rate_str,
                 taxAmount=_d2(tax_amount),
@@ -460,6 +574,38 @@ class PendingInvoiceGroupsService:
                 shiftDetails=rows,
                 calculatedAt=now_iso,
             ))
+
+        # ── 5. Include mutable review concepts in the live totals ─────────────
+        group_ids = [group.groupId for group in groups]
+        if group_ids:
+            concepts_raw = await db["invoice_review_items"].find(
+                {"businessId": business_id, "groupId": {"$in": group_ids}}
+            ).to_list(length=None)
+            concepts_by_group: Dict[str, List[dict]] = {}
+            for concept in concepts_raw:
+                concepts_by_group.setdefault(str(concept.get("groupId")), []).append(concept)
+
+            for group in groups:
+                raw_items = concepts_by_group.get(group.groupId, [])
+                group.additionalConcepts = [
+                    PendingAdditionalConcept(
+                        id=str(item["_id"]),
+                        date=str(item.get("date") or "")[:10],
+                        concept=str(item.get("concept") or ""),
+                        amount=_d2(Decimal(str(item.get("amount") or "0"))),
+                    )
+                    for item in raw_items
+                ]
+                additions = sum(
+                    (Decimal(item.amount) for item in group.additionalConcepts),
+                    Decimal("0"),
+                )
+                subtotal = Decimal(group.subtotal) + additions
+                tax_rate = Decimal(group.taxRate) / Decimal(100) if group.taxRate else Decimal("0")
+                tax_amount = (subtotal * tax_rate).quantize(TWO, rounding=ROUND_HALF_UP)
+                group.subtotal = _d2(subtotal)
+                group.taxAmount = _d2(tax_amount)
+                group.total = _d2(subtotal + tax_amount)
 
         approvable = sum(1 for g in groups if g.isApprovable)
 
@@ -491,6 +637,9 @@ def _make_error_shift(
         breakTaken=False,
         appliedBreakMinutes=0,
         workedHours="0.00",
+        minimumHours="0.00",
+        minimumHoursApplied=False,
+        billableHours="0.00",
         rateType="fixed",
         appliedRate="0.00",
         currency="AUD",
@@ -515,6 +664,11 @@ def _add_to_bucket(
     currency: str,
     charge_gst: bool = False,
     gst_rate: Any = None,
+    payment_terms_days: Any = None,
+    invoice_due_rule: str = "from_invoice_date",
+    scheduled_payment_enabled: bool = False,
+    scheduled_payment_day: Any = None,
+    invoice_number: str = "",
 ) -> None:
     if key not in buckets:
         buckets[key] = []
@@ -529,5 +683,10 @@ def _add_to_bucket(
             "currency": currency,
             "charge_gst": charge_gst,
             "gst_rate": gst_rate,
+            "payment_terms_days": payment_terms_days,
+            "invoice_due_rule": invoice_due_rule,
+            "scheduled_payment_enabled": scheduled_payment_enabled,
+            "scheduled_payment_day": scheduled_payment_day,
+            "invoice_number": invoice_number,
         }
     buckets[key].append(row)

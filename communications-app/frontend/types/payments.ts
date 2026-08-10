@@ -188,14 +188,21 @@ export interface CreatePaymentTestInput {
   /** Required for Stripe; not needed for CoinGate. */
   paymentMethodKey?: string;
   amountMinor: number;
-  /** ISO 4217 currency code or provider asset code. */
+  /** ISO 4217 currency code (Stripe). Fallback when priceCurrency is absent. */
   currency?: string;
-  /**
-   * Provider payment unit code — uppercase (e.g. 'EUR', 'BTC').
-   * Takes precedence over currency when both are supplied.
-   * Used for CoinGate price_currency.
-   */
+  /** Legacy generic field. Prefer priceCurrency for new callers. */
   paymentUnitCode?: string;
+  /**
+   * The fiat currency the order is denominated in.
+   * Maps to CoinGate POST /orders price_currency.
+   * Takes precedence over paymentUnitCode and currency.
+   */
+  priceCurrency?: string;
+  /**
+   * The crypto asset the merchant settles into (optional).
+   * Maps to CoinGate POST /orders receive_currency.
+   */
+  receiveCurrency?: string;
   /** Required for Stripe; not needed for CoinGate (sandbox always runs success). */
   scenario?: PaymentTestScenario;
   description?: string;
@@ -840,6 +847,43 @@ export interface RefundsPageDefinition {
   metadata?: Record<string, unknown>;
 }
 
+// ─── Reference Data ───────────────────────────────────────────────────────────
+//
+// Canonical controlled reference-data contract.
+// Mirrors backend src/payments/contracts/payment-reference-data.contract.ts.
+
+export type PaymentReferenceDataSource =
+  | 'price_currencies'
+  | 'receive_currencies'
+  | 'payment_assets'
+  | 'payment_methods'
+  | 'refund_reasons'
+  | 'countries'
+  | 'networks'
+  | 'webhook_events';
+
+export interface PaymentReferenceDataOption {
+  value: string;
+  label: string;
+  group?: string;
+  description?: string;
+  disabled?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PaymentReferenceDataResponse {
+  providerKey: string;
+  connectionId: string;
+  source: PaymentReferenceDataSource;
+  options: PaymentReferenceDataOption[];
+  meta?: {
+    authoritative: boolean;
+    providerBacked: boolean;
+    environment?: 'test' | 'live' | 'unknown';
+    note?: string;
+  };
+}
+
 // ─── Payment Testing Page Definition ─────────────────────────────────────────
 //
 // Canonical definition returned by
@@ -868,6 +912,13 @@ export interface PaymentTestingFieldDefinition {
   required: boolean;
   capability?: string;
   optionsSource?: PaymentTestingFieldOptionsSource;
+  /**
+   * When present, the frontend fetches options from:
+   *   GET /payments/connections/:connectionId/reference-data/:referenceDataSource
+   * This supersedes optionsSource for fields that need provider-backed data
+   * with a precise semantic (price_currencies vs payment_assets etc.).
+   */
+  referenceDataSource?: PaymentReferenceDataSource;
   placeholder?: string;
   helpText?: string;
   defaultValue?: string | number;

@@ -27,13 +27,36 @@ export enum AccountingCapability {
   AccountsReceivable = 'accountsReceivable',
   AccountsPayable = 'accountsPayable',
 
-  // ── Banking ───────────────────────────────────────────────────────────────
+  // ── Banking (Chart of Accounts bank accounts) ─────────────────────────────
   Banking = 'banking',
+
+  // ── Bank Transactions / Accounting Transactions ───────────────────────────
+  // Manually-created Spend/Receive Money transactions in the accounting system.
+  // Xero: GET /api.xro/2.0/BankTransactions
+  // Distinct from Bank Feed (bank-originated statement lines).
+  BankTransactions = 'bankTransactions',
+
+  // ── Bank Feed ─────────────────────────────────────────────────────────────
+  // Bank-originated statement lines imported from a financial institution.
+  // NOT the same as BankTransactions (accounting entries).
+  // Availability depends on provider API access (e.g. Xero Bank Feeds API).
+  BankFeed = 'bankFeed',
+
+  // ── Reconciliation ────────────────────────────────────────────────────────
+  // Matching bank feed statement lines to accounting transactions.
+  // Availability depends on provider exposing both resources via API.
+  Reconciliation = 'reconciliation',
+
+  // ── Bank Connections (Open Banking — external institution connections) ────
+  BankConnections = 'bankConnections',
 
   // ── Payment records ───────────────────────────────────────────────────────
   PaymentRecords = 'paymentRecords',
 
-  // ── Journals ─────────────────────────────────────────────────────────────
+  // ── Manual Journals (external-app integration — write capable) ───────────
+  ManualJournals = 'manualJournals',
+
+  // ── General Ledger / Journals (read-only provider ledger view) ────────────
   Journals = 'journals',
 
   // ── Budgets ──────────────────────────────────────────────────────────────

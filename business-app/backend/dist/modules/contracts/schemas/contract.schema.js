@@ -149,6 +149,7 @@ let Contract = class Contract {
     invoiceDescription;
     status;
     billingCycle;
+    invoiceDueRule;
     paymentTermsDays;
     scheduledPaymentEnabled;
     scheduledPaymentDay;
@@ -216,6 +217,14 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], Contract.prototype, "billingCycle", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({
+        type: String,
+        enum: ['from_invoice_date', 'end_of_week', 'end_of_month'],
+        default: 'from_invoice_date',
+    }),
+    __metadata("design:type", String)
+], Contract.prototype, "invoiceDueRule", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ type: Number, default: null }),
     __metadata("design:type", Object)

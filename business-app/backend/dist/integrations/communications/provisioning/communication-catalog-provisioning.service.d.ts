@@ -11,6 +11,8 @@ export declare class CommunicationCatalogProvisioningService {
     provisionPlatformCatalog(): Promise<void>;
     provisionBusinessCatalog(businessId: string): Promise<void>;
     syncBusinessCatalog(businessId: string): Promise<void>;
+    provisionBusinessResources(businessId: string): Promise<void>;
+    provisionBusinessDocumentCatalog(businessId: string): Promise<void>;
     syncAllBusinessesWithActiveConnection(): Promise<void>;
     private provisionDomain;
 }

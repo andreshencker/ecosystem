@@ -21,12 +21,50 @@ export interface CredentialFieldConfig {
   options?: { value: string; label: string }[];
 }
 
+/**
+ * When present, the credential form renders an OAuth connection panel
+ * instead of (or in addition to) the manual field form.
+ *
+ * The panel drives all OAuth actions generically using the basePath.
+ * No provider-name branching in UI code — the config provides the paths.
+ */
+export interface OAuthProviderConfig {
+  /**
+   * API route prefix for this provider's OAuth lifecycle.
+   * e.g. '/accounting/oauth/xero'
+   *
+   * The panel constructs:
+   *   start:      POST  {basePath}/start
+   *   status:     GET   {basePath}/connections/{credentialId}/status
+   *   disconnect: DELETE {basePath}/connections/{credentialId}
+   *   tenants:    GET   {basePath}/tenants/{sessionId}
+   *   select:     POST  {basePath}/tenants/{sessionId}/select
+   *   orgs:       GET   {basePath}/connections/{credentialId}/organisations
+   *   refresh:    POST  {basePath}/connections/{credentialId}/organisations/refresh
+   */
+  basePath: string;
+  /**
+   * When true, the credential panel shows the authorised organisation count
+   * and a Refresh Organisations button.
+   * The panel calls {basePath}/connections/{credentialId}/organisations to
+   * retrieve safe org metadata — no tenantIds or tokens are returned.
+   */
+  supportsOrganisations?: boolean;
+}
+
 export interface ProviderCredentialConfig {
   connectionTypeLabel: string;
   /** Provider-level hint rendered above the form fields. */
   helperText?: string;
   basicFields: CredentialFieldConfig[];
   advancedFields: CredentialFieldConfig[];
+  /**
+   * When present, the form renders an OAuth connection panel.
+   * The panel shows Connect / Test / Disconnect actions driven by basePath.
+   * basicFields are still shown so the user can register the OAuth app
+   * credentials (clientId + clientSecret).
+   */
+  oauthConfig?: OAuthProviderConfig;
 }
 
 // ─── Provider-specific configs (keyed by providerKey) ────────────────────────
@@ -256,6 +294,39 @@ const ACCESS_KEYS_GENERIC: ProviderCredentialConfig = {
   ],
 };
 
+// ─── Accounting provider-specific configs ────────────────────────────────────
+
+const XERO: ProviderCredentialConfig = {
+  connectionTypeLabel: 'OAuth 2.0',
+  helperText:
+    'Register a Xero OAuth 2.0 app at developer.xero.com. ' +
+    'Save your Client ID and Client Secret below, then click Connect to authorise your Xero organisation.',
+  oauthConfig: {
+    basePath: '/accounting/oauth/xero',
+    supportsOrganisations: true,
+  },
+  basicFields: [
+    {
+      key:         'clientId',
+      label:       'Client ID',
+      type:        'text',
+      required:    true,
+      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+      helperText:  'Your Xero OAuth 2.0 app Client ID from developer.xero.com.',
+      section:     'basic',
+    },
+    {
+      key:         'clientSecret',
+      label:       'Client Secret',
+      type:        'password',
+      required:    true,
+      helperText:  'Your Xero OAuth 2.0 app Client Secret. Never share this value.',
+      section:     'basic',
+    },
+  ],
+  advancedFields: [],
+};
+
 const COINGATE: ProviderCredentialConfig = {
   connectionTypeLabel: 'Token',
   helperText:
@@ -303,6 +374,7 @@ const BY_PROVIDER_KEY: Record<string, ProviderCredentialConfig> = {
   outlook_calendar: OUTLOOK_CALENDAR,
   stripe:           STRIPE,
   coingate:         COINGATE,
+  xero:             XERO,
 };
 
 const APP_PASSWORD_GENERIC: ProviderCredentialConfig = {

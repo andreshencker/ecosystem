@@ -38,6 +38,7 @@ let CommunicationsModule = CommunicationsModule_1 = class CommunicationsModule {
     onApplicationBootstrap() {
         this.dropStaleCompanyProviderIndex()
             .then(() => this.provisioning.provisionPlatformCatalog())
+            .then(() => this.provisioning.syncAllBusinessesWithActiveConnection())
             .catch((err) => {
             const msg = err instanceof Error ? err.message : String(err);
             this.logger.error('[onApplicationBootstrap] Startup sequence failed unexpectedly: ' + msg);

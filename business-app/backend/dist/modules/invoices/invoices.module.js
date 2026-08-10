@@ -15,6 +15,8 @@ const invoices_controller_1 = require("./invoices.controller");
 const contract_schema_1 = require("../contracts/schemas/contract.schema");
 const shift_schema_1 = require("../shifts/schemas/shift.schema");
 const business_intelligence_module_1 = require("../../integrations/business-intelligence/business-intelligence.module");
+const invoice_review_item_schema_1 = require("./schemas/invoice-review-item.schema");
+const communications_module_1 = require("../../integrations/communications/communications.module");
 let InvoicesModule = class InvoicesModule {
 };
 exports.InvoicesModule = InvoicesModule;
@@ -25,8 +27,10 @@ exports.InvoicesModule = InvoicesModule = __decorate([
                 { name: invoice_schema_1.Invoice.name, schema: invoice_schema_1.InvoiceSchema },
                 { name: contract_schema_1.Contract.name, schema: contract_schema_1.ContractSchema },
                 { name: shift_schema_1.Shift.name, schema: shift_schema_1.ShiftSchema },
+                { name: invoice_review_item_schema_1.InvoiceReviewItem.name, schema: invoice_review_item_schema_1.InvoiceReviewItemSchema },
             ]),
             business_intelligence_module_1.BusinessIntelligenceModule,
+            communications_module_1.CommunicationsModule,
         ],
         controllers: [invoices_controller_1.InvoicesController],
         providers: [invoices_service_1.InvoicesService],

@@ -210,11 +210,13 @@ describe('Xero — not assigned to Payments channel', () => {
 // ─── 8. Xero capabilities are not incorrectly marked Available ────────────────
 
 describe('Xero capabilities — no incorrect Available status', () => {
-  it('8. No Accounting capability is marked Available (all are Planned)', () => {
-    for (const status of Object.values(
-      XERO_ACCOUNTING_CAPABILITIES.capabilities,
-    )) {
-      expect(status).not.toBe(AccountingCapabilityStatus.Available);
+  it('8. Accounting Banking capability is Available; all others are Planned', () => {
+    const caps = XERO_ACCOUNTING_CAPABILITIES.capabilities;
+    expect(caps[AccountingCapability.Banking]).toBe(
+      AccountingCapabilityStatus.Available,
+    );
+    for (const [key, status] of Object.entries(caps)) {
+      if (key === AccountingCapability.Banking) continue;
       expect(status).toBe(AccountingCapabilityStatus.Planned);
     }
   });

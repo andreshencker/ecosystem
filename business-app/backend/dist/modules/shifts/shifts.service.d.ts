@@ -16,6 +16,8 @@ export interface ShiftListParams {
     customerId?: string;
     status?: string;
     date?: string;
+    dateFrom?: string;
+    dateTo?: string;
     search?: string;
     source?: string;
     linkedCalendarId?: string;

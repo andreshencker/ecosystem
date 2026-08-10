@@ -35,6 +35,7 @@ import { FilesModule } from './files/files.module';
 import { PreviewModule } from './communication/preview/preview.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { PaymentsModule } from './payments/payments.module';
+import { AccountingModule } from './accounting/accounting.module';
 
 @Module({
   imports: [
@@ -74,6 +75,9 @@ import { PaymentsModule } from './payments/payments.module';
 
     // ── Payments
     PaymentsModule,
+
+    // ── Accounting
+    AccountingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

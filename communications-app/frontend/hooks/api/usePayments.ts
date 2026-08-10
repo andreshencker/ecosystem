@@ -42,6 +42,8 @@ import type {
   PaymentsPageDefinition,
   RefundsPageDefinition,
   PaymentTestingPageDefinition,
+  PaymentReferenceDataResponse,
+  PaymentReferenceDataSource,
 } from '@/types/payments';
 
 export interface ListPaymentAccountsParams {
@@ -640,6 +642,35 @@ export function usePaymentTestingPageDefinition(connectionId: string | null | un
         )
         .then((r) => r.data),
     enabled: Boolean(connectionId),
+    staleTime: 60 * 1000,
+    retry: retrySkip4xx,
+  });
+}
+
+// ─── Reference Data ───────────────────────────────────────────────────────────
+//
+// Fetches provider-backed reference-data option lists for a specific source.
+// Each source is semantically distinct — the frontend must not reuse one
+// source's data for another field.
+//
+// Query keys include both connectionId and source so that:
+//   - switching connections clears all reference-data caches;
+//   - different sources on the same connection are cached independently;
+//   - stale responses from previous connections cannot overwrite the active one.
+
+export function usePaymentReferenceData(
+  connectionId: string | null | undefined,
+  source: PaymentReferenceDataSource | null | undefined,
+) {
+  return useQuery({
+    queryKey: ['payments', 'reference-data', connectionId, source],
+    queryFn: () =>
+      apiClient
+        .get<PaymentReferenceDataResponse>(
+          `/payments/connections/${connectionId!}/reference-data/${source!}`,
+        )
+        .then((r) => r.data),
+    enabled: Boolean(connectionId) && Boolean(source),
     staleTime: 60 * 1000,
     retry: retrySkip4xx,
   });

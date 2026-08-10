@@ -80,6 +80,11 @@ export class CommunicationConnectionService {
     return String(user.companyId);
   }
 
+  /** Resolve the authenticated user's Business for post-save provisioning. */
+  async resolveBusinessIdForUser(userId: string): Promise<string> {
+    return this.resolveBusinessId(userId);
+  }
+
   /**
    * Build a query that matches documents by businessId, also handling legacy
    * documents that still use the old 'companyId' field name.
@@ -426,6 +431,15 @@ export class CommunicationConnectionService {
       decryptedToken: string;
     }>
   > {
+    const platformBusiness = await this.businessModel
+      .findOne({ isPlatformCompany: true })
+      .select('_id')
+      .lean()
+      .exec();
+    const platformBusinessId = platformBusiness?._id
+      ? String(platformBusiness._id)
+      : null;
+
     const docs = (await this.model
       .find({
         provider: 'communications',
@@ -443,7 +457,12 @@ export class CommunicationConnectionService {
       try {
         const { token } = this.crypto.decryptJson(doc.encryptedToken);
         const bid = doc.businessId ?? doc.companyId;
-        if (bid && doc.remoteCompanyId && token) {
+        if (
+          bid &&
+          String(bid) !== platformBusinessId &&
+          doc.remoteCompanyId &&
+          token
+        ) {
           results.push({
             businessId: String(bid),
             remoteCompanyId: doc.remoteCompanyId,

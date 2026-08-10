@@ -36,6 +36,13 @@ class PendingShiftCalculation(BaseModel):
     # Net worked hours (decimal string)
     workedHours: str
 
+    # Contract minimum applied after break deduction.
+    minimumHours: str
+    minimumHoursApplied: bool
+
+    # Hours used to calculate the line amount.
+    billableHours: str
+
     rateType: str
     appliedRate: str
     currency: str
@@ -47,6 +54,13 @@ class PendingShiftCalculation(BaseModel):
     calculationNote: Optional[str] = None
 
 
+class PendingAdditionalConcept(BaseModel):
+    id: str
+    date: str
+    concept: str
+    amount: str
+
+
 # ── Billing group (one per customer × contract × billing period) ──────────────
 
 class PendingInvoiceGroup(BaseModel):
@@ -56,15 +70,20 @@ class PendingInvoiceGroup(BaseModel):
     companyId: str
     customerId: str
     customerName: str
+    customerEmail: Optional[str] = None
+    customerPhone: Optional[str] = None
     contractId: str
     contractTitle: str
+    invoiceNumber: str
     billingCycle: str
     periodStart: str
     periodEnd: str
+    dueDate: Optional[str] = None
     currency: str
 
     shiftCount: int
     totalWorkedHours: str
+    totalBillableHours: str
     subtotal: str
     taxRate: Optional[str] = None
     taxAmount: str
@@ -76,6 +95,7 @@ class PendingInvoiceGroup(BaseModel):
     isApprovable: bool
 
     shiftDetails: List[PendingShiftCalculation]
+    additionalConcepts: List[PendingAdditionalConcept] = []
     calculatedAt: str
 
 

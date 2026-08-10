@@ -48,6 +48,7 @@ import { PaymentsCoinGateCallbackController } from './controllers/payments-coing
 import { PaymentsPageDefinitionController } from './controllers/payments-page-definition.controller';
 import { PaymentsRefundsPageDefinitionController } from './controllers/payments-refunds-page-definition.controller';
 import { PaymentsTestingPageDefinitionController } from './controllers/payments-testing-page-definition.controller';
+import { PaymentsReferenceDataController } from './controllers/payments-reference-data.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentsResolverService } from './services/payments-resolver.service';
 import { PaymentsAccountsService } from './services/payments-accounts.service';
@@ -63,6 +64,7 @@ import { PaymentsWebhookDeliveriesService } from './services/payments-webhook-de
 import { PaymentsPageDefinitionService } from './services/payments-page-definition.service';
 import { PaymentsRefundsPageDefinitionService } from './services/payments-refunds-page-definition.service';
 import { PaymentsTestingPageDefinitionService } from './services/payments-testing-page-definition.service';
+import { PaymentsReferenceDataService } from './services/payments-reference-data.service';
 import { PaymentProviderRegistry } from './registry/payment-provider.registry';
 
 // ─── Provider adapters ────────────────────────────────────────────────────────
@@ -104,6 +106,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsPageDefinitionController,
     PaymentsRefundsPageDefinitionController,
     PaymentsTestingPageDefinitionController,
+    PaymentsReferenceDataController,
   ],
   providers: [
     // ── Provider adapters ──────────────────────────────────────────────────────
@@ -140,6 +143,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsPageDefinitionService,
     PaymentsRefundsPageDefinitionService,
     PaymentsTestingPageDefinitionService,
+    PaymentsReferenceDataService,
   ],
   exports: [PaymentsService, PaymentProviderRegistry],
 })

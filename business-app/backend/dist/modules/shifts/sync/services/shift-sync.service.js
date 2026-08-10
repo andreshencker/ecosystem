@@ -152,6 +152,16 @@ let ShiftSyncService = class ShiftSyncService {
                     skipped++;
                     continue;
                 }
+                if (event.status === 'cancelled') {
+                    const cancelledResult = await this.shiftModel.updateMany({
+                        businessId,
+                        linkedCalendarId: calendar.id,
+                        externalOccurrenceId: event.id,
+                        syncStatus: { $ne: 'deleted' },
+                    }, { $set: { syncStatus: 'deleted', lastExternalUpdate: new Date() } }).exec();
+                    deleted += cancelledResult.modifiedCount ?? 0;
+                    continue;
+                }
                 seenOccurrenceIds.add(event.id);
                 const normalized = calendar_event_to_shift_mapper_1.CalendarEventToShiftMapper.map(event, calendar);
                 if (!normalized) {

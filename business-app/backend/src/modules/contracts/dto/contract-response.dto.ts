@@ -47,6 +47,7 @@ export interface ContractResponseDto {
   invoiceDescription: string;
   status: ContractStatus;
   billingCycle: BillingCycle;
+  invoiceDueRule: 'from_invoice_date' | 'end_of_week' | 'end_of_month';
   /** null when scheduledPaymentEnabled is true */
   paymentTermsDays: number | null;
   scheduledPaymentEnabled: boolean;
@@ -153,6 +154,7 @@ export function toContractResponse(
     invoiceDescription: d.invoiceDescription,
     status: d.status,
     billingCycle: d.billingCycle,
+    invoiceDueRule: d.invoiceDueRule ?? 'from_invoice_date',
     paymentTermsDays: d.paymentTermsDays,
     scheduledPaymentEnabled: d.scheduledPaymentEnabled ?? false,
     scheduledPaymentDay: (d.scheduledPaymentEnabled ?? false) ? (d.scheduledPaymentDay ?? null) : null,

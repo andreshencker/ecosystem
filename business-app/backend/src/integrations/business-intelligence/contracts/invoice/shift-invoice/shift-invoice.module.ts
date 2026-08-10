@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ShiftInvoiceController } from './shift-invoice.controller';
 import { ShiftInvoiceService } from './shift-invoice.service';
+import { BusinessIntelligenceModule } from '../../../business-intelligence.module';
 
 /**
  * Shift Invoice BI contract module.
@@ -10,6 +11,7 @@ import { ShiftInvoiceService } from './shift-invoice.service';
  * and inject BusinessIntelligenceService into ShiftInvoiceService.
  */
 @Module({
+  imports: [BusinessIntelligenceModule],
   controllers: [ShiftInvoiceController],
   providers: [ShiftInvoiceService],
   exports: [ShiftInvoiceService],

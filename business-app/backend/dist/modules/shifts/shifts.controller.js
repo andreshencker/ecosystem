@@ -59,7 +59,7 @@ let ShiftsController = class ShiftsController {
             linkedCalendarId,
         });
     }
-    async findAll(ctx, page, limit, contractId, customerId, status, date, search, source, linkedCalendarId) {
+    async findAll(ctx, page, limit, contractId, customerId, status, date, dateFrom, dateTo, search, source, linkedCalendarId) {
         const { businessId } = this.resolveContext(ctx);
         const result = await this.shifts.findAll(businessId, {
             page: Math.max(1, Number(page ?? 1)),
@@ -68,6 +68,8 @@ let ShiftsController = class ShiftsController {
             customerId,
             status,
             date,
+            dateFrom,
+            dateTo,
             search,
             source,
             linkedCalendarId,
@@ -161,6 +163,8 @@ __decorate([
     (0, swagger_1.ApiQuery)({ name: 'customerId', required: false }),
     (0, swagger_1.ApiQuery)({ name: 'status', required: false }),
     (0, swagger_1.ApiQuery)({ name: 'date', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'dateFrom', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'dateTo', required: false }),
     (0, swagger_1.ApiQuery)({ name: 'search', required: false }),
     (0, swagger_1.ApiQuery)({ name: 'source', required: false, description: 'calendar | manual' }),
     (0, swagger_1.ApiQuery)({ name: 'linkedCalendarId', required: false }),
@@ -171,11 +175,13 @@ __decorate([
     __param(4, (0, common_1.Query)('customerId')),
     __param(5, (0, common_1.Query)('status')),
     __param(6, (0, common_1.Query)('date')),
-    __param(7, (0, common_1.Query)('search')),
-    __param(8, (0, common_1.Query)('source')),
-    __param(9, (0, common_1.Query)('linkedCalendarId')),
+    __param(7, (0, common_1.Query)('dateFrom')),
+    __param(8, (0, common_1.Query)('dateTo')),
+    __param(9, (0, common_1.Query)('search')),
+    __param(10, (0, common_1.Query)('source')),
+    __param(11, (0, common_1.Query)('linkedCalendarId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], ShiftsController.prototype, "findAll", null);
 __decorate([

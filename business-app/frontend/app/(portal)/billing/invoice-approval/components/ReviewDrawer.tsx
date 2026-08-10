@@ -54,7 +54,7 @@ function ShiftDetailTable({ rows }: { rows: PendingShiftCalculation[] }) {
           <TableRow>
             {[
               'Date', 'Description', 'Start', 'End', 'Break Taken',
-              'Applied Break', 'Gross Hrs', 'Worked Hrs',
+              'Applied Break', 'Gross Hrs', 'Worked Hrs', 'Billable Hrs',
               'Rate', 'Amount', 'Status',
             ].map((h) => (
               <TableCell key={h} sx={{ fontWeight: 600, whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
@@ -93,6 +93,14 @@ function ShiftDetailTable({ rows }: { rows: PendingShiftCalculation[] }) {
               <TableCell sx={{ fontSize: '0.75rem' }}>{row.appliedBreakMinutes} min</TableCell>
               <TableCell sx={{ fontSize: '0.75rem' }}>{formatHours(row.grossDurationHours)}</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>{formatHours(row.workedHours)}</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
+                {formatHours(row.billableHours)}
+                {row.minimumHoursApplied && (
+                  <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                    (min {formatHours(row.minimumHours)})
+                  </Typography>
+                )}
+              </TableCell>
               <TableCell sx={{ fontSize: '0.75rem' }}>
                 {formatCurrency(row.appliedRate, row.currency)}/h
               </TableCell>
@@ -192,6 +200,7 @@ export function ReviewDrawer({ group, open, onClose }: ReviewDrawerProps) {
         {/* Totals ───────────────────────────────────────────────────────────── */}
         <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2, mb: 3, maxWidth: 340 }}>
           <SummaryRow label="Worked Hours" value={formatHours(group.totalWorkedHours)} />
+          <SummaryRow label="Billable Hours" value={formatHours(group.totalBillableHours)} />
           <SummaryRow label="Subtotal"     value={formatCurrency(group.subtotal, group.currency)} />
           {group.taxRate && (
             <SummaryRow label={`Tax (${group.taxRate}%)`} value={formatCurrency(group.taxAmount, group.currency)} />

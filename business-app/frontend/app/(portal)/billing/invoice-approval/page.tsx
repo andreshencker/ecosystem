@@ -1,260 +1,219 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import RefreshOutlinedIcon    from '@mui/icons-material/RefreshOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { type GridColDef } from '@mui/x-data-grid';
 
 import { PageHeader } from '@/components/layout';
-import { DataTable, EmptyState, ErrorState, LoadingButton, type MobileCardConfig } from '@/components/shared';
-import { usePendingInvoiceGroups, useApproveInvoiceMutation } from '@/hooks/api/useInvoices';
-import type { PendingInvoiceGroup, PendingGroupStatus } from '@/types/invoice';
-import { STATUS_COLORS, STATUS_LABELS } from '@/types/invoice';
-import { ReviewDrawer } from './components/ReviewDrawer';
-import { formatCurrency, formatHours, formatPeriod } from './lib/format';
+import { EmptyState, ErrorState, FormDrawer, LoadingButton } from '@/components/shared';
+import {
+  useAddInvoiceConceptMutation,
+  useApproveInvoiceMutation,
+  useDeleteInvoiceConceptMutation,
+  usePendingInvoiceGroups,
+} from '@/hooks/api/useInvoices';
+import type { PendingInvoiceGroup } from '@/types/invoice';
+import { formatCurrency, formatDate, formatHours, formatPeriod } from './lib/format';
 
-// ─── Status chip ──────────────────────────────────────────────────────────────
-
-function StatusChip({ status }: { status: PendingGroupStatus }) {
+function InfoCard({ icon, label, value, secondary }: { icon: ReactNode; label: string; value: string; secondary?: string }) {
   return (
-    <Chip
-      label={STATUS_LABELS[status]}
-      color={STATUS_COLORS[status]}
-      size="small"
-      variant="outlined"
-    />
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, flex: '1 1 230px', minWidth: 0 }}>
+      <Stack direction="row" spacing={1.5} alignItems="flex-start">
+        <Box sx={{ color: 'primary.main', display: 'flex', mt: 0.25 }}>{icon}</Box>
+        <Box minWidth={0}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing="0.04em">
+            {label}
+          </Typography>
+          <Typography variant="body1" fontWeight={600} noWrap title={value}>{value}</Typography>
+          {secondary && <Typography variant="body2" color="text.secondary" noWrap title={secondary}>{secondary}</Typography>}
+        </Box>
+      </Stack>
+    </Paper>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+export default function InvoiceReviewPage() {
+  const { data, isLoading, isError, error, refetch, isFetching } = usePendingInvoiceGroups();
+  const approve = useApproveInvoiceMutation();
+  const addConcept = useAddInvoiceConceptMutation();
+  const deleteConcept = useDeleteInvoiceConceptMutation();
+  const groups = data?.groups ?? [];
+  const [selectedId, setSelectedId] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [date, setDate] = useState('');
+  const [concept, setConcept] = useState('');
+  const [amount, setAmount] = useState('');
 
-export default function InvoiceApprovalPage() {
-  const { data, isLoading, isError, refetch, isFetching, error } = usePendingInvoiceGroups();
-  const approveMutation = useApproveInvoiceMutation();
+  useEffect(() => {
+    if (!groups.length) setSelectedId('');
+    else if (!groups.some((group) => group.groupId === selectedId)) setSelectedId(groups[0].groupId);
+  }, [groups, selectedId]);
 
-  const [reviewGroup, setReviewGroup] = useState<PendingInvoiceGroup | null>(null);
-  const [approvingId, setApprovingId]  = useState<string | null>(null);
-  const [page, setPage]         = useState(0);
-  const [pageSize, setPageSize] = useState(25);
+  const selected = groups.find((group) => group.groupId === selectedId) ?? null;
 
-  // DataTable requires T extends { id?: string } — map groupId to id.
-  const groups = (data?.groups ?? []).map((g) => ({ ...g, id: g.groupId }));
-
-  // ── Approve handler ────────────────────────────────────────────────────────
-
-  function handleApprove(group: PendingInvoiceGroup) {
-    if (!group.isApprovable) return;
-    setApprovingId(group.groupId);
-    approveMutation.mutate(
-      {
-        groupId:     group.groupId,
-        customerId:  group.customerId,
-        contractId:  group.contractId,
-        periodStart: group.periodStart,
-        periodEnd:   group.periodEnd,
-      },
-      { onSettled: () => setApprovingId(null) },
+  function submitConcept() {
+    if (!selected || !date || !concept.trim() || !amount) return;
+    addConcept.mutate(
+      { groupId: selected.groupId, date, concept: concept.trim(), amount },
+      { onSuccess: () => { setDrawerOpen(false); setDate(''); setConcept(''); setAmount(''); } },
     );
   }
 
-  // ── Column definitions ─────────────────────────────────────────────────────
-
-  const columns: GridColDef[] = [
-    {
-      field: 'customerName',
-      headerName: 'Customer',
-      flex: 1.5,
-      minWidth: 160,
-      renderCell: ({ row }: { row: PendingInvoiceGroup }) => (
-        <Stack>
-          <Typography variant="body2" fontWeight={600}>{row.customerName}</Typography>
-          <Typography variant="caption" color="text.secondary">{row.contractTitle}</Typography>
-        </Stack>
-      ),
-    },
-    {
-      field: 'periodStart',
-      headerName: 'Billing Period',
-      flex: 1.5,
-      minWidth: 180,
-      sortable: false,
-      renderCell: ({ row }: { row: PendingInvoiceGroup }) => (
-        <Typography variant="body2">{formatPeriod(row.periodStart, row.periodEnd)}</Typography>
-      ),
-    },
-    {
-      field: 'totalWorkedHours',
-      headerName: 'Worked Hours',
-      flex: 1,
-      minWidth: 130,
-      renderCell: ({ row }: { row: PendingInvoiceGroup }) => (
-        <Typography variant="body2">{formatHours(row.totalWorkedHours)}</Typography>
-      ),
-    },
-    {
-      field: 'total',
-      headerName: 'Income',
-      flex: 1,
-      minWidth: 140,
-      renderCell: ({ row }: { row: PendingInvoiceGroup }) => (
-        <Typography variant="body2" fontWeight={600}>
-          {formatCurrency(row.total, row.currency)}
-        </Typography>
-      ),
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      flex: 0.8,
-      minWidth: 110,
-      renderCell: ({ row }: { row: PendingInvoiceGroup }) => <StatusChip status={row.status} />,
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      flex: 1,
-      minWidth: 180,
-      sortable: false,
-      renderCell: ({ row }: { row: PendingInvoiceGroup }) => {
-        const isApproving = approvingId === row.groupId && approveMutation.isPending;
-        return (
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <Tooltip title="Review calculation">
-              <IconButton size="small" onClick={() => setReviewGroup(row)}>
-                <VisibilityOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <LoadingButton
-              size="small"
-              variant="contained"
-              color="primary"
-              loading={isApproving}
-              disabled={!row.isApprovable || approveMutation.isPending}
-              startIcon={<CheckCircleOutlineIcon />}
-              onClick={() => handleApprove(row)}
-              sx={{ fontSize: '0.75rem' }}
-            >
-              Approve
-            </LoadingButton>
-          </Stack>
-        );
-      },
-    },
-  ];
-
-  // ── Mobile card config ─────────────────────────────────────────────────────
-
-  const mobileCardConfig: MobileCardConfig<PendingInvoiceGroup> = {
-    primaryText:   (row) => row.customerName,
-    secondaryText: (row) => formatPeriod(row.periodStart, row.periodEnd),
-    badge:         (row) => <StatusChip status={row.status} />,
-    fields: [
-      {
-        field: 'totalWorkedHours',
-        label: 'Worked Hours',
-        render: (v) => formatHours(String(v ?? '')),
-      },
-      {
-        field: 'total',
-        label: 'Income',
-        render: (v, row) => formatCurrency(String(v ?? ''), row.currency),
-      },
-    ],
-    actions: (row) => (
-      <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<VisibilityOutlinedIcon />}
-          onClick={() => setReviewGroup(row)}
-          sx={{ flex: 1 }}
-        >
-          Review
-        </Button>
-        <Button
-          size="small"
-          variant="contained"
-          disabled={!row.isApprovable || approveMutation.isPending}
-          startIcon={<CheckCircleOutlineIcon />}
-          onClick={() => handleApprove(row)}
-          sx={{ flex: 1 }}
-        >
-          Approve
-        </Button>
-      </Stack>
-    ),
-  };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  const subtitle = data
-    ? `${data.totalGroups} group${data.totalGroups !== 1 ? 's' : ''} · ${data.approvableGroups} approvable`
-    : undefined;
+  function approveInvoice(group: PendingInvoiceGroup) {
+    approve.mutate({
+      groupId: group.groupId,
+      customerId: group.customerId,
+      contractId: group.contractId,
+      periodStart: group.periodStart,
+      periodEnd: group.periodEnd,
+    });
+  }
 
   return (
     <Box>
       <PageHeader
-        title="Invoice Approval"
-        subtitle={subtitle}
-        actions={
-          <Tooltip title="Refresh from BI">
-            <IconButton onClick={() => refetch()} disabled={isFetching} size="small">
-              {isFetching ? <CircularProgress size={18} /> : <RefreshOutlinedIcon />}
-            </IconButton>
-          </Tooltip>
-        }
+        title="Invoice Review"
+        count={groups.length}
+        subtitle="Review the live calculation before approval."
+        actions={selected ? (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setDate(selected.periodEnd); setDrawerOpen(true); }}>
+            Add Concept
+          </Button>
+        ) : undefined}
       />
 
-      {!isLoading && !isError && groups.length === 0 && (
-        <EmptyState
-          title="No pending invoices"
-          description="All confirmed shifts have been invoiced, or no confirmed shifts are available yet."
-        />
-      )}
-
-      {!isLoading && !isError && groups.length > 0 && (
-        <DataTable
-          columns={columns}
-          rows={groups}
-          total={groups.length}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={(s) => { setPageSize(s); setPage(0); }}
-          loading={isFetching}
-          error={isError ? (error as Error) : null}
-          getRowId={(row) => row.id ?? row.groupId}
-          mobileCardConfig={mobileCardConfig}
-          height="calc(100vh - 220px)"
-        />
-      )}
-
+      {isLoading && <Stack alignItems="center" py={8}><CircularProgress /></Stack>}
       {isError && !isLoading && (
-        <ErrorState
-          title="Could not load pending invoices"
-          description="The Business Intelligence service may be unavailable. Try refreshing."
-          action={
-            <Button variant="outlined" onClick={() => refetch()}>
-              Retry
-            </Button>
-          }
-        />
+        <ErrorState title="Could not load pending invoices" description={(error as Error)?.message ?? 'Try again.'} action={<Button onClick={() => refetch()}>Retry</Button>} />
+      )}
+      {!isLoading && !isError && !groups.length && (
+        <EmptyState title="No invoices to review" description="Approved invoices disappear from this list automatically." />
       )}
 
-      <ReviewDrawer
-        group={reviewGroup}
-        open={reviewGroup !== null}
-        onClose={() => setReviewGroup(null)}
-      />
+      {selected && (
+        <Stack spacing={2}>
+          <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+            <TextField
+              select
+              size="small"
+              label="Customer and billing period"
+              value={selectedId}
+              onChange={(event) => setSelectedId(event.target.value)}
+              sx={{ width: { xs: '100%', sm: 540 } }}
+            >
+              {groups.map((group) => (
+                <MenuItem key={group.groupId} value={group.groupId}>
+                  {group.customerName} — {formatPeriod(group.periodStart, group.periodEnd)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Paper>
+
+          <Stack direction="row" flexWrap="wrap" gap={1.5}>
+            <InfoCard
+              icon={<BusinessOutlinedIcon fontSize="small" />}
+              label="Customer"
+              value={selected.customerName}
+              secondary={[selected.customerEmail, selected.customerPhone].filter(Boolean).join(' · ') || 'No contact details'}
+            />
+            <InfoCard
+              icon={<CalendarMonthOutlinedIcon fontSize="small" />}
+              label="Billing period"
+              value={formatPeriod(selected.periodStart, selected.periodEnd)}
+            />
+            <InfoCard
+              icon={<EventAvailableOutlinedIcon fontSize="small" />}
+              label="Due date"
+              value={selected.dueDate ? formatDate(selected.dueDate) : 'Not configured'}
+            />
+            <InfoCard
+              icon={<ArticleOutlinedIcon fontSize="small" />}
+              label="Contract"
+              value={selected.contractTitle}
+              secondary={selected.currency}
+            />
+            <InfoCard
+              icon={<ReceiptLongOutlinedIcon fontSize="small" />}
+              label="Invoice number"
+              value={selected.invoiceNumber}
+              secondary="Assigned when approved"
+            />
+          </Stack>
+
+          <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+            <Table sx={{ '& th': { color: 'text.secondary', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', bgcolor: 'background.default' }, '& td': { fontSize: '0.875rem' } }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell><TableCell>Concept</TableCell><TableCell>Start time</TableCell><TableCell>End time</TableCell>
+                  <TableCell align="right">Worked hours</TableCell><TableCell align="right">Rate</TableCell><TableCell align="right">Balance</TableCell><TableCell width={48} />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {selected.shiftDetails.map((row) => (
+                  <TableRow key={row.shiftId}>
+                    <TableCell>{formatDate(row.workDate)}</TableCell>
+                    <TableCell>{row.description || selected.contractTitle}</TableCell>
+                    <TableCell>{row.startTime ?? '—'}</TableCell>
+                    <TableCell>{row.endTime ?? '—'}</TableCell>
+                    <TableCell align="right">{formatHours(row.billableHours)}</TableCell>
+                    <TableCell align="right">{formatCurrency(row.appliedRate, row.currency)}/h</TableCell>
+                    <TableCell align="right">{formatCurrency(row.amount, row.currency)}</TableCell><TableCell />
+                  </TableRow>
+                ))}
+                {selected.additionalConcepts.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{formatDate(row.date)}</TableCell><TableCell>{row.concept}</TableCell><TableCell>—</TableCell><TableCell>—</TableCell>
+                    <TableCell align="right">—</TableCell><TableCell align="right">—</TableCell>
+                    <TableCell align="right">{formatCurrency(row.amount, selected.currency)}</TableCell>
+                    <TableCell><IconButton size="small" aria-label="Remove concept" onClick={() => deleteConcept.mutate(row.id)}><DeleteOutlineIcon fontSize="small" /></IconButton></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Paper>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" alignItems={{ sm: 'flex-end' }} gap={2}>
+            <Paper variant="outlined" sx={{ minWidth: { xs: '100%', sm: 340 }, p: 2, borderRadius: 2 }}>
+              <Stack direction="row" justifyContent="space-between"><Typography>Subtotal</Typography><Typography>{formatCurrency(selected.subtotal, selected.currency)}</Typography></Stack>
+              <Stack direction="row" justifyContent="space-between"><Typography>GST</Typography><Typography>{formatCurrency(selected.taxAmount, selected.currency)}</Typography></Stack>
+              <Stack direction="row" justifyContent="space-between" mt={1}><Typography fontWeight={700}>Total</Typography><Typography fontWeight={700}>{formatCurrency(selected.total, selected.currency)}</Typography></Stack>
+              <LoadingButton fullWidth sx={{ mt: 2 }} variant="contained" loading={approve.isPending} disabled={!selected.isApprovable || isFetching} onClick={() => approveInvoice(selected)}>Approve Invoice</LoadingButton>
+            </Paper>
+          </Stack>
+        </Stack>
+      )}
+
+      <FormDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Add Concept"
+        actions={<><Button onClick={() => setDrawerOpen(false)}>Cancel</Button><LoadingButton variant="contained" loading={addConcept.isPending} disabled={!date || !concept.trim() || !amount} onClick={submitConcept}>Add</LoadingButton></>}
+      >
+        <Stack spacing={2}>
+          <TextField label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} required />
+          <TextField label="Concept" value={concept} onChange={(e) => setConcept(e.target.value)} required autoFocus />
+          <TextField label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} inputProps={{ min: 0, step: '0.01' }} required />
+        </Stack>
+      </FormDrawer>
     </Box>
   );
 }

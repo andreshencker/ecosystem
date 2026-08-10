@@ -13,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CommunicationConnectionService } from './communication-connection.service';
+import { CommunicationCatalogProvisioningService } from '../provisioning/communication-catalog-provisioning.service';
 import {
   SaveConnectionDto,
   TestConnectionDto,
@@ -27,7 +28,10 @@ const PROVIDER = 'communications';
 @ApiBearerAuth()
 @Controller('settings/communications')
 export class CommunicationConnectionController {
-  constructor(private readonly service: CommunicationConnectionService) {}
+  constructor(
+    private readonly service: CommunicationConnectionService,
+    private readonly provisioning: CommunicationCatalogProvisioningService,
+  ) {}
 
   @Get()
   @HttpCode(200)
@@ -47,7 +51,13 @@ export class CommunicationConnectionController {
     summary: 'Save or replace the Communications integration token',
   })
   async save(@CurrentUser() ctx: AuthContext, @Body() dto: SaveConnectionDto) {
-    return this.service.save(this.uid(ctx), PROVIDER, dto.token, dto.isActive);
+    const userId = this.uid(ctx);
+    const result = await this.service.save(userId, PROVIDER, dto.token, dto.isActive);
+    if (result.isActive && result.remoteCompanyId) {
+      const businessId = await this.service.resolveBusinessIdForUser(userId);
+      await this.provisioning.provisionBusinessResources(businessId);
+    }
+    return result;
   }
 
   @Post('test')

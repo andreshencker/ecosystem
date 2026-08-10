@@ -1,12 +1,24 @@
-const { chromium } = require('/Users/hencker/projects/invoiceApp/communications-frontend/node_modules/playwright');
+// Navigation verification script.
+// Credentials must be supplied via environment variables — never hardcoded.
+// Usage: EMAIL=user@example.com PASSWORD=secret node verify-nav.cjs
+
+const { chromium } = require('playwright');
+
+const EMAIL    = process.env.EMAIL;
+const PASSWORD = process.env.PASSWORD;
+
+if (!EMAIL || !PASSWORD) {
+  console.error('Set EMAIL and PASSWORD environment variables before running.');
+  process.exit(1);
+}
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
   await page.goto('http://localhost:3000/auth/login', { waitUntil: 'networkidle', timeout: 20000 });
-  await page.fill('input[type="email"]', 'admin@grapifly.com');
-  await page.fill('input[type="password"]', '@Grapifly1');
+  await page.fill('input[type="email"]', EMAIL);
+  await page.fill('input[type="password"]', PASSWORD);
   await page.click('button[type="submit"]');
   await page.waitForTimeout(10000);
   console.log('URL after login:', page.url());

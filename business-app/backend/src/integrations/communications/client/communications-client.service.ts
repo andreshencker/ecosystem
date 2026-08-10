@@ -10,6 +10,10 @@ import type {
   CatalogDomain,
   CatalogEvent,
 } from '../catalog/communication-catalog.types';
+import type {
+  DocumentDomainSeed,
+  DocumentSeed,
+} from '../catalog/document-catalog.types';
 
 /**
  * CommunicationsClientService — single point of contact for all HTTP calls to Communications App.
@@ -331,5 +335,154 @@ export class CommunicationsClientService {
       );
       throw err;
     }
+  }
+
+  // ─── Document catalogue provisioning ─────────────────────────────────────
+
+  async getDocumentDomains(
+    remoteCompanyId: string,
+    apiKey: string,
+  ): Promise<any[] | null> {
+    const url = `${this.baseUrl}/document-domain-catalogue?companyId=${remoteCompanyId}&limit=200`;
+    try {
+      const res = await firstValueFrom(
+        this.http.get(url, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }),
+      );
+      return (res.data?.data ?? res.data?.items ?? res.data ?? []) as any[];
+    } catch (err: any) {
+      const status: number | undefined = err?.response?.status;
+      if (status === 401 || status === 403) return null;
+      this.logger.warn(
+        `[getDocumentDomains] Failed remoteCompanyId=${remoteCompanyId}: ${err?.message}`,
+      );
+      return [];
+    }
+  }
+
+  async createDocumentDomain(
+    remoteCompanyId: string,
+    apiKey: string,
+    domain: DocumentDomainSeed,
+  ): Promise<string | null> {
+    const url = `${this.baseUrl}/document-domain-catalogue`;
+    try {
+      const res = await firstValueFrom(
+        this.http.post(url, {
+          companyId: remoteCompanyId,
+          domainKey: domain.domainKey,
+          displayName: domain.displayName,
+          description: domain.description,
+          domainCategory: domain.domainCategory,
+          allowedFormats: domain.allowedFormats,
+          isActive: true,
+        }, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }),
+      );
+      return String(res.data?.id ?? res.data?._id ?? '');
+    } catch (err: any) {
+      this.logger.error(
+        `[createDocumentDomain] Failed domainKey=${domain.domainKey}: ${err?.message}`,
+      );
+      return null;
+    }
+  }
+
+  async updateDocumentDomainFormats(
+    documentDomainId: string,
+    apiKey: string,
+    allowedFormats: string[],
+  ): Promise<boolean> {
+    const url = `${this.baseUrl}/document-domain-catalogue/${documentDomainId}`;
+    try {
+      await firstValueFrom(
+        this.http.patch(url, { allowedFormats }, {
+          headers: { 'x-api-key': apiKey }, timeout: 10_000,
+        }),
+      );
+      return true;
+    } catch (err: any) {
+      this.logger.error(
+        `[updateDocumentDomainFormats] Failed documentDomainId=${documentDomainId}: ${err?.message}`,
+      );
+      return false;
+    }
+  }
+
+  async getDocuments(documentDomainId: string, apiKey: string): Promise<any[]> {
+    const url = `${this.baseUrl}/document-catalogue/domain/${documentDomainId}?limit=200`;
+    try {
+      const res = await firstValueFrom(
+        this.http.get(url, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }),
+      );
+      return (res.data?.data ?? res.data?.items ?? res.data ?? []) as any[];
+    } catch (err: any) {
+      this.logger.warn(
+        `[getDocuments] Failed documentDomainId=${documentDomainId}: ${err?.message}`,
+      );
+      return [];
+    }
+  }
+
+  async createDocument(
+    documentDomainId: string,
+    apiKey: string,
+    document: DocumentSeed,
+  ): Promise<string | null> {
+    const url = `${this.baseUrl}/document-catalogue`;
+    try {
+      const res = await firstValueFrom(
+        this.http.post(url, {
+          documentDomainCatalogueId: documentDomainId,
+          documentKey: document.documentKey,
+          displayName: document.displayName,
+          description: document.description,
+          formatContracts: document.formatContracts,
+          isActive: true,
+        }, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }),
+      );
+      return String(res.data?.id ?? res.data?._id ?? '');
+    } catch (err: any) {
+      const message = err?.response?.data?.message ?? err?.message;
+      this.logger.error(
+        `[createDocument] Failed documentKey=${document.documentKey}: ${typeof message === 'string' ? message : JSON.stringify(message)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Generate a contract-driven document in memory. Nothing is persisted. */
+  async generateDocument(params: {
+    type: 'business';
+    businessId: string;
+    canonicalKey: string;
+    filename: string;
+    data: Record<string, unknown>;
+  }): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    const conn = await this.connections.getCommunicationConnectionForContext(
+      params.type,
+      params.businessId,
+    );
+    if (!conn?.communicationCompanyId) {
+      throw new Error('Active verified Communications connection is required');
+    }
+    const url = `${this.baseUrl}/files/documents/generate`;
+    const response = await firstValueFrom(
+      this.http.post<ArrayBuffer>(url, {
+        companyId: conn.communicationCompanyId,
+        canonicalKey: params.canonicalKey,
+        filename: params.filename,
+        data: params.data,
+      }, {
+        headers: { 'x-api-key': this.adminApiKey },
+        responseType: 'arraybuffer',
+        timeout: 30_000,
+      }),
+    );
+    const disposition = String(response.headers['content-disposition'] ?? '');
+    const matchedFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    return {
+      buffer: Buffer.from(response.data),
+      contentType: String(response.headers['content-type'] ?? 'application/pdf'),
+      filename: matchedFilename ?? `${params.filename}.pdf`,
+    };
   }
 }

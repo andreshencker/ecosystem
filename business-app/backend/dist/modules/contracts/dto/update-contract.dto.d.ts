@@ -7,6 +7,7 @@ export declare class UpdateContractDto {
     workType?: WorkType;
     invoiceDescription?: string;
     billingCycle?: 'per_shift' | 'daily' | 'weekly' | 'fortnightly' | 'monthly';
+    invoiceDueRule?: 'from_invoice_date' | 'end_of_week' | 'end_of_month';
     paymentTermsDays?: number | null;
     scheduledPaymentEnabled?: boolean;
     scheduledPaymentDay?: string | null;

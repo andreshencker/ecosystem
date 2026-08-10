@@ -23,7 +23,14 @@ import type {
   IPaymentsPageDefinitionProvider,
   IRefundsPageDefinitionProvider,
   IPaymentTestingPageDefinitionProvider,
+  IPaymentReferenceDataProvider,
 } from '../../interfaces/payment-provider.interface';
+import type {
+  PaymentReferenceDataContext,
+  PaymentReferenceDataResponse,
+  PaymentReferenceDataSource,
+} from '../../contracts/payment-reference-data.contract';
+import { getCoinGateReferenceData } from './coingate.reference-data';
 import type {
   PaymentsPageDefinition,
   PaymentsPageDefinitionContext,
@@ -102,7 +109,8 @@ export class CoingatePaymentProvider
     IPaymentTestingProvider,
     IPaymentsPageDefinitionProvider,
     IRefundsPageDefinitionProvider,
-    IPaymentTestingPageDefinitionProvider
+    IPaymentTestingPageDefinitionProvider,
+    IPaymentReferenceDataProvider
 {
   // ── IPaymentProvider ────────────────────────────────────────────────────────
 
@@ -281,9 +289,21 @@ export class CoingatePaymentProvider
 
     const testReference = `graphify-test-${Date.now()}`;
 
+    const receiveCurrency =
+      typeof params.providerExtensions?.['receiveCurrency'] === 'string'
+        ? params.providerExtensions['receiveCurrency']
+        : undefined;
+
+    const callbackUrl =
+      typeof params.providerExtensions?.['callbackUrl'] === 'string'
+        ? params.providerExtensions['callbackUrl']
+        : undefined;
+
     const { detail, paymentUrl } = await createCoinGateOrder(client, context, {
       amountMinor: params.amountMinor,
       priceCurrency: params.currency,
+      ...(receiveCurrency ? { receiveCurrency } : {}),
+      ...(callbackUrl ? { callbackUrl } : {}),
       externalReference: testReference,
       title: `Graphify Payment Test ${new Date().toISOString()}`,
       description:
@@ -345,5 +365,24 @@ export class CoingatePaymentProvider
     context: PaymentTestingPageDefinitionContext,
   ): Promise<PaymentTestingPageDefinition> {
     return buildCoinGateTestingPageDefinition(context);
+  }
+
+  // ── IPaymentReferenceDataProvider ────────────────────────────────────────────
+
+  readonly supportsPaymentReferenceData = true as const;
+
+  getPaymentReferenceData(
+    context: PaymentReferenceDataContext,
+    source: PaymentReferenceDataSource,
+  ): Promise<PaymentReferenceDataResponse> {
+    // createCoinGateClient extracts the token and mode from the credentials.
+    // The token is used only to authenticate the GET /currencies call and is
+    // never returned in the response.
+    const client = createCoinGateClient(context.credentials);
+    return getCoinGateReferenceData(
+      client,
+      context.providerCredentialId,
+      source,
+    );
   }
 }

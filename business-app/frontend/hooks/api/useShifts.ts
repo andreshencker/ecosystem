@@ -26,6 +26,8 @@ export interface ShiftsParams {
   customerId?:        string;
   status?:            string;
   date?:              string;
+  dateFrom?:          string;
+  dateTo?:            string;
   search?:            string;
   source?:            'calendar' | 'manual';
   linkedCalendarId?:  string;

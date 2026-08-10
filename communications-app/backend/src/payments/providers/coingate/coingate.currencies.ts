@@ -18,9 +18,16 @@ import type {
   PaymentUnitKind,
 } from '../../contracts/payment-unit.contract';
 
-/** Maps CoinGate type strings to canonical PaymentUnitKind. */
-function mapKind(type: string | undefined): PaymentUnitKind {
-  switch ((type ?? '').toLowerCase()) {
+/**
+ * Maps a CoinGate currency kind/type string to the canonical PaymentUnitKind.
+ *
+ * The live v2 API uses the `kind` field with values 'fiat' and 'crypto'.
+ * Older API versions and mocks use `type` with values 'fiat', 'crypto',
+ * 'native', 'token'. Both are handled here by the caller passing whichever
+ * field is present.
+ */
+function mapKind(kindOrType: string | undefined): PaymentUnitKind {
+  switch ((kindOrType ?? '').toLowerCase()) {
     case 'fiat':
       return 'fiat';
     case 'crypto':
@@ -57,7 +64,8 @@ export async function listCoinGatePaymentUnits(
     const code = (currency.symbol ?? '').toUpperCase();
     if (!code) continue;
 
-    const kind = mapKind(currency.type);
+    // Use `kind` (live v2 API) with `type` as fallback (legacy/mocks).
+    const kind = mapKind(currency.kind ?? currency.type);
 
     if (currency.platforms && currency.platforms.length > 0) {
       // One unit per platform to preserve network/chain information.

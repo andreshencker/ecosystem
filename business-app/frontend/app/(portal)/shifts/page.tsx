@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -23,7 +23,6 @@ import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import TableRowsOutlinedIcon from '@mui/icons-material/TableRowsOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -40,12 +39,9 @@ import {
 import {
   useShifts,
   useDeleteShiftMutation,
-  useTriggerSyncMutation,
   useSyncCalendarMutation,
-  useShiftAssignmentSummary,
-  useShiftPendingList,
 } from '@/hooks/api/useShifts';
-import { useContracts } from '@/hooks/api/useContracts';
+import { useCustomers } from '@/hooks/api/useCustomers';
 import { useCalendarOptions, useLinkedCalendars } from '@/hooks/api/useLinkedCalendars';
 import { formatShiftDate, formatShiftTimeRange } from '@/lib/formatShift';
 import { formatContractLabel } from '@/lib/formatContract';
@@ -53,12 +49,11 @@ import type { Shift } from '@/types/shift';
 import { STATUS_LABELS } from '@/types/shift';
 import { ShiftDrawer, type DrawerMode } from './components/ShiftDrawer';
 import { ShiftCalendarView } from './components/ShiftCalendarView';
-import { SyncHistoryDrawer } from './components/SyncHistoryDrawer';
-import { PendingContractModal } from './components/PendingContractModal';
 
 // ─── View mode ────────────────────────────────────────────────────────────────
 
 type ViewMode = 'table' | 'calendar';
+type DateFilterMode = 'any' | 'day' | 'range';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -123,22 +118,18 @@ export default function ShiftsPage() {
   const [page,             setPage]             = useState(0);
   const [search,           setSearch]           = useState('');
   const [status,           setStatus]           = useState('');
-  const [source,           setSource]           = useState('');
+  const [customerId,       setCustomerId]       = useState('');
   const [date,             setDate]             = useState('');
+  const [dateFrom,         setDateFrom]         = useState('');
+  const [dateTo,           setDateTo]           = useState('');
+  const [dateMode,         setDateMode]         = useState<DateFilterMode>('any');
   const [linkedCalendarId, setLinkedCalendarId] = useState('');
 
   // ── Drawer state ──────────────────────────────────────────────────────────
   const [drawerOpen,        setDrawerOpen]        = useState(false);
   const [drawerMode,        setDrawerMode]        = useState<DrawerMode>('create');
   const [activeShift,       setActiveShift]       = useState<Shift | null>(null);
-  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [deleteTarget,      setDeleteTarget]      = useState<Shift | null>(null);
-
-  // ── Pending contract assignment modal ─────────────────────────────────────
-  // Opens automatically once per page load when BI reports pending items.
-  // The operational Shift table loads independently — BI availability does not block it.
-  const [pendingModalOpen,  setPendingModalOpen]  = useState(false);
-  const hasAutoOpenedModal = useRef(false);
 
   // ── Data — single query shared by both Table and Calendar views ───────────
   // Table: standard pagination with date filter.
@@ -148,39 +139,32 @@ export default function ShiftsPage() {
     limit:            viewMode === 'table' ? 25 : 200,
     search:           search || undefined,
     status:           status || undefined,
-    source:           (source as 'calendar' | 'manual') || undefined,
-    date:             viewMode === 'table' ? (date || undefined) : undefined,
+    customerId:       customerId || undefined,
+    date:             dateMode === 'day' ? (date || undefined) : undefined,
+    dateFrom:         dateMode === 'range' ? (dateFrom || undefined) : undefined,
+    dateTo:           dateMode === 'range' ? (dateTo || undefined) : undefined,
     linkedCalendarId: linkedCalendarId || undefined,
   });
 
-  const syncMutation       = useTriggerSyncMutation();
   const singleSyncMutation = useSyncCalendarMutation();
   const deleteMutation     = useDeleteShiftMutation();
   // Only flow=shifts calendars — never holidays or payments
   const { data: shiftCalendars }    = useCalendarOptions('shifts');
   const { data: linkedCalendars, isLoading: calendarsLoading } =
     useLinkedCalendars({ status: 'active', flow: 'shifts' });
-  // Prefetch BI pending list and active Contracts from page load.
-  // Both are ready by the time the modal opens, eliminating the loading delay.
-  const {
-    data:       pendingData,
-    isLoading:  pendingLoading,
-    isFetching: pendingFetching,
-    refetch:    refetchPending,
-  } = useShiftPendingList({ limit: 100 });
-  const { data: contractsData, isLoading: contractsLoading } =
-    useContracts({ limit: 200, status: 'active' });
-  // assignmentSummary is used for the pending-contract modal auto-open only.
-  const { data: assignmentSummary } = useShiftAssignmentSummary();
+  const { data: customersData } = useCustomers({ limit: 200, active: true });
 
   const hasActiveFilters =
-    search !== '' || status !== '' || source !== '' || date !== '' || linkedCalendarId !== '';
+    search !== '' || status !== '' || customerId !== '' || dateMode !== 'any' || linkedCalendarId !== '';
 
   function clearFilters() {
     setSearch('');
     setStatus('');
-    setSource('');
+    setCustomerId('');
     setDate('');
+    setDateFrom('');
+    setDateTo('');
+    setDateMode('any');
     setLinkedCalendarId('');
     setPage(0);
   }
@@ -208,18 +192,6 @@ export default function ShiftsPage() {
     setDrawerOpen(false);
     setActiveShift(null);
   }, []);
-
-  // ── Auto-open pending modal when BI confirms outstanding assignments ──────
-  useEffect(() => {
-    if (
-      !hasAutoOpenedModal.current &&
-      assignmentSummary?.etlSyncedAt != null &&
-      assignmentSummary.importedPendingContract > 0
-    ) {
-      setPendingModalOpen(true);
-      hasAutoOpenedModal.current = true;
-    }
-  }, [assignmentSummary]);
 
   // ── Delete helpers ────────────────────────────────────────────────────────
   const handleDeleteConfirm = useCallback(async () => {
@@ -349,7 +321,7 @@ export default function ShiftsPage() {
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete">
+          {row.status === 'draft' && <Tooltip title="Delete">
             <IconButton
               size="small"
               aria-label="Delete shift"
@@ -358,7 +330,7 @@ export default function ShiftsPage() {
             >
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
-          </Tooltip>
+          </Tooltip>}
         </RowActions>
       ),
     },
@@ -430,14 +402,14 @@ export default function ShiftsPage() {
         >
           Edit
         </Button>
-        <Button
+        {r.status === 'draft' && <Button
           size="small"
           color="error"
           startIcon={<DeleteOutlineIcon fontSize="small" />}
           onClick={(e) => { e.stopPropagation(); setDeleteTarget(r); }}
         >
           Delete
-        </Button>
+        </Button>}
       </>
     ),
   };
@@ -459,13 +431,6 @@ export default function ShiftsPage() {
         actions={
           <Stack direction="row" spacing={1}>
             <Button
-              variant="text"
-              startIcon={<HistoryOutlinedIcon />}
-              onClick={() => setHistoryDrawerOpen(true)}
-            >
-              Sync History
-            </Button>
-            <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={openCreate}
@@ -477,9 +442,8 @@ export default function ShiftsPage() {
       />
 
       {/* ── Linked Shift Calendars ─────────────────────────────────────────── */}
-      <Box mb={2}>
-        {/* Header row: label + active count + global Sync All button */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+      <Box mb={1}>
+        <Stack direction="row" alignItems="center" mb={1}>
           <Stack direction="row" alignItems="center" spacing={0.75}>
             <Typography variant="caption" color="text.secondary" fontWeight={700} letterSpacing="0.06em">
               LINKED SHIFT CALENDARS
@@ -490,20 +454,6 @@ export default function ShiftsPage() {
               </Typography>
             )}
           </Stack>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={
-              syncMutation.isPending
-                ? <CircularProgress size={14} color="inherit" />
-                : <SyncOutlinedIcon />
-            }
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending || singleSyncMutation.isPending}
-            aria-label="Sync all linked shift calendars"
-          >
-            {syncMutation.isPending ? 'Syncing…' : 'Sync All'}
-          </Button>
         </Stack>
 
         {/* Horizontally scrollable calendar card row */}
@@ -548,7 +498,7 @@ export default function ShiftsPage() {
             {linkedCalendars.map((cal) => {
               const isSyncing =
                 singleSyncMutation.isPending && singleSyncMutation.variables === cal.id;
-              const anyRunning = syncMutation.isPending || singleSyncMutation.isPending;
+              const anyRunning = singleSyncMutation.isPending;
 
               return (
                 <Tooltip
@@ -627,27 +577,7 @@ export default function ShiftsPage() {
           </Box>
         )}
       </Box>
-      <Divider sx={{ mb: 2 }} />
-
-      {/* ── View mode selector ────────────────────────────────────────────── */}
-      <Box display="flex" justifyContent="flex-end" mb={1.5}>
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v: ViewMode | null) => { if (v) setViewMode(v); }}
-          size="small"
-          aria-label="View mode"
-        >
-          <ToggleButton value="table" aria-label="Table view">
-            <TableRowsOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
-            Table
-          </ToggleButton>
-          <ToggleButton value="calendar" aria-label="Calendar view">
-            <CalendarMonthOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
-            Calendar
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
+      <Divider sx={{ mb: 1 }} />
 
       {/* ── Shared filter toolbar — visible in both views ─────────────────── */}
       {(() => {
@@ -673,16 +603,17 @@ export default function ShiftsPage() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 130 }}>
-              <InputLabel>Source</InputLabel>
+            <FormControl size="small" sx={{ width: 170, flex: '0 0 170px' }}>
+              <InputLabel>Customer</InputLabel>
               <Select
-                value={source}
-                label="Source"
-                onChange={(e) => { setSource(e.target.value); setPage(0); }}
+                value={customerId}
+                label="Customer"
+                onChange={(e) => { setCustomerId(e.target.value); setPage(0); }}
               >
-                <MenuItem value="">All</MenuItem>
-                <MenuItem value="calendar">From Calendar</MenuItem>
-                <MenuItem value="manual">Manual</MenuItem>
+                <MenuItem value="">All Customers</MenuItem>
+                {(customersData?.items ?? []).map((customer) => (
+                  <MenuItem key={customer.id} value={customer.id}>{customer.displayName}</MenuItem>
+                ))}
               </Select>
             </FormControl>
 
@@ -702,18 +633,58 @@ export default function ShiftsPage() {
               </FormControl>
             )}
 
-            {/* Date filter only applies in table view; preserved in state when switching */}
-            {viewMode === 'table' && (
+            <FormControl size="small" sx={{ width: 125, flex: '0 0 125px' }}>
+              <InputLabel>Date</InputLabel>
+              <Select
+                value={dateMode}
+                label="Date"
+                onChange={(e) => {
+                  const mode = e.target.value as DateFilterMode;
+                  setDateMode(mode);
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="any">Any date</MenuItem>
+                <MenuItem value="day">Specific day</MenuItem>
+                <MenuItem value="range">Date range</MenuItem>
+              </Select>
+            </FormControl>
+
+            {dateMode === 'day' && (
               <TextField
                 type="date"
                 size="small"
-                label="Date"
+                label="Day"
                 value={date}
                 onChange={(e) => { setDate(e.target.value); setPage(0); }}
                 InputLabelProps={{ shrink: true }}
-                sx={{ minWidth: 150 }}
+                sx={{ width: 140, flex: '0 0 140px' }}
               />
             )}
+
+            {dateMode === 'range' && <>
+              <TextField type="date" size="small" label="From" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} InputLabelProps={{ shrink: true }} sx={{ width: 140, flex: '0 0 140px' }} />
+              <TextField type="date" size="small" label="To" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} InputLabelProps={{ shrink: true }} inputProps={{ min: dateFrom || undefined }} sx={{ width: 140, flex: '0 0 140px' }} />
+            </>}
+
+            <Box sx={{ ml: { xs: 0, md: 'auto' }, width: { xs: '100%', md: 'auto' }, display: 'flex', justifyContent: 'flex-end' }}>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, v: ViewMode | null) => { if (v) setViewMode(v); }}
+                size="small"
+                aria-label="View mode"
+              >
+                <ToggleButton value="table" aria-label="Table view">
+                  <TableRowsOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Table
+                </ToggleButton>
+                <ToggleButton value="calendar" aria-label="Calendar view">
+                  <CalendarMonthOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Calendar
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </SearchToolbar>
         );
 
@@ -773,27 +744,6 @@ export default function ShiftsPage() {
         mode={drawerMode}
         shift={activeShift}
       />
-
-      <SyncHistoryDrawer
-        open={historyDrawerOpen}
-        onClose={() => setHistoryDrawerOpen(false)}
-      />
-
-      {/* Pending Contract assignment modal — auto-opens when BI reports pending items.
-          Data is pre-fetched from page load, so the modal renders without a network delay. */}
-      {pendingModalOpen && assignmentSummary && (
-        <PendingContractModal
-          open={pendingModalOpen}
-          onClose={() => setPendingModalOpen(false)}
-          summary={assignmentSummary}
-          pendingData={pendingData ?? null}
-          pendingLoading={pendingLoading}
-          pendingFetching={pendingFetching}
-          refetchPending={refetchPending}
-          contracts={contractsData?.items ?? []}
-          contractsLoading={contractsLoading}
-        />
-      )}
 
       {/* Delete confirmation — message depends on whether an external event exists */}
       <ConfirmDialog

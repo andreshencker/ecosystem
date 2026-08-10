@@ -42,13 +42,34 @@ export class CreatePaymentTestDto {
 
   /**
    * Provider payment unit code — uppercase asset code (e.g. 'EUR', 'BTC').
+   * Legacy field used by existing Stripe callers. Prefer priceCurrency for new callers.
    * Takes precedence over currency when both are supplied.
-   * Used for CoinGate price_currency and future provider-agnostic callers.
    */
   @IsOptional()
   @IsString()
   @IsUppercase()
   paymentUnitCode?: string;
+
+  /**
+   * The fiat currency the order amount is denominated in.
+   * Maps to CoinGate POST /orders price_currency.
+   * Must be a valid fiat code (e.g. 'EUR', 'USD', 'GBP').
+   * Takes precedence over paymentUnitCode and currency for CoinGate.
+   */
+  @IsOptional()
+  @IsString()
+  @IsUppercase()
+  priceCurrency?: string;
+
+  /**
+   * The crypto asset the merchant settles into.
+   * Maps to CoinGate POST /orders receive_currency.
+   * Optional — CoinGate uses the account default when absent.
+   */
+  @IsOptional()
+  @IsString()
+  @IsUppercase()
+  receiveCurrency?: string;
 
   /**
    * Test scenario to simulate.

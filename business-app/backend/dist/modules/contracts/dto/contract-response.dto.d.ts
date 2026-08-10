@@ -31,6 +31,7 @@ export interface ContractResponseDto {
     invoiceDescription: string;
     status: ContractStatus;
     billingCycle: BillingCycle;
+    invoiceDueRule: 'from_invoice_date' | 'end_of_week' | 'end_of_month';
     paymentTermsDays: number | null;
     scheduledPaymentEnabled: boolean;
     scheduledPaymentDay: ScheduledPaymentDay | null;

@@ -16,13 +16,16 @@ exports.CommunicationConnectionController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const communication_connection_service_1 = require("./communication-connection.service");
+const communication_catalog_provisioning_service_1 = require("../provisioning/communication-catalog-provisioning.service");
 const communication_connection_dto_1 = require("./dto/communication-connection.dto");
 const current_user_decorator_1 = require("../../../infrastructure/security/decorators/current-user.decorator");
 const PROVIDER = 'communications';
 let CommunicationConnectionController = class CommunicationConnectionController {
     service;
-    constructor(service) {
+    provisioning;
+    constructor(service, provisioning) {
         this.service = service;
+        this.provisioning = provisioning;
     }
     async get(ctx) {
         const result = await this.service.get(this.uid(ctx), PROVIDER);
@@ -31,7 +34,13 @@ let CommunicationConnectionController = class CommunicationConnectionController 
         return result;
     }
     async save(ctx, dto) {
-        return this.service.save(this.uid(ctx), PROVIDER, dto.token, dto.isActive);
+        const userId = this.uid(ctx);
+        const result = await this.service.save(userId, PROVIDER, dto.token, dto.isActive);
+        if (result.isActive && result.remoteCompanyId) {
+            const businessId = await this.service.resolveBusinessIdForUser(userId);
+            await this.provisioning.provisionBusinessResources(businessId);
+        }
+        return result;
     }
     async test(ctx, dto) {
         return this.service.test(this.uid(ctx), PROVIDER, dto.token);
@@ -109,6 +118,7 @@ exports.CommunicationConnectionController = CommunicationConnectionController = 
     (0, swagger_1.ApiTags)('Settings — Communications'),
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.Controller)('settings/communications'),
-    __metadata("design:paramtypes", [communication_connection_service_1.CommunicationConnectionService])
+    __metadata("design:paramtypes", [communication_connection_service_1.CommunicationConnectionService,
+        communication_catalog_provisioning_service_1.CommunicationCatalogProvisioningService])
 ], CommunicationConnectionController);
 //# sourceMappingURL=communication-connection.controller.js.map

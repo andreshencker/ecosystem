@@ -13,6 +13,7 @@ from app.contracts.invoices.pending_groups.service import (
     _billing_period,
     _gross_hours,
     _group_id,
+    _mongo_id_candidates,
     _resolve_rate,
 )
 
@@ -150,6 +151,17 @@ class TestGroupId:
         assert all(c in "0123456789abcdef" for c in g)
 
 
+class TestMongoIdCandidates:
+    def test_includes_string_and_object_id_for_mongo_hex(self):
+        raw = "507f1f77bcf86cd799439011"
+        candidates = _mongo_id_candidates([raw])
+        assert raw in candidates
+        assert any(str(candidate) == raw and candidate != raw for candidate in candidates)
+
+    def test_keeps_non_object_id_string(self):
+        assert _mongo_id_candidates(["cont001"]) == ["cont001"]
+
+
 # ── Integration tests (mocked MongoDB) ────────────────────────────────────────
 
 
@@ -184,6 +196,7 @@ def _make_contract(**kwargs):
         "chargeGst": False,
         "gstRate": None,
         "defaultBreakMinutes": 30,
+        "minimumHours": 4,
         "startDate": "2026-01-01",
         "rates": [{"days": ["all"], "hourlyRate": 50.0}],
     }
@@ -231,6 +244,26 @@ async def test_empty_shifts_returns_empty_groups():
 
 
 @pytest.mark.asyncio
+async def test_pending_query_excludes_deleted_calendar_shifts():
+    db = MagicMock()
+    shifts_collection = MagicMock()
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[])
+    shifts_collection.find.return_value = cursor
+    db.__getitem__ = MagicMock(return_value=shifts_collection)
+
+    with patch("app.contracts.invoices.pending_groups.service.get_database", return_value=db):
+        await PendingInvoiceGroupsService().get_groups("biz001")
+
+    shifts_collection.find.assert_called_once_with({
+        "businessId": "biz001",
+        "status": "confirmed",
+        "invoiceStatus": "pending",
+        "syncStatus": {"$ne": "deleted"},
+    })
+
+
+@pytest.mark.asyncio
 async def test_single_shift_ready_group():
     shifts = [_make_shift()]
     contracts = [_make_contract()]
@@ -254,9 +287,26 @@ async def test_single_shift_ready_group():
     assert row.grossDurationHours == "8.00"
     assert row.appliedBreakMinutes == 30
     assert row.workedHours == "7.50"
+    assert row.billableHours == "7.50"
+    assert row.minimumHoursApplied is False
     assert row.appliedRate == "50.00"
     assert row.amount == "375.00"
     assert row.calculationStatus == "ok"
+
+
+@pytest.mark.asyncio
+async def test_end_of_week_due_rule_uses_billing_period_end():
+    shifts = [_make_shift(date="2026-07-22")]
+    contracts = [_make_contract(invoiceDueRule="end_of_week", paymentTermsDays=14)]
+    customers = [_make_customer()]
+
+    db = _mock_db(shifts, contracts, customers)
+    with patch("app.contracts.invoices.pending_groups.service.get_database", return_value=db):
+        result = await PendingInvoiceGroupsService().get_groups("biz001")
+
+    group = result.groups[0]
+    assert group.periodEnd == "2026-07-26"
+    assert group.dueDate == "2026-08-09"
 
 
 @pytest.mark.asyncio
@@ -290,6 +340,27 @@ async def test_no_break_when_break_taken_false():
     row = result.groups[0].shiftDetails[0]
     assert row.appliedBreakMinutes == 0
     assert row.workedHours == "8.00"
+
+
+@pytest.mark.asyncio
+async def test_contract_minimum_hours_applied_after_break():
+    shifts = [_make_shift(startTime="09:00", endTime="12:00", breakTaken=True)]
+    contracts = [_make_contract(defaultBreakMinutes=30, minimumHours=4)]
+    customers = [_make_customer()]
+
+    db = _mock_db(shifts, contracts, customers)
+    with patch("app.contracts.invoices.pending_groups.service.get_database", return_value=db):
+        result = await PendingInvoiceGroupsService().get_groups("biz001")
+
+    row = result.groups[0].shiftDetails[0]
+    assert row.grossDurationHours == "3.00"
+    assert row.workedHours == "2.50"
+    assert row.minimumHours == "4.00"
+    assert row.minimumHoursApplied is True
+    assert row.billableHours == "4.00"
+    assert row.amount == "200.00"
+    assert result.groups[0].totalWorkedHours == "2.50"
+    assert result.groups[0].totalBillableHours == "4.00"
 
 
 @pytest.mark.asyncio

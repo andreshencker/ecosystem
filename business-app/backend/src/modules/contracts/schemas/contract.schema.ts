@@ -169,6 +169,7 @@ export const RateRuleSchema = SchemaFactory.createForClass(RateRule);
 // ─── Contract document ────────────────────────────────────────────────────────
 
 export type ContractDocument = HydratedDocument<Contract>;
+export type InvoiceDueRule = 'from_invoice_date' | 'end_of_week' | 'end_of_month';
 
 @Schema({
   collection: 'contracts',
@@ -217,6 +218,13 @@ export class Contract {
     enum: ['per_shift', 'daily', 'weekly', 'fortnightly', 'monthly'],
   })
   billingCycle!: BillingCycle;
+
+  @Prop({
+    type: String,
+    enum: ['from_invoice_date', 'end_of_week', 'end_of_month'],
+    default: 'from_invoice_date',
+  })
+  invoiceDueRule!: InvoiceDueRule;
 
   /**
    * Days the Customer has to pay. Required when scheduledPaymentEnabled is false.

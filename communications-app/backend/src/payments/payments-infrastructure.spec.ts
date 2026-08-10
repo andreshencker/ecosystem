@@ -154,9 +154,6 @@ describe('PaymentsResolverService — company isolation', () => {
     const registry = new PaymentProviderRegistry([stripeDouble]);
 
     const resolver = new PaymentsResolverService(
-      {} as any, // providerModel — not used in resolveByCredentialId path
-      {} as any, // ccpModel — not used
-      {} as any, // credModel — not used
       mockRuntimeResolver as any,
       registry,
     );
@@ -175,9 +172,6 @@ describe('PaymentsResolverService — company isolation', () => {
 
     const registry = new PaymentProviderRegistry([stripeDouble]);
     const resolver = new PaymentsResolverService(
-      {} as any,
-      {} as any,
-      {} as any,
       mockRuntimeResolver as any,
       registry,
     );
@@ -202,10 +196,12 @@ describe('PaymentsResolverService — channel guard', () => {
     const mockRuntimeResolver = {
       resolveByProviderCredentialsId: jest.fn().mockResolvedValueOnce({
         channelKey: 'calendar', // wrong channel
+        channelId: 'channel-calendar-id',
         providerKey: 'google_calendar',
-        connectionType: 'oauth',
-        providerCredentialsId: 'cred-xyz',
         providerId: null,
+        connectionType: 'oauth',
+        companyChannelProviderId: 'ccp-calendar-id',
+        providerCredentialsId: 'cred-xyz',
         tag: 'default',
         isActive: true,
         credentialsIsActive: true,
@@ -215,9 +211,6 @@ describe('PaymentsResolverService — channel guard', () => {
 
     const registry = new PaymentProviderRegistry([stripeDouble]);
     const resolver = new PaymentsResolverService(
-      {} as any,
-      {} as any,
-      {} as any,
       mockRuntimeResolver as any,
       registry,
     );
@@ -231,10 +224,12 @@ describe('PaymentsResolverService — channel guard', () => {
     const mockRuntimeResolver = {
       resolveByProviderCredentialsId: jest.fn().mockResolvedValueOnce({
         channelKey: 'email',
+        channelId: 'channel-email-id',
         providerKey: 'gmail',
-        connectionType: 'smtp',
-        providerCredentialsId: 'email-cred-id',
         providerId: null,
+        connectionType: 'smtp',
+        companyChannelProviderId: 'ccp-email-id',
+        providerCredentialsId: 'email-cred-id',
         tag: 'default',
         isActive: true,
         credentialsIsActive: true,
@@ -244,9 +239,6 @@ describe('PaymentsResolverService — channel guard', () => {
 
     const registry = new PaymentProviderRegistry([stripeDouble]);
     const resolver = new PaymentsResolverService(
-      {} as any,
-      {} as any,
-      {} as any,
       mockRuntimeResolver as any,
       registry,
     );
@@ -266,10 +258,12 @@ describe('PaymentsResolverService — channel guard', () => {
     const mockRuntimeResolver = {
       resolveByProviderCredentialsId: jest.fn().mockResolvedValueOnce({
         channelKey: 'payment',
+        channelId: 'channel-payment-id',
         providerKey: 'stripe',
-        connectionType: 'api_key',
-        providerCredentialsId: 'stripe-cred-id',
         providerId: new Types.ObjectId().toString(),
+        connectionType: 'api_key',
+        companyChannelProviderId: 'ccp-payment-stripe-id',
+        providerCredentialsId: 'stripe-cred-id',
         tag: 'default',
         isActive: true,
         credentialsIsActive: true,
@@ -279,9 +273,6 @@ describe('PaymentsResolverService — channel guard', () => {
 
     const registry = new PaymentProviderRegistry([stripeDouble]);
     const resolver = new PaymentsResolverService(
-      {} as any,
-      {} as any,
-      {} as any,
       mockRuntimeResolver as any,
       registry,
     );
@@ -310,10 +301,12 @@ describe('PaymentsResolverService — credential security', () => {
     const mockRuntimeResolver = {
       resolveByProviderCredentialsId: jest.fn().mockResolvedValueOnce({
         channelKey: 'payment',
+        channelId: 'channel-payment-id',
         providerKey: 'stripe',
-        connectionType: 'api_key',
-        providerCredentialsId: 'cred-123',
         providerId: null,
+        connectionType: 'api_key',
+        companyChannelProviderId: 'ccp-payment-id',
+        providerCredentialsId: 'cred-123',
         tag: 'default',
         isActive: true,
         credentialsIsActive: true,
@@ -323,9 +316,6 @@ describe('PaymentsResolverService — credential security', () => {
 
     const registry = new PaymentProviderRegistry([stripeDouble]);
     const resolver = new PaymentsResolverService(
-      {} as any,
-      {} as any,
-      {} as any,
       mockRuntimeResolver as any,
       registry,
     );
@@ -352,10 +342,12 @@ describe('PaymentsResolverService — credential security', () => {
     const mockRuntimeResolver = {
       resolveByProviderCredentialsId: jest.fn().mockResolvedValueOnce({
         channelKey: 'payment',
+        channelId: 'channel-payment-id',
         providerKey: 'stripe',
-        connectionType: 'api_key',
-        providerCredentialsId: 'cred-123',
         providerId: null,
+        connectionType: 'api_key',
+        companyChannelProviderId: 'ccp-payment-id',
+        providerCredentialsId: 'cred-123',
         tag: 'default',
         isActive: true,
         credentialsIsActive: true,
@@ -369,9 +361,6 @@ describe('PaymentsResolverService — credential security', () => {
 
     const registry = new PaymentProviderRegistry([stripeDouble]);
     const resolver = new PaymentsResolverService(
-      {} as any,
-      {} as any,
-      {} as any,
       mockRuntimeResolver as any,
       registry,
     );

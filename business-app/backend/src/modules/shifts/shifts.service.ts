@@ -26,6 +26,8 @@ export interface ShiftListParams {
   customerId?:       string;
   status?:           string;
   date?:             string;
+  dateFrom?:         string;
+  dateTo?:           string;
   search?:           string;
   /** 'calendar' = createdFromCalendar=true; 'manual' = createdFromCalendar=false */
   source?:           string;
@@ -274,14 +276,22 @@ export class ShiftsService {
     businessId: string,
     params: ShiftListParams,
   ): Promise<{ items: ShiftDocument[]; total: number; page: number; limit: number }> {
-    const { page, limit, contractId, customerId, status, date, search, source, linkedCalendarId } = params;
+    const { page, limit, contractId, customerId, status, date, dateFrom, dateTo, search, source, linkedCalendarId } = params;
     const skip = (page - 1) * limit;
 
-    const filter: Record<string, any> = { businessId };
+    // Calendar events removed or cancelled at the provider are soft-deleted for
+    // auditability. They must not remain in the operational Shifts list.
+    const filter: Record<string, any> = { businessId, syncStatus: { $ne: 'deleted' } };
     if (contractId)       filter.contractId       = contractId;
     if (customerId)       filter.customerId       = customerId;
     if (status)           filter.status           = status;
-    if (date)             filter.date             = date;
+    if (date) {
+      filter.date = date;
+    } else if (dateFrom || dateTo) {
+      filter.date = {};
+      if (dateFrom) filter.date.$gte = dateFrom;
+      if (dateTo) filter.date.$lte = dateTo;
+    }
     if (linkedCalendarId) filter.linkedCalendarId = linkedCalendarId;
     if (source === 'calendar') filter.createdFromCalendar = true;
     if (source === 'manual')   filter.createdFromCalendar = false;

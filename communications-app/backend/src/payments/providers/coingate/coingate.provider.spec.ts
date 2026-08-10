@@ -341,11 +341,14 @@ describe('mapCoinGateError()', () => {
 // ─── FOUNDATION TEST 7–10: PaymentUnit mapping ────────────────────────────────
 
 describe('listCoinGatePaymentUnits()', () => {
+  // Mocks use both `kind` (live v2 API) and `type` (legacy) to ensure both
+  // code paths work. The live API uses `kind`; mocks typically used `type`.
   const mockCurrencies: CoinGateCurrency[] = [
     {
       id: 1,
       title: 'Bitcoin',
       symbol: 'BTC',
+      kind: 'crypto',
       type: 'crypto',
       platforms: [{ id: 1, title: 'Bitcoin', symbol: 'BTC' }],
     },
@@ -353,6 +356,7 @@ describe('listCoinGatePaymentUnits()', () => {
       id: 2,
       title: 'Euro',
       symbol: 'EUR',
+      kind: 'fiat',
       type: 'fiat',
       platforms: [],
     },
@@ -360,6 +364,7 @@ describe('listCoinGatePaymentUnits()', () => {
       id: 3,
       title: 'Tether',
       symbol: 'USDT',
+      kind: 'crypto',
       type: 'token',
       platforms: [
         { id: 10, title: 'TRC20', symbol: 'TRC20' },
@@ -384,12 +389,14 @@ describe('listCoinGatePaymentUnits()', () => {
     expect(eur!.kind).toBe('fiat');
   });
 
-  it('maps token currency to kind=token', async () => {
+  it('maps token/crypto currency correctly (USDT uses kind=crypto in live API)', async () => {
     const client = makeMockClient(mockCurrencies) as unknown as CoinGateClient;
     const units = await listCoinGatePaymentUnits(client);
     const usdt = units.filter((u) => u.code === 'USDT');
     expect(usdt.length).toBeGreaterThan(0);
-    expect(usdt[0].kind).toBe('token');
+    // The mock has kind: 'crypto' (live v2 API value). The legacy type: 'token'
+    // is still in the mock for backward compatibility but kind takes precedence.
+    expect(usdt[0].kind).toBe('crypto');
   });
 
   it('expands multi-platform currencies into separate units', async () => {

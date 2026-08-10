@@ -1,6 +1,7 @@
 // src/payments/services/payments-testing.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { isTestingProvider } from '../interfaces/payment-provider.interface';
 import {
@@ -17,7 +18,10 @@ import { PaymentsService } from './payments.service';
 export class PaymentsTestingService {
   private readonly logger = new Logger(PaymentsTestingService.name);
 
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly config: ConfigService,
+  ) {}
 
   /**
    * Returns the test scenarios supported by the provider for the given payment method.
@@ -71,6 +75,8 @@ export class PaymentsTestingService {
       connectionId,
       paymentMethodKey,
       amountMinor,
+      priceCurrency,
+      receiveCurrency,
       paymentUnitCode,
       currency,
       scenario,
@@ -78,8 +84,13 @@ export class PaymentsTestingService {
       reference,
     } = dto;
 
-    // Resolve the effective currency: paymentUnitCode takes precedence over currency.
-    const effectiveCurrency = paymentUnitCode ?? currency ?? 'USD';
+    // Effective currency resolution precedence:
+    //   priceCurrency (explicit semantic field for CoinGate) >
+    //   paymentUnitCode (legacy generic field) >
+    //   currency (backward-compatible Stripe field) >
+    //   'USD' (fallback — should never be needed with the definition-driven form)
+    const effectiveCurrency =
+      priceCurrency ?? paymentUnitCode ?? currency ?? 'USD';
 
     this.logger.debug(
       `[createPaymentTest] companyId=${companyId} connectionId=${connectionId}`,
@@ -140,6 +151,26 @@ export class PaymentsTestingService {
       credentials: runtime.credentials,
     };
 
+    // Build the provider callback URL from the configured API base URL.
+    // CoinGate: callback_url is a per-order field set at creation time.
+    // Other providers (e.g. Stripe) use registered webhook endpoints instead.
+    // The URL is passed through providerExtensions to keep canonical params clean.
+    const apiBaseUrl = this.config
+      .get<string>('API_BASE_URL', '')
+      .replace(/\/$/, '');
+    const callbackUrl = apiBaseUrl
+      ? `${apiBaseUrl}/payments/callbacks/coingate/${connectionId}`
+      : undefined;
+
+    if (callbackUrl) {
+      this.logger.debug(`[createPaymentTest] callbackUrl=${callbackUrl}`);
+    }
+
+    const providerExtensions: Record<string, unknown> = {
+      ...(receiveCurrency ? { receiveCurrency } : {}),
+      ...(callbackUrl ? { callbackUrl } : {}),
+    };
+
     return runtime.provider.createPaymentTest(context, {
       paymentMethodKey: effectiveMethodKey,
       amountMinor,
@@ -147,6 +178,9 @@ export class PaymentsTestingService {
       scenario: effectiveScenario,
       description,
       reference,
+      ...(Object.keys(providerExtensions).length > 0
+        ? { providerExtensions }
+        : {}),
     });
   }
 

@@ -48,6 +48,7 @@ import { OutlookCalendarCredentialsContract } from '../../../calendar/contracts/
 import { StripeCredentialsContract } from '../../../payments/providers/stripe/stripe.credentials.contract';
 import { CoinGateCredentialsContract } from '../../../payments/providers/coingate/coingate.credentials.contract';
 import { TokenCredentialsContract } from '../implementation/payment/token/token-credentials.contract';
+import { XeroCredentialsContract } from '../../../accounting/providers/xero/xero.credentials.contract';
 
 type PopulateOpts = {
   populateCompanyChannelProvider?: boolean;
@@ -735,6 +736,23 @@ export class ProviderCredentialsService {
               'Credential format verified. Live connection test will be available after Stripe integration is complete.',
           };
         }
+      } else if (channelKey === 'accounting' || channelKey === 'billing') {
+        // OAuth flow for Accounting/Billing providers is deferred to Phase 2.
+        // Returns the contract's verify result (format check) or a safe default.
+        const contract = this.getContractForProvider(
+          channelKey,
+          connectionType,
+          providerKey,
+        );
+        if (contract?.verify) {
+          res = await contract.verify(decrypted as any);
+        } else {
+          res = {
+            ok: true,
+            message:
+              'Credential format verified. Complete the OAuth authorization flow to activate the connection.',
+          };
+        }
       } else {
         throw new HttpException(
           `Unsupported channel "${channelKey}"`,
@@ -1020,6 +1038,10 @@ export class ProviderCredentialsService {
       if (ct === 'token') return TokenCredentialsContract;
     }
 
+    if ((ck === 'accounting' || ck === 'billing') && pk === 'xero') {
+      return XeroCredentialsContract;
+    }
+
     return null;
   }
 
@@ -1205,6 +1227,27 @@ export class ProviderCredentialsService {
         if (!res?.ok) {
           throw new HttpException(
             res?.message ?? 'PAYMENT credentials verification failed',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+      return;
+    }
+
+    // ACCOUNTING / BILLING — OAuth flow deferred to Phase 2.
+    // Format validation is performed by the credential contract during save.
+    // Live token verification will be added once the OAuth callback handler exists.
+    if (channelKey === 'accounting' || channelKey === 'billing') {
+      const contract = this.getContractForProvider(
+        channelKey,
+        connectionType,
+        providerKey,
+      );
+      if (contract?.verify) {
+        const res = await contract.verify(credentials as any);
+        if (!res?.ok) {
+          throw new HttpException(
+            res?.message ?? 'Credentials verification failed',
             HttpStatus.BAD_REQUEST,
           );
         }

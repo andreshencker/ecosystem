@@ -44,6 +44,7 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
     invoiceDescription:    'Software development services',
     status:                'active',
     billingCycle:          'per_shift',
+    invoiceDueRule:        'from_invoice_date',
     paymentTermsDays:      14,
     rateType:              'fixed',
     minimumHours:          4,

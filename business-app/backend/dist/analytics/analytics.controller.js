@@ -72,6 +72,14 @@ let AnalyticsController = class AnalyticsController {
             throw err;
         }
     }
+    async getReceivablesSummary(ctx, dateFrom, dateTo, customerId, invoiceStatus, search) {
+        return this.bi.getReceivablesSummary(this.resolveCompanyId(ctx), {
+            dateFrom, dateTo, customerId, invoiceStatus, search,
+        });
+    }
+    async getInvoiceCashFlow(ctx, dateFrom, dateTo, customerId) {
+        return this.bi.getInvoiceCashFlow(this.resolveCompanyId(ctx), { dateFrom, dateTo, customerId });
+    }
     async getShiftPendingList(ctx, rawPage, rawLimit, linkedCalendarId, dateFrom, dateTo, search) {
         const businessId = this.resolveCompanyId(ctx);
         const params = {
@@ -139,19 +147,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getShiftAssignmentSummary", null);
 __decorate([
-    (0, common_1.Get)('shifts/assignment/pending'),
-    (0, common_1.HttpCode)(200),
-    (0, swagger_1.ApiOperation)({
-        summary: 'Paginated list of imported Shifts pending Contract assignment (proxied from BI)',
-        description: 'Returns BI-sourced imported Shifts that satisfy the pending-assignment rule. ' +
-            'businessId is always resolved from the authenticated JWT — never from the request.',
-    }),
-    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number }),
-    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number }),
-    (0, swagger_1.ApiQuery)({ name: 'linkedCalendarId', required: false }),
-    (0, swagger_1.ApiQuery)({ name: 'dateFrom', required: false, description: 'ISO date YYYY-MM-DD' }),
-    (0, swagger_1.ApiQuery)({ name: 'dateTo', required: false, description: 'ISO date YYYY-MM-DD' }),
-    (0, swagger_1.ApiQuery)({ name: 'search', required: false }),
     (0, common_1.Get)('invoices/pending-groups'),
     (0, common_1.HttpCode)(200),
     (0, swagger_1.ApiOperation)({
@@ -166,6 +161,43 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getPendingInvoiceGroups", null);
 __decorate([
+    (0, common_1.Get)('invoices/receivables-summary'),
+    (0, common_1.HttpCode)(200),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('dateFrom')),
+    __param(2, (0, common_1.Query)('dateTo')),
+    __param(3, (0, common_1.Query)('customerId')),
+    __param(4, (0, common_1.Query)('invoiceStatus')),
+    __param(5, (0, common_1.Query)('search')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getReceivablesSummary", null);
+__decorate([
+    (0, common_1.Get)('invoices/cash-flow'),
+    (0, common_1.HttpCode)(200),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('dateFrom')),
+    __param(2, (0, common_1.Query)('dateTo')),
+    __param(3, (0, common_1.Query)('customerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getInvoiceCashFlow", null);
+__decorate([
+    (0, common_1.Get)('shifts/assignment/pending'),
+    (0, common_1.HttpCode)(200),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Paginated list of imported Shifts pending Contract assignment (proxied from BI)',
+        description: 'Returns BI-sourced imported Shifts that satisfy the pending-assignment rule. ' +
+            'businessId is always resolved from the authenticated JWT — never from the request.',
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number }),
+    (0, swagger_1.ApiQuery)({ name: 'linkedCalendarId', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'dateFrom', required: false, description: 'ISO date YYYY-MM-DD' }),
+    (0, swagger_1.ApiQuery)({ name: 'dateTo', required: false, description: 'ISO date YYYY-MM-DD' }),
+    (0, swagger_1.ApiQuery)({ name: 'search', required: false }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('page')),
     __param(2, (0, common_1.Query)('limit')),

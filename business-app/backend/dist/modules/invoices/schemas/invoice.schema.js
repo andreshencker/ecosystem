@@ -14,17 +14,31 @@ const mongoose_1 = require("@nestjs/mongoose");
 let Invoice = class Invoice {
     businessId;
     customerId;
+    customerName;
     contractId;
     invoiceNumber;
+    invoiceDate;
+    dueDate;
     periodStart;
     periodEnd;
     currency;
     shiftIds;
+    additionalConcepts;
     subtotal;
     taxAmount;
     total;
+    amountPaid;
+    balance;
     groupId;
     status;
+    sentAt;
+    lastReminderAt;
+    reminderCount;
+    paidAt;
+    paymentReference;
+    paymentNotes;
+    voidedAt;
+    voidReason;
 };
 exports.Invoice = Invoice;
 __decorate([
@@ -36,6 +50,10 @@ __decorate([
     __metadata("design:type", String)
 ], Invoice.prototype, "customerId", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ type: String, default: null }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "customerName", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ required: true, index: true }),
     __metadata("design:type", String)
 ], Invoice.prototype, "contractId", void 0);
@@ -43,6 +61,14 @@ __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
 ], Invoice.prototype, "invoiceNumber", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: null }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "invoiceDate", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: null, index: true }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "dueDate", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
@@ -60,6 +86,10 @@ __decorate([
     __metadata("design:type", Array)
 ], Invoice.prototype, "shiftIds", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ type: [Object], default: [] }),
+    __metadata("design:type", Array)
+], Invoice.prototype, "additionalConcepts", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
 ], Invoice.prototype, "subtotal", void 0);
@@ -72,17 +102,57 @@ __decorate([
     __metadata("design:type", String)
 ], Invoice.prototype, "total", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ required: true, default: '0.00' }),
+    __metadata("design:type", String)
+], Invoice.prototype, "amountPaid", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, default: '0.00' }),
+    __metadata("design:type", String)
+], Invoice.prototype, "balance", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ required: true, index: true }),
     __metadata("design:type", String)
 ], Invoice.prototype, "groupId", void 0);
 __decorate([
     (0, mongoose_1.Prop)({
         required: true,
-        enum: ['approved'],
+        enum: ['approved', 'outstanding', 'sent', 'send_failed', 'paid', 'voided'],
         default: 'approved',
     }),
     __metadata("design:type", String)
 ], Invoice.prototype, "status", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Date, default: null }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "sentAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Date, default: null }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "lastReminderAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Number, default: 0 }),
+    __metadata("design:type", Number)
+], Invoice.prototype, "reminderCount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Date, default: null }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "paidAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: null, trim: true }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "paymentReference", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: null, trim: true }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "paymentNotes", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Date, default: null }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "voidedAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: null, trim: true }),
+    __metadata("design:type", Object)
+], Invoice.prototype, "voidReason", void 0);
 exports.Invoice = Invoice = __decorate([
     (0, mongoose_1.Schema)({
         collection: 'invoices',
@@ -94,4 +164,5 @@ exports.InvoiceSchema = mongoose_1.SchemaFactory.createForClass(Invoice);
 exports.InvoiceSchema.index({ businessId: 1, contractId: 1 });
 exports.InvoiceSchema.index({ businessId: 1, customerId: 1 });
 exports.InvoiceSchema.index({ businessId: 1, groupId: 1 }, { unique: true });
+exports.InvoiceSchema.index({ businessId: 1, contractId: 1, invoiceNumber: 1 }, { unique: true });
 //# sourceMappingURL=invoice.schema.js.map

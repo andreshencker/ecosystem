@@ -52,6 +52,13 @@ export interface PendingShiftCalculation {
    */
   workedHours: string;
 
+  /** Contract minimum hours for this shift. */
+  minimumHours: string;
+  /** True when billableHours was raised to the contract minimum. */
+  minimumHoursApplied: boolean;
+  /** Hours used for the monetary calculation. */
+  billableHours: string;
+
   /** Rate type from the Contract ('fixed' | 'variable' | 'variable_time_range'). */
   rateType: string;
   /**
@@ -64,13 +71,20 @@ export interface PendingShiftCalculation {
 
   /**
    * Line amount (decimal string).
-   * Formula: workedHours × appliedRate, decimal-safe arithmetic.
+   * Formula: billableHours × appliedRate, decimal-safe arithmetic.
    */
   amount: string;
 
   calculationStatus: ShiftCalcStatus;
   /** Human-readable reason when status is 'warning' or 'error'. */
   calculationNote: string | null;
+}
+
+export interface PendingAdditionalConcept {
+  id: string;
+  date: string;
+  concept: string;
+  amount: string;
 }
 
 // ─── Billing group (one per customer × billing period) ───────────────────────
@@ -86,19 +100,25 @@ export interface PendingInvoiceGroup {
   companyId: string;
   customerId: string;
   customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
   contractId: string;
   /** positionName from the Contract. */
   contractTitle: string;
+  invoiceNumber: string;
   billingCycle: string;
   /** YYYY-MM-DD — inclusive start of the billing period. */
   periodStart: string;
   /** YYYY-MM-DD — inclusive end of the billing period. */
   periodEnd: string;
+  dueDate: string | null;
   currency: string;
 
   shiftCount: number;
   /** Sum of workedHours across all shift rows (decimal string). */
   totalWorkedHours: string;
+  /** Sum of billableHours across all shift rows. */
+  totalBillableHours: string;
   /** Sum of line amounts (decimal string). */
   subtotal: string;
   /** GST rate as percentage string, or null when chargeGst=false. */
@@ -124,6 +144,7 @@ export interface PendingInvoiceGroup {
   isApprovable: boolean;
 
   shiftDetails: PendingShiftCalculation[];
+  additionalConcepts: PendingAdditionalConcept[];
   calculatedAt: string;
 }
 

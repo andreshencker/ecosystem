@@ -63,6 +63,7 @@ export class CommunicationsModule implements OnApplicationBootstrap {
   onApplicationBootstrap(): void {
     this.dropStaleCompanyProviderIndex()
       .then(() => this.provisioning.provisionPlatformCatalog())
+      .then(() => this.provisioning.syncAllBusinessesWithActiveConnection())
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(

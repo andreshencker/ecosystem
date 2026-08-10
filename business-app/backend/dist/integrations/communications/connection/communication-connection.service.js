@@ -55,6 +55,9 @@ let CommunicationConnectionService = CommunicationConnectionService_1 = class Co
             throw new common_1.HttpException('User has no business associated.', common_1.HttpStatus.FORBIDDEN);
         return String(user.companyId);
     }
+    async resolveBusinessIdForUser(userId) {
+        return this.resolveBusinessId(userId);
+    }
     businessQuery(businessId) {
         const oid = new mongoose_2.Types.ObjectId(businessId);
         return { $or: [{ businessId: oid }, { companyId: oid }] };
@@ -243,6 +246,14 @@ let CommunicationConnectionService = CommunicationConnectionService_1 = class Co
         return { deleted: true };
     }
     async findAllActiveBusinessConnections() {
+        const platformBusiness = await this.businessModel
+            .findOne({ isPlatformCompany: true })
+            .select('_id')
+            .lean()
+            .exec();
+        const platformBusinessId = platformBusiness?._id
+            ? String(platformBusiness._id)
+            : null;
         const docs = (await this.model
             .find({
             provider: 'communications',
@@ -255,7 +266,10 @@ let CommunicationConnectionService = CommunicationConnectionService_1 = class Co
             try {
                 const { token } = this.crypto.decryptJson(doc.encryptedToken);
                 const bid = doc.businessId ?? doc.companyId;
-                if (bid && doc.remoteCompanyId && token) {
+                if (bid &&
+                    String(bid) !== platformBusinessId &&
+                    doc.remoteCompanyId &&
+                    token) {
                     results.push({
                         businessId: String(bid),
                         remoteCompanyId: doc.remoteCompanyId,

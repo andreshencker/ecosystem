@@ -49,7 +49,11 @@ import {
   WebhookDeliveryDocument,
 } from '../schemas/webhook-delivery.schema';
 import { verifyCallbackToken } from '../providers/coingate/coingate.orders';
+import { createCoinGateClient } from '../providers/coingate/coingate.client';
+import { mapCoinGateOrderStatus } from '../providers/coingate/coingate.mapper';
+import type { CoinGateOrder } from '../providers/coingate/coingate.types';
 import type { CoinGateCallbackPayload } from '../providers/coingate/coingate.callbacks';
+import { ChannelsRuntimeResolverService } from '../../communication/channels/runtime/channels-runtime-resolver.service';
 
 const DELIVERY_RETENTION_DAYS = 30;
 const COINGATE_PROVIDER_KEY = 'coingate';
@@ -66,6 +70,7 @@ export class PaymentsCoinGateCallbackController {
     private readonly ccpModel: Model<CompanyChannelProviderDocument>,
     @InjectModel(WebhookDelivery.name)
     private readonly deliveryModel: Model<WebhookDeliveryDocument>,
+    private readonly runtimeResolver: ChannelsRuntimeResolverService,
   ) {}
 
   /**
@@ -170,13 +175,10 @@ export class PaymentsCoinGateCallbackController {
       Date.now() + DELIVERY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    const processingStatus =
-      signatureStatus === 'valid' ? 'verified' : 'received';
-
     const safePayload: Record<string, unknown> = {
       orderId,
       externalReference,
-      status,
+      callbackStatus: status,
       priceCurrency: payload.price_currency,
     };
 
@@ -192,7 +194,7 @@ export class PaymentsCoinGateCallbackController {
         objectId: orderId,
         payloadHash,
         signatureStatus,
-        processingStatus,
+        processingStatus: signatureStatus === 'valid' ? 'verified' : 'received',
         duplicate: false,
         attemptCount: signatureStatus === 'valid' ? 1 : 0,
         receivedAt: new Date(),
@@ -200,16 +202,6 @@ export class PaymentsCoinGateCallbackController {
         safePayload,
         expiresAt,
       });
-
-      if (signatureStatus === 'valid') {
-        await this.deliveryModel.updateOne(
-          {
-            providerCredentialId: new Types.ObjectId(credentialId),
-            providerEventId,
-          },
-          { $set: { processingStatus: 'processed', processedAt: new Date() } },
-        );
-      }
     } catch (err: unknown) {
       const mongoErr = err as { code?: number };
       if (mongoErr?.code === 11000) {
@@ -233,7 +225,78 @@ export class PaymentsCoinGateCallbackController {
       );
     }
 
+    // ── Re-fetch authoritative order state ────────────────────────────────────
+    // When the token is valid and we have an orderId, re-fetch the order from
+    // CoinGate to confirm the authoritative status rather than trusting the
+    // callback payload alone. This is the recommended security practice.
+    if (signatureStatus === 'valid' && orderId) {
+      this.processCallbackAsync(
+        credentialId,
+        companyId,
+        orderId,
+        providerEventId,
+        safePayload,
+      ).catch((err: unknown) => {
+        this.logger.warn(
+          `[coingate-cb] Async processing failed for orderId=${orderId}: ${String(err)}`,
+        );
+      });
+    }
+
     return { received: true };
+  }
+
+  /**
+   * Async post-processing: re-fetch the order from CoinGate for authoritative
+   * state and update the delivery record.
+   *
+   * Runs after the 200 OK is already sent — callback is never blocked by this.
+   * If re-fetch fails, the delivery stays in 'verified' state for manual review.
+   */
+  private async processCallbackAsync(
+    credentialId: string,
+    companyId: string,
+    orderId: string,
+    providerEventId: string,
+    initialSafePayload: Record<string, unknown>,
+  ): Promise<void> {
+    // Decrypt credentials using the existing runtime resolver.
+    const resolved = await this.runtimeResolver.resolveByProviderCredentialsId({
+      companyId,
+      providerCredentialsId: credentialId,
+    });
+
+    const client = createCoinGateClient(resolved.credentials);
+    const order = await client.get<CoinGateOrder>(`/orders/${orderId}`);
+
+    const canonicalStatus = mapCoinGateOrderStatus(order.status);
+
+    this.logger.log(
+      `[coingate-cb] Authoritative status for orderId=${orderId}: ` +
+        `providerStatus=${order.status} canonicalStatus=${canonicalStatus}`,
+    );
+
+    await this.deliveryModel.updateOne(
+      {
+        providerCredentialId: new Types.ObjectId(credentialId),
+        providerEventId,
+      },
+      {
+        $set: {
+          processingStatus: 'processed',
+          processedAt: new Date(),
+          safePayload: {
+            ...initialSafePayload,
+            authoritativeStatus: order.status,
+            canonicalStatus,
+            priceAmount: order.price_amount,
+            priceCurrency: order.price_currency,
+            receiveAmount: order.receive_amount,
+            receiveCurrency: order.receive_currency,
+          },
+        },
+      },
+    );
   }
 }
 

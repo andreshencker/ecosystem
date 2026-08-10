@@ -190,6 +190,7 @@ export declare const RateRuleSchema: import("mongoose").Schema<RateRule, import(
     }> | undefined;
 }, RateRule>;
 export type ContractDocument = HydratedDocument<Contract>;
+export type InvoiceDueRule = 'from_invoice_date' | 'end_of_week' | 'end_of_month';
 export declare class Contract {
     businessId: string;
     customerId: string;
@@ -200,6 +201,7 @@ export declare class Contract {
     invoiceDescription: string;
     status: ContractStatus;
     billingCycle: BillingCycle;
+    invoiceDueRule: InvoiceDueRule;
     paymentTermsDays: number | null;
     scheduledPaymentEnabled: boolean;
     scheduledPaymentDay: ScheduledPaymentDay | null;
@@ -301,6 +303,15 @@ export declare const ContractSchema: import("mongoose").Schema<Contract, import(
         id: string;
     }> | undefined;
     billingCycle?: import("mongoose").SchemaDefinitionProperty<BillingCycle, Contract, import("mongoose").Document<unknown, {}, Contract, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<Contract & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    invoiceDueRule?: import("mongoose").SchemaDefinitionProperty<InvoiceDueRule, Contract, import("mongoose").Document<unknown, {}, Contract, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<Contract & {
         _id: import("mongoose").Types.ObjectId;

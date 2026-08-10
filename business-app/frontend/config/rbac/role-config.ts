@@ -13,6 +13,7 @@ import EventOutlinedIcon               from '@mui/icons-material/EventOutlined';
 import NotificationsNoneOutlinedIcon   from '@mui/icons-material/NotificationsNoneOutlined';
 import PersonOutlinedIcon              from '@mui/icons-material/PersonOutlined';
 import ReceiptLongOutlinedIcon         from '@mui/icons-material/ReceiptLongOutlined';
+import AccountBalanceOutlinedIcon      from '@mui/icons-material/AccountBalanceOutlined';
 
 import type { UserRole, Scope } from '@/types/api';
 import { ALLOWED_ROUTES, LANDING_PAGES } from './route-rules';
@@ -138,7 +139,10 @@ const CUSTOMERS_SECTION: SidebarSectionConfig = {
 const BILLING_SECTION: SidebarSectionConfig = {
   label: 'Billing',
   items: [
-    { href: '/billing/invoice-approval', label: 'Invoice Approval', icon: ReceiptLongOutlinedIcon },
+    { href: '/billing/invoice-approval', label: 'Invoice Review', icon: ReceiptLongOutlinedIcon },
+    { href: '/billing/invoices', label: 'Invoices', icon: ReceiptLongOutlinedIcon },
+    { href: '/billing/collections', label: 'Collections', icon: ReceiptLongOutlinedIcon },
+    { href: '/billing/cash-flow', label: 'Cash Flow', icon: AccountBalanceOutlinedIcon },
   ],
 };
 

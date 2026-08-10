@@ -103,6 +103,8 @@ export class ShiftsController {
   @ApiQuery({ name: 'customerId', required: false })
   @ApiQuery({ name: 'status',     required: false })
   @ApiQuery({ name: 'date',       required: false })
+  @ApiQuery({ name: 'dateFrom',   required: false })
+  @ApiQuery({ name: 'dateTo',     required: false })
   @ApiQuery({ name: 'search',     required: false })
   @ApiQuery({ name: 'source',           required: false, description: 'calendar | manual' })
   @ApiQuery({ name: 'linkedCalendarId', required: false })
@@ -114,6 +116,8 @@ export class ShiftsController {
     @Query('customerId')       customerId?:       string,
     @Query('status')           status?:           string,
     @Query('date')             date?:             string,
+    @Query('dateFrom')         dateFrom?:         string,
+    @Query('dateTo')           dateTo?:           string,
     @Query('search')           search?:           string,
     @Query('source')           source?:           string,
     @Query('linkedCalendarId') linkedCalendarId?: string,
@@ -126,6 +130,8 @@ export class ShiftsController {
       customerId,
       status,
       date,
+      dateFrom,
+      dateTo,
       search,
       source,
       linkedCalendarId,

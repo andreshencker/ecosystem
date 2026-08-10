@@ -80,6 +80,7 @@ import type {
 import type { SyncResult } from './dto/responses/sync-result.dto';
 import type { SyncStatus } from './dto/responses/sync-status.dto';
 import type { PendingInvoiceGroupsResult } from './dto/responses/pending-invoice-groups.dto';
+import type { ShiftInvoiceBiResult } from './contracts/invoice/shift-invoice';
 
 /**
  * Facade for the Business Intelligence service.
@@ -94,6 +95,17 @@ export class BusinessIntelligenceService {
   private readonly logger = new Logger(BusinessIntelligenceService.name);
 
   constructor(private readonly client: BIHttpClient) {}
+
+  async getShiftInvoiceDocument(
+    businessId: string,
+    invoiceId: string,
+  ): Promise<ShiftInvoiceBiResult> {
+    return this.client.get<ShiftInvoiceBiResult>(
+      `/internal/invoices/${encodeURIComponent(invoiceId)}/document`,
+      { businessId },
+      30_000,
+    );
+  }
 
   // ── Read-only summary endpoints ──────────────────────────────────────────
 
@@ -437,6 +449,34 @@ export class BusinessIntelligenceService {
       }
       throw err;
     }
+  }
+
+  async getReceivablesSummary(businessId: string, filters: Record<string, string | undefined> = {}): Promise<{
+    currency: string;
+    totalIncome: string;
+    outstanding: string;
+    paid: string;
+    invoiceCount: number;
+    trend: Array<{ label: string; totalIncome: string; paid: string; outstanding: string }>;
+    statuses: Array<{ label: string; value: string; count: number }>;
+    customers: Array<{ label: string; totalIncome: string; paid: string; outstanding: string; overdue: string; count: number }>;
+    aging: Array<{ label: string; value: string; count: number }>;
+    paymentTrend: Array<{ label: string; paid: string; count: number }>;
+    overdue: string;
+    overdueCount: number;
+    collectionRate: string;
+    customerTimeline: Array<{ label: string; customer: string; totalIncome: string; paid: string; outstanding: string; share: string }>;
+    customerGrowth: Array<{ label: string; current: string; previous: string; growthRate: string }>;
+  }> {
+    const params: Record<string, string> = { businessId };
+    Object.entries(filters).forEach(([key, value]) => { if (value) params[key] = value; });
+    return this.client.get('/internal/invoices/receivables-summary', params);
+  }
+
+  async getInvoiceCashFlow(businessId: string, filters: Record<string, string | undefined> = {}) {
+    const params: Record<string, string> = { businessId };
+    Object.entries(filters).forEach(([key, value]) => { if (value) params[key] = value; });
+    return this.client.get('/internal/invoices/cash-flow', params);
   }
 }
 

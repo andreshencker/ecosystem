@@ -32,6 +32,7 @@ export declare class CommunicationConnectionService {
     constructor(model: Model<IntegrationConnectionDocument>, userModel: Model<UserDocument>, businessModel: Model<BusinessDocument>, crypto: CryptoService, http: HttpService, config: ConfigService);
     private get baseUrl();
     private resolveBusinessId;
+    resolveBusinessIdForUser(userId: string): Promise<string>;
     private businessQuery;
     private verifyTokenWithRemote;
     getCommunicationConnectionForContext(type: 'platform' | 'business', businessId?: string): Promise<BusinessConnection | null>;

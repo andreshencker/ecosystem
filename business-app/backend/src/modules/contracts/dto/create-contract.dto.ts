@@ -129,6 +129,10 @@ export class CreateContractDto {
   })
   billingCycle!: 'per_shift' | 'daily' | 'weekly' | 'fortnightly' | 'monthly';
 
+  @IsOptional()
+  @IsEnum(['from_invoice_date', 'end_of_week', 'end_of_month'])
+  invoiceDueRule?: 'from_invoice_date' | 'end_of_week' | 'end_of_month';
+
   // Payment Terms and Scheduled Payment are mutually exclusive.
   @IsOptional()
   @ValidateIf((o) => !o.scheduledPaymentEnabled)

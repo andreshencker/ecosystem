@@ -145,7 +145,29 @@ export interface CoinGateCurrency {
   id: number;
   title: string;
   symbol: string;
-  type: string; // 'crypto', 'native', 'token', 'fiat'
+  /**
+   * Primary classification field returned by the CoinGate v2 API.
+   * Confirmed values from the live sandbox response:
+   *   "fiat"   — EUR, USD, GBP, PLN, CZK, and other fiat price-denomination currencies.
+   *   "crypto" — BTC, ETH, LTC, TRX, XRP, and all blockchain payment assets.
+   *
+   * This is the authoritative field for fiat vs crypto classification.
+   * Fiat entries do not have a `platforms` field.
+   * Crypto entries include a `platforms` array (may be empty for single-network assets).
+   */
+  kind?: string;
+  /**
+   * Legacy type string present in some older API versions and test mocks.
+   * Known values: 'crypto', 'native', 'token', 'fiat'.
+   * Not returned by the current live CoinGate v2 API — use `kind` instead.
+   */
+  type?: string;
+  /** Not present in the live v2 API — retained for backward compatibility with old mocks. */
+  merchant_pay?: boolean;
+  /** Not present in the live v2 API — retained for backward compatibility with old mocks. */
+  merchant_receive?: boolean;
+  /** Whether this currency is currently enabled on the platform. */
+  enabled?: boolean;
   platforms?: CoinGatePlatformEntry[];
 }
 

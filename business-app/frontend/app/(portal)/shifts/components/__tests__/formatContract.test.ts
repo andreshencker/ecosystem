@@ -29,6 +29,7 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
     invoiceDescription:       'AV services',
     status:                   'active',
     billingCycle:             'weekly',
+    invoiceDueRule:           'from_invoice_date',
     paymentTermsDays:         14,
     scheduledPaymentEnabled:  false,
     scheduledPaymentDay:      null,

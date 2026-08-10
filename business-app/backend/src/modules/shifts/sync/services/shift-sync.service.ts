@@ -249,6 +249,24 @@ export class ShiftSyncService {
       for (const event of events) {
         if (!event.id) { skipped++; continue; }
 
+        // Some providers keep cancelled events in their feed and expose the
+        // cancellation through status instead of removing the occurrence.
+        // Treat both representations identically: retain the Shift for audit,
+        // but remove it from operational views via syncStatus=deleted.
+        if (event.status === 'cancelled') {
+          const cancelledResult = await this.shiftModel.updateMany(
+            {
+              businessId,
+              linkedCalendarId: calendar.id,
+              externalOccurrenceId: event.id,
+              syncStatus: { $ne: 'deleted' },
+            },
+            { $set: { syncStatus: 'deleted', lastExternalUpdate: new Date() } },
+          ).exec();
+          deleted += cancelledResult.modifiedCount ?? 0;
+          continue;
+        }
+
         seenOccurrenceIds.add(event.id);
 
         const normalized = CalendarEventToShiftMapper.map(event, calendar);

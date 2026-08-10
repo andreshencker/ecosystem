@@ -1278,10 +1278,6 @@ describe('Pending item display formatting', () => {
     expect(display).toBe('No location');
   });
 
-  it('PendingContractModal is exported', () => {
-    const mod = require('../PendingContractModal');
-    expect(typeof mod.PendingContractModal).toBe('function');
-  });
 });
 
 describe('useShiftPendingList hook', () => {

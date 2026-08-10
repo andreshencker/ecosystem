@@ -36,6 +36,7 @@ import {
   usePaymentTestScenarios,
   usePaymentUnits,
   usePaymentTestingPageDefinition,
+  usePaymentReferenceData,
   useCreatePaymentTestMutation,
 } from '@/hooks/api/usePayments';
 import { PAGE_CAPABILITY, PAGE_FEATURE_DISPLAY_NAME } from '@/lib/config/payments-capability-map';
@@ -46,6 +47,7 @@ import type {
   PaymentTestStatus,
   PaymentTestingFieldDefinition,
   PaymentTestingPageDefinition,
+  PaymentReferenceDataSource,
 } from '@/types/payments';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -428,7 +430,21 @@ function FieldRenderer({
     );
   }
 
-  // Payment unit / currency field — loads options from usePaymentUnits
+  // Reference-data select — new canonical path for fields with referenceDataSource.
+  // This covers price_currency (price_currencies source) and any future fields
+  // using provider-backed reference data with a precise semantic.
+  if (field.referenceDataSource) {
+    return (
+      <ReferenceDataSelectField
+        fieldDef={field}
+        connectionId={connectionId}
+        value={value}
+        onChange={(v) => onValueChange(field.key, v)}
+      />
+    );
+  }
+
+  // Payment unit / currency field — legacy path (optionsSource=payment_units).
   if (field.type === 'payment_unit' && field.optionsSource === 'payment_units') {
     return (
       <PaymentUnitField
@@ -537,7 +553,19 @@ function ScenarioField({
   );
 }
 
-function PaymentUnitField({
+/**
+ * Generic reference-data select field.
+ *
+ * When the field declares referenceDataSource, fetches options from:
+ *   GET /payments/connections/:connectionId/reference-data/:source
+ *
+ * Falls back to /payment-units (legacy optionsSource=payment_units) only when
+ * no referenceDataSource is declared. New fields must use referenceDataSource.
+ *
+ * The generic frontend renders the returned options exactly — it does not
+ * filter, classify or derive one source from another.
+ */
+function ReferenceDataSelectField({
   fieldDef,
   connectionId,
   value,
@@ -548,15 +576,49 @@ function PaymentUnitField({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { data: unitsData, isLoading } = usePaymentUnits(connectionId);
-  const units = unitsData?.data ?? [];
+  const refSource = fieldDef.referenceDataSource as PaymentReferenceDataSource | undefined;
+
+  // Path A: referenceDataSource declared — use the canonical reference-data endpoint.
+  const {
+    data: refData,
+    isLoading: refLoading,
+    isError: refError,
+  } = usePaymentReferenceData(
+    refSource ? connectionId : null,
+    refSource ?? null,
+  );
+
+  // Path B: legacy optionsSource=payment_units — use the /payment-units endpoint.
+  const {
+    data: unitsData,
+    isLoading: unitsLoading,
+  } = usePaymentUnits(
+    !refSource && fieldDef.optionsSource === 'payment_units' ? connectionId : null,
+  );
+
+  const isLoading = refSource ? refLoading : unitsLoading;
+
+  // Build the option list from whichever path is active.
+  const options = refSource
+    ? (refData?.options ?? []).map((o) => ({ value: o.value, label: o.label }))
+    : (unitsData?.data ?? []).map((u) => ({ value: u.code, label: u.label }));
 
   if (isLoading) {
     return (
       <Box display="flex" alignItems="center" gap={1} py={1}>
         <CircularProgress size={16} />
         <Typography variant="caption" color="text.secondary">
-          Loading currencies…
+          Loading options…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (refSource && refError) {
+    return (
+      <Box py={1}>
+        <Typography variant="caption" color="error.main">
+          Could not load {fieldDef.label.toLowerCase()} options. Check your connection and try again.
         </Typography>
       </Box>
     );
@@ -572,14 +634,24 @@ function PaymentUnitField({
         onChange={(e) => onChange(e.target.value)}
         displayEmpty={Boolean(fieldDef.placeholder)}
       >
-        {units.map((u) => (
-          <MenuItem key={u.code} value={u.code}>
-            {u.label}
+        {options.map((o) => (
+          <MenuItem key={o.value} value={o.value}>
+            {o.label}
           </MenuItem>
         ))}
       </Select>
     </FormControl>
   );
+}
+
+/** @deprecated Use ReferenceDataSelectField with referenceDataSource instead. */
+function PaymentUnitField(props: {
+  fieldDef: PaymentTestingFieldDefinition;
+  connectionId: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return <ReferenceDataSelectField {...props} />;
 }
 
 function PaymentMethodField({
@@ -813,21 +885,26 @@ export default function PaymentsTestingPage() {
       const amountRaw = parseFloat(formValues['amount'] ?? '');
       if (isNaN(amountRaw) || amountRaw <= 0) return;
 
-      // The currency/unit key — look for 'price_currency' (CoinGate) first,
-      // then 'currency' (Stripe generic), default to empty string
-      const unitCode =
-        formValues['price_currency'] ??
-        formValues['currency'] ??
-        '';
+      // Semantic field values are kept distinct through submission:
+      //   price_currency → priceCurrency (CoinGate: fiat denomination)
+      //   currency       → currency (Stripe: legacy ISO 4217 field)
+      // They must never be collapsed into one generic field.
+      const priceCurrency = formValues['price_currency'] || undefined;
+      const legacyCurrency = formValues['currency'] || undefined;
+      const receiveCurrency = formValues['receive_currency'] || undefined;
 
-      const amountMinor = displayToMinor(amountRaw, unitCode || 'USD');
+      // Amount conversion uses price_currency if present, else legacy currency, else USD.
+      const currencyForConversion = priceCurrency ?? legacyCurrency ?? 'USD';
+      const amountMinor = displayToMinor(amountRaw, currencyForConversion);
 
       mutation.mutate(
         {
           connectionId: resolvedConnectionId,
           paymentMethodKey: formValues['paymentMethodKey'] || undefined,
           amountMinor,
-          paymentUnitCode: unitCode || undefined,
+          priceCurrency,
+          receiveCurrency,
+          currency: legacyCurrency,
           scenario: (formValues['scenario'] as PaymentTestScenario) || undefined,
           description: formValues['description']?.trim() || undefined,
         },

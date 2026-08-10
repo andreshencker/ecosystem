@@ -20,6 +20,9 @@ let BusinessIntelligenceService = BusinessIntelligenceService_1 = class Business
     constructor(client) {
         this.client = client;
     }
+    async getShiftInvoiceDocument(businessId, invoiceId) {
+        return this.client.get(`/internal/invoices/${encodeURIComponent(invoiceId)}/document`, { businessId }, 30_000);
+    }
     async getCustomerSummary(businessId, period) {
         const params = { businessId };
         if (period)
@@ -284,6 +287,18 @@ let BusinessIntelligenceService = BusinessIntelligenceService_1 = class Business
             }
             throw err;
         }
+    }
+    async getReceivablesSummary(businessId, filters = {}) {
+        const params = { businessId };
+        Object.entries(filters).forEach(([key, value]) => { if (value)
+            params[key] = value; });
+        return this.client.get('/internal/invoices/receivables-summary', params);
+    }
+    async getInvoiceCashFlow(businessId, filters = {}) {
+        const params = { businessId };
+        Object.entries(filters).forEach(([key, value]) => { if (value)
+            params[key] = value; });
+        return this.client.get('/internal/invoices/cash-flow', params);
     }
 };
 exports.BusinessIntelligenceService = BusinessIntelligenceService;

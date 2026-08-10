@@ -1,4 +1,5 @@
 export type ContractStatus = 'draft' | 'active' | 'inactive' | 'finished' | 'cancelled';
+export type InvoiceDueRule = 'from_invoice_date' | 'end_of_week' | 'end_of_month';
 
 // ─── Work Type ────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,7 @@ export interface Contract {
   invoiceDescription:     string;
   status:                 ContractStatus;
   billingCycle:            BillingCycle;
+  invoiceDueRule:          InvoiceDueRule;
   /** null when scheduledPaymentEnabled is true */
   paymentTermsDays:        number | null;
   scheduledPaymentEnabled: boolean;
@@ -222,6 +224,7 @@ export interface CreateContractPayload {
   workType?:                WorkType;
   invoiceDescription:       string;
   billingCycle:             BillingCycle;
+  invoiceDueRule?:          InvoiceDueRule;
   paymentTermsDays?:        number | null;
   scheduledPaymentEnabled?: boolean;
   scheduledPaymentDay?:     ScheduledPaymentDay | null;
@@ -249,6 +252,7 @@ export interface UpdateContractPayload {
   workType?:                WorkType;
   invoiceDescription?:      string;
   billingCycle?:            BillingCycle;
+  invoiceDueRule?:          InvoiceDueRule;
   paymentTermsDays?:        number | null;
   scheduledPaymentEnabled?: boolean;
   scheduledPaymentDay?:     ScheduledPaymentDay | null;

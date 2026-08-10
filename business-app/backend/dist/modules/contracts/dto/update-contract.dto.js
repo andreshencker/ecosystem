@@ -21,6 +21,7 @@ class UpdateContractDto {
     workType;
     invoiceDescription;
     billingCycle;
+    invoiceDueRule;
     paymentTermsDays;
     scheduledPaymentEnabled;
     scheduledPaymentDay;
@@ -75,6 +76,11 @@ __decorate([
     (0, class_validator_1.IsEnum)(['per_shift', 'daily', 'weekly', 'fortnightly', 'monthly']),
     __metadata("design:type", String)
 ], UpdateContractDto.prototype, "billingCycle", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(['from_invoice_date', 'end_of_week', 'end_of_month']),
+    __metadata("design:type", String)
+], UpdateContractDto.prototype, "invoiceDueRule", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),

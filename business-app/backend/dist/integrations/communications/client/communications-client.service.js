@@ -205,6 +205,106 @@ let CommunicationsClientService = CommunicationsClientService_1 = class Communic
             throw err;
         }
     }
+    async getDocumentDomains(remoteCompanyId, apiKey) {
+        const url = `${this.baseUrl}/document-domain-catalogue?companyId=${remoteCompanyId}&limit=200`;
+        try {
+            const res = await (0, rxjs_1.firstValueFrom)(this.http.get(url, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }));
+            return (res.data?.data ?? res.data?.items ?? res.data ?? []);
+        }
+        catch (err) {
+            const status = err?.response?.status;
+            if (status === 401 || status === 403)
+                return null;
+            this.logger.warn(`[getDocumentDomains] Failed remoteCompanyId=${remoteCompanyId}: ${err?.message}`);
+            return [];
+        }
+    }
+    async createDocumentDomain(remoteCompanyId, apiKey, domain) {
+        const url = `${this.baseUrl}/document-domain-catalogue`;
+        try {
+            const res = await (0, rxjs_1.firstValueFrom)(this.http.post(url, {
+                companyId: remoteCompanyId,
+                domainKey: domain.domainKey,
+                displayName: domain.displayName,
+                description: domain.description,
+                domainCategory: domain.domainCategory,
+                allowedFormats: domain.allowedFormats,
+                isActive: true,
+            }, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }));
+            return String(res.data?.id ?? res.data?._id ?? '');
+        }
+        catch (err) {
+            this.logger.error(`[createDocumentDomain] Failed domainKey=${domain.domainKey}: ${err?.message}`);
+            return null;
+        }
+    }
+    async updateDocumentDomainFormats(documentDomainId, apiKey, allowedFormats) {
+        const url = `${this.baseUrl}/document-domain-catalogue/${documentDomainId}`;
+        try {
+            await (0, rxjs_1.firstValueFrom)(this.http.patch(url, { allowedFormats }, {
+                headers: { 'x-api-key': apiKey }, timeout: 10_000,
+            }));
+            return true;
+        }
+        catch (err) {
+            this.logger.error(`[updateDocumentDomainFormats] Failed documentDomainId=${documentDomainId}: ${err?.message}`);
+            return false;
+        }
+    }
+    async getDocuments(documentDomainId, apiKey) {
+        const url = `${this.baseUrl}/document-catalogue/domain/${documentDomainId}?limit=200`;
+        try {
+            const res = await (0, rxjs_1.firstValueFrom)(this.http.get(url, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }));
+            return (res.data?.data ?? res.data?.items ?? res.data ?? []);
+        }
+        catch (err) {
+            this.logger.warn(`[getDocuments] Failed documentDomainId=${documentDomainId}: ${err?.message}`);
+            return [];
+        }
+    }
+    async createDocument(documentDomainId, apiKey, document) {
+        const url = `${this.baseUrl}/document-catalogue`;
+        try {
+            const res = await (0, rxjs_1.firstValueFrom)(this.http.post(url, {
+                documentDomainCatalogueId: documentDomainId,
+                documentKey: document.documentKey,
+                displayName: document.displayName,
+                description: document.description,
+                formatContracts: document.formatContracts,
+                isActive: true,
+            }, { headers: { 'x-api-key': apiKey }, timeout: 10_000 }));
+            return String(res.data?.id ?? res.data?._id ?? '');
+        }
+        catch (err) {
+            const message = err?.response?.data?.message ?? err?.message;
+            this.logger.error(`[createDocument] Failed documentKey=${document.documentKey}: ${typeof message === 'string' ? message : JSON.stringify(message)}`);
+            return null;
+        }
+    }
+    async generateDocument(params) {
+        const conn = await this.connections.getCommunicationConnectionForContext(params.type, params.businessId);
+        if (!conn?.communicationCompanyId) {
+            throw new Error('Active verified Communications connection is required');
+        }
+        const url = `${this.baseUrl}/files/documents/generate`;
+        const response = await (0, rxjs_1.firstValueFrom)(this.http.post(url, {
+            companyId: conn.communicationCompanyId,
+            canonicalKey: params.canonicalKey,
+            filename: params.filename,
+            data: params.data,
+        }, {
+            headers: { 'x-api-key': this.adminApiKey },
+            responseType: 'arraybuffer',
+            timeout: 30_000,
+        }));
+        const disposition = String(response.headers['content-disposition'] ?? '');
+        const matchedFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+        return {
+            buffer: Buffer.from(response.data),
+            contentType: String(response.headers['content-type'] ?? 'application/pdf'),
+            filename: matchedFilename ?? `${params.filename}.pdf`,
+        };
+    }
 };
 exports.CommunicationsClientService = CommunicationsClientService;
 exports.CommunicationsClientService = CommunicationsClientService = CommunicationsClientService_1 = __decorate([

@@ -52,13 +52,13 @@ export function buildCoinGateTestingPageDefinition(
         {
           key: 'price_currency',
           label: 'Price Currency',
-          type: 'payment_unit',
+          type: 'select',
           required: true,
-          optionsSource: 'payment_units',
+          referenceDataSource: 'price_currencies',
           placeholder: 'Select price currency (e.g. EUR)',
           helpText:
-            'The fiat currency the amount is denominated in. ' +
-            'CoinGate will convert it to crypto at checkout.',
+            'The fiat currency the amount is denominated in (e.g. EUR, USD). ' +
+            'CoinGate converts this to crypto at checkout.',
         },
         {
           key: 'description',

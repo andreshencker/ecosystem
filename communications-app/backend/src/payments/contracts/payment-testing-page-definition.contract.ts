@@ -38,6 +38,8 @@ export type PaymentTestingFieldOptionsSource =
   | 'payment_units'
   | 'provider';
 
+import type { PaymentReferenceDataSource } from './payment-reference-data.contract';
+
 export interface PaymentTestingFieldDefinition {
   /** Unique stable key within the form. */
   key: string;
@@ -55,10 +57,29 @@ export interface PaymentTestingFieldDefinition {
   /**
    * Where to fetch select options.
    *   test_scenarios: provider test scenarios from /payments/testing/scenarios
-   *   payment_units:  provider payment units from /payment-units
-   *   provider:       not currently supported in generic frontend
+   *   payment_units:  provider payment units from /payment-units (legacy)
+   *   provider:       payment method configurations for the connection
+   *
+   * Prefer referenceDataSource for new fields — it uses a semantically precise
+   * controlled vocabulary instead of the generic payment_units source.
+   *
+   * @deprecated For new fields use referenceDataSource instead of 'payment_units'.
    */
   optionsSource?: PaymentTestingFieldOptionsSource;
+  /**
+   * Canonical reference-data source for this field's options.
+   *
+   * When present, the frontend calls:
+   *   GET /payments/connections/:connectionId/reference-data/:referenceDataSource
+   *
+   * This supersedes optionsSource for any field that needs provider-backed
+   * data with a precise semantic (price_currencies vs receive_currencies vs
+   * payment_assets etc.).
+   *
+   * The provider adapter returns exactly the dataset appropriate for the source.
+   * The generic frontend must not filter or derive one source from another.
+   */
+  referenceDataSource?: PaymentReferenceDataSource;
   placeholder?: string;
   helpText?: string;
   /** Default value — used to pre-populate the field. */

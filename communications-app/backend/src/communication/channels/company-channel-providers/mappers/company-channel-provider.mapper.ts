@@ -20,9 +20,16 @@ export class CompanyChannelProviderMapper {
               displayName: doc.providerId.displayName,
               connectionType: doc.providerId.connectionType,
               isActive: doc.providerId.isActive,
-              channelId: doc.providerId.channelId
-                ? String(doc.providerId.channelId)
-                : undefined,
+              // channelIds is the canonical field (plural array). Expose the array
+              // for callers that need it; keep channelId for backwards compat.
+              channelIds: Array.isArray(doc.providerId.channelIds)
+                ? doc.providerId.channelIds.map(String)
+                : [],
+              channelId:
+                Array.isArray(doc.providerId.channelIds) &&
+                doc.providerId.channelIds.length > 0
+                  ? String(doc.providerId.channelIds[0])
+                  : undefined,
             }
           : undefined,
 

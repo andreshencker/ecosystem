@@ -1,4 +1,5 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
+import { BusinessIntelligenceService } from '../../../business-intelligence.service';
 
 import type { ShiftInvoiceBiResult, ShiftInvoiceFormat } from './shift-invoice.types';
 import type { ShiftInvoicePdfDto } from './pdf/shift-invoice-pdf.dto';
@@ -36,6 +37,7 @@ export type ShiftInvoiceContractResult =
  */
 @Injectable()
 export class ShiftInvoiceService {
+  constructor(private readonly bi: BusinessIntelligenceService) {}
   /**
    * Generate the shift-invoice contract in the requested format.
    *
@@ -92,70 +94,6 @@ export class ShiftInvoiceService {
     businessId: string,
     invoiceId: string,
   ): Promise<ShiftInvoiceBiResult> {
-    // TODO: replace with: return this.bi.getShiftInvoice({ businessId, invoiceId });
-    return buildPlaceholderBiResult(businessId, invoiceId);
+    return this.bi.getShiftInvoiceDocument(businessId, invoiceId);
   }
-}
-
-// ─── Placeholder factory ──────────────────────────────────────────────────────
-
-function buildPlaceholderBiResult(
-  businessId: string,
-  invoiceId: string,
-): ShiftInvoiceBiResult {
-  return {
-    company: {
-      businessId,
-      companyName: '',
-      abn:         null,
-      address:     null,
-      email:       null,
-      phone:       null,
-    },
-    customer: {
-      customerId:   '',
-      customerName: '',
-      email:        null,
-      phone:        null,
-      address:      null,
-    },
-    invoice: {
-      invoiceId,
-      invoiceNumber: '',
-      invoiceDate:   new Date().toISOString().slice(0, 10),
-      dueDate:       null,
-      currency:      'AUD',
-      status:        'draft',
-      contractId:    null,
-      contractTitle: null,
-    },
-    workedHours: [],
-    totals: {
-      subtotal:  '0',
-      taxRate:   null,
-      taxAmount: '0',
-      total:     '0',
-      chargeGst: false,
-      currency:  'AUD',
-    },
-    paymentInformation: {
-      bankName:         null,
-      accountName:      null,
-      bsb:              null,
-      accountNumber:    null,
-      paymentReference: null,
-      paymentTermsDays: null,
-      paymentDueDate:   null,
-    },
-    notes: {
-      invoiceNotes: null,
-      paymentNotes: null,
-      terms:        null,
-    },
-    metadata: {
-      generatedAt:     new Date().toISOString(),
-      contractVersion: null,
-      source:          'placeholder',
-    },
-  };
 }

@@ -71,7 +71,7 @@ export class CompanyChannelProvidersService {
     if (params.populate) {
       q.populate({
         path: 'providerId',
-        select: 'providerKey displayName connectionType isActive channelId',
+        select: 'providerKey displayName connectionType isActive channelIds',
       });
       q.populate({
         path: 'channelId',
@@ -103,7 +103,7 @@ export class CompanyChannelProvidersService {
     if (populate) {
       q.populate({
         path: 'providerId',
-        select: 'providerKey displayName connectionType isActive channelId',
+        select: 'providerKey displayName connectionType isActive channelIds',
       });
       q.populate({
         path: 'channelId',
@@ -144,7 +144,7 @@ export class CompanyChannelProvidersService {
     if (params.populate ?? true) {
       q.populate({
         path: 'providerId',
-        select: 'providerKey displayName connectionType isActive channelId',
+        select: 'providerKey displayName connectionType isActive channelIds',
       });
       q.populate({
         path: 'channelId',
@@ -206,7 +206,7 @@ export class CompanyChannelProvidersService {
         .findById(created._id)
         .populate({
           path: 'providerId',
-          select: 'providerKey displayName connectionType isActive channelId',
+          select: 'providerKey displayName connectionType isActive channelIds',
         })
         .populate({
           path: 'channelId',
@@ -291,7 +291,7 @@ export class CompanyChannelProvidersService {
         .findByIdAndUpdate(_id, { $set }, { new: true, runValidators: true })
         .populate({
           path: 'providerId',
-          select: 'providerKey displayName connectionType isActive channelId',
+          select: 'providerKey displayName connectionType isActive channelIds',
         })
         .populate({
           path: 'channelId',
@@ -416,8 +416,11 @@ export class CompanyChannelProvidersService {
   }
 
   private assertProviderMatchesChannel(provider: any, channelId: string) {
-    const providerChannelId = String(provider.channelId);
-    if (providerChannelId !== String(channelId)) {
+    const channelIds: any[] = provider.channelIds ?? [];
+    const belongs = channelIds.some(
+      (id: any) => String(id) === String(channelId),
+    );
+    if (!belongs) {
       throw new HttpException(
         'providerId does not belong to the given channelId',
         HttpStatus.BAD_REQUEST,

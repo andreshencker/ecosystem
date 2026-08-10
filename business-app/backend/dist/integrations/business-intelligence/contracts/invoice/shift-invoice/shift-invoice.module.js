@@ -10,11 +10,13 @@ exports.ShiftInvoiceModule = void 0;
 const common_1 = require("@nestjs/common");
 const shift_invoice_controller_1 = require("./shift-invoice.controller");
 const shift_invoice_service_1 = require("./shift-invoice.service");
+const business_intelligence_module_1 = require("../../../business-intelligence.module");
 let ShiftInvoiceModule = class ShiftInvoiceModule {
 };
 exports.ShiftInvoiceModule = ShiftInvoiceModule;
 exports.ShiftInvoiceModule = ShiftInvoiceModule = __decorate([
     (0, common_1.Module)({
+        imports: [business_intelligence_module_1.BusinessIntelligenceModule],
         controllers: [shift_invoice_controller_1.ShiftInvoiceController],
         providers: [shift_invoice_service_1.ShiftInvoiceService],
         exports: [shift_invoice_service_1.ShiftInvoiceService],

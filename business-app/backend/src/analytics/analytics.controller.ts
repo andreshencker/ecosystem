@@ -104,20 +104,6 @@ export class AnalyticsController {
     }
   }
 
-  @Get('shifts/assignment/pending')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Paginated list of imported Shifts pending Contract assignment (proxied from BI)',
-    description:
-      'Returns BI-sourced imported Shifts that satisfy the pending-assignment rule. ' +
-      'businessId is always resolved from the authenticated JWT — never from the request.',
-  })
-  @ApiQuery({ name: 'page',             required: false, type: Number })
-  @ApiQuery({ name: 'limit',            required: false, type: Number })
-  @ApiQuery({ name: 'linkedCalendarId', required: false })
-  @ApiQuery({ name: 'dateFrom',         required: false, description: 'ISO date YYYY-MM-DD' })
-  @ApiQuery({ name: 'dateTo',           required: false, description: 'ISO date YYYY-MM-DD' })
-  @ApiQuery({ name: 'search',           required: false })
   @Get('invoices/pending-groups')
   @HttpCode(200)
   @ApiOperation({
@@ -147,6 +133,46 @@ export class AnalyticsController {
     }
   }
 
+  @Get('invoices/receivables-summary')
+  @HttpCode(200)
+  async getReceivablesSummary(
+    @CurrentUser() ctx: AuthContext,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('customerId') customerId?: string,
+    @Query('invoiceStatus') invoiceStatus?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.bi.getReceivablesSummary(this.resolveCompanyId(ctx), {
+      dateFrom, dateTo, customerId, invoiceStatus, search,
+    });
+  }
+
+  @Get('invoices/cash-flow')
+  @HttpCode(200)
+  async getInvoiceCashFlow(
+    @CurrentUser() ctx: AuthContext,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    return this.bi.getInvoiceCashFlow(this.resolveCompanyId(ctx), { dateFrom, dateTo, customerId });
+  }
+
+  @Get('shifts/assignment/pending')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Paginated list of imported Shifts pending Contract assignment (proxied from BI)',
+    description:
+      'Returns BI-sourced imported Shifts that satisfy the pending-assignment rule. ' +
+      'businessId is always resolved from the authenticated JWT — never from the request.',
+  })
+  @ApiQuery({ name: 'page',             required: false, type: Number })
+  @ApiQuery({ name: 'limit',            required: false, type: Number })
+  @ApiQuery({ name: 'linkedCalendarId', required: false })
+  @ApiQuery({ name: 'dateFrom',         required: false, description: 'ISO date YYYY-MM-DD' })
+  @ApiQuery({ name: 'dateTo',           required: false, description: 'ISO date YYYY-MM-DD' })
+  @ApiQuery({ name: 'search',           required: false })
   async getShiftPendingList(
     @CurrentUser() ctx: AuthContext,
     @Query('page')             rawPage?:             string,

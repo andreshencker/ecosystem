@@ -213,6 +213,24 @@ describe('ShiftSyncService — calendar flow filter', () => {
     // Verify we're setting syncStatus=deleted, not calling deleteMany
     expect(mockShiftModel).not.toHaveProperty('deleteMany');
   });
+
+  it('provider-cancelled events are marked deleted and are not upserted', async () => {
+    mockLinkedCalendarsService.findAll.mockResolvedValue([makeCalendar('shifts')]);
+    mockCalendarClient.listCalendarEvents.mockResolvedValue([
+      {
+        id: 'cancelled_occurrence', calendarId: 'ext', title: 'Cancelled shift',
+        startAt: '2026-07-18T09:00:00Z', endAt: '2026-07-18T17:00:00Z',
+        allDay: false, status: 'cancelled',
+      },
+    ]);
+    mockShiftModel.updateMany.mockReturnValue({ exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }) });
+
+    const result = await service.syncBusiness('biz1', actor);
+
+    expect(result.totalDeleted).toBe(1);
+    expect(mockShiftModel.create).not.toHaveBeenCalled();
+    expect(mockShiftModel.findOne).not.toHaveBeenCalled();
+  });
 });
 
 describe('ShiftSyncService — BI ETL trigger after sync', () => {

@@ -16,6 +16,13 @@ export interface CreatePaymentTestParams {
   scenario: PaymentTestScenario;
   description?: string;
   reference?: string;
+  /**
+   * Provider-specific extension values.
+   * Used to pass receive_currency to CoinGate without adding it to the
+   * canonical CreatePaymentTestParams interface as a first-class field.
+   * Never contains credentials or secrets.
+   */
+  providerExtensions?: Record<string, unknown>;
 }
 
 export interface PaymentTestResult {

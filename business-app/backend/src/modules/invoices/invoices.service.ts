@@ -13,8 +13,21 @@ import { Contract, ContractDocument } from '../contracts/schemas/contract.schema
 import { Shift, ShiftDocument } from '../shifts/schemas/shift.schema';
 import { BusinessIntelligenceService } from '../../integrations/business-intelligence/business-intelligence.service';
 import type { ApproveInvoiceDto } from './dto/approve-invoice.dto';
-import type { InvoiceApprovalResult } from './dto/invoice-response.dto';
-import { toApprovalResult } from './dto/invoice-response.dto';
+import type {
+  ApprovedInvoiceListResult,
+  InvoiceApprovalResult,
+} from './dto/invoice-response.dto';
+import { InvoiceReviewItem, InvoiceReviewItemDocument } from './schemas/invoice-review-item.schema';
+import type { CreateInvoiceReviewItemDto } from './dto/create-invoice-review-item.dto';
+import type { MarkInvoicePaidDto } from './dto/mark-invoice-paid.dto';
+import type { VoidInvoiceDto } from './dto/void-invoice.dto';
+import type { MarkInvoiceSentDto } from './dto/mark-invoice-sent.dto';
+import {
+  toApprovalResult,
+  toApprovedInvoiceListItem,
+} from './dto/invoice-response.dto';
+import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
+import { mapShiftInvoiceToPdf } from '../../integrations/business-intelligence/contracts/invoice/shift-invoice';
 
 @Injectable()
 export class InvoicesService {
@@ -27,8 +40,184 @@ export class InvoicesService {
     private readonly contractModel: Model<ContractDocument>,
     @InjectModel(Shift.name)
     private readonly shiftModel: Model<ShiftDocument>,
+    @InjectModel(InvoiceReviewItem.name)
+    private readonly reviewItemModel: Model<InvoiceReviewItemDocument>,
     private readonly bi: BusinessIntelligenceService,
+    private readonly communications: CommunicationsClientService,
   ) {}
+
+  async previewPdf(businessId: string, invoiceId: string) {
+    if (!Types.ObjectId.isValid(invoiceId)) throw new NotFoundException('Invoice not found');
+    const invoice = await this.invoiceModel
+      .findOne({ _id: invoiceId, businessId })
+      .select('invoiceNumber')
+      .lean()
+      .exec();
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    const documentData = await this.bi.getShiftInvoiceDocument(businessId, invoiceId);
+    return this.communications.generateDocument({
+      type: 'business',
+      businessId,
+      canonicalKey: 'invoice.shift-invoice.pdf',
+      filename: `invoice-${invoice.invoiceNumber}`,
+      data: mapShiftInvoiceToPdf(documentData) as unknown as Record<string, unknown>,
+    });
+  }
+
+  async addReviewItem(businessId: string, dto: CreateInvoiceReviewItemDto) {
+    const item = await this.reviewItemModel.create({
+      businessId,
+      groupId: dto.groupId,
+      date: dto.date.slice(0, 10),
+      concept: dto.concept.trim(),
+      amount: Number(dto.amount).toFixed(2),
+    });
+    return { id: String(item._id), groupId: item.groupId, date: item.date, concept: item.concept, amount: item.amount };
+  }
+
+  async removeReviewItem(businessId: string, itemId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(itemId)) throw new NotFoundException('Concept not found');
+    const deleted = await this.reviewItemModel.findOneAndDelete({ _id: itemId, businessId }).exec();
+    if (!deleted) throw new NotFoundException('Concept not found');
+  }
+
+  async markPaid(businessId: string, invoiceId: string, dto: MarkInvoicePaidDto) {
+    if (!Types.ObjectId.isValid(invoiceId)) throw new NotFoundException('Invoice not found');
+    const invoice = await this.invoiceModel.findOne({ _id: invoiceId, businessId }).exec();
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'voided') throw new BadRequestException('A voided invoice cannot be paid');
+    if (invoice.status === 'paid') return toApprovedInvoiceListItem(invoice.toObject());
+
+    invoice.status = 'paid';
+    invoice.amountPaid = invoice.total;
+    invoice.balance = '0.00';
+    invoice.paidAt = new Date(dto.paidAt);
+    invoice.paymentReference = dto.reference?.trim() || null;
+    invoice.paymentNotes = dto.notes?.trim() || null;
+    await invoice.save();
+    return toApprovedInvoiceListItem(invoice.toObject());
+  }
+
+  async markSent(businessId: string, invoiceId: string, dto: MarkInvoiceSentDto) {
+    if (!Types.ObjectId.isValid(invoiceId)) throw new NotFoundException('Invoice not found');
+    const invoice = await this.invoiceModel.findOne({ _id: invoiceId, businessId }).exec();
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'paid') throw new BadRequestException('A paid invoice cannot be marked as sent');
+    if (invoice.status === 'voided') throw new BadRequestException('A voided invoice cannot be marked as sent');
+
+    // Legacy invoices created before balance was persisted may receive the
+    // schema default (0.00) when they are saved for the first time. An unpaid
+    // invoice must retain its full outstanding balance when it is sent.
+    if (
+      Number(invoice.total) > 0 &&
+      Number(invoice.amountPaid ?? 0) === 0 &&
+      Number(invoice.balance ?? 0) === 0
+    ) {
+      invoice.balance = invoice.total;
+    }
+    invoice.status = 'sent';
+    invoice.sentAt = new Date(dto.sentAt);
+    await invoice.save();
+    return toApprovedInvoiceListItem(invoice.toObject());
+  }
+
+  async recordReminder(businessId: string, invoiceId: string) {
+    if (!Types.ObjectId.isValid(invoiceId)) throw new NotFoundException('Invoice not found');
+    const invoice = await this.invoiceModel.findOne({ _id: invoiceId, businessId }).exec();
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status !== 'sent') throw new BadRequestException('Only sent invoices can receive payment reminders');
+    const today = new Date().toISOString().slice(0, 10);
+    if (!invoice.dueDate || invoice.dueDate >= today || Number(invoice.balance) <= 0) {
+      throw new BadRequestException('This invoice is not overdue');
+    }
+
+    invoice.lastReminderAt = new Date();
+    invoice.reminderCount = Number(invoice.reminderCount ?? 0) + 1;
+    await invoice.save();
+    return toApprovedInvoiceListItem(invoice.toObject());
+  }
+
+  async voidInvoice(businessId: string, invoiceId: string, dto: VoidInvoiceDto) {
+    if (!Types.ObjectId.isValid(invoiceId)) throw new NotFoundException('Invoice not found');
+    const invoice = await this.invoiceModel.findOne({ _id: invoiceId, businessId }).exec();
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'paid') throw new BadRequestException('A paid invoice cannot be voided');
+    if (invoice.status === 'voided') return toApprovedInvoiceListItem(invoice.toObject());
+
+    invoice.status = 'voided';
+    invoice.balance = '0.00';
+    invoice.voidedAt = new Date();
+    invoice.voidReason = dto.reason.trim();
+    await invoice.save();
+    return toApprovedInvoiceListItem(invoice.toObject());
+  }
+
+  async listApproved(businessId: string): Promise<ApprovedInvoiceListResult> {
+    const docs = await this.invoiceModel
+      .find({ businessId })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    const customerIds = [...new Set(docs.map((doc) => doc.customerId).filter(Boolean))];
+    const contractIds = [...new Set(docs.map((doc) => doc.contractId).filter(Boolean))];
+    const objectIds = (values: string[]) => values
+      .filter((value) => Types.ObjectId.isValid(value))
+      .map((value) => new Types.ObjectId(value));
+    const [customers, contracts] = await Promise.all([
+      this.invoiceModel.db.collection('customers').find({
+        companyId: businessId,
+        _id: { $in: objectIds(customerIds) },
+      }).toArray(),
+      this.invoiceModel.db.collection('contracts').find({
+        businessId,
+        _id: { $in: objectIds(contractIds) },
+      }).toArray(),
+    ]);
+    const customerById = new Map(customers.map((customer: any) => [String(customer._id), customer]));
+    const contractById = new Map(contracts.map((contract: any) => [String(contract._id), contract]));
+
+    return {
+      items: docs.map((doc: any) => {
+        const customer: any = customerById.get(doc.customerId);
+        const contract: any = contractById.get(doc.contractId);
+        const invoiceDate = doc.invoiceDate ?? new Date(doc.createdAt).toISOString().slice(0, 10);
+        return toApprovedInvoiceListItem({
+          ...doc,
+          customerName: doc.customerName ?? customer?.displayName ?? null,
+          invoiceDate,
+          dueDate: doc.dueDate ?? this.calculateDueDate(invoiceDate, doc.periodEnd, contract),
+        });
+      }),
+      total: docs.length,
+    };
+  }
+
+  private calculateDueDate(invoiceDate: string, periodEnd: string, contract: any): string | null {
+    if (!contract) return null;
+    const base = new Date(`${invoiceDate}T00:00:00Z`);
+    if (contract.scheduledPaymentEnabled && contract.scheduledPaymentDay) {
+      const weekdays: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+      const target = weekdays[contract.scheduledPaymentDay];
+      if (target === undefined) return null;
+      let days = (target - base.getUTCDay() + 7) % 7;
+      if (days === 0) days = 7;
+      base.setUTCDate(base.getUTCDate() + days);
+      return base.toISOString().slice(0, 10);
+    }
+    if (contract.paymentTermsDays != null) {
+      if (contract.invoiceDueRule === 'end_of_week' && periodEnd) {
+        base.setTime(new Date(`${periodEnd}T00:00:00Z`).getTime());
+      } else if (contract.invoiceDueRule === 'end_of_month' && periodEnd) {
+        const periodDate = new Date(`${periodEnd}T00:00:00Z`);
+        base.setTime(Date.UTC(periodDate.getUTCFullYear(), periodDate.getUTCMonth() + 1, 0));
+      }
+      base.setUTCDate(base.getUTCDate() + Number(contract.paymentTermsDays));
+      return base.toISOString().slice(0, 10);
+    }
+    return null;
+  }
 
   /**
    * Approve a pending invoice group.
@@ -46,7 +235,7 @@ export class InvoicesService {
     businessId: string,
     dto: ApproveInvoiceDto,
   ): Promise<InvoiceApprovalResult> {
-    const { groupId, customerId, contractId, periodStart, periodEnd } = dto;
+    const { groupId } = dto;
 
     // ── Idempotency check ──────────────────────────────────────────────────────
     const existing = await this.invoiceModel
@@ -80,6 +269,9 @@ export class InvoicesService {
       );
     }
 
+    const customerId = group.customerId;
+    const contractId = group.contractId;
+
     // ── Fetch contract for invoice number rules ─────────────────────────────────
     const contract = await this.contractModel
       .findOne({ _id: contractId, businessId })
@@ -107,13 +299,23 @@ export class InvoicesService {
             customerId,
             contractId,
             invoiceNumber,
+            customerName: group.customerName,
+            invoiceDate: new Date().toISOString().slice(0, 10),
+            dueDate: group.dueDate,
             periodStart: group.periodStart,
             periodEnd: group.periodEnd,
             currency: group.currency,
             shiftIds,
+            additionalConcepts: (group.additionalConcepts ?? []).map((item) => ({
+              date: item.date,
+              concept: item.concept,
+              amount: item.amount,
+            })),
             subtotal: group.subtotal,
             taxAmount: group.taxAmount,
             total: group.total,
+            amountPaid: '0.00',
+            balance: group.total,
             groupId,
             status: 'approved',
           },
@@ -130,6 +332,8 @@ export class InvoicesService {
         { $set: { invoiceStatus: 'invoiced' } },
         { session },
       );
+
+      await this.reviewItemModel.deleteMany({ businessId, groupId }).session(session).exec();
 
       await session.commitTransaction();
 
@@ -155,8 +359,8 @@ export class InvoicesService {
     const startingNumber: number = contract.startingInvoiceNumber ?? 1;
     const usePrefix = contract.useInvoicePrefix ?? false;
     const prefix = usePrefix && contract.invoicePrefix
-      ? `${contract.invoicePrefix}-`
-      : 'INV-';
+      ? String(contract.invoicePrefix).trim()
+      : '';
 
     // Find the highest existing invoice number for this business + contract
     const latest = await this.invoiceModel
@@ -176,7 +380,6 @@ export class InvoicesService {
       }
     }
 
-    const padded = String(nextSeq).padStart(3, '0');
-    return `${prefix}${padded}`;
+    return `${prefix}${nextSeq}`;
   }
 }
