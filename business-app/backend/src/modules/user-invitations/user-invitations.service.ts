@@ -472,7 +472,7 @@ export class UserInvitationsService implements OnModuleInit {
   private buildLoginUrl(): string {
     return (
       (
-        this.config.get<string>('APP_BASE_URL') || 'http://localhost:3000'
+        this.config.get<string>('APP_BASE_URL') || 'http://localhost:3005'
       ).replace(/\/$/, '') + '/auth/login'
     );
   }

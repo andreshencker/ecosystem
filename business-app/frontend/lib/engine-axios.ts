@@ -18,7 +18,7 @@ import { clearAuthCookie } from '@/lib/auth-cookie';
 import { REFRESH_TOKEN_KEY } from '@/lib/constants';
 import { writeAuthCookie } from '@/lib/auth-cookie';
 
-const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? 'http://localhost:3001';
+const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? 'http://localhost:3004';
 const COMM_KEY   = process.env.NEXT_PUBLIC_COMM_API_KEY ?? '';
 
 export const engineClient = axios.create({

@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { REFRESH_TOKEN_KEY } from '@/lib/constants';
 import { writeAuthCookie, clearAuthCookie } from '@/lib/auth-cookie';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3004';
 
 export const apiClient = axios.create({
   baseURL: API_URL,

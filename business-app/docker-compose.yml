@@ -1,0 +1,98 @@
+name: business-app
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: business_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --appendonly yes
+    ports:
+      - '${BUSINESS_REDIS_PORT:-6380}:6379'
+    volumes:
+      - business_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - business_internal
+
+  bi:
+    build:
+      context: ./business-intelligence
+      dockerfile: Dockerfile
+    image: business-app-bi:local
+    container_name: business_bi
+    restart: unless-stopped
+    env_file:
+      - ./business-intelligence/.env
+    environment:
+      PORT: 8000
+      MONGO_DATABASE: business_app_db
+    ports:
+      - '${BUSINESS_BI_PORT:-8000}:8000'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - business_internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: business-app-backend:local
+    container_name: business_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BI_SERVICE_URL: http://bi:8000
+      COMMUNICATION_API_URL: ${COMMUNICATION_API_URL:-http://host.docker.internal:3001}
+      FRONTEND_BASE_URL: http://localhost:${BUSINESS_FRONTEND_PORT:-3005}
+      APP_BASE_URL: http://localhost:${BUSINESS_FRONTEND_PORT:-3005}
+      ALLOWED_ORIGINS: http://localhost:${BUSINESS_FRONTEND_PORT:-3005}
+    ports:
+      - '${BUSINESS_BACKEND_PORT:-3004}:3004'
+    depends_on:
+      redis:
+        condition: service_healthy
+      bi:
+        condition: service_started
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - business_internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${BUSINESS_BACKEND_PORT:-3004}
+        NEXT_PUBLIC_APP_ENV: production
+    image: business-app-frontend:local
+    container_name: business_frontend
+    restart: unless-stopped
+    environment:
+      PORT: 3005
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '${BUSINESS_FRONTEND_PORT:-3005}:3005'
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - business_internal
+
+networks:
+  business_internal:
+    name: business_internal
+
+volumes:
+  business_redis_data:
+    name: business_redis_data

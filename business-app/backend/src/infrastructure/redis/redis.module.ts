@@ -8,7 +8,7 @@ const redisProvider = {
   inject: [ConfigService],
   useFactory: (config: ConfigService): Redis => {
     const host = config.get<string>('REDIS_HOST', 'localhost');
-    const port = config.get<number>('REDIS_PORT', 6379);
+    const port = config.get<number>('REDIS_PORT', 6380);
     const password = config.get<string>('REDIS_PASSWORD') || undefined;
 
     const client = new Redis({ host, port, password, lazyConnect: false });

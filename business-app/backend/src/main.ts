@@ -12,7 +12,7 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   const allowedOrigins = config
-    .get<string>('ALLOWED_ORIGINS', 'http://localhost:3003')
+    .get<string>('ALLOWED_ORIGINS', 'http://localhost:3005')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -43,7 +43,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  const port = config.get<number>('PORT') || Number(process.env.PORT) || 3002;
+  const port = config.get<number>('PORT') || Number(process.env.PORT) || 3004;
 
   await app.listen(port);
 

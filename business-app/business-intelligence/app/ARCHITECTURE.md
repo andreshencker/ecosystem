@@ -198,7 +198,7 @@ Stub contracts (architecture in place, not yet querying real data):
 
 ## Communication with Business App
 
-The Business App (NestJS, port 3002) communicates with the BI service over HTTP:
+The Business App (NestJS, port 3004) communicates with the BI service over HTTP:
 
 ```
 Business App (NestJS)

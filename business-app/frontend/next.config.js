@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   async headers() {
     return [
       {
@@ -13,7 +14,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' http://localhost:3002 https:",
+              "connect-src 'self' http://localhost:3004 https:",
               "frame-src 'none'",
               "object-src 'none'",
             ].join('; '),

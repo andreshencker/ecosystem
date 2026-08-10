@@ -508,7 +508,7 @@ export class UsersController {
     const base = (
       this.config.get<string>('FRONTEND_BASE_URL') ||
       this.config.get<string>('APP_BASE_URL') ||
-      'http://localhost:3000'
+      'http://localhost:3005'
     ).replace(/\/$/, '');
     return `${base}${path}`;
   }
