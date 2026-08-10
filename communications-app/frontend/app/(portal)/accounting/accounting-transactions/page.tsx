@@ -51,8 +51,8 @@ import type { BankAccountSummary, BankTransactionSummary } from '@/types/account
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const CAPABILITY_KEY   = 'bankTransactions';
-export const DEFAULT_PAGE_SIZE = 25;
+const CAPABILITY_KEY   = 'bankTransactions';
+const DEFAULT_PAGE_SIZE = 25;
 
 type AccountType = 'BANK' | 'CREDITCARD';
 

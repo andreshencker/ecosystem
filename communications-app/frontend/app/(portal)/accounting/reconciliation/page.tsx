@@ -49,7 +49,7 @@ import { extractApiMessage } from '@/lib/mapApiError';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const CAPABILITY_KEY = 'reconciliation';
+const CAPABILITY_KEY = 'reconciliation';
 
 // ─── Provider limitation panel ────────────────────────────────────────────────
 

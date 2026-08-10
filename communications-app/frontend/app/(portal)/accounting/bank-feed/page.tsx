@@ -46,7 +46,7 @@ import type { BankAccountSummary } from '@/types/accounting';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const CAPABILITY_KEY = 'bankFeed';
+const CAPABILITY_KEY = 'bankFeed';
 
 type AccountType = 'BANK' | 'CREDITCARD';
 
