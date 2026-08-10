@@ -10,12 +10,8 @@ import IndicatorsAdminView from "@/modules/core/indicators/pages/IndicatorsAdmin
 import AdminUserPlatformsAllPage from "@/modules/core/userPlatforms/pages/AdminUserPlatformsAllPage";
 import AdminMyPlatformsPage from "@/modules/core/userPlatforms/pages/AdminMyPlatformsPage";
 import AdminSignalsHistoryPage from "@/modules/core/signals/pages/AdminSignalsHistoryPage";
-import CompanyInfoPage from "@/modules/communications/companyInfo/pages/CompanyInfoPage";
-import CompanyThemesPage from "@/modules/communications/companyThemes/pages/CompanyThemesPage";
-import LayoutTemplatesPage from "@/modules/communications/layoutTemplates/pages/LayoutTemplatesPage";
 import AdminCodeProjectsPage from "@/modules/core/codeProjects/pages/AdminCodeProjectsPage";
 import AdminCodeProjectVersionsPage from "@/modules/core/codeProjectVersions/pages/AdminCodeProjectVersionsPage";
-import DomainCataloguePage from "@/modules/communications/domainCatalogue/pages/DomainCataloguePage";
 import TypeProjectsPage from "@/modules/core/typeProjects/pages/TypeProjectsPage";
 import AdminProjectCodePlatformsPage from "@/modules/core/projectCodePlatforms/pages/AdminProjectCodePlatformsPage";
 import AdminUserProjectPlatformsPage from "@/modules/core/userProjectPlatforms/pages/AdminUserProjectPlatformsPage";
@@ -53,16 +49,6 @@ export const adminRoutes: RouteObject[] = [
             { path: "type-projects", element: <TypeProjectsPage /> },
             { path: "user-project-platforms", element: <AdminUserProjectPlatformsPage /> },
             {path: "/admin/indicator-projects", element: <AdminIndicatorProjectsPage />,},
-
-            // communications
-            { path: "company-info", element: <CompanyInfoPage /> },
-            { path: "company-themes", element: <CompanyThemesPage /> },
-            { path: "layout-templates", element: <LayoutTemplatesPage /> },
-            { path: "domain-catalogue", element: <DomainCataloguePage /> },
-
-            // opcional: placeholder mientras desarrollas
-            // { path: "notifications", element: <div>Notifications</div> },
-            // { path: "emails", element: <div>Email templates</div> },
 
             { path: "*", element: <NotFound /> },
         ],
