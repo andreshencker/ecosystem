@@ -26,4 +26,8 @@ export class ApplicationsService implements OnApplicationBootstrap {
   listAll() {
     return this.applications.find().sort({ displayOrder: 1, name: 1 }).lean();
   }
+
+  findByKey(key: string) {
+    return this.applications.findOne({ key: key.toLowerCase(), status: 'active' }).lean();
+  }
 }
