@@ -8,7 +8,7 @@ interface User { grapiflyUserId: string; displayName: string; email: string; ava
 const apps = [
   { name: 'JTrade', description: 'Trading and investment', glyph: '↗', tone: 'violet', url: process.env.NEXT_PUBLIC_JTRADE_URL ?? 'http://localhost:5173' },
   { name: 'Business', description: 'Business operations', glyph: 'B', tone: 'blue', url: process.env.NEXT_PUBLIC_BUSINESS_URL ?? 'http://localhost:3003' },
-  { name: 'Communications', description: 'Messages and notifications', glyph: '✦', tone: 'orange', url: process.env.NEXT_PUBLIC_COMMUNICATIONS_URL ?? 'http://localhost:3000' },
+  { name: 'Relay', description: 'Connections and automation', glyph: '✦', tone: 'orange', url: process.env.NEXT_PUBLIC_COMMUNICATIONS_URL ?? 'http://localhost:3000', learnMore: '/apps/relay' },
 ];
 
 export default function HomePage() {
@@ -46,7 +46,16 @@ export default function HomePage() {
         </header>
         <div className="portal-heading"><div><h2>Your apps</h2><p>Everything connected to your Grapifly ID.</p></div><button className="manage-button">Manage access</button></div>
         <div className="app-grid">
-          {apps.map((app) => <a className="app-tile" href={app.url} key={app.name}><div className={`app-icon ${app.tone}`}>{app.glyph}</div><div><h3>{app.name}</h3><p>{app.description}</p></div><span>Open&nbsp; ↗</span></a>)}
+          {apps.map((app) => (
+            <article className="app-tile" key={app.name}>
+              <div className={`app-icon ${app.tone}`}>{app.glyph}</div>
+              <div><h3>{app.name}</h3><p>{app.description}</p></div>
+              <div className="app-actions">
+                {app.learnMore && <a className="learn-link" href={app.learnMore}>Ver más</a>}
+                <a href={app.url}>Open&nbsp; ↗</a>
+              </div>
+            </article>
+          ))}
         </div>
         <div className="account-card"><div><span className="section-kicker">Grapifly ID</span><h3>Your account, safe and up to date.</h3><p>Review your identity, connected organizations and active sessions.</p></div><button>Account settings</button></div>
       </section>

@@ -5,7 +5,7 @@ import { GoogleButton } from '@/components/GoogleButton';
 const products = [
   { name: 'JTrade', detail: 'Markets, decisions and performance in one place.', tone: 'violet', glyph: '↗' },
   { name: 'Business', detail: 'Run your company with clarity and confidence.', tone: 'blue', glyph: 'B' },
-  { name: 'Communications', detail: 'Every message, beautifully orchestrated.', tone: 'orange', glyph: '✦' },
+  { name: 'Relay', detail: 'Connect your services. Relay handles the rest.', tone: 'orange', glyph: '✦', href: '/apps/relay' },
 ];
 
 export default function LandingPage() {
@@ -36,7 +36,7 @@ export default function LandingPage() {
             <article className={`product-card ${product.tone}`} key={product.name}>
               <div className="app-icon">{product.glyph}</div>
               <div><h3>{product.name}</h3><p>{product.detail}</p></div>
-              <span className="card-arrow">→</span>
+              {product.href ? <Link className="card-more" href={product.href}>Ver más <span>→</span></Link> : <span className="card-arrow">→</span>}
             </article>
           ))}
         </div>
