@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -19,19 +26,18 @@ export class CompanyThemeService {
     private readonly model: Model<CompanyThemeDocument>,
   ) {}
 
-  async findAll(params?: {
-    companyId?: string;
+  async findAll(params: {
+    companyId: string;
     active?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<PaginatedResponse<CompanyThemeResponseDto>> {
-    const filter: any = {};
-    if (params?.companyId)
-      filter.companyId = new Types.ObjectId(params.companyId);
-    if (typeof params?.active === 'boolean') filter.isActive = params.active;
+    const companyId = this.toObjectId(params.companyId, 'companyId');
+    const filter: any = { companyId };
+    if (typeof params.active === 'boolean') filter.isActive = params.active;
 
-    const limit = Math.min(Number(params?.limit ?? 50), 200);
-    const offset = Math.max(0, Number(params?.offset ?? 0));
+    const limit = Math.min(Number(params.limit ?? 50), 200);
+    const offset = Math.max(0, Number(params.offset ?? 0));
 
     const [list, total] = await Promise.all([
       this.model
@@ -51,9 +57,17 @@ export class CompanyThemeService {
     };
   }
 
-  async findById(id: string): Promise<CompanyThemeResponseDto> {
-    const doc = await this.model.findById(id).lean();
-    if (!doc) throw new HttpException('Theme not found', HttpStatus.NOT_FOUND);
+  async findById(
+    companyId: string,
+    id: string,
+  ): Promise<CompanyThemeResponseDto> {
+    const doc = await this.model
+      .findOne({
+        _id: this.toObjectId(id, 'themeId'),
+        companyId: this.toObjectId(companyId, 'companyId'),
+      })
+      .lean();
+    if (!doc) throw new NotFoundException('Theme not found');
     return CompanyThemeMapper.toResponse(doc as any);
   }
 
@@ -82,9 +96,16 @@ export class CompanyThemeService {
     return lastActive ? CompanyThemeMapper.toResponse(lastActive as any) : null;
   }
 
-  async create(dto: CreateCompanyThemeDto): Promise<CompanyThemeResponseDto> {
-    const companyId = new Types.ObjectId(dto.companyId);
+  async create(
+    companyIdValue: string,
+    dto: CreateCompanyThemeDto,
+  ): Promise<CompanyThemeResponseDto> {
+    const companyId = this.toObjectId(companyIdValue, 'companyId');
     const makeDefault = dto.isDefault === true;
+
+    if (makeDefault && dto.isActive === false) {
+      throw new BadRequestException('The default theme must be active');
+    }
 
     const session = await this.model.db.startSession();
     try {
@@ -139,12 +160,27 @@ export class CompanyThemeService {
   }
 
   async updateById(
+    companyIdValue: string,
     id: string,
     dto: UpdateCompanyThemeDto,
   ): Promise<CompanyThemeResponseDto> {
-    const existing = await this.model.findById(id);
+    const companyId = this.toObjectId(companyIdValue, 'companyId');
+    const themeId = this.toObjectId(id, 'themeId');
+    const existing = await this.model.findOne({ _id: themeId, companyId });
     if (!existing)
-      throw new HttpException('Theme not found', HttpStatus.NOT_FOUND);
+      throw new NotFoundException('Theme not found');
+
+    if (existing.isDefault && dto.isDefault === false) {
+      throw new ConflictException(
+        'Set another theme as default instead of unsetting the current default',
+      );
+    }
+    if (
+      (existing.isDefault || dto.isDefault === true) &&
+      dto.isActive === false
+    ) {
+      throw new ConflictException('The default theme must remain active');
+    }
 
     const makeDefault = dto.isDefault === true;
 
@@ -165,9 +201,9 @@ export class CompanyThemeService {
           );
         }
 
-        updated = await this.model.findByIdAndUpdate(
-          existing._id,
-          { $set: { ...dto } },
+        updated = await this.model.findOneAndUpdate(
+          { _id: existing._id, companyId },
+          { $set: { ...dto, ...(makeDefault ? { isActive: true } : {}) } },
           { new: true, runValidators: true, session },
         );
       });
@@ -183,16 +219,37 @@ export class CompanyThemeService {
     }
   }
 
-  async removeById(id: string): Promise<{ deleted: boolean }> {
-    const doc = await this.model.findById(id).lean();
-    if (!doc) throw new HttpException('Theme not found', HttpStatus.NOT_FOUND);
+  async removeById(
+    companyIdValue: string,
+    id: string,
+  ): Promise<{ deleted: boolean }> {
+    const companyId = this.toObjectId(companyIdValue, 'companyId');
+    const themeId = this.toObjectId(id, 'themeId');
+    const doc = await this.model.findOne({ _id: themeId, companyId }).lean();
+    if (!doc) throw new NotFoundException('Theme not found');
     if ((doc as any).isDefault) {
-      throw new HttpException(
+      throw new ConflictException(
         'Cannot delete the default theme. Set another theme as default first.',
-        HttpStatus.CONFLICT,
       );
     }
-    await this.model.findByIdAndDelete(id);
+
+    const referencedLayouts = await this.model.db
+      .collection('layout_templates')
+      .countDocuments({ companyThemeId: themeId }, { limit: 1 });
+    if (referencedLayouts > 0) {
+      throw new ConflictException(
+        'Cannot delete a theme that is used by layout templates',
+      );
+    }
+
+    await this.model.deleteOne({ _id: themeId, companyId });
     return { deleted: true };
+  }
+
+  private toObjectId(value: string | undefined, label: string): Types.ObjectId {
+    if (!value || !Types.ObjectId.isValid(value)) {
+      throw new BadRequestException(`Invalid ${label}`);
+    }
+    return new Types.ObjectId(value);
   }
 }

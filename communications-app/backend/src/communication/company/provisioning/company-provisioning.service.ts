@@ -283,10 +283,7 @@ export class CompanyProvisioningService {
         return existing.id;
       }
 
-      const created = await this.themeService.create({
-        companyId,
-        ...DEFAULT_THEME,
-      });
+      const created = await this.themeService.create(companyId, DEFAULT_THEME);
       report.created.theme = true;
       return created.id;
     } catch (err: any) {

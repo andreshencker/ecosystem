@@ -7,7 +7,6 @@ import {
   IsString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Prop } from '@nestjs/mongoose';
 
 export class CompanyThemeBaseDto {
   // 🎨 Colors

@@ -46,7 +46,6 @@ import {
   useDeleteCompanyThemeMutation,
   useSetDefaultThemeMutation,
 } from '@/hooks/api/useCompanyThemes';
-import { useAuthStore } from '@/stores/auth.store';
 import { usePermissions } from '@/hooks/usePermissions';
 import { mapApiError } from '@/lib/mapApiError';
 import type { CompanyTheme } from '@/types/api';
@@ -115,12 +114,11 @@ const mobileCardConfig: MobileCardConfig<CompanyTheme> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CompanyThemesPage() {
-  const companyId = useAuthStore((s) => s.companyId);
   const { canManageThemes } = usePermissions();
   const pushSnack = useUIStore((s) => s.pushSnack);
 
   // ── Data — load all themes; filtering + pagination are client-side ──────────
-  const { data, isLoading, error } = useCompanyThemes(companyId, { limit: 200 });
+  const { data, isLoading, error } = useCompanyThemes({ limit: 200 });
   const allRows = data?.items ?? [];
 
   // ── Filter state ────────────────────────────────────────────────────────────
@@ -191,7 +189,7 @@ export default function CompanyThemesPage() {
 
   const deleteFeedback = useCrudFeedback({
     successMessage: 'Theme deleted',
-    queryKeys: [['company-themes', companyId]],
+    queryKeys: [['company-themes']],
     onSuccess: () => setDeleteTarget(null),
   });
 
@@ -476,14 +474,11 @@ export default function CompanyThemesPage() {
       />
 
       {/* Create / Edit drawer */}
-      {companyId && (
-        <ThemeForm
-          open={drawerOpen}
-          theme={editTarget}
-          companyId={companyId}
-          onClose={closeDrawer}
-        />
-      )}
+      <ThemeForm
+        open={drawerOpen}
+        theme={editTarget}
+        onClose={closeDrawer}
+      />
 
       {/* Delete confirmation */}
       <ConfirmDialog

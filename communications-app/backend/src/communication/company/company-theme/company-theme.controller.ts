@@ -4,34 +4,34 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   HttpCode,
   Param,
   Post,
   Put,
   Query,
-  UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { CompanyThemeService } from './company-theme.service';
 import { CreateCompanyThemeDto } from './dto/create-company-theme.dto';
 import { UpdateCompanyThemeDto } from './dto/update-company-theme.dto';
 
 @ApiTags('Company Theme')
+@ApiBearerAuth()
 @Controller('company-themes')
 export class CompanyThemeController {
   constructor(
-    private readonly config: ConfigService,
     private readonly service: CompanyThemeService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   @Get()
   @HttpCode(200)
   @ApiOperation({ summary: 'List company themes' })
-  @ApiQuery({ name: 'companyId', required: false, type: String })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
   @ApiQuery({
     name: 'limit',
@@ -46,13 +46,12 @@ export class CompanyThemeController {
     description: 'Records to skip (default 0)',
   })
   async list(
-    @Headers('x-api-key') apiKey: string,
-    @Query('companyId') companyId?: string,
+    @CurrentUser() ctx: AuthContext,
     @Query('active') active?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    const { companyId } = await this.tenantContext.resolve(ctx, 'relay.use');
     const activeBool = active === undefined ? undefined : active === 'true';
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
@@ -68,43 +67,45 @@ export class CompanyThemeController {
 
   @Get(':id')
   @HttpCode(200)
-  async getById(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
-    return this.service.findById(id);
+  async getById(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    const { companyId } = await this.tenantContext.resolve(ctx, 'relay.use');
+    return this.service.findById(companyId, id);
   }
 
   @Post()
   @HttpCode(200)
   async create(
-    @Headers('x-api-key') apiKey: string,
+    @CurrentUser() ctx: AuthContext,
     @Body() dto: CreateCompanyThemeDto,
   ) {
-    this.assertApiKey(apiKey);
-    return this.service.create(dto);
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.theme.manage',
+    );
+    return this.service.create(companyId, dto);
   }
 
   @Put(':id')
   @HttpCode(200)
   async update(
-    @Headers('x-api-key') apiKey: string,
+    @CurrentUser() ctx: AuthContext,
     @Param('id') id: string,
     @Body() dto: UpdateCompanyThemeDto,
   ) {
-    this.assertApiKey(apiKey);
-    return this.service.updateById(id, dto);
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.theme.manage',
+    );
+    return this.service.updateById(companyId, id, dto);
   }
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
-    return this.service.removeById(id);
-  }
-
-  private assertApiKey(apiKey: string) {
-    const expectedKey = this.config.get<string>('COMMUNICATION_API_KEY');
-    if (!apiKey || !expectedKey || apiKey !== expectedKey) {
-      throw new UnauthorizedException('Invalid API key');
-    }
+  async remove(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.theme.manage',
+    );
+    return this.service.removeById(companyId, id);
   }
 }

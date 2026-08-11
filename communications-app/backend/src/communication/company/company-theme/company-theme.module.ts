@@ -8,6 +8,7 @@ import {
 } from './schemas/company-theme.schema';
 import { CompanyThemeService } from './company-theme.service';
 import { CompanyThemeController } from './company-theme.controller';
+import { RelayTenantContextModule } from '../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { CompanyThemeController } from './company-theme.controller';
     MongooseModule.forFeature([
       { name: CompanyTheme.name, schema: CompanyThemeSchema },
     ]),
+    RelayTenantContextModule,
   ],
   controllers: [CompanyThemeController],
   providers: [CompanyThemeService],

@@ -128,7 +128,12 @@ export class AuthService {
   private relayPermissions(role: 'owner' | 'admin' | 'member'): string[] {
     const base = ['relay.use'];
     if (role === 'member') return base;
-    const management = ['relay.connections.manage', 'relay.credentials.manage', 'relay.automations.manage'];
+    const management = [
+      'relay.connections.manage',
+      'relay.credentials.manage',
+      'relay.automations.manage',
+      'relay.theme.manage',
+    ];
     return role === 'owner' ? [...base, ...management, 'relay.members.manage', 'relay.organization.manage'] : [...base, ...management, 'relay.members.manage'];
   }
 

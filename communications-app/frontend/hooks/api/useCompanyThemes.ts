@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { CompanyTheme } from '@/types/api';
 import type { ThemeFormValues } from '@/lib/schemas/theme.schema';
 
@@ -26,7 +26,6 @@ export interface CompanyThemesPaginatedResponse {
 }
 
 export type CreateCompanyThemeDto = Omit<ThemeFormValues, 'isDefault' | 'isActive'> & {
-  companyId: string;
   isDefault?: boolean;
   isActive?: boolean;
 };
@@ -35,22 +34,18 @@ export type UpdateCompanyThemeDto = Partial<ThemeFormValues>;
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export function useCompanyThemes(
-  companyId: string | null | undefined,
-  params: CompanyThemesParams = {},
-) {
+export function useCompanyThemes(params: CompanyThemesParams = {}) {
   return useQuery({
-    queryKey: ['company-themes', companyId, params],
+    queryKey: ['company-themes', params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<CompanyTheme>>('/company-themes', {
-          params: { companyId, ...params },
+          params,
         })
         .then((r) => ({
           items: r.data.data ?? [],
           total: r.data.total ?? 0,
         })),
-    enabled: Boolean(companyId),
   });
 }
 
@@ -63,7 +58,7 @@ export function useCompanyThemes(
 export function useCreateCompanyThemeMutation() {
   return useMutation({
     mutationFn: (dto: CreateCompanyThemeDto) =>
-      engineClient
+      apiClient
         .post<CompanyTheme>('/company-themes', dto)
         .then((r) => r.data),
   });
@@ -72,7 +67,7 @@ export function useCreateCompanyThemeMutation() {
 export function useUpdateCompanyThemeMutation() {
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateCompanyThemeDto) =>
-      engineClient
+      apiClient
         .put<CompanyTheme>(`/company-themes/${id}`, dto)
         .then((r) => r.data),
   });
@@ -81,7 +76,7 @@ export function useUpdateCompanyThemeMutation() {
 export function useDeleteCompanyThemeMutation() {
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/company-themes/${id}`).then((r) => r.data),
+      apiClient.delete(`/company-themes/${id}`).then((r) => r.data),
   });
 }
 
@@ -89,7 +84,7 @@ export function useSetDefaultThemeMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient
+      apiClient
         .put<CompanyTheme>(`/company-themes/${id}`, { isDefault: true })
         .then((r) => r.data),
     onSuccess: (_data, _id, _ctx) => {

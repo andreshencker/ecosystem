@@ -91,11 +91,10 @@ function themeToFormValues(theme: CompanyTheme): ThemeFormValues {
 interface ThemeFormProps {
   open: boolean;
   theme: CompanyTheme | null;
-  companyId: string;
   onClose: () => void;
 }
 
-export function ThemeForm({ open, theme, companyId, onClose }: ThemeFormProps) {
+export function ThemeForm({ open, theme, onClose }: ThemeFormProps) {
   const isEditing = Boolean(theme);
   const createMutation = useCreateCompanyThemeMutation();
   const updateMutation = useUpdateCompanyThemeMutation();
@@ -126,7 +125,7 @@ export function ThemeForm({ open, theme, companyId, onClose }: ThemeFormProps) {
 
   const feedback = useCrudFeedback({
     successMessage: isEditing ? 'Theme updated' : 'Theme created',
-    queryKeys: [['company-themes', companyId]],
+    queryKeys: [['company-themes']],
     onSuccess: onClose,
   });
 
@@ -136,7 +135,7 @@ export function ThemeForm({ open, theme, companyId, onClose }: ThemeFormProps) {
       if (isEditing && theme) {
         await updateMutation.mutateAsync({ id: theme.id, ...values });
       } else {
-        await createMutation.mutateAsync({ companyId, ...values });
+        await createMutation.mutateAsync(values);
       }
       feedback.onSuccess();
     } catch (e: unknown) {
