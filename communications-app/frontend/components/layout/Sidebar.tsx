@@ -6,13 +6,13 @@ import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from '@/lib/constants';
 import { useAuthStore } from '@/stores/auth.store';
 import { getRoleConfig, type SidebarSectionConfig } from '@/config/rbac/role-config';
 import { SidebarSection } from './SidebarSection';
 import { SidebarItem } from './SidebarItem';
+import { RelayBrand } from '@/components/brand/RelayBrand';
 
 interface SidebarProps {
   open: boolean;
@@ -27,7 +27,7 @@ const drawerSx = {
     boxSizing: 'border-box',
     borderRight: '1px solid',
     borderColor: 'divider',
-    backgroundColor: 'background.paper',
+    backgroundColor: '#FBFBFD',
   },
 };
 
@@ -86,26 +86,7 @@ function SidebarContent() {
           flexShrink: 0,
         }}
       >
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1,
-            backgroundColor: 'primary.main',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mr: 1.5,
-            flexShrink: 0,
-          }}
-        >
-          <Typography variant="caption" color="white" fontWeight={700}>
-            CP
-          </Typography>
-        </Box>
-        <Typography variant="subtitle2" color="text.primary" fontWeight={600} noWrap>
-          Communication Portal
-        </Typography>
+        <RelayBrand compact />
       </Box>
 
       {/* Dual-mode tab switcher — only for platform_admin */}
@@ -120,8 +101,8 @@ function SidebarContent() {
               '& .MuiTab-root': { minHeight: 40, fontSize: '0.7rem', py: 0.5 },
             }}
           >
-            <Tab label="Business App" />
-            <Tab label="Platform Admin" />
+            <Tab label="Workspace" />
+            <Tab label="Platform" />
           </Tabs>
         </>
       )}

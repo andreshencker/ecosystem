@@ -62,7 +62,8 @@ export function Topbar({ onMenuToggle, user, company }: TopbarProps) {
         height: TOPBAR_HEIGHT,
         ml: { md: `${SIDEBAR_WIDTH}px` },
         width: { md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
-        backgroundColor: 'background.paper',
+        backgroundColor: 'rgba(255,255,255,.82)',
+        backdropFilter: 'blur(20px) saturate(150%)',
       }}
     >
       <Toolbar

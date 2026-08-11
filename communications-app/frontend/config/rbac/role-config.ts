@@ -195,7 +195,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         ],
       },
       {
-        label: 'Communication Setup',
+        label: 'Relay Setup',
         items: [
           { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
           { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },

@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Link from '@mui/material/Link';
@@ -20,6 +21,7 @@ import { loginSchema, type LoginFormValues } from '@/lib/schemas/auth.schema';
 import { FormError } from '@/components/shared/FormError';
 import { LoadingButton } from '@/components/shared/LoadingButton';
 import { ControlledPasswordField } from '@/components/shared/ControlledPasswordField';
+import { RelayBrand } from '@/components/brand/RelayBrand';
 
 // ─── Error states emitted by the backend login endpoint ──────────────────────
 
@@ -72,16 +74,13 @@ function LoginForm() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5" align="center" fontWeight={600}>
-        Communication Portal
-      </Typography>
+      <Box display={{ xs: 'flex', md: 'none' }} justifyContent="center" mb={1}><RelayBrand /></Box>
 
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
-        <CardContent>
+      <Card variant="outlined" sx={{ borderRadius: 5, borderColor: 'rgba(17,17,22,.08)', boxShadow: '0 24px 70px rgba(25,20,45,.1)' }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 }, '&:last-child': { pb: { xs: 3, sm: 4 } } }}>
           <Stack spacing={2}>
-            <Typography variant="h6" align="center">
-              Sign in
-            </Typography>
+            <Typography sx={{ fontSize: 32, fontWeight: 720, letterSpacing: '-.045em' }}>Welcome back.</Typography>
+            <Typography color="text.secondary" variant="body2">Sign in to manage your connections and solutions.</Typography>
 
             {verified && (
               <Alert severity="success">

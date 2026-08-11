@@ -52,7 +52,7 @@ function VerifyEmailContent() {
   return (
     <Stack spacing={2}>
       <Typography variant="h5" align="center" fontWeight={600}>
-        Communication Portal
+        Relay by Grapifly
       </Typography>
 
       <Card variant="outlined" sx={{ borderRadius: 3 }}>

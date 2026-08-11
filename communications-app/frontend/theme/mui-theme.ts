@@ -6,13 +6,13 @@ export const muiTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#4263EB',
-      dark: '#3451D1',
-      light: '#6785F5',
+      main: '#F4733D',
+      dark: '#D95527',
+      light: '#FFAA52',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#7C3AED',
+      main: '#7655E8',
       contrastText: '#FFFFFF',
     },
     success: {
@@ -36,24 +36,24 @@ export const muiTheme = createTheme({
       contrastText: '#FFFFFF',
     },
     background: {
-      default: '#F8FAFC',
+      default: '#F7F7F9',
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#0F172A',
-      secondary: '#64748B',
+      primary: '#111116',
+      secondary: '#6B6B73',
       disabled: '#94A3B8',
     },
     divider: '#E2E8F0',
     action: {
-      hover: 'rgba(66, 99, 235, 0.04)',
-      selected: 'rgba(66, 99, 235, 0.08)',
+      hover: 'rgba(244, 115, 61, 0.05)',
+      selected: 'rgba(244, 115, 61, 0.10)',
     },
   },
 
   typography: {
     // Font family set via CSS variable from next/font
-    fontFamily: 'var(--font-inter), system-ui, -apple-system, sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
     h4: { fontSize: '1.5rem', fontWeight: 600, lineHeight: 1.3 },
     h5: { fontSize: '1.25rem', fontWeight: 600, lineHeight: 1.4 },
     h6: { fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.4 },
@@ -67,7 +67,7 @@ export const muiTheme = createTheme({
   },
 
   shape: {
-    borderRadius: 6,
+    borderRadius: 14,
   },
 
   components: {
@@ -78,8 +78,8 @@ export const muiTheme = createTheme({
       styleOverrides: {
         root: {
           textTransform: 'none',
-          borderRadius: 6,
-          fontWeight: 500,
+          borderRadius: 999,
+          fontWeight: 600,
           lineHeight: 1,
         },
         sizeMedium: {
@@ -106,7 +106,7 @@ export const muiTheme = createTheme({
       },
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 18,
           borderColor: '#E2E8F0',
         },
       },
@@ -134,7 +134,7 @@ export const muiTheme = createTheme({
       },
       styleOverrides: {
         paper: {
-          borderRadius: 12,
+          borderRadius: 22,
         },
       },
     },
@@ -158,7 +158,7 @@ export const muiTheme = createTheme({
     MuiInputBase: {
       styleOverrides: {
         root: {
-          borderRadius: '6px !important',
+          borderRadius: '12px !important',
           fontSize: '0.875rem',
         },
       },
@@ -167,7 +167,7 @@ export const muiTheme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          borderRadius: 6,
+          borderRadius: 12,
           '& .MuiOutlinedInput-notchedOutline': {
             borderColor: '#E2E8F0',
           },
@@ -222,10 +222,10 @@ export const muiTheme = createTheme({
           margin: '1px 8px',
           padding: '8px 12px',
           '&.Mui-selected': {
-            backgroundColor: '#EEF2FF',
-            color: '#4263EB',
+            backgroundColor: '#FFF0E7',
+            color: '#D95527',
             '&:hover': {
-              backgroundColor: '#E0E7FF',
+              backgroundColor: '#FFE3D2',
             },
           },
           '&:hover': {

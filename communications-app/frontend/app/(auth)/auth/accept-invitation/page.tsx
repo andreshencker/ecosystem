@@ -35,7 +35,7 @@ export default function AcceptInvitationPage() {
           <LockOutlinedIcon />
         </Box>
         <Typography variant="h5" fontWeight={600}>
-          Communication Portal
+          Relay by Grapifly
         </Typography>
       </Box>
 
