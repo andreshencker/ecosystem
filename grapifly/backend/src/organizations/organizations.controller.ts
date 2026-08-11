@@ -27,6 +27,11 @@ export class OrganizationsController {
     return this.organizations.updateProfile(request.grapiflySession!.sub, organizationId, body);
   }
 
+  @Post('organizations/:organizationId/archive')
+  archive(@Req() request: SessionRequest, @Param('organizationId') organizationId: string) {
+    return this.organizations.archive(request.grapiflySession!.sub, organizationId);
+  }
+
   @Post('organizations/:organizationId/applications')
   enableApplication(@Req() request: SessionRequest, @Param('organizationId') organizationId: string, @Body() body: { applicationKey: string }) {
     return this.organizations.enableApplication(request.grapiflySession!.sub, organizationId, body.applicationKey);

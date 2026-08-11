@@ -9,6 +9,7 @@ interface OrganizationSummary {
   name: string;
   slug: string;
   isDefault: boolean;
+  isPlatform: boolean;
   membership: { role: 'owner' | 'admin' | 'member' };
   applications: string[];
 }
@@ -31,6 +32,7 @@ export default function OrganizationsPage() {
   const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
   const [invitationLink, setInvitationLink] = useState('');
   const [message, setMessage] = useState('');
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
   async function loadOrganizations(preferredId?: string) {
     const response = await fetch(`${apiUrl}/organizations`, { credentials: 'include' });
@@ -38,7 +40,8 @@ export default function OrganizationsPage() {
     if (!response.ok) throw new Error('Unable to load organizations');
     const data = await response.json();
     setOrganizations(data.organizations);
-    const nextId = preferredId ?? selectedId ?? data.organizations[0]?.organizationId ?? null;
+    const requestedId = preferredId ?? selectedId;
+    const nextId = data.organizations.some((organization: OrganizationSummary) => organization.organizationId === requestedId) ? requestedId : data.organizations[0]?.organizationId ?? null;
     setSelectedId(nextId);
     if (nextId) await loadDetails(nextId);
   }
@@ -82,6 +85,18 @@ export default function OrganizationsPage() {
     setMessage('Invitation created. Copy the secure link and send it to the invited person.');
   }
 
+  async function archiveOrganization(organization: OrganizationSummary) {
+    setActionMenuId(null);
+    if (organization.isDefault || organization.isPlatform) { setMessage('The official and default organizations are protected.'); return; }
+    if (!window.confirm(`Archive ${organization.name}? Its applications and pending invitations will be disabled.`)) return;
+    const response = await fetch(`${apiUrl}/organizations/${organization.organizationId}/archive`, { method: 'POST', credentials: 'include' });
+    const data = await response.json();
+    if (!response.ok) { setMessage(data.message ?? 'Organization could not be archived.'); return; }
+    if (selectedId === organization.organizationId) { setSelectedId(null); setDetails(null); }
+    await loadOrganizations();
+    setMessage('Organization archived.');
+  }
+
   const canManage = details && ['owner', 'admin'].includes(details.membership.role);
   return <GrapiflyAppShell><section className="organizations-page organizations-embedded">
     <section className="organizations-shell">
@@ -90,7 +105,7 @@ export default function OrganizationsPage() {
       </header>
       {message && <div className="organization-message">{message}</div>}
       <div className="organizations-layout">
-        <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <button key={organization.organizationId} className={selectedId === organization.organizationId ? 'active' : ''} onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps{organization.isDefault ? ' · default' : ''}</small></div></button>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
+        <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <div className={`organization-list-row ${selectedId === organization.organizationId ? 'active' : ''}`} key={organization.organizationId}><button className="organization-select" onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); setActionMenuId(null); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps{organization.isDefault ? ' · default' : ''}</small></div></button><button className="organization-actions-trigger" aria-label={`Actions for ${organization.name}`} onClick={() => setActionMenuId(actionMenuId === organization.organizationId ? null : organization.organizationId)}>•••</button>{actionMenuId === organization.organizationId && <div className="organization-actions-menu"><button onClick={() => { navigator.clipboard.writeText(organization.organizationId); setActionMenuId(null); setMessage('Organization ID copied.'); }}>Copy organization ID</button><button className="danger" disabled={organization.isDefault || organization.isPlatform || organization.membership.role !== 'owner'} onClick={() => archiveOrganization(organization)}>{organization.isDefault || organization.isPlatform ? 'Protected organization' : 'Archive organization'}</button></div>}</div>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
         <section className="organization-detail">{details ? <>
           <header><div><span>{details.membership.role}</span><h2>{details.organization.name}</h2><p>{details.organization.slug}</p></div><code>{details.organization.organizationId}</code></header>
           <OrganizationProfileTabs organization={details.organization} ownerEmail={details.members.find((member) => member.role === 'owner')?.user?.email ?? 'Not assigned'} canManage={Boolean(canManage)} apiUrl={apiUrl} onSaved={(organization) => setDetails({ ...details, organization })}/>

@@ -170,6 +170,22 @@ export class OrganizationsService implements OnApplicationBootstrap {
     ).lean();
   }
 
+  async archive(grapiflyUserId: string, organizationId: string) {
+    const membership = await this.requireMembership(grapiflyUserId, organizationId);
+    if (membership.role !== 'owner') throw new ForbiddenException('Only the organization owner can archive it');
+    const organization = await this.organizations.findOne({ organizationId, status: 'active' }).lean();
+    if (!organization) throw new NotFoundException('Organization not found');
+    if (organization.isPlatform) throw new BadRequestException('The platform organization cannot be archived');
+    if (organization.isDefault) throw new BadRequestException('The default organization cannot be archived');
+    await Promise.all([
+      this.organizations.updateOne({ organizationId }, { $set: { status: 'archived' } }),
+      this.organizationApplications.updateMany({ organizationId }, { $set: { status: 'suspended' } }),
+      this.memberApplications.updateMany({ organizationId }, { $set: { status: 'revoked' } }),
+      this.invitations.updateMany({ organizationId, status: 'pending' }, { $set: { status: 'cancelled' } }),
+    ]);
+    return { organizationId, status: 'archived' };
+  }
+
   async invite(grapiflyUserId: string, organizationId: string, input: { email: string; role?: string; applicationKeys?: string[] }) {
     await this.requireManager(grapiflyUserId, organizationId);
     const email = input.email?.trim().toLowerCase();

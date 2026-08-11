@@ -122,8 +122,8 @@ export class Organization {
   @Prop({ type: Boolean, default: false, index: true })
   isDefault!: boolean;
 
-  @Prop({ required: true, enum: ['active', 'suspended'], default: 'active', index: true })
-  status!: 'active' | 'suspended';
+  @Prop({ required: true, enum: ['active', 'suspended', 'archived'], default: 'active', index: true })
+  status!: 'active' | 'suspended' | 'archived';
 }
 
 export const OrganizationSchema = SchemaFactory.createForClass(Organization);
