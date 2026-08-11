@@ -23,7 +23,7 @@ export class GrapiflyUser {
   @Prop({ required: true, trim: true })
   displayName!: string;
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   avatarUrl!: string | null;
 
   @Prop({ default: true })
