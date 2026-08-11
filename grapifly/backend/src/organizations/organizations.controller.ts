@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { SessionGuard, SessionRequest } from '../auth/session.guard';
 import { OrganizationsService } from './organizations.service';
 
@@ -20,6 +20,11 @@ export class OrganizationsController {
   @Get('organizations/:organizationId')
   details(@Req() request: SessionRequest, @Param('organizationId') organizationId: string) {
     return this.organizations.getDetails(request.grapiflySession!.sub, organizationId);
+  }
+
+  @Patch('organizations/:organizationId')
+  update(@Req() request: SessionRequest, @Param('organizationId') organizationId: string, @Body() body: Record<string, unknown>) {
+    return this.organizations.updateProfile(request.grapiflySession!.sub, organizationId, body);
   }
 
   @Post('organizations/:organizationId/applications')

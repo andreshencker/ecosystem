@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { GrapiflyAppShell } from '@/components/GrapiflyAppShell';
+import { OrganizationProfile, OrganizationProfileTabs } from '@/components/OrganizationProfileTabs';
 
 interface OrganizationSummary {
   organizationId: string;
@@ -12,7 +13,7 @@ interface OrganizationSummary {
 }
 
 interface OrganizationDetails {
-  organization: { organizationId: string; name: string; slug: string };
+  organization: OrganizationProfile;
   membership: { role: 'owner' | 'admin' | 'member' };
   applications: { applicationKey: string }[];
   members: { membershipId: string; role: string; applications: { applicationKey: string; role: string }[]; user: { displayName: string; email: string; avatarUrl: string | null } | null }[];
@@ -91,6 +92,7 @@ export default function OrganizationsPage() {
         <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <button key={organization.organizationId} className={selectedId === organization.organizationId ? 'active' : ''} onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps</small></div></button>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
         <section className="organization-detail">{details ? <>
           <header><div><span>{details.membership.role}</span><h2>{details.organization.name}</h2><p>{details.organization.slug}</p></div><code>{details.organization.organizationId}</code></header>
+          <OrganizationProfileTabs organization={details.organization} ownerEmail={details.members.find((member) => member.role === 'owner')?.user?.email ?? 'Not assigned'} canManage={Boolean(canManage)} apiUrl={apiUrl} onSaved={(organization) => setDetails({ ...details, organization })}/>
           <div className="organization-section-title"><div><h3>Applications</h3><p>Solutions enabled for everyone in this organization.</p></div>{canManage && !details.applications.some((app) => app.applicationKey === 'relay') && <button onClick={enableRelay}>Enable Relay</button>}</div>
           <div className="organization-apps">{details.applications.map((application) => <span key={application.applicationKey}>✦ {application.applicationKey}</span>)}{details.applications.length === 0 && <p>No applications enabled yet.</p>}</div>
           <div className="organization-section-title"><div><h3>Members</h3><p>Identity and membership are managed centrally by Grapifly.</p></div></div>

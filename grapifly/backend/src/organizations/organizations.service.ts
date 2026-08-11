@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { Model } from 'mongoose';
@@ -11,7 +11,8 @@ import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } 
 import { Organization, OrganizationDocument } from './schemas/organization.schema';
 
 @Injectable()
-export class OrganizationsService {
+export class OrganizationsService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(OrganizationsService.name);
   constructor(
     @InjectModel(Organization.name) private readonly organizations: Model<OrganizationDocument>,
     @InjectModel(OrganizationMembership.name) private readonly memberships: Model<OrganizationMembershipDocument>,
@@ -22,6 +23,34 @@ export class OrganizationsService {
     private readonly applications: ApplicationsService,
   ) {}
 
+  async onApplicationBootstrap() {
+    const owner = await this.users.findByEmail('grapiflydeveloper@gmail.com');
+    if (!owner) {
+      this.logger.warn('Official Grapifly organization pending: owner identity not found.');
+      return;
+    }
+    const organizationId = 'gpf_org_grapifly';
+    await this.organizations.findOneAndUpdate(
+      { organizationId },
+      {
+        $set: { name: 'Grapifly', slug: 'grapifly', isPlatform: true, status: 'active' },
+        $setOnInsert: {
+          createdBy: owner.grapiflyUserId,
+          legalName: '', tagline: 'Solutions that make ideas fly.', timezone: 'Australia/Sydney',
+          officialEmail: owner.email,
+        },
+      },
+      { upsert: true, returnDocument: 'after' },
+    );
+    await this.memberships.findOneAndUpdate(
+      { organizationId, grapiflyUserId: owner.grapiflyUserId },
+      { $set: { role: 'owner', status: 'active' }, $setOnInsert: { membershipId: `gpf_mem_${randomUUID().replaceAll('-', '')}` } },
+      { upsert: true, returnDocument: 'after' },
+    );
+    await this.enableApplication(owner.grapiflyUserId, organizationId, 'relay');
+    this.logger.log('Official Grapifly organization ready (platform=true, owner assigned, Relay enabled).');
+  }
+
   async create(grapiflyUserId: string, name: string) {
     const normalizedName = name?.trim();
     if (!normalizedName || normalizedName.length < 2 || normalizedName.length > 80) {
@@ -30,7 +59,7 @@ export class OrganizationsService {
     const organizationId = `gpf_org_${randomUUID().replaceAll('-', '')}`;
     const slugBase = normalizedName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'organization';
     const slug = `${slugBase}-${organizationId.slice(-6)}`;
-    const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, createdBy: grapiflyUserId, status: 'active' });
+    const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, createdBy: grapiflyUserId, status: 'active', isPlatform: false });
     await this.memberships.create({ membershipId: `gpf_mem_${randomUUID().replaceAll('-', '')}`, organizationId, grapiflyUserId, role: 'owner', status: 'active' });
     return organization.toObject();
   }
@@ -90,6 +119,40 @@ export class OrganizationsService {
       { upsert: true, returnDocument: 'after' },
     );
     return enabled;
+  }
+
+  async updateProfile(grapiflyUserId: string, organizationId: string, input: Record<string, unknown>) {
+    await this.requireManager(grapiflyUserId, organizationId);
+    const limits: Record<string, number> = {
+      name: 80, legalName: 200, tagline: 300, timezone: 100,
+      officialEmail: 200, supportEmail: 200, supportPhone: 40, supportHours: 200,
+      addressLine1: 200, addressLine2: 200, addressCity: 100, addressState: 100, addressPostalCode: 20, addressCountry: 100,
+      websiteUrl: 500, helpCenterUrl: 500, privacyPolicyUrl: 500, termsUrl: 500,
+      facebook: 500, instagram: 500, linkedin: 500, x: 500, youtube: 500, tiktok: 500, whatsapp: 500, telegram: 500,
+      copyrightText: 500, disclaimerShort: 500, disclaimerLong: 2000, logoIconUrl: 500, logoFullUrl: 500,
+    };
+    const updates: Record<string, string> = {};
+    for (const [field, maxLength] of Object.entries(limits)) {
+      if (!(field in input)) continue;
+      if (typeof input[field] !== 'string') throw new BadRequestException(`${field} must be text`);
+      const value = input[field].trim();
+      if (value.length > maxLength) throw new BadRequestException(`${field} exceeds ${maxLength} characters`);
+      updates[field] = value;
+    }
+    if ('name' in updates && updates.name.length < 2) throw new BadRequestException('Organization name must contain at least 2 characters');
+    for (const field of ['officialEmail', 'supportEmail']) {
+      if (updates[field] && !/^\S+@\S+\.\S+$/.test(updates[field])) throw new BadRequestException(`${field} must be a valid email`);
+      if (updates[field]) updates[field] = updates[field].toLowerCase();
+    }
+    for (const field of ['websiteUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram', 'logoIconUrl', 'logoFullUrl']) {
+      if (!updates[field]) continue;
+      try { new URL(updates[field]); } catch { throw new BadRequestException(`${field} must be a valid URL`); }
+    }
+    return this.organizations.findOneAndUpdate(
+      { organizationId, status: 'active' },
+      { $set: updates },
+      { returnDocument: 'after' },
+    ).lean();
   }
 
   async invite(grapiflyUserId: string, organizationId: string, input: { email: string; role?: string; applicationKeys?: string[] }) {
