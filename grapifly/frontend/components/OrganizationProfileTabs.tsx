@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 export interface OrganizationProfile {
-  organizationId: string; name: string; slug: string; status: 'active' | 'suspended'; isPlatform: boolean;
+  organizationId: string; name: string; slug: string; entityType: 'company' | 'individual'; status: 'active' | 'suspended'; isPlatform: boolean;
   legalName: string; tagline: string; timezone: string; officialEmail: string; supportEmail: string; supportPhone: string; supportHours: string;
   addressLine1: string; addressLine2: string; addressCity: string; addressState: string; addressPostalCode: string; addressCountry: string;
   websiteUrl: string; helpCenterUrl: string; privacyPolicyUrl: string; termsUrl: string;
@@ -14,7 +14,7 @@ export interface OrganizationProfile {
 
 type TabKey = 'general' | 'contact' | 'address' | 'digital' | 'legal' | 'brand' | 'platform';
 const TAB_FIELDS: Record<Exclude<TabKey, 'platform'>, (keyof OrganizationProfile)[]> = {
-  general: ['name', 'legalName', 'tagline', 'timezone'],
+  general: ['entityType', 'name', 'legalName', 'tagline', 'timezone'],
   contact: ['officialEmail', 'supportEmail', 'supportPhone', 'supportHours'],
   address: ['addressLine1', 'addressLine2', 'addressCity', 'addressState', 'addressPostalCode', 'addressCountry'],
   digital: ['websiteUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'linkedin', 'instagram', 'facebook', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram'],
@@ -56,7 +56,7 @@ export function OrganizationProfileTabs({ organization, ownerEmail, canManage, a
   return <section className="organization-profile-card">
     <nav className="profile-tabs" aria-label="Organization profile sections">{tabs.map(([key, label]) => <button key={key} className={activeTab === key ? 'active' : ''} onClick={() => { setActiveTab(key); setState('idle'); setError(''); }}>{label}</button>)}</nav>
     <form onSubmit={save}>
-      {activeTab === 'general' && <div className="profile-fields two-columns">{field('name', 'Organization name', { required: true })}{field('legalName', 'Legal name')}{field('tagline', 'Tagline')}<label className="profile-field"><span>Timezone *</span><select disabled={!canManage} value={form.timezone || 'Australia/Sydney'} onChange={(event) => setForm({ ...form, timezone: event.target.value })}>{TIMEZONES.map((timezone) => <option key={timezone}>{timezone}</option>)}</select></label><label className="profile-field"><span>Organization key</span><input value={form.slug} readOnly/></label><label className="profile-field"><span>Status</span><input value={form.status} readOnly/></label></div>}
+      {activeTab === 'general' && <div className="profile-fields two-columns"><label className="profile-field"><span>Organization type *</span><select disabled={!canManage || form.isPlatform} value={form.entityType || 'company'} onChange={(event) => { setForm({ ...form, entityType: event.target.value as 'company' | 'individual' }); setState('idle'); }}><option value="company">Company</option><option value="individual">Individual</option></select></label>{field('name', form.entityType === 'individual' ? 'Profile name' : 'Organization name', { required: true })}{form.entityType === 'company' && field('legalName', 'Legal company name')}{field('tagline', 'Tagline')}<label className="profile-field"><span>Timezone *</span><select disabled={!canManage} value={form.timezone || 'Australia/Sydney'} onChange={(event) => setForm({ ...form, timezone: event.target.value })}>{TIMEZONES.map((timezone) => <option key={timezone}>{timezone}</option>)}</select></label><label className="profile-field"><span>Organization key</span><input value={form.slug} readOnly/></label><label className="profile-field"><span>Status</span><input value={form.status} readOnly/></label></div>}
       {activeTab === 'contact' && <div className="profile-fields two-columns">{field('officialEmail', 'Official email', { type: 'email' })}{field('supportEmail', 'Support email', { type: 'email' })}{field('supportPhone', 'Support phone')}{field('supportHours', 'Support hours', { placeholder: 'Monday–Friday, 9:00–17:00' })}</div>}
       {activeTab === 'address' && <div className="profile-fields two-columns">{field('addressLine1', 'Address line 1')}{field('addressLine2', 'Address line 2')}{field('addressCity', 'City')}{field('addressState', 'State / Province')}{field('addressPostalCode', 'Postal code')}{field('addressCountry', 'Country')}</div>}
       {activeTab === 'digital' && <div className="profile-fields two-columns">{field('websiteUrl', 'Website', { type: 'url' })}{field('helpCenterUrl', 'Help center', { type: 'url' })}{field('privacyPolicyUrl', 'Privacy policy', { type: 'url' })}{field('termsUrl', 'Terms and conditions', { type: 'url' })}{field('linkedin', 'LinkedIn', { type: 'url' })}{field('instagram', 'Instagram', { type: 'url' })}{field('facebook', 'Facebook', { type: 'url' })}{field('x', 'X', { type: 'url' })}{field('youtube', 'YouTube', { type: 'url' })}{field('tiktok', 'TikTok', { type: 'url' })}{field('whatsapp', 'WhatsApp', { type: 'url' })}{field('telegram', 'Telegram', { type: 'url' })}</div>}

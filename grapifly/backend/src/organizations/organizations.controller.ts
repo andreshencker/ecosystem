@@ -13,8 +13,8 @@ export class OrganizationsController {
   }
 
   @Post('organizations')
-  create(@Req() request: SessionRequest, @Body() body: { name: string }) {
-    return this.organizations.create(request.grapiflySession!.sub, body.name);
+  create(@Req() request: SessionRequest, @Body() body: { name: string; entityType?: 'company' | 'individual' }) {
+    return this.organizations.create(request.grapiflySession!.sub, body.name, body.entityType);
   }
 
   @Get('organizations/:organizationId')

@@ -26,6 +26,7 @@ export default function OrganizationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [details, setDetails] = useState<OrganizationDetails | null>(null);
   const [organizationName, setOrganizationName] = useState('');
+  const [organizationType, setOrganizationType] = useState<'company' | 'individual'>('company');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
   const [invitationLink, setInvitationLink] = useState('');
@@ -52,7 +53,7 @@ export default function OrganizationsPage() {
 
   async function createOrganization(event: FormEvent) {
     event.preventDefault(); setMessage('');
-    const response = await fetch(`${apiUrl}/organizations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: organizationName }) });
+    const response = await fetch(`${apiUrl}/organizations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: organizationName, entityType: organizationType }) });
     const data = await response.json();
     if (!response.ok) { setMessage(data.message ?? 'Organization could not be created.'); return; }
     setOrganizationName('');
@@ -85,7 +86,7 @@ export default function OrganizationsPage() {
   return <GrapiflyAppShell><section className="organizations-page organizations-embedded">
     <section className="organizations-shell">
       <header className="organizations-heading"><div><span className="section-kicker">Grapifly Organizations</span><h1>Your teams.<br/>One identity.</h1><p>Create several organizations, choose their apps and invite the people who work with you.</p></div>
-        <form onSubmit={createOrganization}><label>New organization</label><div><input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Organization name" required/><button>Create</button></div></form>
+        <form onSubmit={createOrganization}><label>New organization</label><div><select value={organizationType} onChange={(event) => setOrganizationType(event.target.value as 'company' | 'individual')} aria-label="Organization type"><option value="company">Company</option><option value="individual">Individual</option></select><input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder={organizationType === 'individual' ? 'Profile name' : 'Organization name'} required/><button>Create</button></div></form>
       </header>
       {message && <div className="organization-message">{message}</div>}
       <div className="organizations-layout">

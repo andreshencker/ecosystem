@@ -17,6 +17,9 @@ export class Organization {
   @Prop({ required: true, index: true })
   createdBy!: string;
 
+  @Prop({ required: true, enum: ['company', 'individual'], default: 'company', index: true })
+  entityType!: 'company' | 'individual';
+
   @Prop({ type: String, default: '' })
   legalName!: string;
 

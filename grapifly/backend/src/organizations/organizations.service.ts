@@ -33,7 +33,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     await this.organizations.findOneAndUpdate(
       { organizationId },
       {
-        $set: { name: 'Grapifly', slug: 'grapifly', isPlatform: true, status: 'active' },
+        $set: { name: 'Grapifly', slug: 'grapifly', entityType: 'company', isPlatform: true, status: 'active' },
         $setOnInsert: {
           createdBy: owner.grapiflyUserId,
           legalName: '', tagline: 'Solutions that make ideas fly.', timezone: 'Australia/Sydney',
@@ -51,7 +51,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     this.logger.log('Official Grapifly organization ready (platform=true, owner assigned, Relay enabled).');
   }
 
-  async create(grapiflyUserId: string, name: string) {
+  async create(grapiflyUserId: string, name: string, entityType: 'company' | 'individual' = 'company') {
     const normalizedName = name?.trim();
     if (!normalizedName || normalizedName.length < 2 || normalizedName.length > 80) {
       throw new BadRequestException('Organization name must contain between 2 and 80 characters');
@@ -59,7 +59,8 @@ export class OrganizationsService implements OnApplicationBootstrap {
     const organizationId = `gpf_org_${randomUUID().replaceAll('-', '')}`;
     const slugBase = normalizedName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'organization';
     const slug = `${slugBase}-${organizationId.slice(-6)}`;
-    const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, createdBy: grapiflyUserId, status: 'active', isPlatform: false });
+    if (!['company', 'individual'].includes(entityType)) throw new BadRequestException('Organization type must be company or individual');
+    const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, entityType, createdBy: grapiflyUserId, status: 'active', isPlatform: false });
     await this.memberships.create({ membershipId: `gpf_mem_${randomUUID().replaceAll('-', '')}`, organizationId, grapiflyUserId, role: 'owner', status: 'active' });
     return organization.toObject();
   }
@@ -123,6 +124,10 @@ export class OrganizationsService implements OnApplicationBootstrap {
 
   async updateProfile(grapiflyUserId: string, organizationId: string, input: Record<string, unknown>) {
     await this.requireManager(grapiflyUserId, organizationId);
+    const entityType = input.entityType;
+    if (entityType !== undefined && entityType !== 'company' && entityType !== 'individual') {
+      throw new BadRequestException('Organization type must be company or individual');
+    }
     const limits: Record<string, number> = {
       name: 80, legalName: 200, tagline: 300, timezone: 100,
       officialEmail: 200, supportEmail: 200, supportPhone: 40, supportHours: 200,
@@ -132,6 +137,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
       copyrightText: 500, disclaimerShort: 500, disclaimerLong: 2000, logoIconUrl: 500, logoFullUrl: 500,
     };
     const updates: Record<string, string> = {};
+    if (entityType) updates.entityType = entityType;
     for (const [field, maxLength] of Object.entries(limits)) {
       if (!(field in input)) continue;
       if (typeof input[field] !== 'string') throw new BadRequestException(`${field} must be text`);
