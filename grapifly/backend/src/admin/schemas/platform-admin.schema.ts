@@ -1,11 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type EmployeeProfileDocument = HydratedDocument<EmployeeProfile>;
-export type EmployeeRole = 'ecosystem_super_admin';
+export type PlatformAdminDocument = HydratedDocument<PlatformAdmin>;
 
-@Schema({ collection: 'employee_profiles', timestamps: true, versionKey: false })
-export class EmployeeProfile {
+@Schema({ collection: 'platform_admins', timestamps: true, versionKey: false })
+export class PlatformAdmin {
   @Prop({ required: true, unique: true, index: true })
   grapiflyUserId!: string;
 
@@ -13,16 +12,10 @@ export class EmployeeProfile {
   email!: string;
 
   @Prop({ required: true, enum: ['ecosystem_super_admin'], index: true })
-  role!: EmployeeRole;
+  role!: 'ecosystem_super_admin';
 
   @Prop({ required: true, enum: ['active', 'suspended'], default: 'active', index: true })
   status!: 'active' | 'suspended';
-
-  @Prop({ default: 'Platform' })
-  department!: string;
-
-  @Prop({ default: 'Ecosystem Super Admin' })
-  title!: string;
 }
 
-export const EmployeeProfileSchema = SchemaFactory.createForClass(EmployeeProfile);
+export const PlatformAdminSchema = SchemaFactory.createForClass(PlatformAdmin);

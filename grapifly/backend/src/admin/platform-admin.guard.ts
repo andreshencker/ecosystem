@@ -1,14 +1,14 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { EmployeesService } from './employees.service';
 import { SessionRequest } from '../auth/session.guard';
+import { PlatformAdminService } from './platform-admin.service';
 
 @Injectable()
-export class EmployeeGuard implements CanActivate {
-  constructor(private readonly employees: EmployeesService) {}
+export class PlatformAdminGuard implements CanActivate {
+  constructor(private readonly admins: PlatformAdminService) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<SessionRequest>();
-    await this.employees.requireActiveEmployee(request.grapiflySession!.sub);
+    await this.admins.requireActiveAdmin(request.grapiflySession!.sub);
     return true;
   }
 }

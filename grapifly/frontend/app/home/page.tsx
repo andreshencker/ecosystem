@@ -14,7 +14,7 @@ const apps = [
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
-  const [isEmployee, setIsEmployee] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [failed, setFailed] = useState(false);
   const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
   const relaySsoUrl = `${apiUrl}/auth/sso/relay`;
@@ -24,9 +24,9 @@ export default function HomePage() {
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((identity) => {
         setUser(identity);
-        return fetch(`${apiUrl}/internal/me`, { credentials: 'include' });
+        return fetch(`${apiUrl}/admin/me`, { credentials: 'include' });
       })
-      .then((response) => setIsEmployee(response.ok))
+      .then((response) => setIsAdmin(response.ok))
       .catch(() => setFailed(true));
   }, [apiUrl]);
 
@@ -45,7 +45,7 @@ export default function HomePage() {
       <nav className="nav shell">
         <a className="brand" href="/"><BrandMark /> Grapifly</a>
         <div className="portal-nav-actions">
-          {isEmployee && <a className="employee-portal-link" href="/employee/users">Employee portal</a>}
+          {isAdmin && <a className="employee-portal-link" href="/admin/users">Grapifly Admin</a>}
           <button className="logout-button" onClick={logout}>Sign out</button>
         </div>
       </nav>
