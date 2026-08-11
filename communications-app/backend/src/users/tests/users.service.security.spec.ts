@@ -19,6 +19,7 @@ import {
 import { UsersService } from '../users.service';
 import { User } from '../schemas/user.schema';
 import { Company } from '../../communication/company/company-info/schemas/company.schema';
+import { ConfigService } from '@nestjs/config';
 
 // ── Shared mock helpers ───────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ async function buildModule(
       UsersService,
       { provide: getModelToken(User.name), useValue: userModel },
       { provide: getModelToken(Company.name), useValue: companyModel },
+      { provide: ConfigService, useValue: { get: jest.fn() } },
     ],
   }).compile();
 

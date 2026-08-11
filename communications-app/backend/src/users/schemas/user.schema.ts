@@ -45,8 +45,8 @@ export class User {
   email!: string;
 
   // Never returned in API responses — always projected out by UsersService.
-  @Prop({ required: true })
-  passwordHash!: string;
+  @Prop({ type: String, default: null })
+  passwordHash!: string | null;
 
   @Prop({ required: true, trim: true })
   firstName!: string;

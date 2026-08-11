@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
@@ -24,6 +25,7 @@ export class UsersService {
     @InjectModel(User.name) private readonly model: Model<UserDocument>,
     @InjectModel(Company.name)
     private readonly companyModel: Model<CompanyDocument>,
+    private readonly config: ConfigService,
   ) {}
 
   // ── Read ──────────────────────────────────────────────────────────────────
@@ -53,6 +55,7 @@ export class UsersService {
     grapiflyUserId: string;
     email: string;
     emailVerified: boolean;
+    displayName: string;
     avatarUrl: string | null;
   }): Promise<UserDocument> {
     if (!identity.emailVerified) {
@@ -65,11 +68,9 @@ export class UsersService {
     if (alreadyLinked) return alreadyLinked as any;
 
     const email = identity.email.toLowerCase().trim();
-    const user = await this.model.findOne({ email }).lean().exec();
+    let user = await this.model.findOne({ email }).lean().exec();
     if (!user) {
-      throw new UnauthorizedException(
-        'Relay access has not been provisioned for this Grapifly account',
-      );
+      return this.provisionGrapiflyPlatformAdmin(identity);
     }
     if (!user.isActive) throw new UnauthorizedException('Relay account is inactive');
 
@@ -91,6 +92,64 @@ export class UsersService {
       return linked as any;
     } catch (error: any) {
       if (error?.code === 11000) throw new ConflictException('Grapifly ID is already linked');
+      throw error;
+    }
+  }
+
+  private async provisionGrapiflyPlatformAdmin(identity: {
+    grapiflyUserId: string;
+    email: string;
+    emailVerified: boolean;
+    displayName: string;
+    avatarUrl: string | null;
+  }): Promise<any> {
+    const allowedEmail = (
+      this.config.get<string>('GRAPIFLY_PLATFORM_ADMIN_EMAIL') ??
+      'grapiflydeveloper@gmail.com'
+    )
+      .toLowerCase()
+      .trim();
+    const email = identity.email.toLowerCase().trim();
+    if (email !== allowedEmail) {
+      throw new UnauthorizedException(
+        'Relay access has not been provisioned for this Grapifly account',
+      );
+    }
+
+    const platformCompany = await this.companyModel
+      .findOne({ isPlatformCompany: true, isActive: true })
+      .lean()
+      .exec();
+    if (!platformCompany) {
+      throw new UnauthorizedException('Relay platform context is unavailable');
+    }
+
+    const parts = identity.displayName.trim().split(/\s+/).filter(Boolean);
+    const firstName = parts.shift() ?? 'Grapifly';
+    const lastName = parts.join(' ') || 'Administrator';
+    try {
+      return await this.model.create({
+        grapiflyUserId: identity.grapiflyUserId,
+        identityProvider: 'grapifly',
+        grapiflyLinkedAt: new Date(),
+        email,
+        passwordHash: null,
+        firstName,
+        lastName,
+        avatarUrl: identity.avatarUrl,
+        role: 'platform_admin',
+        scope: 'global',
+        companyId: String(platformCompany._id),
+        companyKey: platformCompany.companyKey,
+        isActive: true,
+        isEmailVerified: true,
+        mustChangePassword: false,
+      });
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        const existing = await this.model.findOne({ email }).lean().exec();
+        if (existing) return existing;
+      }
       throw error;
     }
   }

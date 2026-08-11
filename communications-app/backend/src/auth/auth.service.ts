@@ -119,6 +119,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.identityProvider === 'grapifly' || !user.passwordHash) {
+      throw new UnauthorizedException('Use Grapifly ID to sign in');
+    }
     const passwordMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordMatch) {
       throw new UnauthorizedException('Invalid credentials');
