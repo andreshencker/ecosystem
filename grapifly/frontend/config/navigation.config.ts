@@ -34,14 +34,6 @@ export const GRAPIFLY_NAVIGATION: NavigationSection[] = [
     ],
   },
   {
-    label: 'Organization',
-    items: [
-      { label: 'Members', href: '/organizations?view=members', icon: '♙', requiredCapability: 'organization.members.manage' },
-      { label: 'Applications', href: '/organizations?view=applications', icon: '◇', requiredCapability: 'organization.applications.manage' },
-      { label: 'Invitations', href: '/organizations?view=invitations', icon: '✉', requiredCapability: 'organization.invitations.manage' },
-    ],
-  },
-  {
     label: 'Platform administration',
     items: [
       { label: 'Users', href: '/admin/users', icon: '◎', requiredCapability: 'platform.users.view' },
