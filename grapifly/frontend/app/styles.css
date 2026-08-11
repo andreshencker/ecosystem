@@ -48,6 +48,8 @@ button { font:inherit; }
 footer { height:110px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;color:#77777e;font-size:13px; }
 .portal { min-height:100vh;background:linear-gradient(180deg,#f5f6fb 0,#fbfbfd 55%); }
 .portal-label { font-size:14px;color:var(--muted); }
+.logout-button { border:0;background:transparent;color:var(--blue);font-weight:600;cursor:pointer;padding:10px 0; }
+.logout-button:hover { text-decoration:underline; }
 .portal-shell { padding:70px 0 110px; }
 .welcome { display:flex;align-items:center;gap:25px;margin-bottom:75px; }
 .welcome img,.avatar-placeholder { width:86px;height:86px;border-radius:50%;object-fit:cover;box-shadow:0 12px 35px rgba(0,0,0,.12); }

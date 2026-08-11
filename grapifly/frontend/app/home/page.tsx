@@ -23,6 +23,11 @@ export default function HomePage() {
       .catch(() => setFailed(true));
   }, [apiUrl]);
 
+  async function logout() {
+    await fetch(`${apiUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
+    window.location.replace('/');
+  }
+
   if (failed) {
     window.location.replace('/');
     return null;
@@ -30,7 +35,10 @@ export default function HomePage() {
 
   return (
     <main className="portal">
-      <nav className="nav shell"><a className="brand" href="/"><BrandMark /> Grapifly</a><span className="portal-label">Account</span></nav>
+      <nav className="nav shell">
+        <a className="brand" href="/"><BrandMark /> Grapifly</a>
+        <button className="logout-button" onClick={logout}>Sign out</button>
+      </nav>
       <section className="portal-shell shell">
         <header className="welcome">
           <div>{user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <div className="avatar-placeholder">{user?.displayName?.[0] ?? 'G'}</div>}</div>
