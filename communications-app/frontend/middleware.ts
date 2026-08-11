@@ -93,5 +93,5 @@ export function middleware(request: NextRequest): NextResponse {
 // ─── Matcher ─────────────────────────────────────────────────────────────────
 // Exclude Next.js internals, static assets, and API routes.
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|public/).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|logos/|public/).*)'],
 };

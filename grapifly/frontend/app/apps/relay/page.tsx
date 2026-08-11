@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
+import { RelayMark } from '@/components/RelayMark';
 
 const solutions = [
   { icon: '✉', name: 'Email', text: 'Connect Gmail, Outlook or SMTP and send communications from authorized accounts.' },
@@ -19,12 +20,12 @@ export default function RelayPage() {
       </nav>
 
       <section className="relay-hero shell">
-        <div className="relay-badge"><span>✦</span> Relay by Grapifly</div>
+        <div className="relay-badge"><RelayMark /> Relay by Grapifly</div>
         <h1>Connect once.<br /><span>Relay handles the rest.</span></h1>
         <p>Authorize your services and let the applications you use send, synchronize and automate processes securely.</p>
         <a className="relay-primary" href="http://localhost:3000">Open Relay <span>↗</span></a>
         <div className="relay-visual" aria-hidden="true">
-          <div className="relay-center"><span>✦</span><strong>Relay</strong><small>Securely connected</small></div>
+          <div className="relay-center"><RelayMark /><strong>Relay</strong><small>Securely connected</small></div>
           {['Email','Calendar','Payments','Accounting'].map((label, index) => <div className={`relay-node node-${index + 1}`} key={label}><i />{label}</div>)}
         </div>
       </section>

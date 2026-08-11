@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
+import { RelayMark } from '@/components/RelayMark';
 import { GoogleButton } from '@/components/GoogleButton';
 
 const products = [
   { name: 'JTrade', detail: 'Markets, decisions and performance in one place.', tone: 'violet', glyph: '↗' },
   { name: 'Business', detail: 'Run your company with clarity and confidence.', tone: 'blue', glyph: 'B' },
-  { name: 'Relay', detail: 'Connect your services. Relay handles the rest.', tone: 'orange', glyph: '✦', href: '/apps/relay' },
+  { name: 'Relay', detail: 'Connect your services. Relay handles the rest.', tone: 'orange', glyph: '✦', logo: 'relay', href: '/apps/relay' },
 ];
 
 export default function LandingPage() {
@@ -34,7 +35,7 @@ export default function LandingPage() {
         <div className="product-grid">
           {products.map((product) => (
             <article className={`product-card ${product.tone}`} key={product.name}>
-              <div className="app-icon">{product.glyph}</div>
+              <div className="app-icon">{product.logo === 'relay' ? <RelayMark /> : product.glyph}</div>
               <div><h3>{product.name}</h3><p>{product.detail}</p></div>
               {product.href ? <Link className="card-more" href={product.href}>Learn more <span>→</span></Link> : <span className="card-arrow">→</span>}
             </article>

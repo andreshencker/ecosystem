@@ -35,6 +35,7 @@ button { font:inherit; }
 .product-card.blue { background:linear-gradient(145deg,#dff5ff,#8bd4ff); }
 .product-card.orange { background:linear-gradient(145deg,#fff0dc,#ffbc82); }
 .app-icon { width:62px;height:62px;border-radius:17px;display:grid;place-items:center;background:rgba(255,255,255,.72);box-shadow:0 10px 30px rgba(0,0,0,.09);font-size:27px;font-weight:700; }
+.app-icon .relay-mark { width:48px;height:48px;display:block; }
 .product-card h3 { font-size:34px;letter-spacing:-.04em;margin:0 0 8px; }
 .product-card p { font-size:17px;line-height:1.45;margin:0;max-width:260px;color:rgba(0,0,0,.62); }
 .card-arrow { position:absolute;right:28px;bottom:28px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.55); }
@@ -79,6 +80,7 @@ footer { height:110px;border-top:1px solid var(--line);display:flex;align-items:
 .relay-home-link { color:#fff;background:#111116;padding:10px 17px;border-radius:999px; }
 .relay-hero { min-height:850px;text-align:center;padding-top:110px;position:relative; }
 .relay-badge { display:inline-flex;align-items:center;gap:9px;color:#f47733;font-weight:650;font-size:15px; }
+.relay-badge .relay-mark { width:28px;height:28px;display:block; }
 .relay-badge span { width:28px;height:28px;border-radius:9px;background:linear-gradient(145deg,#ffb157,#f37832);display:grid;place-items:center;color:#fff; }
 .relay-hero h1 { margin:20px 0 25px;font-size:clamp(62px,8vw,110px);line-height:.92;letter-spacing:-.065em; }
 .relay-hero h1 span { background:linear-gradient(90deg,#f27935,#ff4d7e,#7d59ef);-webkit-background-clip:text;color:transparent; }
@@ -86,6 +88,7 @@ footer { height:110px;border-top:1px solid var(--line);display:flex;align-items:
 .relay-primary { display:inline-flex;align-items:center;gap:9px;background:#111116;color:#fff;border-radius:999px;padding:14px 21px;font-weight:650;font-size:14px; }
 .relay-visual { height:400px;position:relative;margin-top:65px; }
 .relay-center { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:190px;height:190px;border-radius:48px;background:rgba(255,255,255,.8);backdrop-filter:blur(20px);box-shadow:0 30px 80px rgba(85,62,157,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:2;border:1px solid rgba(255,255,255,.9); }
+.relay-center .relay-mark { width:55px;height:55px;display:block; }
 .relay-center>span { width:55px;height:55px;border-radius:17px;background:linear-gradient(145deg,#ffae55,#f56837);color:#fff;display:grid;place-items:center;font-size:27px; }.relay-center strong{font-size:22px}.relay-center small{color:var(--muted)}
 .relay-node { position:absolute;padding:14px 18px;border-radius:17px;background:#fff;box-shadow:0 14px 45px rgba(25,25,45,.12);font-size:14px;font-weight:650;display:flex;align-items:center;gap:9px; }
 .relay-node i { width:9px;height:9px;border-radius:50%;background:#50c878;box-shadow:0 0 0 5px rgba(80,200,120,.12); }
