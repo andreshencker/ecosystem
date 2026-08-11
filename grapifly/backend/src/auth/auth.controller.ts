@@ -25,6 +25,10 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
+    if (request.query.state === 'relay') {
+      return response.redirect('/auth/sso/relay');
+    }
+
     return response.redirect(`${this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100'}/home`);
   }
 
@@ -48,9 +52,14 @@ export class AuthController {
   }
 
   @Get('sso/relay')
-  @UseGuards(SessionGuard)
   async relaySso(@Req() request: SessionRequest, @Res() response: Response) {
-    const code = await this.auth.createRelaySsoCode(request.grapiflySession!.sub);
+    const token = request.cookies?.grapifly_session as string | undefined;
+    const session = await this.auth.resolveSession(token);
+    if (!session) {
+      return response.redirect('/auth/google?app=relay');
+    }
+
+    const code = await this.auth.createRelaySsoCode(session.sub);
     const callback = this.config.get<string>('RELAY_SSO_CALLBACK_URL') ?? 'http://localhost:3000/auth/grapifly/callback';
     return response.redirect(`${callback}?code=${encodeURIComponent(code)}`);
   }

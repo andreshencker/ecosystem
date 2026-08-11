@@ -27,6 +27,16 @@ export class AuthService {
     return this.users.findByGrapiflyUserId(grapiflyUserId);
   }
 
+  async resolveSession(token: string | undefined) {
+    if (!token) return null;
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string; type: 'session' }>(token);
+      return payload.type === 'session' ? payload : null;
+    } catch {
+      return null;
+    }
+  }
+
   async createRelaySsoCode(grapiflyUserId: string) {
     const user = await this.users.findByGrapiflyUserId(grapiflyUserId);
     if (!user) throw new UnauthorizedException('Grapifly account is inactive');
