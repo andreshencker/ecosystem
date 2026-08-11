@@ -33,7 +33,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     await this.organizations.findOneAndUpdate(
       { organizationId },
       {
-        $set: { name: 'Grapifly', slug: 'grapifly', entityType: 'company', isPlatform: true, status: 'active' },
+        $set: { name: 'Grapifly', slug: 'grapifly', entityType: 'company', isPlatform: true, isDefault: true, status: 'active' },
         $setOnInsert: {
           createdBy: owner.grapiflyUserId,
           legalName: '', tagline: 'Solutions that make ideas fly.', timezone: 'Australia/Sydney',
@@ -60,7 +60,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     const slugBase = normalizedName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'organization';
     const slug = `${slugBase}-${organizationId.slice(-6)}`;
     if (!['company', 'individual'].includes(entityType)) throw new BadRequestException('Organization type must be company or individual');
-    const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, entityType, createdBy: grapiflyUserId, status: 'active', isPlatform: false });
+    const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, entityType, createdBy: grapiflyUserId, status: 'active', isPlatform: false, isDefault: false });
     await this.memberships.create({ membershipId: `gpf_mem_${randomUUID().replaceAll('-', '')}`, organizationId, grapiflyUserId, role: 'owner', status: 'active' });
     return organization.toObject();
   }

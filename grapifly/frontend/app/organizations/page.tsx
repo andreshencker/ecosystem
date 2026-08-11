@@ -8,6 +8,7 @@ interface OrganizationSummary {
   organizationId: string;
   name: string;
   slug: string;
+  isDefault: boolean;
   membership: { role: 'owner' | 'admin' | 'member' };
   applications: string[];
 }
@@ -89,7 +90,7 @@ export default function OrganizationsPage() {
       </header>
       {message && <div className="organization-message">{message}</div>}
       <div className="organizations-layout">
-        <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <button key={organization.organizationId} className={selectedId === organization.organizationId ? 'active' : ''} onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps</small></div></button>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
+        <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <button key={organization.organizationId} className={selectedId === organization.organizationId ? 'active' : ''} onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps{organization.isDefault ? ' · default' : ''}</small></div></button>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
         <section className="organization-detail">{details ? <>
           <header><div><span>{details.membership.role}</span><h2>{details.organization.name}</h2><p>{details.organization.slug}</p></div><code>{details.organization.organizationId}</code></header>
           <OrganizationProfileTabs organization={details.organization} ownerEmail={details.members.find((member) => member.role === 'owner')?.user?.email ?? 'Not assigned'} canManage={Boolean(canManage)} apiUrl={apiUrl} onSaved={(organization) => setDetails({ ...details, organization })}/>

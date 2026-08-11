@@ -116,8 +116,11 @@ export class Organization {
   @Prop({ type: String, default: '' })
   logoFullUrl!: string;
 
-  @Prop({ type: Boolean, default: false, index: true })
+  @Prop({ type: Boolean, default: false })
   isPlatform!: boolean;
+
+  @Prop({ type: Boolean, default: false, index: true })
+  isDefault!: boolean;
 
   @Prop({ required: true, enum: ['active', 'suspended'], default: 'active', index: true })
   status!: 'active' | 'suspended';
@@ -125,3 +128,4 @@ export class Organization {
 
 export const OrganizationSchema = SchemaFactory.createForClass(Organization);
 OrganizationSchema.index({ isPlatform: 1 }, { unique: true, partialFilterExpression: { isPlatform: true } });
+OrganizationSchema.index({ createdBy: 1, isDefault: 1 }, { unique: true, partialFilterExpression: { isDefault: true } });
