@@ -40,6 +40,13 @@ export class AuthController {
     return response.status(204).send();
   }
 
+  @Get('logout/relay')
+  logoutFromRelay(@Res() response: Response) {
+    response.clearCookie('grapifly_session', { path: '/' });
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100';
+    return response.redirect(`${frontendUrl.replace(/\/$/, '')}/?signedOut=true`);
+  }
+
   @Get('sso/relay')
   @UseGuards(SessionGuard)
   async relaySso(@Req() request: SessionRequest, @Res() response: Response) {

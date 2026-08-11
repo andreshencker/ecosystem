@@ -60,21 +60,21 @@ export function useAuth() {
   }
 
   /**
-   * Logs the user out. Fires the API call fire-and-forget so the local
-   * session is always cleared even if the server is unreachable.
-   * See Authentication.md §6 and Form-Behaviour.md §7.4.
+   * Revokes the Relay session, clears all local credentials and then delegates
+   * to Grapifly ID so the ecosystem session is cleared as well.
    */
   async function logout(): Promise<void> {
     try {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
       if (refreshToken) {
-        apiClient.post('/auth/logout', { refreshToken }).catch(() => undefined);
+        await apiClient.post('/auth/logout', { refreshToken }).catch(() => undefined);
       }
     } finally {
       clearAuthCookie();
       clearAuth();
       localStorage.removeItem(REFRESH_TOKEN_KEY);
-      router.push('/auth/login');
+      const grapiflyIdUrl = process.env.NEXT_PUBLIC_GRAPIFLY_ID_URL ?? 'http://localhost:3101';
+      window.location.replace(`${grapiflyIdUrl.replace(/\/$/, '')}/auth/logout/relay`);
     }
   }
 

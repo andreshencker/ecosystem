@@ -45,8 +45,7 @@ export function Topbar({ onMenuToggle, user, company }: TopbarProps) {
 
   const handleSignOut = () => {
     handleMenuClose();
-    // Calls POST /auth/logout (revokes refresh token server-side), then
-    // clears localStorage, cookie, and Zustand store before redirecting.
+    // Revokes Relay, clears local state and ends the Grapifly ID session.
     void logout();
   };
 
