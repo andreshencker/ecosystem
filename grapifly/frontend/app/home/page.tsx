@@ -54,7 +54,7 @@ export default function HomePage() {
           <div>{user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <div className="avatar-placeholder">{user?.displayName?.[0] ?? 'G'}</div>}</div>
           <div><span className="section-kicker">Your Grapifly</span><h1>{user ? `Welcome, ${user.displayName.split(' ')[0]}.` : 'Welcome.'}</h1><p>{user?.email ?? 'Preparing your account…'}</p></div>
         </header>
-        <div className="portal-heading"><div><h2>Your apps</h2><p>Everything connected to your Grapifly ID.</p></div><button className="manage-button">Manage access</button></div>
+        <div className="portal-heading"><div><h2>Your apps</h2><p>Everything connected to your Grapifly ID.</p></div><a className="manage-button" href="/organizations">Manage organizations</a></div>
         <div className="app-grid">
           {apps.map((app) => (
             <article className="app-tile" key={app.name}>

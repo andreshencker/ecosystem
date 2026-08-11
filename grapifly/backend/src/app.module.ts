@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { PlatformAdminModule } from './admin/platform-admin.module';
 import { ApplicationAssignmentsModule } from './access/application-assignments.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ApplicationAssignmentsModule } from './access/application-assignments.m
     AuthModule,
     ApplicationsModule,
     ApplicationAssignmentsModule,
+    OrganizationsModule,
     PlatformAdminModule,
   ],
   controllers: [HealthController],
