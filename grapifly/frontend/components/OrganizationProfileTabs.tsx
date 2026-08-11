@@ -21,6 +21,7 @@ const TAB_FIELDS: Record<Exclude<TabKey, 'platform'>, (keyof OrganizationProfile
   legal: ['copyrightText', 'disclaimerShort', 'disclaimerLong'],
   brand: ['logoIconUrl', 'logoFullUrl'],
 };
+const EDITABLE_FIELDS = Object.values(TAB_FIELDS).flat();
 
 const TIMEZONES = ['UTC', 'Australia/Sydney', 'Australia/Melbourne', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Europe/Madrid', 'Asia/Dubai', 'Asia/Singapore', 'Asia/Tokyo'];
 const COUNTRY_PREFIXES = [
@@ -50,9 +51,9 @@ export function OrganizationProfileTabs({ organization, ownerEmail, canManage, a
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!canManage || activeTab === 'platform') return;
+    if (!canManage) return;
     setState('saving'); setError('');
-    const payload = Object.fromEntries(TAB_FIELDS[activeTab].map((key) => [key, form[key] ?? '']));
+    const payload = Object.fromEntries(EDITABLE_FIELDS.map((key) => [key, form[key] ?? '']));
     const response = await fetch(`${apiUrl}/organizations/${organization.organizationId}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await response.json();
     if (!response.ok) { setState('error'); setError(data.message ?? 'Changes could not be saved.'); return; }
@@ -69,7 +70,7 @@ export function OrganizationProfileTabs({ organization, ownerEmail, canManage, a
       {activeTab === 'legal' && <div className="profile-fields">{field('copyrightText', 'Copyright text')}{field('disclaimerShort', 'Short disclaimer', { textarea: true })}{field('disclaimerLong', 'Long disclaimer', { textarea: true })}</div>}
       {activeTab === 'brand' && <div className="profile-fields two-columns"><div>{field('logoIconUrl', 'Icon logo URL', { type: 'url' })}{form.logoIconUrl && <div className="brand-preview compact"><img src={form.logoIconUrl} alt="Icon logo preview"/></div>}</div><div>{field('logoFullUrl', 'Full logo URL', { type: 'url' })}{form.logoFullUrl && <div className="brand-preview"><img src={form.logoFullUrl} alt="Full logo preview"/></div>}</div></div>}
       {activeTab === 'platform' && <div className="platform-profile"><article><span>Platform organization</span><strong>Yes</strong></article><article><span>Owner</span><strong>{ownerEmail}</strong></article><article><span>Organization ID</span><code>{form.organizationId}</code></article><article><span>Created</span><strong>{form.createdAt ? new Date(form.createdAt).toLocaleDateString() : 'System managed'}</strong></article></div>}
-      {activeTab !== 'platform' && <footer className="profile-actions"><div>{state === 'saved' && <span className="save-success">Changes saved.</span>}{state === 'error' && <span className="save-error">{error}</span>}{!canManage && <span>Only owners and administrators can edit this profile.</span>}</div><button disabled={!canManage || state === 'saving'}>{state === 'saving' ? 'Saving…' : 'Save changes'}</button></footer>}
+      <footer className="profile-actions"><div>{state === 'saved' && <span className="save-success">Changes saved.</span>}{state === 'error' && <span className="save-error">{error}</span>}{!canManage && <span>Only owners and administrators can edit this profile.</span>}</div><button disabled={!canManage || state === 'saving'}>{state === 'saving' ? 'Saving…' : 'Save changes'}</button></footer>
     </form>
   </section>;
 }
