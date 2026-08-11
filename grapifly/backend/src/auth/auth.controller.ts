@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -13,6 +13,21 @@ export class AuthController {
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   googleLogin() {}
+
+  @Get('google/invitation/:token')
+  continueInvitation(
+    @Param('token') token: string,
+    @Res() response: Response,
+  ) {
+    response.cookie('grapifly_invitation_token', token, {
+      httpOnly: true,
+      secure: this.config.get<string>('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000,
+      path: '/',
+    });
+    return response.redirect('/auth/google?flow=invitation');
+  }
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
@@ -29,6 +44,20 @@ export class AuthController {
       const organizationId = request.cookies?.grapifly_sso_organization as string | undefined;
       response.clearCookie('grapifly_sso_organization', { path: '/' });
       return response.redirect(`/auth/sso/relay${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ''}`);
+    }
+
+    if (request.query.state === 'invitation') {
+      const invitationToken = request.cookies?.grapifly_invitation_token as
+        | string
+        | undefined;
+      response.clearCookie('grapifly_invitation_token', { path: '/' });
+      if (invitationToken) {
+        const frontendUrl =
+          this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100';
+        return response.redirect(
+          `${frontendUrl.replace(/\/$/, '')}/invitations/${encodeURIComponent(invitationToken)}`,
+        );
+      }
     }
 
     return response.redirect(`${this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100'}/home`);

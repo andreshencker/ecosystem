@@ -42,6 +42,32 @@ export class OrganizationsController {
     return this.organizations.invite(request.grapiflySession!.sub, organizationId, body);
   }
 
+  @Post('organizations/:organizationId/invitations/:invitationId/regenerate')
+  regenerateInvitation(
+    @Req() request: SessionRequest,
+    @Param('organizationId') organizationId: string,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.organizations.regenerateInvitation(
+      request.grapiflySession!.sub,
+      organizationId,
+      invitationId,
+    );
+  }
+
+  @Post('organizations/:organizationId/invitations/:invitationId/cancel')
+  cancelInvitation(
+    @Req() request: SessionRequest,
+    @Param('organizationId') organizationId: string,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.organizations.cancelInvitation(
+      request.grapiflySession!.sub,
+      organizationId,
+      invitationId,
+    );
+  }
+
   @Post('invitations/:token/accept')
   accept(@Req() request: SessionRequest, @Param('token') token: string) {
     return this.organizations.accept(request.grapiflySession!.sub, token);

@@ -82,12 +82,21 @@ export class OrganizationsService implements OnApplicationBootstrap {
 
   async getDetails(grapiflyUserId: string, organizationId: string) {
     const membership = await this.requireMembership(grapiflyUserId, organizationId);
+    await this.invitations.updateMany(
+      { organizationId, status: 'pending', expiresAt: { $lte: new Date() } },
+      { $set: { status: 'expired' } },
+    );
     const [organization, memberships, applications, memberApplications, invitations] = await Promise.all([
       this.organizations.findOne({ organizationId, status: 'active' }).lean(),
       this.memberships.find({ organizationId, status: 'active' }).lean(),
       this.organizationApplications.find({ organizationId, status: 'active' }).lean(),
       this.memberApplications.find({ organizationId, status: 'active' }).lean(),
-      membership.role === 'member' ? Promise.resolve([]) : this.invitations.find({ organizationId, status: 'pending' }).select('-tokenHash').lean(),
+      membership.role === 'member'
+        ? Promise.resolve([])
+        : this.invitations
+            .find({ organizationId, status: { $in: ['pending', 'expired'] } })
+            .select('-tokenHash')
+            .lean(),
     ]);
     if (!organization) throw new NotFoundException('Organization not found');
     const users = await Promise.all(memberships.map((item) => this.users.findByGrapiflyUserId(item.grapiflyUserId)));
@@ -215,6 +224,53 @@ export class OrganizationsService implements OnApplicationBootstrap {
       acceptedAt: null,
     });
     return { invitation: { ...invitation.toObject(), tokenHash: undefined }, token };
+  }
+
+  async regenerateInvitation(
+    grapiflyUserId: string,
+    organizationId: string,
+    invitationId: string,
+  ) {
+    await this.requireManager(grapiflyUserId, organizationId);
+    const invitation = await this.invitations
+      .findOne({
+        invitationId,
+        organizationId,
+        status: { $in: ['pending', 'expired'] },
+      })
+      .select('+tokenHash');
+    if (!invitation) {
+      throw new NotFoundException('Pending invitation not found');
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    invitation.tokenHash = this.hash(token);
+    invitation.status = 'pending';
+    invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    invitation.acceptedAt = null;
+    await invitation.save();
+
+    return {
+      invitation: { ...invitation.toObject(), tokenHash: undefined },
+      token,
+    };
+  }
+
+  async cancelInvitation(
+    grapiflyUserId: string,
+    organizationId: string,
+    invitationId: string,
+  ) {
+    await this.requireManager(grapiflyUserId, organizationId);
+    const invitation = await this.invitations.findOneAndUpdate(
+      { invitationId, organizationId, status: 'pending' },
+      { $set: { status: 'cancelled' } },
+      { returnDocument: 'after' },
+    ).lean();
+    if (!invitation) {
+      throw new NotFoundException('Pending invitation not found');
+    }
+    return { invitationId, status: 'cancelled' };
   }
 
   async accept(grapiflyUserId: string, token: string) {

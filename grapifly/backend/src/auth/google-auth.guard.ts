@@ -7,10 +7,11 @@ export class GoogleAuthGuard extends AuthGuard('google') {
   getAuthenticateOptions(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
     const app = request.query.app === 'relay' ? 'relay' : undefined;
+    const invitation = request.query.flow === 'invitation';
 
     return {
       prompt: 'select_account',
-      ...(app ? { state: app } : {}),
+      ...(app ? { state: app } : invitation ? { state: 'invitation' } : {}),
     };
   }
 }

@@ -1,0 +1,41 @@
+.pending-invitations article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.pending-invitations article > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invitation-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.invitation-actions button {
+  border: 1px solid #d8d8df;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.invitation-actions button.danger {
+  color: #b42318;
+  border-color: #f0c6c2;
+}
+
+.invitation-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

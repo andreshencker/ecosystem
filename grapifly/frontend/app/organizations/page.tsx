@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { GrapiflyAppShell } from '@/components/GrapiflyAppShell';
 import { OrganizationProfile, OrganizationProfileTabs } from '@/components/OrganizationProfileTabs';
+import '../invitations.css';
 
 interface OrganizationSummary {
   organizationId: string;
@@ -19,7 +20,7 @@ interface OrganizationDetails {
   membership: { role: 'owner' | 'admin' | 'member' };
   applications: { applicationKey: string }[];
   members: { membershipId: string; role: string; applications: { applicationKey: string; role: string }[]; user: { displayName: string; email: string; avatarUrl: string | null } | null }[];
-  invitations: { invitationId: string; email: string; role: string; applicationKeys: string[]; expiresAt: string }[];
+  invitations: { invitationId: string; email: string; role: string; applicationKeys: string[]; expiresAt: string; status: 'pending' | 'expired' }[];
 }
 
 export default function OrganizationsPage() {
@@ -33,6 +34,7 @@ export default function OrganizationsPage() {
   const [invitationLink, setInvitationLink] = useState('');
   const [message, setMessage] = useState('');
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [invitationActionId, setInvitationActionId] = useState<string | null>(null);
 
   async function loadOrganizations(preferredId?: string) {
     const response = await fetch(`${apiUrl}/organizations`, { credentials: 'include' });
@@ -85,6 +87,32 @@ export default function OrganizationsPage() {
     setMessage('Invitation created. Copy the secure link and send it to the invited person.');
   }
 
+  async function regenerateInvitation(invitationId: string) {
+    if (!selectedId) return;
+    setInvitationActionId(invitationId); setMessage('');
+    try {
+      const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations/${invitationId}/regenerate`, { method: 'POST', credentials: 'include' });
+      const data = await response.json();
+      if (!response.ok) { setMessage(data.message ?? 'Invitation link could not be regenerated.'); return; }
+      setInvitationLink(`${window.location.origin}/invitations/${data.token}`);
+      await loadDetails(selectedId);
+      setMessage('A new invitation link was generated. The previous link is no longer valid.');
+    } finally { setInvitationActionId(null); }
+  }
+
+  async function cancelInvitation(invitationId: string, email: string) {
+    if (!selectedId || !window.confirm(`Cancel the invitation for ${email}?`)) return;
+    setInvitationActionId(invitationId); setMessage('');
+    try {
+      const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations/${invitationId}/cancel`, { method: 'POST', credentials: 'include' });
+      const data = await response.json();
+      if (!response.ok) { setMessage(data.message ?? 'Invitation could not be cancelled.'); return; }
+      setInvitationLink('');
+      await loadDetails(selectedId);
+      setMessage('Invitation cancelled.');
+    } finally { setInvitationActionId(null); }
+  }
+
   async function archiveOrganization(organization: OrganizationSummary) {
     setActionMenuId(null);
     if (organization.isDefault || organization.isPlatform) { setMessage('The official and default organizations are protected.'); return; }
@@ -114,7 +142,7 @@ export default function OrganizationsPage() {
           <div className="organization-section-title"><div><h3>Members</h3><p>Identity and membership are managed centrally by Grapifly.</p></div></div>
           <div className="member-list">{details.members.map((member) => <article key={member.membershipId}>{member.user?.avatarUrl ? <img src={member.user.avatarUrl} alt=""/> : <span>{member.user?.displayName?.[0] ?? 'G'}</span>}<div><strong>{member.user?.displayName ?? 'Grapifly user'}</strong><small>{member.user?.email}{member.applications.length > 0 ? ` · ${member.applications.map((app) => app.applicationKey).join(', ')}` : ''}</small></div><b>{member.role}</b></article>)}</div>
           {canManage && <form className="invitation-form" onSubmit={invite}><div><h3>Invite a member</h3><p>The invitation grants membership and access to the enabled applications.</p></div><div className="invitation-fields"><input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="name@company.com" required/><select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'member' | 'admin')}><option value="member">Member</option><option value="admin">Administrator</option></select><button>Invite</button></div>{invitationLink && <div className="invitation-link"><input readOnly value={invitationLink}/><button type="button" onClick={() => navigator.clipboard.writeText(invitationLink)}>Copy link</button></div>}</form>}
-          {details.invitations.length > 0 && <div className="pending-invitations"><h3>Pending invitations</h3>{details.invitations.map((invitation) => <p key={invitation.invitationId}><strong>{invitation.email}</strong><span>{invitation.role} · expires {new Date(invitation.expiresAt).toLocaleDateString()}</span></p>)}</div>}
+          {details.invitations.length > 0 && <div className="pending-invitations"><h3>Invitations</h3>{details.invitations.map((invitation) => <article key={invitation.invitationId}><div><strong>{invitation.email}</strong><span>{invitation.role} · {invitation.status === 'expired' ? 'expired' : `expires ${new Date(invitation.expiresAt).toLocaleDateString()}`}</span></div>{canManage && <div className="invitation-actions"><button disabled={invitationActionId === invitation.invitationId} onClick={() => regenerateInvitation(invitation.invitationId)}>New link</button>{invitation.status === 'pending' && <button className="danger" disabled={invitationActionId === invitation.invitationId} onClick={() => cancelInvitation(invitation.invitationId, invitation.email)}>Cancel</button>}</div>}</article>)}</div>}
         </> : <div className="organization-empty"><h2>Select an organization</h2><p>Its applications, members and invitations will appear here.</p></div>}</section>
       </div>
     </section>
