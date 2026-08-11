@@ -12,6 +12,7 @@ const solutions = [
 ];
 
 export default function RelayPage() {
+  const relaySsoUrl = `${process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101'}/auth/sso/relay`;
   return (
     <main className="relay-page">
       <nav className="nav shell relay-nav">
@@ -23,7 +24,7 @@ export default function RelayPage() {
         <div className="relay-badge"><RelayMark /> Relay by Grapifly</div>
         <h1>Connect once.<br /><span>Relay handles the rest.</span></h1>
         <p>Authorize your services and let the applications you use send, synchronize and automate processes securely.</p>
-        <a className="relay-primary" href="http://localhost:3000">Open Relay <span>↗</span></a>
+        <a className="relay-primary" href={relaySsoUrl}>Open Relay <span>↗</span></a>
         <div className="relay-visual" aria-hidden="true">
           <div className="relay-center"><RelayMark /><strong>Relay</strong><small>Securely connected</small></div>
           {['Email','Calendar','Payments','Accounting'].map((label, index) => <div className={`relay-node node-${index + 1}`} key={label}><i />{label}</div>)}
@@ -61,7 +62,7 @@ export default function RelayPage() {
         <div><span className="section-kicker">The Grapifly philosophy</span><h2>Connected solutions.<br />Ideas in flight.</h2><p>Every solution is a grape that solves a specific need. Grapifly is the stem connecting the cluster, so multiple solutions can work together and make your idea fly.</p><Link className="philosophy-link" href="/about">Read the Grapifly story →</Link></div>
       </section>
 
-      <section className="relay-cta shell"><span>Relay by Grapifly</span><h2>Complexity stays behind.<br />You keep moving forward.</h2><a href="http://localhost:3000">Explore Relay <span>↗</span></a></section>
+      <section className="relay-cta shell"><span>Relay by Grapifly</span><h2>Complexity stays behind.<br />You keep moving forward.</h2><a href={relaySsoUrl}>Explore Relay <span>↗</span></a></section>
       <footer className="shell"><div className="brand"><BrandMark /> Grapifly</div><span>Relay is part of the Grapifly ecosystem.</span></footer>
     </main>
   );

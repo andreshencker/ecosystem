@@ -47,6 +47,14 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
+  @Public()
+  @Post('grapifly')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Exchange a Grapifly ID SSO code for a Relay session' })
+  grapifly(@Body() dto: { code: string }) {
+    return this.auth.loginWithGrapifly(dto.code);
+  }
+
   // ── POST /auth/refresh ─────────────────────────────────────────────────────
   @Public()
   @Post('refresh')

@@ -24,6 +24,8 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto, TokensOnlyDto } from './dto/auth-response.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -37,6 +39,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly notification: NotificationService,
     private readonly provisioning: CompanyProvisioningService,
+    private readonly http: HttpService,
     @InjectModel(RefreshToken.name)
     private readonly tokenModel: Model<RefreshTokenDocument>,
   ) {}
@@ -143,6 +146,38 @@ export class AuthService {
       ...tokens,
       user: UserResponseDto.from(user),
     };
+  }
+
+  async loginWithGrapifly(code: string): Promise<AuthResponseDto> {
+    if (!code) throw new UnauthorizedException('Missing Grapifly SSO code');
+    const baseUrl = this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101';
+    const clientSecret = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
+    if (!clientSecret) throw new UnauthorizedException('Grapifly SSO is not configured');
+
+    let identity: {
+      grapiflyUserId: string;
+      email: string;
+      emailVerified: boolean;
+      displayName: string;
+      avatarUrl: string | null;
+    };
+    try {
+      const response = await firstValueFrom(
+        this.http.post(
+          `${baseUrl.replace(/\/$/, '')}/auth/sso/exchange`,
+          { code, appKey: 'relay' },
+          { headers: { 'x-grapifly-sso-secret': clientSecret }, timeout: 5000 },
+        ),
+      );
+      identity = response.data;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired Grapifly SSO code');
+    }
+
+    const user = await this.users.linkGrapiflyIdentity(identity);
+    if (!user.isActive) throw new ForbiddenException('Relay account is inactive');
+    const tokens = await this.issueTokens(String(user._id));
+    return { ...tokens, user: UserResponseDto.from(user) };
   }
 
   // ─── Refresh tokens ────────────────────────────────────────────────────────

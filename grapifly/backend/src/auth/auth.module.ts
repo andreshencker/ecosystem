@@ -8,10 +8,13 @@ import { AuthService } from './auth.service';
 import { GoogleStrategy } from './google.strategy';
 import { SessionGuard } from './session.guard';
 import { GoogleAuthGuard } from './google-auth.guard';
+import { MongooseModule } from '@nestjs/mongoose';
+import { SsoCode, SsoCodeSchema } from './schemas/sso-code.schema';
 
 @Module({
   imports: [
     UsersModule,
+    MongooseModule.forFeature([{ name: SsoCode.name, schema: SsoCodeSchema }]),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

@@ -19,6 +19,8 @@ services:
     environment:
       PORT: 3101
       MONGODB_URI: mongodb://mongo:27017/grapifly_identity
+      GRAPIFLY_SSO_CLIENT_SECRET: ${GRAPIFLY_SSO_CLIENT_SECRET:-development-grapifly-relay-sso-change-me}
+      RELAY_SSO_CALLBACK_URL: http://localhost:3000/auth/grapifly/callback
     ports:
       - "3101:3101"
 

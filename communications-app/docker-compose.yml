@@ -35,6 +35,8 @@ services:
       APP_BASE_URL: http://localhost:${COMMUNICATIONS_FRONTEND_PORT:-3000}
       API_BASE_URL: http://localhost:${COMMUNICATIONS_BACKEND_PORT:-3001}
       ALLOWED_ORIGINS: http://localhost:${COMMUNICATIONS_FRONTEND_PORT:-3000}
+      GRAPIFLY_ID_API_URL: http://host.docker.internal:3101
+      GRAPIFLY_SSO_CLIENT_SECRET: ${GRAPIFLY_SSO_CLIENT_SECRET:-development-grapifly-relay-sso-change-me}
     ports:
       - '${COMMUNICATIONS_BACKEND_PORT:-3001}:3001'
     depends_on:
@@ -51,6 +53,7 @@ services:
         NEXT_PUBLIC_API_URL: http://localhost:${COMMUNICATIONS_BACKEND_PORT:-3001}
         NEXT_PUBLIC_APP_ENV: production
         NEXT_PUBLIC_COMM_API_KEY: ${NEXT_PUBLIC_COMM_API_KEY:-}
+        NEXT_PUBLIC_GRAPIFLY_ID_URL: http://localhost:3101
     image: communications-app-frontend:local
     container_name: communications_frontend
     restart: unless-stopped

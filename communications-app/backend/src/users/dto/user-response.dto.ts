@@ -2,6 +2,7 @@ import type { UserRole, UserScope } from '../schemas/user.schema';
 
 export class UserResponseDto {
   id!: string;
+  grapiflyUserId!: string | null;
   email!: string;
   firstName!: string;
   lastName!: string;
@@ -18,6 +19,7 @@ export class UserResponseDto {
   static from(user: any): UserResponseDto {
     const dto = new UserResponseDto();
     dto.id = String(user._id ?? user.id);
+    dto.grapiflyUserId = user.grapiflyUserId ?? null;
     dto.email = user.email;
     dto.firstName = user.firstName;
     dto.lastName = user.lastName;

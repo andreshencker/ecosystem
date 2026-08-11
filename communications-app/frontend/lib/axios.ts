@@ -55,6 +55,12 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // SSO failures must be rendered by the Grapifly callback page. Redirecting
+    // here would hide important states such as "access not provisioned".
+    if (original.url === '/auth/grapifly') {
+      return Promise.reject(error);
+    }
+
     // Avoid infinite loop on the refresh endpoint itself
     if (original.url === '/auth/refresh') {
       console.warn('[AUTH CLEAR]', { file: 'lib/axios.ts', function: 'responseInterceptor', reason: 'refresh endpoint returned 401 (reuse or invalid)', stack: new Error().stack });

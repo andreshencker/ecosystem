@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -38,5 +38,21 @@ export class AuthController {
   logout(@Res() response: Response) {
     response.clearCookie('grapifly_session', { path: '/' });
     return response.status(204).send();
+  }
+
+  @Get('sso/relay')
+  @UseGuards(SessionGuard)
+  async relaySso(@Req() request: SessionRequest, @Res() response: Response) {
+    const code = await this.auth.createRelaySsoCode(request.grapiflySession!.sub);
+    const callback = this.config.get<string>('RELAY_SSO_CALLBACK_URL') ?? 'http://localhost:3000/auth/grapifly/callback';
+    return response.redirect(`${callback}?code=${encodeURIComponent(code)}`);
+  }
+
+  @Post('sso/exchange')
+  exchangeSso(
+    @Body() body: { code: string; appKey: string },
+    @Headers('x-grapifly-sso-secret') clientSecret: string | undefined,
+  ) {
+    return this.auth.exchangeSsoCode(body.code, body.appKey, clientSecret);
   }
 }

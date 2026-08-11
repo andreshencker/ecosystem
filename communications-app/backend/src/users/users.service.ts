@@ -49,6 +49,52 @@ export class UsersService {
       .exec() as any;
   }
 
+  async linkGrapiflyIdentity(identity: {
+    grapiflyUserId: string;
+    email: string;
+    emailVerified: boolean;
+    avatarUrl: string | null;
+  }): Promise<UserDocument> {
+    if (!identity.emailVerified) {
+      throw new UnauthorizedException('Grapifly email is not verified');
+    }
+    const alreadyLinked = await this.model
+      .findOne({ grapiflyUserId: identity.grapiflyUserId })
+      .lean()
+      .exec();
+    if (alreadyLinked) return alreadyLinked as any;
+
+    const email = identity.email.toLowerCase().trim();
+    const user = await this.model.findOne({ email }).lean().exec();
+    if (!user) {
+      throw new UnauthorizedException(
+        'Relay access has not been provisioned for this Grapifly account',
+      );
+    }
+    if (!user.isActive) throw new UnauthorizedException('Relay account is inactive');
+
+    try {
+      const linked = await this.model.findOneAndUpdate(
+        { _id: user._id, grapiflyUserId: null },
+        {
+          $set: {
+            grapiflyUserId: identity.grapiflyUserId,
+            identityProvider: 'grapifly',
+            grapiflyLinkedAt: new Date(),
+            isEmailVerified: true,
+            ...(identity.avatarUrl && !user.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}),
+          },
+        },
+        { new: true },
+      ).lean();
+      if (!linked) throw new ConflictException('Relay account is already linked to another Grapifly ID');
+      return linked as any;
+    } catch (error: any) {
+      if (error?.code === 11000) throw new ConflictException('Grapifly ID is already linked');
+      throw error;
+    }
+  }
+
   /** Returns true if any user document matches the given email (case-insensitive). */
   async existsByEmail(email: string): Promise<boolean> {
     const doc = await this.model

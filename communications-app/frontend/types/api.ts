@@ -11,6 +11,7 @@ export type Scope = 'global' | 'company';
 
 export interface User {
   id: string;
+  grapiflyUserId?: string | null;
   email: string;
   firstName?: string;
   lastName?: string;

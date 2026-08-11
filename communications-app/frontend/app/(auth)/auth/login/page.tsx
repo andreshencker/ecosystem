@@ -14,6 +14,8 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import NextLink from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { mapApiError } from '@/lib/mapApiError';
@@ -81,6 +83,17 @@ function LoginForm() {
           <Stack spacing={2}>
             <Typography sx={{ fontSize: 32, fontWeight: 720, letterSpacing: '-.045em' }}>Welcome back.</Typography>
             <Typography color="text.secondary" variant="body2">Sign in to manage your connections and solutions.</Typography>
+
+            <Button
+              component="a"
+              href={`${process.env.NEXT_PUBLIC_GRAPIFLY_ID_URL ?? 'http://localhost:3101'}/auth/sso/relay`}
+              variant="outlined"
+              fullWidth
+              sx={{ py: 1.35, borderColor: 'rgba(17,17,22,.15)', color: 'text.primary' }}
+            >
+              Continue with Grapifly ID
+            </Button>
+            <Divider><Typography variant="caption" color="text.secondary">or use your Relay account</Typography></Divider>
 
             {verified && (
               <Alert severity="success">

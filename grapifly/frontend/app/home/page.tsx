@@ -16,6 +16,7 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [failed, setFailed] = useState(false);
   const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
+  const relaySsoUrl = `${apiUrl}/auth/sso/relay`;
 
   useEffect(() => {
     fetch(`${apiUrl}/auth/me`, { credentials: 'include' })
@@ -53,7 +54,7 @@ export default function HomePage() {
               <div><h3>{app.name}</h3><p>{app.description}</p></div>
               <div className="app-actions">
                 {app.learnMore && <a className="learn-link" href={app.learnMore}>Learn more</a>}
-                <a href={app.url}>Open&nbsp; ↗</a>
+                <a href={app.name === 'Relay' ? relaySsoUrl : app.url}>Open&nbsp; ↗</a>
               </div>
             </article>
           ))}

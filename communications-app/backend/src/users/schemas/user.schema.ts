@@ -25,6 +25,16 @@ export type UserDocument = HydratedDocument<User> & {
 
 @Schema({ collection: 'users', versionKey: false, timestamps: true })
 export class User {
+  /** Stable person identifier issued by Grapifly ID. Optional during migration. */
+  @Prop({ type: String })
+  grapiflyUserId!: string | null;
+
+  @Prop({ type: String, enum: ['local', 'grapifly'], default: 'local' })
+  identityProvider!: 'local' | 'grapifly';
+
+  @Prop({ type: Date, default: null })
+  grapiflyLinkedAt!: Date | null;
+
   @Prop({
     required: true,
     unique: true,
@@ -119,3 +129,4 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 UserSchema.index({ emailVerificationToken: 1 }, { sparse: true });
 UserSchema.index({ passwordResetToken: 1 }, { sparse: true });
+UserSchema.index({ grapiflyUserId: 1 }, { unique: true, sparse: true });

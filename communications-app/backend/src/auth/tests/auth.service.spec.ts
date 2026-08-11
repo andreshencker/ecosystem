@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from '../auth.service';
 import { RefreshToken } from '../schemas/refresh-token.schema';
@@ -95,6 +96,7 @@ describe('AuthService — notification helpers', () => {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') },
         },
+        { provide: HttpService, useValue: { post: jest.fn() } },
         { provide: getModelToken(RefreshToken.name), useValue: tokenModelMock },
       ],
     }).compile();
