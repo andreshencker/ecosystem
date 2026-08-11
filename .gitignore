@@ -2,6 +2,9 @@
 /dist
 /node_modules
 /build
+**/dist
+**/node_modules
+**/.next
 
 # Logs
 logs
@@ -37,6 +40,9 @@ lerna-debug.log*
 
 # dotenv environment variable files — never commit real secrets
 business-app/backend/.env
+grapifly/.env
+grapifly/backend/.env
+grapifly/frontend/.env.local
 .env
 !.env
 
