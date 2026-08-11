@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { BrandMark } from '@/components/BrandMark';
+import { GrapiflyAppShell } from '@/components/GrapiflyAppShell';
 
 interface OrganizationSummary {
   organizationId: string;
@@ -81,9 +81,8 @@ export default function OrganizationsPage() {
   }
 
   const canManage = details && ['owner', 'admin'].includes(details.membership.role);
-  return <main className="organizations-page">
-    <nav className="nav shell"><a className="brand" href="/home"><BrandMark /> Grapifly</a><a className="back-link" href="/home">← Your apps</a></nav>
-    <section className="organizations-shell shell">
+  return <GrapiflyAppShell><section className="organizations-page organizations-embedded">
+    <section className="organizations-shell">
       <header className="organizations-heading"><div><span className="section-kicker">Grapifly Organizations</span><h1>Your teams.<br/>One identity.</h1><p>Create several organizations, choose their apps and invite the people who work with you.</p></div>
         <form onSubmit={createOrganization}><label>New organization</label><div><input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Organization name" required/><button>Create</button></div></form>
       </header>
@@ -101,5 +100,5 @@ export default function OrganizationsPage() {
         </> : <div className="organization-empty"><h2>Select an organization</h2><p>Its applications, members and invitations will appear here.</p></div>}</section>
       </div>
     </section>
-  </main>;
+  </section></GrapiflyAppShell>;
 }
