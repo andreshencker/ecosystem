@@ -1,21 +1,21 @@
 import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SessionGuard, SessionRequest } from './session.guard';
 import { GoogleIdentity } from '../users/users.service';
+import { GoogleAuthGuard } from './google-auth.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService, private readonly config: ConfigService) {}
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   googleLogin() {}
 
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() request: Request, @Res() response: Response) {
     const { sessionToken } = await this.auth.loginWithGoogle(request.user as GoogleIdentity);
     response.cookie('grapifly_session', sessionToken, {
