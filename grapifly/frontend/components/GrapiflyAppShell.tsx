@@ -21,6 +21,7 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -47,6 +48,7 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setActiveView(new URLSearchParams(window.location.search).get('view'));
+    setSidebarCollapsed(window.localStorage.getItem('grapifly_sidebar_collapsed') === 'true');
   }, [pathname]);
 
   const selectedOrganization = organizations.find((organization) => organization.organizationId === selectedOrganizationId) ?? null;
@@ -72,10 +74,11 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
   }
 
   return <ShellContext.Provider value={{ user, organizations, selectedOrganization, isPlatformAdmin }}>
-    <main className="grapifly-shell">
-      <aside className={`grapifly-sidebar ${menuOpen ? 'open' : ''}`}>
-        <a className="brand" href="/home"><BrandMark /> Grapifly</a>
+    <main className={`grapifly-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <aside className={`grapifly-sidebar ${menuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-brand-row"><a className="brand" href="/home" title="Grapifly"><BrandMark /><span>Grapifly</span></a><button className="sidebar-collapse-button" onClick={() => { const next = !sidebarCollapsed; setSidebarCollapsed(next); window.localStorage.setItem('grapifly_sidebar_collapsed', String(next)); }} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{sidebarCollapsed ? '›' : '‹'}</button></div>
         <div className="grapifly-context">
+          <span className="context-mark" title={selectedOrganization?.name ?? 'Create organization'}>{selectedOrganization?.name?.[0] ?? '+'}</span>
           <label>Organization</label>
           {organizations.length > 0 ? <select value={selectedOrganizationId} onChange={(event) => { setSelectedOrganizationId(event.target.value); window.localStorage.setItem('grapifly_active_organization', event.target.value); }}>
             {organizations.map((organization) => <option key={organization.organizationId} value={organization.organizationId}>{organization.name}</option>)}
@@ -88,9 +91,9 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
           const active = requestedView
             ? pathname === itemPath && activeView === requestedView
             : (pathname === itemPath && !activeView) || (itemPath !== '/home' && pathname.startsWith(`${itemPath}/`));
-          return <a key={`${section.label}-${item.label}`} className={active ? 'active' : ''} href={item.href} onClick={() => setMenuOpen(false)}><i>{item.icon}</i>{item.label}</a>;
+          return <a key={`${section.label}-${item.label}`} className={active ? 'active' : ''} href={item.href} onClick={() => setMenuOpen(false)} title={item.label}><i>{item.icon}</i><b>{item.label}</b></a>;
         })}</section>)}</nav>
-        <button className="shell-signout" onClick={logout}>Sign out</button>
+        <button className="shell-signout" onClick={logout} title="Sign out"><i>↪</i><span>Sign out</span></button>
       </aside>
       <section className="grapifly-workspace">
         <header className="grapifly-topbar"><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation">☰</button><div><span>{selectedOrganization?.name ?? 'Personal'}</span><small>Grapifly ecosystem</small></div><div className="shell-profile">{user?.avatarUrl ? <img src={user.avatarUrl} alt=""/> : <span>{user?.displayName?.[0] ?? 'G'}</span>}<div><strong>{user?.displayName ?? 'Grapifly'}</strong><small>{user?.email ?? 'Loading identity…'}</small></div></div></header>
