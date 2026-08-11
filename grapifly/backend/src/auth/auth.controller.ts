@@ -26,7 +26,9 @@ export class AuthController {
       path: '/',
     });
     if (request.query.state === 'relay') {
-      return response.redirect('/auth/sso/relay');
+      const organizationId = request.cookies?.grapifly_sso_organization as string | undefined;
+      response.clearCookie('grapifly_sso_organization', { path: '/' });
+      return response.redirect(`/auth/sso/relay${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ''}`);
     }
 
     return response.redirect(`${this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100'}/home`);
@@ -56,10 +58,21 @@ export class AuthController {
     const token = request.cookies?.grapifly_session as string | undefined;
     const session = await this.auth.resolveSession(token);
     if (!session) {
+      const organizationId = typeof request.query.organizationId === 'string' ? request.query.organizationId : undefined;
+      if (organizationId) {
+        response.cookie('grapifly_sso_organization', organizationId, {
+          httpOnly: true,
+          secure: this.config.get<string>('NODE_ENV') === 'production',
+          sameSite: 'lax',
+          maxAge: 5 * 60 * 1000,
+          path: '/',
+        });
+      }
       return response.redirect('/auth/google?app=relay');
     }
 
-    const code = await this.auth.createRelaySsoCode(session.sub);
+    const organizationId = typeof request.query.organizationId === 'string' ? request.query.organizationId : undefined;
+    const code = await this.auth.createRelaySsoCode(session.sub, organizationId);
     const callback = this.config.get<string>('RELAY_SSO_CALLBACK_URL') ?? 'http://localhost:3000/auth/grapifly/callback';
     return response.redirect(`${callback}?code=${encodeURIComponent(code)}`);
   }

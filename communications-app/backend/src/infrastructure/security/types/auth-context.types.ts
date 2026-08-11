@@ -29,6 +29,12 @@ export interface AuthContext {
   /** Denormalised company slug. */
   companyKey?: string | null;
 
+  /** Grapifly organization selected when this app session was created. */
+  grapiflyOrganizationId?: string | null;
+
+  /** Capabilities granted by Grapifly for the selected app and organization. */
+  permissions?: string[];
+
   /** Present when actorType === 'apikey'. The ApiKey document ObjectId. */
   keyId?: string;
 }

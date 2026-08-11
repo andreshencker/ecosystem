@@ -57,6 +57,11 @@ export class UsersService {
     emailVerified: boolean;
     displayName: string;
     avatarUrl: string | null;
+  }, context?: {
+    companyId: string;
+    companyKey: string;
+    role: UserRole;
+    scope: UserScope;
   }): Promise<UserDocument> {
     if (!identity.emailVerified) {
       throw new UnauthorizedException('Grapifly email is not verified');
@@ -70,7 +75,27 @@ export class UsersService {
     const email = identity.email.toLowerCase().trim();
     let user = await this.model.findOne({ email }).lean().exec();
     if (!user) {
-      return this.provisionGrapiflyPlatformAdmin(identity);
+      if (!context) return this.provisionGrapiflyPlatformAdmin(identity);
+      const parts = identity.displayName.trim().split(/\s+/).filter(Boolean);
+      const firstName = parts.shift() ?? 'Grapifly';
+      const lastName = parts.join(' ') || 'User';
+      return this.model.create({
+        grapiflyUserId: identity.grapiflyUserId,
+        identityProvider: 'grapifly',
+        grapiflyLinkedAt: new Date(),
+        email,
+        passwordHash: null,
+        firstName,
+        lastName,
+        avatarUrl: identity.avatarUrl,
+        role: context.role,
+        scope: context.scope,
+        companyId: context.companyId,
+        companyKey: context.companyKey,
+        isActive: true,
+        isEmailVerified: true,
+        mustChangePassword: false,
+      }) as any;
     }
     if (!user.isActive) throw new UnauthorizedException('Relay account is inactive');
 
@@ -94,6 +119,61 @@ export class UsersService {
       if (error?.code === 11000) throw new ConflictException('Grapifly ID is already linked');
       throw error;
     }
+  }
+
+  async resolveGrapiflyCompany(identity: {
+    grapiflyUserId: string;
+    email: string;
+    organization: { organizationId: string; name: string; slug: string; isPlatform: boolean };
+  }): Promise<CompanyDocument> {
+    const direct = await this.companyModel.findOne({
+      grapiflyOrganizationId: identity.organization.organizationId,
+      isActive: true,
+    }).lean().exec();
+    if (direct) return direct as any;
+
+    const existingUser = await this.model.findOne({
+      $or: [
+        { grapiflyUserId: identity.grapiflyUserId },
+        { email: identity.email.toLowerCase().trim() },
+      ],
+    }).lean().exec();
+    if (existingUser?.companyId) {
+      const claimed = await this.companyModel.findOneAndUpdate(
+        {
+          _id: existingUser.companyId,
+          $or: [
+            { grapiflyOrganizationId: null },
+            { grapiflyOrganizationId: { $exists: false } },
+            { grapiflyOrganizationId: identity.organization.organizationId },
+          ],
+        },
+        { $set: { grapiflyOrganizationId: identity.organization.organizationId } },
+        { new: true },
+      ).lean().exec();
+      if (claimed) return claimed as any;
+    }
+
+    if (identity.organization.isPlatform) {
+      const platform = await this.companyModel.findOneAndUpdate(
+        { isPlatformCompany: true, isActive: true },
+        { $set: { grapiflyOrganizationId: identity.organization.organizationId } },
+        { new: true },
+      ).lean().exec();
+      if (platform) return platform as any;
+    }
+
+    let companyKey = this.slugify(identity.organization.slug || identity.organization.name);
+    if (!companyKey) companyKey = `grapifly-${identity.organization.organizationId.slice(-8).toLowerCase()}`;
+    const collision = await this.companyModel.exists({ companyKey });
+    if (collision) companyKey = `${companyKey}-${identity.organization.organizationId.slice(-6).toLowerCase()}`;
+    return this.companyModel.create({
+      grapiflyOrganizationId: identity.organization.organizationId,
+      companyKey,
+      displayName: identity.organization.name,
+      isActive: true,
+      isPlatformCompany: false,
+    }) as any;
   }
 
   private async provisionGrapiflyPlatformAdmin(identity: {

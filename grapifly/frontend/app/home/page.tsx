@@ -14,9 +14,9 @@ export default function HomePage() {
 }
 
 function HomeContent() {
-  const { user } = useGrapiflyShell();
+  const { user, selectedOrganization } = useGrapiflyShell();
   const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
-  const relaySsoUrl = `${apiUrl}/auth/sso/relay`;
+  const relaySsoUrl = `${apiUrl}/auth/sso/relay${selectedOrganization ? `?organizationId=${encodeURIComponent(selectedOrganization.organizationId)}` : ''}`;
 
   return (
     <section className="portal portal-embedded">

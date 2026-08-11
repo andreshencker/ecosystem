@@ -63,6 +63,10 @@ export class GlobalAuthGuard implements CanActivate {
           type?: string;
           organizationId?: string;
           companyId?: string;
+          companyKey?: string;
+          role?: any;
+          scope?: any;
+          permissions?: string[];
         }>(token, { secret });
 
         if (payload.type !== 'access') {
@@ -73,6 +77,11 @@ export class GlobalAuthGuard implements CanActivate {
           actorType: 'user',
           userId: payload.sub,
           companyId: payload.companyId ?? payload.organizationId,
+          companyKey: payload.companyKey,
+          grapiflyOrganizationId: payload.organizationId,
+          role: payload.role,
+          scope: payload.scope,
+          permissions: payload.permissions ?? [],
         };
 
         (request as any).authContext = authContext;

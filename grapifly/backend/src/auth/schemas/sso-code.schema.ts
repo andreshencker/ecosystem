@@ -14,6 +14,9 @@ export class SsoCode {
   @Prop({ required: true, enum: ['relay'], index: true })
   appKey!: 'relay';
 
+  @Prop({ required: true, index: true })
+  organizationId!: string;
+
   @Prop({ required: true })
   expiresAt!: Date;
 

@@ -158,11 +158,20 @@ export class AuthService {
     if (!clientSecret) throw new UnauthorizedException('Grapifly SSO is not configured');
 
     let identity: {
+      contractVersion: number;
+      issuer: 'grapifly';
+      audience: 'relay';
       grapiflyUserId: string;
       email: string;
       emailVerified: boolean;
       displayName: string;
       avatarUrl: string | null;
+      organization: { organizationId: string; name: string; slug: string; isPlatform: boolean };
+      access: {
+        organizationRole: 'owner' | 'admin' | 'member';
+        applicationRole: 'owner' | 'admin' | 'member';
+        permissions: string[];
+      };
     };
     try {
       const response = await firstValueFrom(
@@ -177,10 +186,35 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired Grapifly SSO code');
     }
 
-    const user = await this.users.linkGrapiflyIdentity(identity);
+    if (identity.contractVersion !== 1 || identity.issuer !== 'grapifly' || identity.audience !== 'relay') {
+      throw new UnauthorizedException('Unsupported Grapifly SSO contract');
+    }
+    const company = await this.users.resolveGrapiflyCompany(identity);
+    const role: import('../users/schemas/user.schema').UserRole = identity.organization.isPlatform && identity.access.applicationRole === 'owner'
+      ? 'platform_admin'
+      : identity.access.applicationRole === 'owner'
+        ? 'company_owner'
+        : identity.access.applicationRole === 'admin'
+          ? 'company_admin'
+          : 'operator';
+    const scope: import('../users/schemas/user.schema').UserScope = role === 'platform_admin' ? 'global' : 'company';
+    const sessionContext = {
+      companyId: String(company._id),
+      companyKey: company.companyKey,
+      grapiflyOrganizationId: identity.organization.organizationId,
+      role,
+      scope,
+      permissions: identity.access.permissions,
+    } as const;
+    const user = await this.users.linkGrapiflyIdentity(identity, sessionContext);
     if (!user.isActive) throw new ForbiddenException('Relay account is inactive');
-    const tokens = await this.issueTokens(String(user._id));
-    return { ...tokens, user: UserResponseDto.from(user) };
+    const tokens = await this.issueTokens(String(user._id), sessionContext);
+    const responseUser = UserResponseDto.from(user);
+    responseUser.companyId = sessionContext.companyId;
+    responseUser.companyKey = sessionContext.companyKey;
+    responseUser.role = sessionContext.role;
+    responseUser.scope = sessionContext.scope;
+    return { ...tokens, user: responseUser };
   }
 
   // ─── Refresh tokens ────────────────────────────────────────────────────────
@@ -209,7 +243,14 @@ export class AuthService {
       );
     }
 
-    const newTokens = await this.issueTokens(String(stored.userId));
+    const newTokens = await this.issueTokens(String(stored.userId), stored.companyId ? {
+      companyId: stored.companyId,
+      companyKey: stored.companyKey ?? '',
+      grapiflyOrganizationId: stored.grapiflyOrganizationId ?? null,
+      role: stored.role as any,
+      scope: stored.scope as any,
+      permissions: stored.permissions ?? [],
+    } : undefined);
 
     await this.tokenModel.findByIdAndUpdate(stored._id, {
       $set: {
@@ -601,16 +642,23 @@ export class AuthService {
 
   // ─── Private: token helpers ────────────────────────────────────────────────
 
-  private async issueTokens(userId: string): Promise<TokensOnlyDto> {
+  private async issueTokens(userId: string, context?: {
+    companyId: string;
+    companyKey: string;
+    grapiflyOrganizationId: string | null;
+    role: any;
+    scope: any;
+    permissions?: string[];
+  }): Promise<TokensOnlyDto> {
     const expiresIn = this.accessTokenExpiresInSeconds();
 
     // Resolve companyId so GlobalAuthGuard can populate authContext.companyId.
     // Platform admins (scope='global') with a null companyId fall back to the
     // platform company so scoped controllers (e.g. CalendarController) work.
     const user = await this.users.findById(userId);
-    let companyId: string | undefined = user?.companyId
+    let companyId: string | undefined = context?.companyId ?? (user?.companyId
       ? String(user.companyId)
-      : undefined;
+      : undefined);
     if (!companyId && (user as any)?.scope === 'global') {
       companyId =
         (await this.users.getPlatformCompanyId().catch(() => null)) ??
@@ -621,6 +669,11 @@ export class AuthService {
       sub: userId,
       type: 'access',
       ...(companyId !== undefined && { companyId }),
+      ...(context?.companyKey && { companyKey: context.companyKey }),
+      ...(context?.grapiflyOrganizationId && { organizationId: context.grapiflyOrganizationId }),
+      ...(context?.role && { role: context.role }),
+      ...(context?.scope && { scope: context.scope }),
+      ...(context?.permissions && { permissions: context.permissions }),
     });
 
     const rawRefreshToken = randomBytes(32).toString('hex');
@@ -632,6 +685,12 @@ export class AuthService {
       tokenHash: refreshTokenHash,
       isRevoked: false,
       expiresAt: refreshExpiresAt,
+      companyId: context?.companyId ?? null,
+      companyKey: context?.companyKey ?? null,
+      grapiflyOrganizationId: context?.grapiflyOrganizationId ?? null,
+      role: context?.role ?? null,
+      scope: context?.scope ?? null,
+      permissions: context?.permissions ?? [],
     });
 
     return {

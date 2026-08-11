@@ -10,11 +10,21 @@ import { SessionGuard } from './session.guard';
 import { GoogleAuthGuard } from './google-auth.guard';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SsoCode, SsoCodeSchema } from './schemas/sso-code.schema';
+import { Organization, OrganizationSchema } from '../organizations/schemas/organization.schema';
+import { OrganizationMembership, OrganizationMembershipSchema } from '../organizations/schemas/organization-membership.schema';
+import { OrganizationApplication, OrganizationApplicationSchema } from '../organizations/schemas/organization-application.schema';
+import { OrganizationMemberApplication, OrganizationMemberApplicationSchema } from '../organizations/schemas/organization-member-application.schema';
 
 @Module({
   imports: [
     UsersModule,
-    MongooseModule.forFeature([{ name: SsoCode.name, schema: SsoCodeSchema }]),
+    MongooseModule.forFeature([
+      { name: SsoCode.name, schema: SsoCodeSchema },
+      { name: Organization.name, schema: OrganizationSchema },
+      { name: OrganizationMembership.name, schema: OrganizationMembershipSchema },
+      { name: OrganizationApplication.name, schema: OrganizationApplicationSchema },
+      { name: OrganizationMemberApplication.name, schema: OrganizationMemberApplicationSchema },
+    ]),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

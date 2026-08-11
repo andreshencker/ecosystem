@@ -10,6 +10,10 @@ export type CompanyDocument = HydratedDocument<Company>;
   versionKey: false,
 })
 export class Company {
+  /** Stable tenant identifier issued by Grapifly. Relay owns only the technical projection. */
+  @Prop({ type: String, default: null })
+  grapiflyOrganizationId!: string | null;
+
   @Prop({
     required: true,
     trim: true,
@@ -158,4 +162,8 @@ export const CompanySchema = SchemaFactory.createForClass(Company);
 CompanySchema.index(
   { isPlatformCompany: 1 },
   { unique: true, partialFilterExpression: { isPlatformCompany: true } },
+);
+CompanySchema.index(
+  { grapiflyOrganizationId: 1 },
+  { unique: true, sparse: true },
 );
