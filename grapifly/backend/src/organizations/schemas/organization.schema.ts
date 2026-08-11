@@ -39,6 +39,12 @@ export class Organization {
   supportPhone!: string;
 
   @Prop({ type: String, default: '' })
+  supportPhoneCountryCode!: string;
+
+  @Prop({ type: String, default: '' })
+  supportPhoneNumber!: string;
+
+  @Prop({ type: String, default: '' })
   supportHours!: string;
 
   @Prop({ type: String, default: '' })

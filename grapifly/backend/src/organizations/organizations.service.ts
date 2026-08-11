@@ -130,7 +130,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     }
     const limits: Record<string, number> = {
       name: 80, legalName: 200, tagline: 300, timezone: 100,
-      officialEmail: 200, supportEmail: 200, supportPhone: 40, supportHours: 200,
+      officialEmail: 200, supportEmail: 200, supportPhoneCountryCode: 5, supportPhoneNumber: 30, supportHours: 200,
       addressLine1: 200, addressLine2: 200, addressCity: 100, addressState: 100, addressPostalCode: 20, addressCountry: 100,
       websiteUrl: 500, helpCenterUrl: 500, privacyPolicyUrl: 500, termsUrl: 500,
       facebook: 500, instagram: 500, linkedin: 500, x: 500, youtube: 500, tiktok: 500, whatsapp: 500, telegram: 500,
@@ -149,6 +149,15 @@ export class OrganizationsService implements OnApplicationBootstrap {
     for (const field of ['officialEmail', 'supportEmail']) {
       if (updates[field] && !/^\S+@\S+\.\S+$/.test(updates[field])) throw new BadRequestException(`${field} must be a valid email`);
       if (updates[field]) updates[field] = updates[field].toLowerCase();
+    }
+    if (updates.supportPhoneCountryCode && !/^\+[1-9]\d{0,3}$/.test(updates.supportPhoneCountryCode)) {
+      throw new BadRequestException('supportPhoneCountryCode must use international format, for example +61');
+    }
+    if (updates.supportPhoneNumber && !/^[0-9 ()-]{6,30}$/.test(updates.supportPhoneNumber)) {
+      throw new BadRequestException('supportPhoneNumber contains invalid characters');
+    }
+    if ('supportPhoneCountryCode' in updates || 'supportPhoneNumber' in updates) {
+      updates.supportPhone = [updates.supportPhoneCountryCode ?? '', updates.supportPhoneNumber ?? ''].filter(Boolean).join(' ');
     }
     for (const field of ['websiteUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram', 'logoIconUrl', 'logoFullUrl']) {
       if (!updates[field]) continue;
