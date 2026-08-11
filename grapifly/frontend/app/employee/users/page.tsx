@@ -1,0 +1,97 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { BrandMark } from '@/components/BrandMark';
+
+interface GrapiflyUser {
+  grapiflyUserId: string;
+  displayName: string;
+  email: string;
+  emailVerified: boolean;
+  avatarUrl: string | null;
+  isActive: boolean;
+  provider: 'google';
+  lastLoginAt: string;
+}
+
+export default function EmployeeUsersPage() {
+  const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
+  const [users, setUsers] = useState<GrapiflyUser[]>([]);
+  const [query, setQuery] = useState('');
+  const [state, setState] = useState<'loading' | 'ready' | 'forbidden' | 'error'>('loading');
+
+  useEffect(() => {
+    fetch(`${apiUrl}/internal/users`, { credentials: 'include' })
+      .then(async (response) => {
+        if (response.status === 401) { window.location.replace('/'); return null; }
+        if (response.status === 403) { setState('forbidden'); return null; }
+        if (!response.ok) throw new Error('Unable to load users');
+        return response.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        setUsers(data.users);
+        setState('ready');
+      })
+      .catch(() => setState('error'));
+  }, [apiUrl]);
+
+  const filtered = useMemo(() => {
+    const normalized = query.toLowerCase().trim();
+    if (!normalized) return users;
+    return users.filter((user) =>
+      `${user.displayName} ${user.email} ${user.grapiflyUserId}`.toLowerCase().includes(normalized),
+    );
+  }, [query, users]);
+
+  return (
+    <main className="employee-page">
+      <aside className="employee-sidebar">
+        <a className="brand" href="/home"><BrandMark /> Grapifly</a>
+        <div className="employee-product"><span>Internal</span><strong>Employee Portal</strong></div>
+        <nav>
+          <a className="active" href="/employee/users"><span>◎</span> Users</a>
+          <span className="future-item"><span>◇</span> Apps <small>Coming next</small></span>
+          <span className="future-item"><span>⌘</span> Access <small>Coming next</small></span>
+        </nav>
+        <a className="back-to-account" href="/home">← Personal portal</a>
+      </aside>
+
+      <section className="employee-content">
+        <header className="employee-topbar">
+          <div><span className="section-kicker">Grapifly Operations</span><h1>Users</h1></div>
+          <div className="admin-pill"><span>G</span><div><strong>Super Admin</strong><small>grapiflydeveloper@gmail.com</small></div></div>
+        </header>
+
+        <section className="users-hero">
+          <div><span>IDENTITY DIRECTORY</span><h2>Every Grapifly ID.<br />One trusted view.</h2></div>
+          <p>This directory contains ecosystem identities only. Relay roles and application access remain unchanged until the migration stage.</p>
+        </section>
+
+        <section className="users-panel">
+          <div className="users-toolbar">
+            <div><h3>Grapifly users</h3><p>{users.length} identities in the ecosystem</p></div>
+            <label><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users" /></label>
+          </div>
+
+          {state === 'loading' && <div className="employee-message">Loading identity directory…</div>}
+          {state === 'forbidden' && <div className="employee-message"><strong>Employee access required.</strong><br />This area is separate from the customer portal.</div>}
+          {state === 'error' && <div className="employee-message">The identity directory could not be loaded.</div>}
+          {state === 'ready' && <div className="users-table-wrap">
+            <table className="users-table">
+              <thead><tr><th>User</th><th>Grapifly ID</th><th>Identity</th><th>Status</th><th>Last sign in</th></tr></thead>
+              <tbody>{filtered.map((user) => <tr key={user.grapiflyUserId}>
+                <td><div className="directory-user">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.displayName[0]}</span>}<div><strong>{user.displayName}</strong><small>{user.email}</small></div></div></td>
+                <td><code>{user.grapiflyUserId}</code></td>
+                <td><span className="provider-badge">Google</span></td>
+                <td><span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>{user.isActive ? 'Active' : 'Inactive'}</span></td>
+                <td>{new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(user.lastLoginAt))}</td>
+              </tr>)}</tbody>
+            </table>
+            {filtered.length === 0 && <div className="employee-message">No users match your search.</div>}
+          </div>}
+        </section>
+      </section>
+    </main>
+  );
+}

@@ -23,7 +23,7 @@ export class AuthService {
     return { user, sessionToken };
   }
 
-  getUser(grapiflyUserId: string) {
+  async getUser(grapiflyUserId: string) {
     return this.users.findByGrapiflyUserId(grapiflyUserId);
   }
 

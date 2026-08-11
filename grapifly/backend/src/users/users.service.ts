@@ -44,4 +44,16 @@ export class UsersService {
   findByGrapiflyUserId(grapiflyUserId: string) {
     return this.users.findOne({ grapiflyUserId, isActive: true }).lean();
   }
+
+  findByEmail(email: string) {
+    return this.users.findOne({ email: email.toLowerCase().trim(), isActive: true }).lean();
+  }
+
+  listAll() {
+    return this.users
+      .find()
+      .select('grapiflyUserId email emailVerified displayName avatarUrl isActive provider lastLoginAt createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
 }

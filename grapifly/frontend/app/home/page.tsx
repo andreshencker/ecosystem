@@ -14,6 +14,7 @@ const apps = [
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [isEmployee, setIsEmployee] = useState(false);
   const [failed, setFailed] = useState(false);
   const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
   const relaySsoUrl = `${apiUrl}/auth/sso/relay`;
@@ -21,7 +22,11 @@ export default function HomePage() {
   useEffect(() => {
     fetch(`${apiUrl}/auth/me`, { credentials: 'include' })
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then(setUser)
+      .then((identity) => {
+        setUser(identity);
+        return fetch(`${apiUrl}/internal/me`, { credentials: 'include' });
+      })
+      .then((response) => setIsEmployee(response.ok))
       .catch(() => setFailed(true));
   }, [apiUrl]);
 
@@ -39,7 +44,10 @@ export default function HomePage() {
     <main className="portal">
       <nav className="nav shell">
         <a className="brand" href="/"><BrandMark /> Grapifly</a>
-        <button className="logout-button" onClick={logout}>Sign out</button>
+        <div className="portal-nav-actions">
+          {isEmployee && <a className="employee-portal-link" href="/employee/users">Employee portal</a>}
+          <button className="logout-button" onClick={logout}>Sign out</button>
+        </div>
       </nav>
       <section className="portal-shell shell">
         <header className="welcome">

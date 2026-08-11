@@ -26,5 +26,6 @@ import { SsoCode, SsoCodeSchema } from './schemas/sso-code.schema';
   ],
   controllers: [AuthController],
   providers: [AuthService, GoogleStrategy, GoogleAuthGuard, SessionGuard],
+  exports: [SessionGuard, JwtModule],
 })
 export class AuthModule {}
