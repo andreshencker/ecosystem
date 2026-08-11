@@ -10,7 +10,7 @@ import {
 } from '../communication/company/company-info/schemas/company.schema';
 import { SecurityModule } from '../communication/common/security/security.module';
 import { RolesGuard } from '../infrastructure/security/guards/roles.guard';
-import { UsersModule } from '../users/users.module';
+import { RelayTenantContextModule } from '../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { UsersModule } from '../users/users.module';
       { name: CompanySmtp.name, schema: CompanySmtpSchema },
     ]),
     SecurityModule,
-    UsersModule,
+    RelayTenantContextModule,
   ],
   controllers: [CompanyPortalController],
   providers: [CompanyPortalService, RolesGuard],

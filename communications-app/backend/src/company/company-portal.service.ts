@@ -1,5 +1,4 @@
 import {
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -17,11 +16,11 @@ import {
   CompanySmtpDocument,
 } from './schemas/company-smtp.schema';
 import { CryptoService } from '../communication/common/security/crypto.service';
-import { UsersService } from '../users/users.service';
 import { UpdateCompanyPortalDto } from './dto/update-company-portal.dto';
 import { UpdateCompanySmtpDto } from './dto/update-company-smtp.dto';
 import { CompanySmtpResponseDto } from './dto/company-smtp-response.dto';
 import type { AuthContext } from '../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../infrastructure/security/services/relay-tenant-context.service';
 
 @Injectable()
 export class CompanyPortalService {
@@ -33,82 +32,24 @@ export class CompanyPortalService {
     @InjectModel(CompanySmtp.name)
     private readonly smtpModel: Model<CompanySmtpDocument>,
     private readonly crypto: CryptoService,
-    private readonly users: UsersService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
-
-  // ── Company ID resolution ─────────────────────────────────────────────────
-  //
-  // The JWT only carries { sub, type }.  The auth guard sets authContext.userId
-  // but NOT companyId / role / scope.  We resolve the company from the DB:
-  //
-  //   1. Load the user document by userId to get their real companyId.
-  //   2. For platform_admin (scope='global') with a null companyId (edge case
-  //      in bootstrapped environments), fall back to the modules company
-  //      identified by { isPlatformCompany: true }.
-  //   3. For all other roles, require a non-null companyId.
-
-  private async resolveCompanyId(ctx: AuthContext): Promise<string> {
-    if (!ctx.userId) {
-      throw new ForbiddenException('Authentication required');
-    }
-
-    // Load the full user document to get the actual companyId and scope.
-    const user = await this.users.findById(ctx.userId);
-    if (!user) {
-      throw new ForbiddenException('Authenticated user not found');
-    }
-
-    const companyId = user.companyId ? String(user.companyId) : null;
-
-    if (companyId) {
-      return companyId;
-    }
-
-    // platform_admin may have a null companyId in early bootstrap environments.
-    // Fall back to the designated modules company document.
-    if (user.scope === 'global') {
-      const platformCompany = (await this.companyModel
-        .findOne({ isPlatformCompany: true })
-        .lean()
-        .exec()) as any;
-      if (platformCompany?._id) {
-        return String(platformCompany._id);
-      }
-      throw new NotFoundException(
-        'Platform company not found. Run the bootstrap script to create it.',
-      );
-    }
-
-    throw new ForbiddenException('No company assigned to this user account');
-  }
-
-  // Convenience: load user and check they are allowed to edit.
-  private async assertCanEdit(ctx: AuthContext): Promise<string> {
-    if (!ctx.userId) throw new ForbiddenException('Authentication required');
-    const user = await this.users.findById(ctx.userId);
-    if (!user) throw new ForbiddenException('Authenticated user not found');
-    if (user.role !== 'platform_admin' && user.role !== 'company_owner') {
-      throw new ForbiddenException(
-        'Only platform_admin and company_owner may update company settings',
-      );
-    }
-    return this.resolveCompanyId(ctx);
-  }
 
   // ── Own company ───────────────────────────────────────────────────────────
 
   async getOwnCompany(ctx: AuthContext): Promise<CompanyDocument> {
-    const companyId = await this.resolveCompanyId(ctx);
-    const doc = await this.companyModel.findById(companyId).lean().exec();
-    if (!doc) throw new NotFoundException('Company not found');
-    return doc as any;
+    const tenant = await this.tenantContext.resolve(ctx, 'relay.use');
+    return tenant.company;
   }
 
   async updateOwnCompany(
     ctx: AuthContext,
     dto: UpdateCompanyPortalDto,
   ): Promise<CompanyDocument> {
-    const companyId = await this.assertCanEdit(ctx);
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.organization.manage',
+    );
 
     const $set: Record<string, any> = {};
     const allFields: (keyof UpdateCompanyPortalDto)[] = [
@@ -167,7 +108,10 @@ export class CompanyPortalService {
   // ── SMTP settings ─────────────────────────────────────────────────────────
 
   async getSmtp(ctx: AuthContext): Promise<CompanySmtpResponseDto> {
-    const companyId = await this.resolveCompanyId(ctx);
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.credentials.manage',
+    );
     const doc = await this.smtpModel.findOne({ companyId }).lean().exec();
     if (!doc) {
       return CompanySmtpResponseDto.from({
@@ -186,7 +130,10 @@ export class CompanyPortalService {
     ctx: AuthContext,
     dto: UpdateCompanySmtpDto,
   ): Promise<CompanySmtpResponseDto> {
-    const companyId = await this.assertCanEdit(ctx);
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.credentials.manage',
+    );
 
     const $set: Record<string, any> = {};
     if (dto.fromEmail !== undefined) $set.fromEmail = dto.fromEmail;
@@ -231,7 +178,10 @@ export class CompanyPortalService {
   }
 
   async testSmtp(ctx: AuthContext): Promise<{ ok: boolean; message: string }> {
-    const companyId = await this.resolveCompanyId(ctx);
+    const { companyId } = await this.tenantContext.resolve(
+      ctx,
+      'relay.credentials.manage',
+    );
     const doc = (await this.smtpModel
       .findOne({ companyId })
       .lean()
