@@ -51,7 +51,7 @@ export default function HomePage() {
               <div className={`app-icon ${app.tone}`}>{app.glyph}</div>
               <div><h3>{app.name}</h3><p>{app.description}</p></div>
               <div className="app-actions">
-                {app.learnMore && <a className="learn-link" href={app.learnMore}>Ver más</a>}
+                {app.learnMore && <a className="learn-link" href={app.learnMore}>Learn more</a>}
                 <a href={app.url}>Open&nbsp; ↗</a>
               </div>
             </article>

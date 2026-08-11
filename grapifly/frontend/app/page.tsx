@@ -13,7 +13,7 @@ export default function LandingPage() {
     <main>
       <nav className="nav shell">
         <Link className="brand" href="/"><BrandMark /> Grapifly</Link>
-        <div className="nav-links"><a href="#ecosystem">Ecosystem</a><a href="#privacy">Privacy</a><GoogleButton label="Sign in" /></div>
+        <div className="nav-links"><a href="#ecosystem">Ecosystem</a><Link href="/about">Our story</Link><a href="#privacy">Privacy</a><GoogleButton label="Sign in" /></div>
       </nav>
 
       <section className="hero shell">
@@ -36,10 +36,15 @@ export default function LandingPage() {
             <article className={`product-card ${product.tone}`} key={product.name}>
               <div className="app-icon">{product.glyph}</div>
               <div><h3>{product.name}</h3><p>{product.detail}</p></div>
-              {product.href ? <Link className="card-more" href={product.href}>Ver más <span>→</span></Link> : <span className="card-arrow">→</span>}
+              {product.href ? <Link className="card-more" href={product.href}>Learn more <span>→</span></Link> : <span className="card-arrow">→</span>}
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="story-teaser shell">
+        <div className="mini-grapes" aria-hidden="true"><i/><i/><i/><i/><i/></div>
+        <div><span className="section-kicker">Why Grapifly?</span><h2>One solution helps.<br />Connected solutions make ideas fly.</h2><p>Every grape represents a focused solution. Grapifly is the stem that brings them together into one ecosystem.</p><Link href="/about">Discover our story <span>→</span></Link></div>
       </section>
 
       <section className="privacy shell" id="privacy">
