@@ -40,11 +40,11 @@ lerna-debug.log*
 
 # dotenv environment variable files — never commit real secrets
 business-app/backend/.env
+.env
+!.env
 grapifly/.env
 grapifly/backend/.env
 grapifly/frontend/.env.local
-.env
-!.env
 
 # temp directory
 .temp
