@@ -1,11 +1,11 @@
-import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { EcosystemUserResponseDto } from '../../ecosystem/identity/dto/ecosystem-user-response.dto';
 
 export class AuthResponseDto {
   accessToken!: string;
   refreshToken!: string;
   /** Access token TTL in seconds. */
   expiresIn!: number;
-  user!: UserResponseDto;
+  user!: EcosystemUserResponseDto;
 }
 
 export class TokensOnlyDto {

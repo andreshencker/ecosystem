@@ -18,7 +18,7 @@ import {
   Company,
   CompanySchema,
 } from '../../company/company-info/schemas/company.schema';
-import { User, UserSchema } from '../../../users/schemas/user.schema';
+import { User, UserSchema } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
 import { ProviderCredentialsController } from './provider-credentials.controller';
 import { ProviderCredentialsService } from './provider-credentials.service';

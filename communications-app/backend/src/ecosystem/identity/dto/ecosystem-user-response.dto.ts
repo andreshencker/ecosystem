@@ -1,6 +1,6 @@
-import type { UserRole, UserScope } from '../schemas/user.schema';
+import type { UserRole, UserScope } from '../schemas/ecosystem-user.schema';
 
-export class UserResponseDto {
+export class EcosystemUserResponseDto {
   id!: string;
   grapiflyUserId!: string | null;
   email!: string;
@@ -16,8 +16,8 @@ export class UserResponseDto {
   mustChangePassword!: boolean;
   createdAt!: Date;
 
-  static from(user: any): UserResponseDto {
-    const dto = new UserResponseDto();
+  static from(user: any): EcosystemUserResponseDto {
+    const dto = new EcosystemUserResponseDto();
     dto.id = String(user._id ?? user.id);
     dto.grapiflyUserId = user.grapiflyUserId ?? null;
     dto.email = user.email;

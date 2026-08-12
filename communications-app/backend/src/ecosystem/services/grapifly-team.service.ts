@@ -2,12 +2,12 @@ import { BadGatewayException, BadRequestException, Injectable, UnauthorizedExcep
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import { UsersService } from '../../users/users.service';
+import { EcosystemIdentityService } from '../identity/ecosystem-identity.service';
 import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
 
 @Injectable()
 export class GrapiflyTeamService {
-  constructor(private readonly http: HttpService, private readonly config: ConfigService, private readonly users: UsersService) {}
+  constructor(private readonly http: HttpService, private readonly config: ConfigService, private readonly identity: EcosystemIdentityService) {}
 
   async list(ctx: AuthContext) {
     const response = await this.request(ctx, 'get', '');
@@ -38,7 +38,7 @@ export class GrapiflyTeamService {
   }
 
   private async request(ctx: AuthContext, method: 'get' | 'post' | 'patch', path: string, data?: unknown) {
-    const actor = await this.users.findByIdOrThrow(ctx.userId!);
+    const actor = await this.identity.findByIdOrThrow(ctx.userId!);
     if (!actor.grapiflyUserId || !ctx.grapiflyOrganizationId) throw new UnauthorizedException('An active Grapifly organization session is required');
     const secret = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
     if (!secret) throw new BadGatewayException('Grapifly integration is not configured');

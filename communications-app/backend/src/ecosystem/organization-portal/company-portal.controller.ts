@@ -5,8 +5,8 @@ import { CompanyPortalService } from './company-portal.service';
 import { UpdateCompanyPortalDto } from './dto/update-company-portal.dto';
 import { UpdateCompanySmtpDto } from './dto/update-company-smtp.dto';
 import { CompanySmtpResponseDto } from './dto/company-smtp-response.dto';
-import { CurrentUser } from '../infrastructure/security/decorators/current-user.decorator';
-import type { AuthContext } from '../infrastructure/security/types/auth-context.types';
+import { CurrentUser } from '../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
 
 // Access control is enforced in CompanyPortalService via DB user lookup.
 // GlobalAuthGuard (APP_GUARD) ensures every request carries a valid JWT.

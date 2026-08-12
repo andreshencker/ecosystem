@@ -7,13 +7,13 @@ import {
   CompanySmtp,
   CompanySmtpDocument,
 } from './schemas/company-smtp.schema';
-import { CryptoService } from '../communication/common/security/crypto.service';
+import { CryptoService } from '../../communication/common/security/crypto.service';
 import { UpdateCompanyPortalDto } from './dto/update-company-portal.dto';
 import { UpdateCompanySmtpDto } from './dto/update-company-smtp.dto';
 import { CompanySmtpResponseDto } from './dto/company-smtp-response.dto';
-import type { AuthContext } from '../infrastructure/security/types/auth-context.types';
-import { RelayTenantContextService } from '../infrastructure/security/services/relay-tenant-context.service';
-import { GrapiflyOrganizationService } from '../ecosystem/services/grapifly-organization.service';
+import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../infrastructure/security/services/relay-tenant-context.service';
+import { GrapiflyOrganizationService } from '../services/grapifly-organization.service';
 
 @Injectable()
 export class CompanyPortalService {

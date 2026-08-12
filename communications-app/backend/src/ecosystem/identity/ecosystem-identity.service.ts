@@ -10,18 +10,18 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
-import { User, UserDocument } from './schemas/user.schema';
-import type { UserRole, UserScope } from './schemas/user.schema';
-import type { GrapiflyRelaySsoContract } from '../ecosystem/contracts/grapifly-ecosystem.contract';
+import { User, UserDocument } from './schemas/ecosystem-user.schema';
+import type { UserRole, UserScope } from './schemas/ecosystem-user.schema';
+import type { GrapiflyRelaySsoContract } from '../contracts/grapifly-ecosystem.contract';
 import {
   Company,
   CompanyDocument,
-} from '../communication/company/company-info/schemas/company.schema';
+} from '../../communication/company/company-info/schemas/company.schema';
 
 const BCRYPT_ROUNDS = 12;
 
 @Injectable()
-export class UsersService {
+export class EcosystemIdentityService {
   constructor(
     @InjectModel(User.name) private readonly model: Model<UserDocument>,
     @InjectModel(Company.name)

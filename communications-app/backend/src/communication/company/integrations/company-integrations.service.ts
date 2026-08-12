@@ -11,7 +11,7 @@ import {
   Company,
   CompanyDocument,
 } from '../company-info/schemas/company.schema';
-import { User, UserDocument } from '../../../users/schemas/user.schema';
+import { User, UserDocument } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 import { CreateCompanyIntegrationDto } from './dto/create-company-integration.dto';
 import { UpdateCompanyIntegrationDto } from './dto/update-company-integration.dto';
 import {

@@ -11,7 +11,7 @@ import { HttpService } from '@nestjs/axios';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from '../auth.service';
 import { RefreshToken } from '../schemas/refresh-token.schema';
-import { UsersService } from '../../users/users.service';
+import { EcosystemIdentityService } from '../../ecosystem/identity/ecosystem-identity.service';
 import { NotificationService } from '../../communication/notifications/notification.service';
 import { CompanyProvisioningService } from '../../communication/company/provisioning/company-provisioning.service';
 
@@ -82,7 +82,7 @@ describe('AuthService — notification helpers', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: UsersService, useValue: usersServiceMock },
+        { provide: EcosystemIdentityService, useValue: usersServiceMock },
         { provide: NotificationService, useValue: notificationMock },
         {
           provide: CompanyProvisioningService,
@@ -271,7 +271,7 @@ describe('AuthService — notification helpers', () => {
       );
     });
 
-    it('resolves modules company from UsersService when companyId is null', async () => {
+    it('resolves the platform tenant from the ecosystem identity projection when companyId is null', async () => {
       const platformUser2 = {
         _id: OBJECT_ID,
         email: 'admin@grapifly.com',

@@ -10,7 +10,7 @@ import {
 } from './schemas/refresh-token.schema';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module';
+import { EcosystemModule } from '../ecosystem/ecosystem.module';
 import { NotificationModule } from '../communication/notifications/notification.module';
 import { CompanyProvisioningModule } from '../communication/company/provisioning/company-provisioning.module';
 
@@ -36,7 +36,7 @@ import { CompanyProvisioningModule } from '../communication/company/provisioning
       }),
     }),
 
-    UsersModule,
+    EcosystemModule,
     NotificationModule,
     CompanyProvisioningModule,
   ],

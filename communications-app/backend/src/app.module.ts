@@ -16,9 +16,7 @@ import { EventBusModule } from './infrastructure/events/event-bus.module';
 
 // ─── Platform (SaaS layer) ────────────────────────────────────────────────────
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { UserInvitationsModule } from './user-invitations/user-invitations.module';
-import { CompanyPortalModule } from './company/company-portal.module';
+import { CompanyPortalModule } from './ecosystem/organization-portal/company-portal.module';
 
 // ─── Communication engine ─────────────────────────────────────────────────────
 import { CompanyModule } from './communication/company/company-info/company.module';
@@ -52,8 +50,6 @@ import { EcosystemModule } from './ecosystem/ecosystem.module';
     EventBusModule,
 
     // ── Platform (SaaS layer)
-    UsersModule,
-    UserInvitationsModule,
     AuthModule,
     CompanyPortalModule,
     EcosystemModule,

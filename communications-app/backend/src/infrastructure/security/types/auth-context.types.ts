@@ -1,7 +1,7 @@
 // Re-export canonical types so security-layer files can import from one place.
-export type { UserRole, UserScope } from '../../../users/schemas/user.schema';
+export type { UserRole, UserScope } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
-import type { UserRole, UserScope } from '../../../users/schemas/user.schema';
+import type { UserRole, UserScope } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
 /**
  * Attached to every authenticated request as request.authContext.

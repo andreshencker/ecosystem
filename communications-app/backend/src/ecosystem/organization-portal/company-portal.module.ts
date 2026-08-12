@@ -7,11 +7,11 @@ import { CompanySmtp, CompanySmtpSchema } from './schemas/company-smtp.schema';
 import {
   Company,
   CompanySchema,
-} from '../communication/company/company-info/schemas/company.schema';
-import { SecurityModule } from '../communication/common/security/security.module';
-import { RolesGuard } from '../infrastructure/security/guards/roles.guard';
-import { RelayTenantContextModule } from '../infrastructure/security/relay-tenant-context.module';
-import { EcosystemModule } from '../ecosystem/ecosystem.module';
+} from '../../communication/company/company-info/schemas/company.schema';
+import { SecurityModule } from '../../communication/common/security/security.module';
+import { RolesGuard } from '../../infrastructure/security/guards/roles.guard';
+import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
+import { EcosystemModule } from '../ecosystem.module';
 
 @Module({
   imports: [

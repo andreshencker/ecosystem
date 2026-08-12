@@ -12,7 +12,7 @@ import { Model, Types } from 'mongoose';
 import { createHash, randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 
-import { UsersService } from '../users/users.service';
+import { EcosystemIdentityService } from '../ecosystem/identity/ecosystem-identity.service';
 import {
   RefreshToken,
   RefreshTokenDocument,
@@ -23,7 +23,7 @@ import { CompanyProvisioningService } from '../communication/company/provisionin
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto, TokensOnlyDto } from './dto/auth-response.dto';
-import { UserResponseDto } from '../users/dto/user-response.dto';
+import { EcosystemUserResponseDto } from '../ecosystem/identity/dto/ecosystem-user-response.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import type { GrapiflyRelaySsoContract } from '../ecosystem/contracts/grapifly-ecosystem.contract';
@@ -35,7 +35,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly users: UsersService,
+    private readonly users: EcosystemIdentityService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly notification: NotificationService,
@@ -148,7 +148,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      user: UserResponseDto.from(user),
+      user: EcosystemUserResponseDto.from(user),
     };
   }
 
@@ -176,14 +176,14 @@ export class AuthService {
       throw new UnauthorizedException('Unsupported Grapifly SSO contract');
     }
     const company = await this.users.resolveGrapiflyCompany(identity);
-    const role: import('../users/schemas/user.schema').UserRole = identity.organization.isPlatform && identity.access.applicationRole === 'owner'
+    const role: import('../ecosystem/identity/schemas/ecosystem-user.schema').UserRole = identity.organization.isPlatform && identity.access.applicationRole === 'owner'
       ? 'platform_admin'
       : identity.access.applicationRole === 'owner'
         ? 'company_owner'
         : identity.access.applicationRole === 'admin'
           ? 'company_admin'
           : identity.access.applicationRole === 'viewer' ? 'viewer' : 'operator';
-    const scope: import('../users/schemas/user.schema').UserScope = role === 'platform_admin' ? 'global' : 'company';
+    const scope: import('../ecosystem/identity/schemas/ecosystem-user.schema').UserScope = role === 'platform_admin' ? 'global' : 'company';
     const sessionContext = {
       companyId: String(company._id),
       companyKey: company.companyKey,
@@ -195,7 +195,7 @@ export class AuthService {
     const user = await this.users.linkGrapiflyIdentity(identity, sessionContext);
     if (!user.isActive) throw new ForbiddenException('Relay account is inactive');
     const tokens = await this.issueTokens(String(user._id), sessionContext);
-    const responseUser = UserResponseDto.from(user);
+    const responseUser = EcosystemUserResponseDto.from(user);
     responseUser.companyId = sessionContext.companyId;
     responseUser.companyKey = sessionContext.companyKey;
     responseUser.role = sessionContext.role;

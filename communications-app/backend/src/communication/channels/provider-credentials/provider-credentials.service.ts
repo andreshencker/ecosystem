@@ -25,7 +25,7 @@ import {
   Company,
   CompanyDocument,
 } from '../../company/company-info/schemas/company.schema';
-import { User, UserDocument } from '../../../users/schemas/user.schema';
+import { User, UserDocument } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
 import { CryptoService } from '../../common/security/crypto.service';
 import { ChannelsImplementationFactory } from '../implementation/channels-implementation.factory';

@@ -8,7 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
-import { UsersService } from '../../users/users.service';
+import { EcosystemIdentityService } from '../identity/ecosystem-identity.service';
 import type { GrapiflyOrganizationContract } from '../contracts/grapifly-ecosystem.contract';
 
 interface OrganizationResponse {
@@ -21,7 +21,7 @@ export class GrapiflyOrganizationService {
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
-    private readonly users: UsersService,
+    private readonly identity: EcosystemIdentityService,
   ) {}
 
   async get(ctx: AuthContext) {
@@ -35,7 +35,7 @@ export class GrapiflyOrganizationService {
   }
 
   private async request(ctx: AuthContext, method: 'get' | 'patch', data?: Record<string, unknown>): Promise<OrganizationResponse> {
-    const actor = await this.users.findByIdOrThrow(ctx.userId!);
+    const actor = await this.identity.findByIdOrThrow(ctx.userId!);
     if (!actor.grapiflyUserId || !ctx.grapiflyOrganizationId) {
       throw new UnauthorizedException('An active Grapifly organization session is required');
     }

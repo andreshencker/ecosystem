@@ -44,21 +44,10 @@ import {
 import {
   CompanySmtp,
   CompanySmtpSchema,
-} from '../../../company/schemas/company-smtp.schema';
-import {
-  Invitation,
-  InvitationSchema,
-} from '../../../user-invitations/schemas/invitation.schema';
-import { User, UserSchema } from '../../../users/schemas/user.schema';
-import {
-  RefreshToken,
-  RefreshTokenSchema,
-} from '../../../auth/schemas/refresh-token.schema';
+} from '../../../ecosystem/organization-portal/schemas/company-smtp.schema';
 
 import { MediaModule } from '../../../files/media/media.module';
-import { UsersModule } from '../../../users/users.module';
-import { UserInvitationsModule } from '../../../user-invitations/user-invitations.module';
-import { NotificationModule } from '../../notifications/notification.module';
+import { EcosystemModule } from '../../../ecosystem/ecosystem.module';
 import { CompanyProvisioningModule } from '../provisioning/company-provisioning.module';
 
 @Module({
@@ -85,14 +74,9 @@ import { CompanyProvisioningModule } from '../provisioning/company-provisioning.
       },
       // Platform resources
       { name: CompanySmtp.name, schema: CompanySmtpSchema },
-      { name: Invitation.name, schema: InvitationSchema },
-      { name: User.name, schema: UserSchema },
-      { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
     MediaModule,
-    UsersModule,
-    UserInvitationsModule,
-    NotificationModule,
+    EcosystemModule,
     CompanyProvisioningModule,
   ],
   controllers: [CompanyController],
