@@ -10,7 +10,12 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
 import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
 import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
@@ -51,7 +56,8 @@ export class CompanyThemeController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    const { companyId } = await this.tenantContext.resolve(ctx, 'relay.use');
+    const { companyId, grapiflyOrganizationId } =
+      await this.tenantContext.resolve(ctx, 'relay.use');
     const activeBool = active === undefined ? undefined : active === 'true';
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
@@ -59,6 +65,7 @@ export class CompanyThemeController {
     );
     return this.service.findAll({
       companyId,
+      grapiflyOrganizationId,
       active: activeBool,
       limit: parsedLimit,
       offset: parsedOffset,
@@ -68,8 +75,9 @@ export class CompanyThemeController {
   @Get(':id')
   @HttpCode(200)
   async getById(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
-    const { companyId } = await this.tenantContext.resolve(ctx, 'relay.use');
-    return this.service.findById(companyId, id);
+    const { companyId, grapiflyOrganizationId } =
+      await this.tenantContext.resolve(ctx, 'relay.use');
+    return this.service.findById({ companyId, grapiflyOrganizationId }, id);
   }
 
   @Post()
@@ -78,11 +86,9 @@ export class CompanyThemeController {
     @CurrentUser() ctx: AuthContext,
     @Body() dto: CreateCompanyThemeDto,
   ) {
-    const { companyId } = await this.tenantContext.resolve(
-      ctx,
-      'relay.theme.manage',
-    );
-    return this.service.create(companyId, dto);
+    const { companyId, grapiflyOrganizationId } =
+      await this.tenantContext.resolve(ctx, 'relay.theme.manage');
+    return this.service.create({ companyId, grapiflyOrganizationId }, dto);
   }
 
   @Put(':id')
@@ -92,20 +98,20 @@ export class CompanyThemeController {
     @Param('id') id: string,
     @Body() dto: UpdateCompanyThemeDto,
   ) {
-    const { companyId } = await this.tenantContext.resolve(
-      ctx,
-      'relay.theme.manage',
+    const { companyId, grapiflyOrganizationId } =
+      await this.tenantContext.resolve(ctx, 'relay.theme.manage');
+    return this.service.updateById(
+      { companyId, grapiflyOrganizationId },
+      id,
+      dto,
     );
-    return this.service.updateById(companyId, id, dto);
   }
 
   @Delete(':id')
   @HttpCode(200)
   async remove(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
-    const { companyId } = await this.tenantContext.resolve(
-      ctx,
-      'relay.theme.manage',
-    );
-    return this.service.removeById(companyId, id);
+    const { companyId, grapiflyOrganizationId } =
+      await this.tenantContext.resolve(ctx, 'relay.theme.manage');
+    return this.service.removeById({ companyId, grapiflyOrganizationId }, id);
   }
 }

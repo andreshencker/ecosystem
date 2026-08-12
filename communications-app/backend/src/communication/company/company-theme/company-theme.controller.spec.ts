@@ -21,7 +21,10 @@ describe('CompanyThemeController', () => {
     removeById: jest.fn(),
   };
   const tenantContext = {
-    resolve: jest.fn().mockResolvedValue({ companyId: auth.companyId }),
+    resolve: jest.fn().mockResolvedValue({
+      companyId: auth.companyId,
+      grapiflyOrganizationId: auth.grapiflyOrganizationId,
+    }),
   };
   const controller = new CompanyThemeController(
     service as any,
@@ -31,13 +34,19 @@ describe('CompanyThemeController', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('lists themes using the company resolved from the Grapifly session', async () => {
-    service.findAll.mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 });
+    service.findAll.mockResolvedValue({
+      data: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
 
     await controller.list(auth, 'true', '20', '0');
 
     expect(tenantContext.resolve).toHaveBeenCalledWith(auth, 'relay.use');
     expect(service.findAll).toHaveBeenCalledWith({
       companyId: auth.companyId,
+      grapiflyOrganizationId: auth.grapiflyOrganizationId,
       active: true,
       limit: 20,
       offset: 0,
@@ -48,7 +57,13 @@ describe('CompanyThemeController', () => {
     await controller.getById(auth, 'theme-1');
 
     expect(tenantContext.resolve).toHaveBeenCalledWith(auth, 'relay.use');
-    expect(service.findById).toHaveBeenCalledWith(auth.companyId, 'theme-1');
+    expect(service.findById).toHaveBeenCalledWith(
+      {
+        companyId: auth.companyId,
+        grapiflyOrganizationId: auth.grapiflyOrganizationId,
+      },
+      'theme-1',
+    );
   });
 
   it.each([
