@@ -12,7 +12,7 @@ import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
 import type { UserRole, UserScope } from './schemas/user.schema';
-import type { GrapiflyRelaySsoContract } from '../integrations/grapifly/contracts/relay-sso-contract';
+import type { GrapiflyRelaySsoContract } from '../ecosystem/contracts/grapifly-ecosystem.contract';
 import {
   Company,
   CompanyDocument,

@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
 import { UsersService } from '../../users/users.service';
-import type { GrapiflyOrganizationContract } from './contracts/relay-sso-contract';
+import type { GrapiflyOrganizationContract } from '../contracts/grapifly-ecosystem.contract';
 
 interface OrganizationResponse {
   contractVersion: 2;
@@ -30,76 +30,43 @@ export class GrapiflyOrganizationService {
   }
 
   async update(ctx: AuthContext, input: Record<string, unknown>) {
-    const response = await this.request(
-      ctx,
-      'patch',
-      this.toGrapiflyUpdate(input),
-    );
+    const response = await this.request(ctx, 'patch', this.toGrapiflyUpdate(input));
     return this.toRelayCompany(response.organization);
   }
 
-  private async request(
-    ctx: AuthContext,
-    method: 'get' | 'patch',
-    data?: Record<string, unknown>,
-  ): Promise<OrganizationResponse> {
+  private async request(ctx: AuthContext, method: 'get' | 'patch', data?: Record<string, unknown>): Promise<OrganizationResponse> {
     const actor = await this.users.findByIdOrThrow(ctx.userId!);
     if (!actor.grapiflyUserId || !ctx.grapiflyOrganizationId) {
-      throw new UnauthorizedException(
-        'An active Grapifly organization session is required',
-      );
+      throw new UnauthorizedException('An active Grapifly organization session is required');
     }
     const secret = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
-    if (!secret) {
-      throw new BadGatewayException('Grapifly integration is not configured');
-    }
-    const base = (
-      this.config.get<string>('GRAPIFLY_ID_API_URL') ??
-      'http://localhost:3101'
-    ).replace(/\/$/, '');
+    if (!secret) throw new BadGatewayException('Grapifly integration is not configured');
+    const base = (this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101').replace(/\/$/, '');
     try {
-      const response = await firstValueFrom(
-        this.http.request<OrganizationResponse>({
-          method,
-          url: `${base}/internal/apps/relay/organizations/${encodeURIComponent(ctx.grapiflyOrganizationId)}`,
-          data,
-          headers: {
-            'x-grapifly-sso-secret': secret,
-            'x-grapifly-user-id': actor.grapiflyUserId,
-          },
-          timeout: 5000,
-        }),
-      );
-      if (response.data.contractVersion !== 2) {
-        throw new BadGatewayException(
-          'Unsupported Grapifly organization contract',
-        );
-      }
+      const response = await firstValueFrom(this.http.request<OrganizationResponse>({
+        method,
+        url: `${base}/internal/apps/relay/organizations/${encodeURIComponent(ctx.grapiflyOrganizationId)}`,
+        data,
+        headers: {
+          'x-grapifly-sso-secret': secret,
+          'x-grapifly-user-id': actor.grapiflyUserId,
+        },
+        timeout: 5000,
+      }));
+      if (response.data.contractVersion !== 2) throw new BadGatewayException('Unsupported Grapifly organization contract');
       return response.data;
     } catch (error: any) {
       if (error instanceof BadGatewayException) throw error;
       const status = error?.response?.status;
       const message = error?.response?.data?.message;
-      if (status && status < 500) {
-        throw new BadRequestException(
-          message ?? 'Grapifly rejected the organization request',
-        );
-      }
-      throw new BadGatewayException(
-        'Grapifly organization service is unavailable',
-      );
+      if (status && status < 500) throw new BadRequestException(message ?? 'Grapifly rejected the organization request');
+      throw new BadGatewayException('Grapifly organization service is unavailable');
     }
   }
 
   private toGrapiflyUpdate(input: Record<string, unknown>) {
-    const fieldMap: Record<string, string> = {
-      displayName: 'name',
-      companyEmail: 'officialEmail',
-      webBaseUrl: 'websiteUrl',
-    };
-    return Object.fromEntries(
-      Object.entries(input).map(([key, value]) => [fieldMap[key] ?? key, value]),
-    );
+    const fieldMap: Record<string, string> = { displayName: 'name', companyEmail: 'officialEmail', webBaseUrl: 'websiteUrl' };
+    return Object.fromEntries(Object.entries(input).map(([key, value]) => [fieldMap[key] ?? key, value]));
   }
 
   private toRelayCompany(organization: GrapiflyOrganizationContract) {

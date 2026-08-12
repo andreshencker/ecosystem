@@ -13,7 +13,7 @@ import { UpdateCompanySmtpDto } from './dto/update-company-smtp.dto';
 import { CompanySmtpResponseDto } from './dto/company-smtp-response.dto';
 import type { AuthContext } from '../infrastructure/security/types/auth-context.types';
 import { RelayTenantContextService } from '../infrastructure/security/services/relay-tenant-context.service';
-import { GrapiflyOrganizationService } from '../integrations/grapifly/grapifly-organization.service';
+import { GrapiflyOrganizationService } from '../ecosystem/services/grapifly-organization.service';
 
 @Injectable()
 export class CompanyPortalService {

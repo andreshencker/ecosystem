@@ -26,7 +26,7 @@ import { AuthResponseDto, TokensOnlyDto } from './dto/auth-response.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import type { GrapiflyRelaySsoContract } from '../integrations/grapifly/contracts/relay-sso-contract';
+import type { GrapiflyRelaySsoContract } from '../ecosystem/contracts/grapifly-ecosystem.contract';
 
 const BCRYPT_ROUNDS = 12;
 

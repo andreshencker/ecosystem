@@ -1,4 +1,4 @@
-/** Versioned identity and organization contract issued exclusively by Grapifly. */
+/** Versioned contract issued exclusively by Grapifly for ecosystem applications. */
 export interface GrapiflyOrganizationContract {
   organizationId: string;
   name: string;
