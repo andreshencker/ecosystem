@@ -20,6 +20,10 @@ export type EncryptedPayload = {
   timestamps: true,
 })
 export class ProviderCredentials {
+  /** Canonical tenant copied from the owning provider configuration. */
+  @Prop({ type: String, default: null, index: true })
+  grapiflyOrganizationId!: string | null;
+
   @Prop({
     type: Types.ObjectId,
     ref: 'CompanyChannelProvider',
@@ -78,3 +82,4 @@ ProviderCredentialsSchema.index(
   { companyChannelProviderId: 1, tag: 1 },
   { unique: true, name: 'uniq_ccp_tag' },
 );
+ProviderCredentialsSchema.index({ grapiflyOrganizationId: 1, isActive: 1 });

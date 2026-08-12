@@ -3,6 +3,7 @@ export class ProviderCredentialsResponseDto {
 
   // SIEMPRE string (clave para Domain)
   companyChannelProviderId!: string;
+  grapiflyOrganizationId!: string | null;
 
   tag!: string;
   isActive!: boolean;
@@ -17,6 +18,7 @@ export class ProviderCredentialsResponseDto {
   companyChannelProvider?: {
     id: string;
     companyId: string;
+    grapiflyOrganizationId: string | null;
     isActive: boolean;
 
     provider?: {

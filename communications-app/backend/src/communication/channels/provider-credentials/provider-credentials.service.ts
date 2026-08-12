@@ -25,7 +25,10 @@ import {
   Company,
   CompanyDocument,
 } from '../../company/company-info/schemas/company.schema';
-import { User, UserDocument } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
+import {
+  User,
+  UserDocument,
+} from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
 import { CryptoService } from '../../common/security/crypto.service';
 import { ChannelsImplementationFactory } from '../implementation/channels-implementation.factory';
@@ -294,6 +297,7 @@ export class ProviderCredentialsService {
           dto.companyChannelProviderId,
           'companyChannelProviderId',
         ),
+        grapiflyOrganizationId: (ccpDoc as any).grapiflyOrganizationId ?? null,
         tag,
         encrypted,
         isActive: dto.isActive ?? true,
@@ -352,8 +356,32 @@ export class ProviderCredentialsService {
     offset?: number;
   }): Promise<PaginatedResponse<ProviderCredentialsResponseDto>> {
     const companyId = this.toObjectIdOrThrow(params.companyId, 'companyId');
+    const company = (await this.companyModel
+      .findById(companyId)
+      .select({ grapiflyOrganizationId: 1 })
+      .lean()) as any;
+    if (!company) {
+      throw new HttpException('Company not found', HttpStatus.NOT_FOUND);
+    }
 
-    const ccpFilter: Record<string, any> = { companyId, isActive: true };
+    const grapiflyOrganizationId = company.grapiflyOrganizationId ?? null;
+    const ccpFilter: Record<string, any> = {
+      ...(grapiflyOrganizationId
+        ? {
+            $or: [
+              { grapiflyOrganizationId },
+              {
+                companyId,
+                $or: [
+                  { grapiflyOrganizationId: null },
+                  { grapiflyOrganizationId: { $exists: false } },
+                ],
+              },
+            ],
+          }
+        : { companyId }),
+      isActive: true,
+    };
     if (params.channelId) {
       ccpFilter.channelId = new Types.ObjectId(params.channelId);
     }

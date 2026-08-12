@@ -22,7 +22,8 @@ resources are migrated incrementally.
 | RefreshToken             | string + Grapifly ID   | Already bridged | Session records intentionally retain both during refresh |
 | EcosystemUser            | string + Grapifly ID   | Already bridged | Technical identity projection, not local auth            |
 | CompanySmtp              | string                 | Pending         | Relay-owned operational credential configuration         |
-| CompanyChannelProvider   | ObjectId               | Pending         | Provider routing dependency                              |
+| CompanyChannelProvider   | ObjectId + Grapifly ID | Migrated        | Canonical-first compatible reads; startup backfill       |
+| ProviderCredentials      | Provider + Grapifly ID | Migrated        | Ownership copied without decrypting credential payloads  |
 | CompanyIntegration       | ObjectId               | Pending         | Machine integrations and tokens                          |
 | DomainCatalogue          | ObjectId               | Pending         | Notification catalogue dependency                        |
 | NotificationExecutionLog | ObjectId               | Pending         | Historical/audit data; migrate after write paths         |
@@ -35,7 +36,7 @@ resources are migrated incrementally.
 ## Recommended sequence
 
 1. CompanyTheme pilot and verification.
-2. Provider and credential resources.
+2. Provider and credential resources. Completed.
 3. Notification and document catalogues.
 4. Calendar, payments and accounting resources.
 5. Logs and historical webhook deliveries.
