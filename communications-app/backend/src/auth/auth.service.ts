@@ -26,6 +26,7 @@ import { AuthResponseDto, TokensOnlyDto } from './dto/auth-response.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import type { GrapiflyRelaySsoContract } from '../integrations/grapifly/contracts/relay-sso-contract';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -157,22 +158,7 @@ export class AuthService {
     const clientSecret = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
     if (!clientSecret) throw new UnauthorizedException('Grapifly SSO is not configured');
 
-    let identity: {
-      contractVersion: number;
-      issuer: 'grapifly';
-      audience: 'relay';
-      grapiflyUserId: string;
-      email: string;
-      emailVerified: boolean;
-      displayName: string;
-      avatarUrl: string | null;
-      organization: { organizationId: string; name: string; slug: string; isPlatform: boolean };
-      access: {
-        organizationRole: 'owner' | 'admin' | 'member';
-      applicationRole: 'owner' | 'admin' | 'operator' | 'viewer';
-        permissions: string[];
-      };
-    };
+    let identity: GrapiflyRelaySsoContract;
     try {
       const response = await firstValueFrom(
         this.http.post(
@@ -186,7 +172,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired Grapifly SSO code');
     }
 
-    if (identity.contractVersion !== 1 || identity.issuer !== 'grapifly' || identity.audience !== 'relay') {
+    if (identity.contractVersion !== 2 || identity.issuer !== 'grapifly' || identity.audience !== 'relay') {
       throw new UnauthorizedException('Unsupported Grapifly SSO contract');
     }
     const company = await this.users.resolveGrapiflyCompany(identity);

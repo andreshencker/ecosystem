@@ -186,6 +186,37 @@ export class OrganizationsService implements OnApplicationBootstrap {
     ).lean();
   }
 
+  async getApplicationOrganization(
+    grapiflyUserId: string,
+    organizationId: string,
+    applicationKey: string,
+  ) {
+    await this.requireApplicationAccess(
+      grapiflyUserId,
+      organizationId,
+      applicationKey,
+    );
+    const organization = await this.organizations
+      .findOne({ organizationId, status: 'active' })
+      .lean();
+    if (!organization) throw new NotFoundException('Organization not found');
+    return organization;
+  }
+
+  async updateApplicationOrganization(
+    grapiflyUserId: string,
+    organizationId: string,
+    applicationKey: string,
+    input: Record<string, unknown>,
+  ) {
+    await this.requireApplicationAccess(
+      grapiflyUserId,
+      organizationId,
+      applicationKey,
+    );
+    return this.updateProfile(grapiflyUserId, organizationId, input);
+  }
+
   async archive(grapiflyUserId: string, organizationId: string) {
     const membership = await this.requireMembership(grapiflyUserId, organizationId);
     if (membership.role !== 'owner') throw new ForbiddenException('Only the organization owner can archive it');
@@ -321,6 +352,32 @@ export class OrganizationsService implements OnApplicationBootstrap {
     const membership = await this.requireMembership(grapiflyUserId, organizationId);
     if (!['owner', 'admin'].includes(membership.role)) throw new ForbiddenException('Organization administrator access required');
     return membership;
+  }
+
+  private async requireApplicationAccess(
+    grapiflyUserId: string,
+    organizationId: string,
+    applicationKey: string,
+  ) {
+    await this.requireMembership(grapiflyUserId, organizationId);
+    const [organizationApplication, memberApplication] = await Promise.all([
+      this.organizationApplications.exists({
+        organizationId,
+        applicationKey,
+        status: 'active',
+      }),
+      this.memberApplications.exists({
+        organizationId,
+        grapiflyUserId,
+        applicationKey,
+        status: 'active',
+      }),
+    ]);
+    if (!organizationApplication || !memberApplication) {
+      throw new ForbiddenException(
+        `${applicationKey} access is not enabled for this organization`,
+      );
+    }
   }
 
   assertRelayClient(candidate: string | undefined) {

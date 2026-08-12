@@ -12,6 +12,7 @@ import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
 import type { UserRole, UserScope } from './schemas/user.schema';
+import type { GrapiflyRelaySsoContract } from '../integrations/grapifly/contracts/relay-sso-contract';
 import {
   Company,
   CompanyDocument,
@@ -121,11 +122,7 @@ export class UsersService {
     }
   }
 
-  async resolveGrapiflyCompany(identity: {
-    grapiflyUserId: string;
-    email: string;
-    organization: { organizationId: string; name: string; slug: string; isPlatform: boolean };
-  }): Promise<CompanyDocument> {
+  async resolveGrapiflyCompany(identity: GrapiflyRelaySsoContract): Promise<CompanyDocument> {
     const direct = await this.companyModel.findOne({
       grapiflyOrganizationId: identity.organization.organizationId,
       isActive: true,

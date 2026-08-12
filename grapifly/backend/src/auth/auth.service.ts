@@ -10,6 +10,7 @@ import { Organization, OrganizationDocument } from '../organizations/schemas/org
 import { OrganizationMembership, OrganizationMembershipDocument } from '../organizations/schemas/organization-membership.schema';
 import { OrganizationApplication, OrganizationApplicationDocument } from '../organizations/schemas/organization-application.schema';
 import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } from '../organizations/schemas/organization-member-application.schema';
+import type { RelaySsoIdentityContract } from './contracts/relay-sso-contract';
 
 @Injectable()
 export class AuthService {
@@ -75,7 +76,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Grapifly account is inactive');
     const access = await this.resolveRelayAccess(grant.grapiflyUserId, grant.organizationId);
     return {
-      contractVersion: 1,
+      contractVersion: 2,
       issuer: 'grapifly',
       audience: 'relay',
       grapiflyUserId: user.grapiflyUserId,
@@ -83,17 +84,56 @@ export class AuthService {
       emailVerified: user.emailVerified,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
-      organization: {
-        organizationId: access.organization.organizationId,
-        name: access.organization.name,
-        slug: access.organization.slug,
-        isPlatform: access.organization.isPlatform,
-      },
+      organization: this.toRelayOrganization(access.organization),
       access: {
         organizationRole: access.membership.role,
         applicationRole: access.memberApp.role,
         permissions: this.relayPermissions(access.memberApp.role),
       },
+    } satisfies RelaySsoIdentityContract;
+  }
+
+  private toRelayOrganization(organization: Organization) {
+    return {
+      organizationId: organization.organizationId,
+      name: organization.name,
+      slug: organization.slug,
+      entityType: organization.entityType,
+      legalName: organization.legalName,
+      tagline: organization.tagline,
+      timezone: organization.timezone,
+      officialEmail: organization.officialEmail,
+      supportEmail: organization.supportEmail,
+      supportPhone: organization.supportPhone,
+      supportPhoneCountryCode: organization.supportPhoneCountryCode,
+      supportPhoneNumber: organization.supportPhoneNumber,
+      supportHours: organization.supportHours,
+      addressLine1: organization.addressLine1,
+      addressLine2: organization.addressLine2,
+      addressCity: organization.addressCity,
+      addressState: organization.addressState,
+      addressPostalCode: organization.addressPostalCode,
+      addressCountry: organization.addressCountry,
+      websiteUrl: organization.websiteUrl,
+      helpCenterUrl: organization.helpCenterUrl,
+      privacyPolicyUrl: organization.privacyPolicyUrl,
+      termsUrl: organization.termsUrl,
+      facebook: organization.facebook,
+      instagram: organization.instagram,
+      linkedin: organization.linkedin,
+      x: organization.x,
+      youtube: organization.youtube,
+      tiktok: organization.tiktok,
+      whatsapp: organization.whatsapp,
+      telegram: organization.telegram,
+      copyrightText: organization.copyrightText,
+      disclaimerShort: organization.disclaimerShort,
+      disclaimerLong: organization.disclaimerLong,
+      logoIconUrl: organization.logoIconUrl,
+      logoFullUrl: organization.logoFullUrl,
+      isPlatform: organization.isPlatform,
+      isDefault: organization.isDefault,
+      status: organization.status,
     };
   }
 
