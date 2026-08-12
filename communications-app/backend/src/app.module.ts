@@ -36,6 +36,7 @@ import { PreviewModule } from './communication/preview/preview.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AccountingModule } from './accounting/accounting.module';
+import { GrapiflyTeamModule } from './integrations/grapifly/grapifly-team.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AccountingModule } from './accounting/accounting.module';
     UserInvitationsModule,
     AuthModule,
     CompanyPortalModule,
+    GrapiflyTeamModule,
 
     // ── Communication engine
     CompanyModule,

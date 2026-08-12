@@ -20,6 +20,9 @@ export class OrganizationInvitation {
   @Prop({ type: [String], default: [] })
   applicationKeys!: string[];
 
+  @Prop({ type: Object, default: {} })
+  applicationRoles!: Record<string, 'admin' | 'operator' | 'viewer'>;
+
   @Prop({ required: true, unique: true, select: false })
   tokenHash!: string;
 

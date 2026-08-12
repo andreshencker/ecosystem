@@ -99,19 +99,6 @@ export function InviteUserDialog({
           label="Email"
           required
         />
-        <ControlledTextField
-          name="firstName"
-          control={form.control}
-          label="First Name"
-          required
-        />
-        <ControlledTextField
-          name="lastName"
-          control={form.control}
-          label="Last Name"
-          required
-        />
-
         <ControlledSelect
           name="role"
           control={form.control}

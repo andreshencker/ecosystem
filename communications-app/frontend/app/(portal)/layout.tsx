@@ -31,11 +31,6 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         pathname: window.location.pathname,
         mustChangePassword: user.mustChangePassword,
       });
-      if (user.mustChangePassword) {
-        console.log('[PortalLayout] mustChangePassword=true → redirecting to /auth/change-password');
-        router.replace('/auth/change-password');
-        return;
-      }
       setIsReady(true);
       return;
     }
@@ -66,10 +61,6 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         const storedUser = readStoredUser();
         if (storedUser) {
           useAuthStore.getState().setAuth(storedUser, newToken);
-          if (storedUser.mustChangePassword) {
-            router.replace('/auth/change-password');
-            return;
-          }
           setIsReady(true);
           return;
         }
@@ -81,10 +72,6 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
         const { data: freshUser } = await apiClient.get<User>('/users/me');
         useAuthStore.getState().setAuth(freshUser, newToken);
-        if (freshUser.mustChangePassword) {
-          router.replace('/auth/change-password');
-          return;
-        }
         setIsReady(true);
       })
       .catch(() => {

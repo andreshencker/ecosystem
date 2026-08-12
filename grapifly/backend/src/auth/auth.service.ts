@@ -125,9 +125,10 @@ export class AuthService {
     throw new ForbiddenException('Relay access is not enabled for this organization');
   }
 
-  private relayPermissions(role: 'owner' | 'admin' | 'member'): string[] {
+  private relayPermissions(role: 'owner' | 'admin' | 'operator' | 'viewer'): string[] {
     const base = ['relay.use'];
-    if (role === 'member') return base;
+    if (role === 'viewer') return base;
+    if (role === 'operator') return [...base, 'relay.execute'];
     const management = [
       'relay.connections.manage',
       'relay.credentials.manage',

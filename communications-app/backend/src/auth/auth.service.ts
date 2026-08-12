@@ -169,7 +169,7 @@ export class AuthService {
       organization: { organizationId: string; name: string; slug: string; isPlatform: boolean };
       access: {
         organizationRole: 'owner' | 'admin' | 'member';
-        applicationRole: 'owner' | 'admin' | 'member';
+      applicationRole: 'owner' | 'admin' | 'operator' | 'viewer';
         permissions: string[];
       };
     };
@@ -196,7 +196,7 @@ export class AuthService {
         ? 'company_owner'
         : identity.access.applicationRole === 'admin'
           ? 'company_admin'
-          : 'operator';
+          : identity.access.applicationRole === 'viewer' ? 'viewer' : 'operator';
     const scope: import('../users/schemas/user.schema').UserScope = role === 'platform_admin' ? 'global' : 'company';
     const sessionContext = {
       companyId: String(company._id),

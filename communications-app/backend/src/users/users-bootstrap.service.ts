@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
 import {
   Company,
@@ -9,31 +8,19 @@ import {
 } from '../communication/company/company-info/schemas/company.schema';
 import { CompanyProvisioningService } from '../communication/company/provisioning/company-provisioning.service';
 
-const BCRYPT_ROUNDS = 12;
-
 /**
  * Runs once on application bootstrap — before the HTTP server accepts requests.
  *
  * Sequence (DEC-008 A3.7 / DEC-012 §13.1):
  *   1. Ensure the Grapifly modules company exists (isPlatformCompany: true).
- *   2. Ensure admin@grapifly.com exists with companyId pointing to that company.
- *      — If the user already exists with a stale/null companyId, patch it.
+ *   2. Revoke every legacy local credential. Grapifly ID is the only identity provider.
  *
  * Fully idempotent: safe to run on every restart.
  *
- * Configuration (env vars, all optional):
- *   PLATFORM_ADMIN_BOOTSTRAP_EMAIL    (default: admin@grapifly.com)
- *   PLATFORM_ADMIN_BOOTSTRAP_PASSWORD (default: @Grapifly1)
  */
 @Injectable()
 export class UsersBootstrapService implements OnApplicationBootstrap {
   private readonly logger = new Logger(UsersBootstrapService.name);
-
-  private static readonly BOOTSTRAP_EMAIL =
-    process.env['PLATFORM_ADMIN_BOOTSTRAP_EMAIL'] ?? 'admin@grapifly.com';
-
-  private static readonly BOOTSTRAP_PASSWORD =
-    process.env['PLATFORM_ADMIN_BOOTSTRAP_PASSWORD'] ?? '@Grapifly1';
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
@@ -45,7 +32,7 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       const platformCompany = await this.ensurePlatformCompany();
-      await this.ensurePlatformAdmin(platformCompany);
+      await this.revokeLegacyCredentials();
       await this.ensurePlatformCompanyProvisioned(String(platformCompany._id));
       await this.cleanupTenantCatalogues();
       await this.ensureInvoiceAppSecurityEvents();
@@ -81,62 +68,25 @@ export class UsersBootstrapService implements OnApplicationBootstrap {
     return created;
   }
 
-  // ─── Phase 2: modules admin ────────────────────────────────────────────────
+  // ─── Phase 2: remove legacy credentials ───────────────────────────────────
 
-  private async ensurePlatformAdmin(
-    platformCompany: CompanyDocument,
-  ): Promise<void> {
-    const email = UsersBootstrapService.BOOTSTRAP_EMAIL;
-    const correctCompanyId = String(platformCompany._id);
-    const correctCompanyKey = platformCompany.companyKey;
-
-    const existing = await this.userModel.findOne({ email }).exec();
-
-    if (!existing) {
-      const passwordHash = await bcrypt.hash(
-        UsersBootstrapService.BOOTSTRAP_PASSWORD,
-        BCRYPT_ROUNDS,
-      );
-
-      await this.userModel.create({
-        email,
-        passwordHash,
-        firstName: 'Platform',
-        lastName: 'Admin',
-        role: 'platform_admin',
-        scope: 'global',
-        companyId: correctCompanyId,
-        companyKey: correctCompanyKey,
-        isActive: true,
-        isEmailVerified: true,
-      });
-
-      this.logger.log(
-        `Bootstrap: created platform_admin user (${email}, companyId=${correctCompanyId}).`,
-      );
-      return;
-    }
-
-    // User exists — check whether companyId is already correct.
-    if (
-      existing.companyId === correctCompanyId &&
-      existing.companyKey === correctCompanyKey
-    ) {
-      this.logger.log(
-        `Bootstrap: platform_admin already correctly linked (${email}, companyId=${correctCompanyId}) — no action taken.`,
-      );
-      return;
-    }
-
-    // Patch stale record (null or wrong companyId from pre-A3 bootstrap).
-    await this.userModel.updateOne(
-      { _id: existing._id },
-      { $set: { companyId: correctCompanyId, companyKey: correctCompanyKey } },
+  private async revokeLegacyCredentials(): Promise<void> {
+    const result = await this.userModel.updateMany(
+      {},
+      {
+        $set: {
+          passwordHash: null,
+          emailVerificationToken: null,
+          emailVerificationTokenExpiresAt: null,
+          passwordResetToken: null,
+          passwordResetTokenExpiresAt: null,
+          mustChangePassword: false,
+          temporaryPasswordCreatedAt: null,
+          temporaryPasswordExpiresAt: null,
+        },
+      },
     );
-
-    this.logger.log(
-      `Bootstrap: patched platform_admin companyId (${email}: ${existing.companyId ?? 'null'} → ${correctCompanyId}).`,
-    );
+    this.logger.log(`Bootstrap: legacy Relay credentials revoked (${result.modifiedCount} account(s) updated).`);
   }
 
   // ─── Phase 3: modules company provisioning ────────────────────────────────

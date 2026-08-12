@@ -38,7 +38,7 @@ export class OrganizationsController {
   }
 
   @Post('organizations/:organizationId/invitations')
-  invite(@Req() request: SessionRequest, @Param('organizationId') organizationId: string, @Body() body: { email: string; role?: string; applicationKeys?: string[] }) {
+  invite(@Req() request: SessionRequest, @Param('organizationId') organizationId: string, @Body() body: { email: string; role?: string; applicationKeys?: string[]; applicationRoles?: Record<string, string> }) {
     return this.organizations.invite(request.grapiflySession!.sub, organizationId, body);
   }
 

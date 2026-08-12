@@ -7,11 +7,6 @@ import { ACCESS_TOKEN_COOKIE } from '@/lib/constants';
 // Unauthenticated users may access these; authenticated users are redirected away.
 const AUTH_PATH_PREFIX = '/auth/';
 
-// Authenticated users with mustChangePassword=true must be able to reach this
-// page. Since mustChangePassword is not in the JWT, we exempt the path globally.
-// The page itself guards: non-authenticated → /auth/login, mustChange=false → landing.
-const FORCE_PASSWORD_CHANGE_PATH = '/auth/change-password';
-
 // ─── JWT decode ───────────────────────────────────────────────────────────────
 // Decodes the payload from a JWT string (base64url, no signature verification).
 // Middleware is a UX routing guard — real security is enforced by the backend.
@@ -56,14 +51,6 @@ export function middleware(request: NextRequest): NextResponse {
 
   // ── Auth routes (/auth/login, /auth/register, …) ────────────────────────────
   if (pathname.startsWith(AUTH_PATH_PREFIX)) {
-    // Exception: /auth/change-password must stay accessible when the user is
-    // authenticated but still has mustChangePassword=true. The middleware cannot
-    // read that flag from the JWT, so we let the page guard itself.
-    if (pathname === FORCE_PASSWORD_CHANGE_PATH) {
-      console.log('[middleware] /auth/change-password — bypassing auth redirect, page handles own guard');
-      return NextResponse.next();
-    }
-
     // All other /auth/* routes: authenticated users are sent to their landing page.
     if (isAuthenticated) {
       const destination = role ? getLandingPage(role) : '/dashboard';

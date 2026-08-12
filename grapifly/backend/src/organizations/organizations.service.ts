@@ -1,13 +1,15 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 import { ApplicationsService } from '../applications/applications.service';
 import { UsersService } from '../users/users.service';
 import { OrganizationApplication, OrganizationApplicationDocument } from './schemas/organization-application.schema';
 import { OrganizationInvitation, OrganizationInvitationDocument } from './schemas/organization-invitation.schema';
 import { OrganizationMembership, OrganizationMembershipDocument } from './schemas/organization-membership.schema';
 import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } from './schemas/organization-member-application.schema';
+import type { ApplicationMemberRole } from './schemas/organization-member-application.schema';
 import { Organization, OrganizationDocument } from './schemas/organization.schema';
 
 @Injectable()
@@ -21,9 +23,14 @@ export class OrganizationsService implements OnApplicationBootstrap {
     @InjectModel(OrganizationInvitation.name) private readonly invitations: Model<OrganizationInvitationDocument>,
     private readonly users: UsersService,
     private readonly applications: ApplicationsService,
+    private readonly config: ConfigService,
   ) {}
 
   async onApplicationBootstrap() {
+    await this.memberApplications.updateMany(
+      { role: 'member' as never },
+      { $set: { role: 'operator' } },
+    );
     const owner = await this.users.findByEmail('grapiflydeveloper@gmail.com');
     if (!owner) {
       this.logger.warn('Official Grapifly organization pending: owner identity not found.');
@@ -125,7 +132,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     const manager = await this.requireMembership(grapiflyUserId, organizationId);
     await this.memberApplications.findOneAndUpdate(
       { organizationId, grapiflyUserId, applicationKey: application.key },
-      { $set: { status: 'active', role: manager.role } },
+      { $set: { status: 'active', role: manager.role === 'owner' ? 'owner' : 'admin' } },
       { upsert: true, returnDocument: 'after' },
     );
     return enabled;
@@ -195,19 +202,27 @@ export class OrganizationsService implements OnApplicationBootstrap {
     return { organizationId, status: 'archived' };
   }
 
-  async invite(grapiflyUserId: string, organizationId: string, input: { email: string; role?: string; applicationKeys?: string[] }) {
+  async invite(grapiflyUserId: string, organizationId: string, input: { email: string; role?: string; applicationKeys?: string[]; applicationRoles?: Record<string, string> }) {
     await this.requireManager(grapiflyUserId, organizationId);
     const email = input.email?.trim().toLowerCase();
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) throw new BadRequestException('A valid email is required');
     const role = input.role === 'admin' ? 'admin' : 'member';
     const applicationKeys = [...new Set((input.applicationKeys ?? []).map((key) => key.trim().toLowerCase()).filter(Boolean))];
+    const applicationRoles: Record<string, 'admin' | 'operator' | 'viewer'> = {};
     for (const key of applicationKeys) {
       const enabled = await this.organizationApplications.exists({ organizationId, applicationKey: key, status: 'active' });
       if (!enabled) throw new BadRequestException(`Application ${key} is not enabled for this organization`);
+      const requestedRole = input.applicationRoles?.[key];
+      applicationRoles[key] = this.normalizeInvitableApplicationRole(requestedRole ?? (role === 'admin' ? 'admin' : 'viewer'));
     }
     const existingUser = await this.users.findByEmail(email);
     if (existingUser && await this.memberships.exists({ organizationId, grapiflyUserId: existingUser.grapiflyUserId, status: 'active' })) {
-      throw new BadRequestException('This user is already a member');
+      await Promise.all(applicationKeys.map((applicationKey) => this.memberApplications.findOneAndUpdate(
+        { organizationId, grapiflyUserId: existingUser.grapiflyUserId, applicationKey },
+        { $set: { role: applicationRoles[applicationKey], status: 'active' } },
+        { upsert: true, returnDocument: 'after' },
+      )));
+      return { invitation: null, token: null, accessGranted: true, grapiflyUserId: existingUser.grapiflyUserId, email };
     }
     await this.invitations.updateMany({ organizationId, email, status: 'pending' }, { $set: { status: 'cancelled' } });
     const token = randomBytes(32).toString('base64url');
@@ -217,6 +232,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
       email,
       role,
       applicationKeys,
+      applicationRoles,
       tokenHash: this.hash(token),
       invitedBy: grapiflyUserId,
       status: 'pending',
@@ -286,7 +302,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     );
     await Promise.all(invitation.applicationKeys.map((applicationKey) => this.memberApplications.findOneAndUpdate(
       { organizationId: invitation.organizationId, grapiflyUserId, applicationKey },
-      { $set: { role: invitation.role, status: 'active' } },
+      { $set: { role: this.invitationApplicationRole(invitation, applicationKey), status: 'active' } },
       { upsert: true, returnDocument: 'after' },
     )));
     invitation.status = 'accepted';
@@ -305,6 +321,83 @@ export class OrganizationsService implements OnApplicationBootstrap {
     const membership = await this.requireMembership(grapiflyUserId, organizationId);
     if (!['owner', 'admin'].includes(membership.role)) throw new ForbiddenException('Organization administrator access required');
     return membership;
+  }
+
+  assertRelayClient(candidate: string | undefined) {
+    const expected = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
+    if (!candidate || !expected) throw new ForbiddenException('Invalid Grapifly application client');
+    const actualBuffer = Buffer.from(candidate);
+    const expectedBuffer = Buffer.from(expected);
+    if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
+      throw new ForbiddenException('Invalid Grapifly application client');
+    }
+  }
+
+  async getApplicationTeam(grapiflyUserId: string, organizationId: string, applicationKey: string) {
+    await this.requireMembership(grapiflyUserId, organizationId);
+    const enabled = await this.organizationApplications.exists({ organizationId, applicationKey, status: 'active' });
+    if (!enabled) throw new BadRequestException(`${applicationKey} is not enabled for this organization`);
+    await this.invitations.updateMany(
+      { organizationId, status: 'pending', expiresAt: { $lte: new Date() } },
+      { $set: { status: 'expired' } },
+    );
+    const [memberships, accesses, invitations] = await Promise.all([
+      this.memberships.find({ organizationId, status: 'active' }).lean(),
+      this.memberApplications.find({ organizationId, applicationKey, status: { $in: ['active', 'suspended'] } }).lean(),
+      this.invitations.find({ organizationId, applicationKeys: applicationKey, status: { $in: ['pending', 'expired'] } }).select('-tokenHash').lean(),
+    ]);
+    const accessByUser = new Map(accesses.map((access) => [access.grapiflyUserId, access]));
+    const members = await Promise.all(memberships.map(async (membership) => {
+      const access = accessByUser.get(membership.grapiflyUserId);
+      if (!access) return null;
+      return { membership, access, user: await this.users.findByGrapiflyUserId(membership.grapiflyUserId) };
+    }));
+    return { members: members.filter(Boolean), invitations };
+  }
+
+  async updateApplicationMember(
+    actorUserId: string,
+    organizationId: string,
+    applicationKey: string,
+    targetUserId: string,
+    input: { role?: string; status?: string },
+  ) {
+    const actor = await this.requireManager(actorUserId, organizationId);
+    const targetMembership = await this.requireMembership(targetUserId, organizationId);
+    if (targetMembership.role === 'owner' && actor.role !== 'owner') {
+      throw new ForbiddenException('Only the organization owner can manage owner access');
+    }
+    const updates: { role?: ApplicationMemberRole; status?: 'active' | 'suspended' | 'revoked' } = {};
+    if (input.role !== undefined) updates.role = this.normalizeApplicationRole(input.role);
+    if (input.status !== undefined) {
+      if (!['active', 'suspended', 'revoked'].includes(input.status)) throw new BadRequestException('Invalid application access status');
+      if (targetMembership.role === 'owner' && input.status !== 'active') throw new BadRequestException('Owner application access cannot be revoked');
+      updates.status = input.status as 'active' | 'suspended' | 'revoked';
+    }
+    if (!Object.keys(updates).length) throw new BadRequestException('No application access changes supplied');
+    const access = await this.memberApplications.findOneAndUpdate(
+      { organizationId, grapiflyUserId: targetUserId, applicationKey },
+      { $set: updates },
+      { returnDocument: 'after' },
+    ).lean();
+    if (!access) throw new NotFoundException('Application member access not found');
+    return access;
+  }
+
+  private normalizeApplicationRole(role: string): ApplicationMemberRole {
+    if (!['owner', 'admin', 'operator', 'viewer'].includes(role)) throw new BadRequestException('Invalid application role');
+    return role as ApplicationMemberRole;
+  }
+
+  private normalizeInvitableApplicationRole(role: string): 'admin' | 'operator' | 'viewer' {
+    if (!['admin', 'operator', 'viewer'].includes(role)) throw new BadRequestException('Invitations cannot grant this application role');
+    return role as 'admin' | 'operator' | 'viewer';
+  }
+
+  private invitationApplicationRole(invitation: OrganizationInvitationDocument, applicationKey: string): ApplicationMemberRole {
+    const configured = invitation.applicationRoles?.[applicationKey];
+    if (configured) return this.normalizeApplicationRole(configured);
+    return invitation.role === 'admin' ? 'admin' : 'viewer';
   }
 
   private hash(value: string) {

@@ -9,6 +9,7 @@ import { OrganizationMembership, OrganizationMembershipSchema } from './schemas/
 import { OrganizationMemberApplication, OrganizationMemberApplicationSchema } from './schemas/organization-member-application.schema';
 import { Organization, OrganizationSchema } from './schemas/organization.schema';
 import { OrganizationsController } from './organizations.controller';
+import { RelayTeamController } from './relay-team.controller';
 import { OrganizationsService } from './organizations.service';
 
 @Module({
@@ -24,7 +25,7 @@ import { OrganizationsService } from './organizations.service';
       { name: OrganizationInvitation.name, schema: OrganizationInvitationSchema },
     ]),
   ],
-  controllers: [OrganizationsController],
+  controllers: [OrganizationsController, RelayTeamController],
   providers: [OrganizationsService],
   exports: [OrganizationsService],
 })

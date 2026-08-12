@@ -7,7 +7,6 @@ import {
   CompanySchema,
 } from '../communication/company/company-info/schemas/company.schema';
 import { UserInvitationsService } from './user-invitations.service';
-import { UserInvitationsController } from './user-invitations.controller';
 import { UsersModule } from '../users/users.module';
 import { NotificationModule } from '../communication/notifications/notification.module';
 
@@ -20,7 +19,10 @@ import { NotificationModule } from '../communication/notifications/notification.
     UsersModule,
     NotificationModule,
   ],
-  controllers: [UserInvitationsController],
+  // Legacy invitation persistence remains temporarily available to the old
+  // platform-company provisioning path, but Relay no longer exposes HTTP
+  // invitation endpoints. Organization invitations are owned by Grapifly.
+  controllers: [],
   providers: [UserInvitationsService],
   exports: [UserInvitationsService],
 })

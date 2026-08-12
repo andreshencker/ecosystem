@@ -6,45 +6,22 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
-  Logger,
   Param,
   Patch,
-  Post,
   Query,
 } from '@nestjs/common';
-import { createHash, randomBytes } from 'crypto';
 import {
   ApiOperation,
   ApiQuery,
   ApiTags,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength } from 'class-validator';
-import { ConfigService } from '@nestjs/config';
 
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { CurrentUser } from '../infrastructure/security/decorators/current-user.decorator';
 import type { AuthContext } from '../infrastructure/security/types/auth-context.types';
-import { NotificationService } from '../communication/notifications/notification.service';
-import {
-  EventBusService,
-  PLATFORM_EVENTS,
-} from '../infrastructure/events/event-bus.service';
-
-// ─── Change Password DTO ──────────────────────────────────────────────────────
-
-class ChangePasswordDto {
-  @IsString()
-  @MinLength(1)
-  currentPassword!: string;
-
-  @IsString()
-  @MinLength(8, { message: 'New password must be at least 8 characters' })
-  @MaxLength(128)
-  newPassword!: string;
-}
 
 // ─── Controller ───────────────────────────────────────────────────────────────
 
@@ -52,13 +29,8 @@ class ChangePasswordDto {
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {
-  private readonly logger = new Logger(UsersController.name);
-
   constructor(
     private readonly users: UsersService,
-    private readonly config: ConfigService,
-    private readonly notificationService: NotificationService,
-    private readonly eventBus: EventBusService,
   ) {}
 
   // ── List users ─────────────────────────────────────────────────────────────
@@ -137,87 +109,6 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ): Promise<UserResponseDto> {
     const updated = await this.users.update(ctx.userId!, dto);
-    return UserResponseDto.from(updated);
-  }
-
-  @Patch('me/password')
-  @HttpCode(200)
-  @ApiOperation({
-    summary:
-      'Change current user password and clear mustChangePassword (DEC-014)',
-  })
-  async changePassword(
-    @CurrentUser() ctx: AuthContext,
-    @Body() dto: ChangePasswordDto,
-  ): Promise<UserResponseDto> {
-    // Capture scope + mustChangePassword BEFORE the update so we know what state we're transitioning from.
-    const before = await this.users.findByIdOrThrow(ctx.userId!);
-    const wasMustChange = !!before.mustChangePassword;
-
-    const updated = await this.users.changePassword(
-      ctx.userId!,
-      dto.currentPassword,
-      dto.newPassword,
-    );
-
-    // Notify UserInvitationsModule to accept pending invitations for this email.
-    // Fire-and-forget via event bus — no circular dependency on UserInvitationsService (DEC-013).
-    if (wasMustChange) {
-      this.eventBus.emit(PLATFORM_EVENTS.USER_INVITATION_PASSWORD_COMPLETED, {
-        email: before.email,
-      });
-    }
-
-    // Notify the user that their password was changed — fire-and-forget.
-    // The welcome message for invited users is handled by UserInvitationsService
-    // via the USER_INVITATION_PASSWORD_COMPLETED event emitted above.
-    const when = new Date().toISOString();
-    if (before.scope === 'company' && before.companyId) {
-      // Fetch display name before the fire-and-forget so the template receives data.companyName.
-      const companyName = await this.users
-        .getCompanyDisplayName(String(before.companyId))
-        .catch(() => String(before.companyId));
-      this.notificationService
-        .notifyEvent({
-          companyId: String(before.companyId),
-          event: 'security.company_password_changed',
-          email: before.email,
-          payload: {
-            data: {
-              firstName: before.firstName,
-              email: before.email,
-              companyName,
-              when,
-            },
-          },
-        })
-        .catch((err) =>
-          this.logger.warn(
-            `password_changed notification failed for ${before.email}: ${err?.message}`,
-          ),
-        );
-    } else if (before.scope !== 'company' && before.companyId) {
-      // Platform admin — route through modules company credentials.
-      this.notificationService
-        .notifyEvent({
-          companyId: String(before.companyId),
-          event: 'security.platform_password_changed',
-          email: before.email,
-          payload: {
-            data: {
-              firstName: before.firstName,
-              email: before.email,
-              when,
-            },
-          },
-        })
-        .catch((err) =>
-          this.logger.warn(
-            `platform_password_changed notification failed for ${before.email}: ${err?.message}`,
-          ),
-        );
-    }
-
     return UserResponseDto.from(updated);
   }
 
@@ -369,125 +260,4 @@ export class UsersController {
     return UserResponseDto.from(updated);
   }
 
-  // ── Admin: send password reset email ─────────────────────────────────────
-
-  @Post(':id/send-password-reset')
-  @HttpCode(200)
-  @ApiOperation({
-    summary:
-      'Admin-triggered password reset email for any user (company_admin+)',
-  })
-  async sendPasswordReset(
-    @Param('id') targetId: string,
-    @CurrentUser() ctx: AuthContext,
-  ): Promise<{ message: string }> {
-    const actor = await this.users.findByIdOrThrow(ctx.userId!);
-
-    if (
-      !['platform_admin', 'company_owner', 'company_admin'].includes(actor.role)
-    ) {
-      throw new ForbiddenException(
-        'You do not have permission to reset user passwords',
-      );
-    }
-
-    const target = await this.users.findByIdOrThrow(targetId);
-
-    if (String((target as any)._id) === ctx.userId) {
-      throw new ForbiddenException(
-        'Use the profile settings to change your own password',
-      );
-    }
-
-    if (
-      actor.scope === 'company' &&
-      String(target.companyId) !== String(actor.companyId)
-    ) {
-      throw new ForbiddenException(
-        'You can only reset passwords for users in your company',
-      );
-    }
-
-    // Generate and persist reset token (1-hour TTL).
-    const rawToken = randomBytes(32).toString('hex');
-    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-    await this.users.setPasswordResetToken(targetId, tokenHash, expiresAt);
-
-    const resetUrl = this.buildFrontendUrl(
-      `/auth/reset-password?token=${rawToken}`,
-    );
-
-    // Route all admin-triggered resets through the Platform Company (same pattern as
-    // AuthService.notifyCompanyForgotPassword / notifyPlatformForgotPassword).
-    const platformCompanyId = await this.users.getPlatformCompanyId();
-    if (platformCompanyId) {
-      if (target.scope === 'company' && target.companyId) {
-        const companyName = await this.users
-          .getCompanyDisplayName(String(target.companyId))
-          .catch(() => '');
-        this.notificationService
-          .notifyEvent({
-            companyId: platformCompanyId,
-            event: 'security.company_forgot_password',
-            email: target.email,
-            payload: {
-              data: {
-                firstName: target.firstName,
-                email: target.email,
-                companyName,
-                resetUrl,
-                expiresAt: expiresAt.toISOString(),
-              },
-            },
-          })
-          .catch((err) =>
-            this.logger.warn(
-              `send-password-reset notification failed for ${target.email}: ${err?.message}`,
-            ),
-          );
-      } else {
-        this.notificationService
-          .notifyEvent({
-            companyId: platformCompanyId,
-            event: 'security.platform_forgot_password',
-            email: target.email,
-            payload: {
-              data: {
-                firstName: target.firstName,
-                email: target.email,
-                resetUrl,
-                expiresAt: expiresAt.toISOString(),
-              },
-            },
-          })
-          .catch((err) =>
-            this.logger.warn(
-              `send-password-reset notification failed for ${target.email}: ${err?.message}`,
-            ),
-          );
-      }
-    } else {
-      this.logger.warn(
-        `send-password-reset: platform company not found, email skipped for ${target.email}`,
-      );
-    }
-
-    return { message: 'Password reset email sent.' };
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  private buildFrontendUrl(path: string): string {
-    const base = (
-      this.config.get<string>('FRONTEND_BASE_URL') ||
-      this.config.get<string>('APP_BASE_URL') ||
-      'http://localhost:3000'
-    ).replace(/\/$/, '');
-    return `${base}${path}`;
-  }
-
-  private buildLoginUrl(): string {
-    return this.buildFrontendUrl('/auth/login');
-  }
 }
