@@ -3,61 +3,10 @@
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/axios';
 import { REFRESH_TOKEN_KEY } from '@/lib/constants';
-import { writeAuthCookie, clearAuthCookie } from '@/lib/auth-cookie';
-import { useRouter } from 'next/navigation';
-import { getLandingPage } from '@/config/rbac/role-config';
-import type { AuthResponse } from '@/types/api';
+import { clearAuthCookie } from '@/lib/auth-cookie';
 
 export function useAuth() {
-  const { user, isAuthenticated, setAuth, clearAuth } = useAuthStore();
-  const router = useRouter();
-
-  /**
-   * Authenticates the user and persists the session.
-   * Follows the mandatory order from Form-Behaviour.md §3.6:
-   *   1. Zustand store (setAuth)
-   *   2. localStorage (refresh token)
-   *   3. Cookie (access token — required by middleware)
-   *   4. Redirect (last, only after all persistence succeeds)
-   *
-   * If mustChangePassword is true, redirects to /auth/change-password
-   * instead of the role landing page (DEC-013).
-   *
-   * Throws on API error so the login form can catch and display the message.
-   */
-  async function login(email: string, password: string): Promise<void> {
-    const { data } = await apiClient.post<AuthResponse>('/auth/login', { email, password });
-    setAuth(data.user, data.accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
-    writeAuthCookie(data.accessToken, data.expiresIn ?? 900);
-
-    const routeTarget = data.user.mustChangePassword
-      ? '/auth/change-password'
-      : getLandingPage(data.user.role);
-
-    console.log('[useAuth.login] user.mustChangePassword =', data.user.mustChangePassword);
-    console.log('[useAuth.login] route target =', routeTarget);
-
-    router.push(routeTarget);
-  }
-
-  /**
-   * Registers a new company and owner account.
-   * Returns the server's success message; never auto-logs in.
-   * The caller is responsible for redirecting to /auth/login?registered=true.
-   *
-   * Throws on API error so the registration form can catch and display the message.
-   */
-  async function register(dto: {
-    companyName: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  }): Promise<{ message: string }> {
-    const { data } = await apiClient.post<{ message: string }>('/auth/register', dto);
-    return data;
-  }
+  const { user, isAuthenticated, clearAuth } = useAuthStore();
 
   /**
    * Revokes the Relay session, clears all local credentials and then delegates
@@ -78,5 +27,5 @@ export function useAuth() {
     }
   }
 
-  return { user, isAuthenticated, login, register, logout };
+  return { user, isAuthenticated, logout };
 }

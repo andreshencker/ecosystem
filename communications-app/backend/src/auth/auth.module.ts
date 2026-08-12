@@ -11,8 +11,6 @@ import {
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { EcosystemModule } from '../ecosystem/ecosystem.module';
-import { NotificationModule } from '../communication/notifications/notification.module';
-import { CompanyProvisioningModule } from '../communication/company/provisioning/company-provisioning.module';
 
 @Module({
   imports: [
@@ -37,8 +35,6 @@ import { CompanyProvisioningModule } from '../communication/company/provisioning
     }),
 
     EcosystemModule,
-    NotificationModule,
-    CompanyProvisioningModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],
