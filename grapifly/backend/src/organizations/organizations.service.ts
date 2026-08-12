@@ -146,9 +146,9 @@ export class OrganizationsService implements OnApplicationBootstrap {
     }
     const limits: Record<string, number> = {
       name: 80, legalName: 200, tagline: 300, timezone: 100,
-      officialEmail: 200, supportEmail: 200, supportPhoneCountryCode: 5, supportPhoneNumber: 30, supportHours: 200,
+      officialEmail: 200, supportEmail: 200, supportPhone: 40, supportPhoneCountryCode: 5, supportPhoneNumber: 30, supportHours: 200,
       addressLine1: 200, addressLine2: 200, addressCity: 100, addressState: 100, addressPostalCode: 20, addressCountry: 100,
-      websiteUrl: 500, helpCenterUrl: 500, privacyPolicyUrl: 500, termsUrl: 500,
+      websiteUrl: 500, apiBaseUrl: 500, helpCenterUrl: 500, privacyPolicyUrl: 500, termsUrl: 500, unsubscribeUrl: 500,
       facebook: 500, instagram: 500, linkedin: 500, x: 500, youtube: 500, tiktok: 500, whatsapp: 500, telegram: 500,
       copyrightText: 500, disclaimerShort: 500, disclaimerLong: 2000, logoIconUrl: 500, logoFullUrl: 500,
     };
@@ -175,7 +175,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     if ('supportPhoneCountryCode' in updates || 'supportPhoneNumber' in updates) {
       updates.supportPhone = [updates.supportPhoneCountryCode ?? '', updates.supportPhoneNumber ?? ''].filter(Boolean).join(' ');
     }
-    for (const field of ['websiteUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram', 'logoIconUrl', 'logoFullUrl']) {
+    for (const field of ['websiteUrl', 'apiBaseUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'unsubscribeUrl', 'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram', 'logoIconUrl', 'logoFullUrl']) {
       if (!updates[field]) continue;
       try { new URL(updates[field]); } catch { throw new BadRequestException(`${field} must be a valid URL`); }
     }

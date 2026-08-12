@@ -11,6 +11,7 @@ import {
 import { SecurityModule } from '../communication/common/security/security.module';
 import { RolesGuard } from '../infrastructure/security/guards/roles.guard';
 import { RelayTenantContextModule } from '../infrastructure/security/relay-tenant-context.module';
+import { GrapiflyTeamModule } from '../integrations/grapifly/grapifly-team.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RelayTenantContextModule } from '../infrastructure/security/relay-tenan
     ]),
     SecurityModule,
     RelayTenantContextModule,
+    GrapiflyTeamModule,
   ],
   controllers: [CompanyPortalController],
   providers: [CompanyPortalService, RolesGuard],

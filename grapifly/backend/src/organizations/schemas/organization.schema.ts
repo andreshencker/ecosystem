@@ -69,6 +69,9 @@ export class Organization {
   websiteUrl!: string;
 
   @Prop({ type: String, default: '' })
+  apiBaseUrl!: string;
+
+  @Prop({ type: String, default: '' })
   helpCenterUrl!: string;
 
   @Prop({ type: String, default: '' })
@@ -76,6 +79,9 @@ export class Organization {
 
   @Prop({ type: String, default: '' })
   termsUrl!: string;
+
+  @Prop({ type: String, default: '' })
+  unsubscribeUrl!: string;
 
   @Prop({ type: String, default: '' })
   facebook!: string;

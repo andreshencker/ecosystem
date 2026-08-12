@@ -19,9 +19,11 @@ export interface RelayOrganizationContract {
   addressPostalCode: string;
   addressCountry: string;
   websiteUrl: string;
+  apiBaseUrl: string;
   helpCenterUrl: string;
   privacyPolicyUrl: string;
   termsUrl: string;
+  unsubscribeUrl: string;
   facebook: string;
   instagram: string;
   linkedin: string;

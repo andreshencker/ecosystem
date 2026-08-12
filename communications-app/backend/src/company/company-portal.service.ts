@@ -1,16 +1,8 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as nodemailer from 'nodemailer';
 
-import {
-  Company,
-  CompanyDocument,
-} from '../communication/company/company-info/schemas/company.schema';
 import {
   CompanySmtp,
   CompanySmtpDocument,
@@ -21,37 +13,29 @@ import { UpdateCompanySmtpDto } from './dto/update-company-smtp.dto';
 import { CompanySmtpResponseDto } from './dto/company-smtp-response.dto';
 import type { AuthContext } from '../infrastructure/security/types/auth-context.types';
 import { RelayTenantContextService } from '../infrastructure/security/services/relay-tenant-context.service';
+import { GrapiflyOrganizationService } from '../integrations/grapifly/grapifly-organization.service';
 
 @Injectable()
 export class CompanyPortalService {
-  private readonly logger = new Logger(CompanyPortalService.name);
-
   constructor(
-    @InjectModel(Company.name)
-    private readonly companyModel: Model<CompanyDocument>,
     @InjectModel(CompanySmtp.name)
     private readonly smtpModel: Model<CompanySmtpDocument>,
     private readonly crypto: CryptoService,
     private readonly tenantContext: RelayTenantContextService,
+    private readonly grapiflyOrganization: GrapiflyOrganizationService,
   ) {}
 
   // ── Own company ───────────────────────────────────────────────────────────
 
-  async getOwnCompany(ctx: AuthContext): Promise<CompanyDocument> {
-    const tenant = await this.tenantContext.resolve(ctx, 'relay.use');
-    return tenant.company;
+  async getOwnCompany(ctx: AuthContext) {
+    return this.grapiflyOrganization.get(ctx);
   }
 
   async updateOwnCompany(
     ctx: AuthContext,
     dto: UpdateCompanyPortalDto,
-  ): Promise<CompanyDocument> {
-    const { companyId } = await this.tenantContext.resolve(
-      ctx,
-      'relay.organization.manage',
-    );
-
-    const $set: Record<string, any> = {};
+  ) {
+    const update: Record<string, unknown> = {};
     const allFields: (keyof UpdateCompanyPortalDto)[] = [
       'displayName',
       'legalName',
@@ -87,22 +71,10 @@ export class CompanyPortalService {
       'logoFullUrl',
     ];
     for (const field of allFields) {
-      if (dto[field] !== undefined) $set[field] = dto[field];
+      if (dto[field] !== undefined) update[field] = dto[field];
     }
-
-    if (Object.keys($set).length === 0) {
-      const current = await this.companyModel.findById(companyId).lean().exec();
-      if (!current) throw new NotFoundException('Company not found');
-      return current as any;
-    }
-
-    const updated = await this.companyModel
-      .findByIdAndUpdate(companyId, { $set }, { new: true })
-      .lean()
-      .exec();
-
-    if (!updated) throw new NotFoundException('Company not found');
-    return updated as any;
+    if (Object.keys(update).length === 0) return this.grapiflyOrganization.get(ctx);
+    return this.grapiflyOrganization.update(ctx, update);
   }
 
   // ── SMTP settings ─────────────────────────────────────────────────────────
