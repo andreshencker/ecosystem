@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  orchestrator:
+    build:
+      context: ./orchestrator
+      args:
+        NODE_ENV: prod
+    container_name: orchestrator
+    env_file: ./orchestrator/.env.prod
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        NODE_ENV: prod
+    container_name: backend
+    env_file: ./backend/.env.prod
+    restart: unless-stopped
+
+  communication:
+    build:
+      context: ./communication
+      args:
+        NODE_ENV: prod
+    container_name: communication
+    env_file: ./communication/.env.prod
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NODE_ENV: prod
+    container_name: frontend
+    ports:
+      - "80:80"        # ✅ El frontend YA tiene nginx adentro
+    depends_on:
+      - backend
+      - orchestrator
+      - communication
+    restart: unless-stopped
