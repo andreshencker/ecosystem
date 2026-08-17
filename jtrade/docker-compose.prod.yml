@@ -1,6 +1,5 @@
-version: "3.9"
-
 services:
+
   orchestrator:
     build:
       context: ./orchestrator
@@ -34,10 +33,28 @@ services:
       args:
         NODE_ENV: prod
     container_name: frontend
-    ports:
-      - "80:80"        # ✅ El frontend YA tiene nginx adentro
     depends_on:
       - backend
       - orchestrator
 #      - communication
     restart: unless-stopped
+
+    networks:
+      - default
+      - grapifly_proxy
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.jtrade-frontend.rule=Host(`jtrade.grapifly.com`)"
+      - "traefik.http.routers.jtrade-frontend.entrypoints=websecure"
+      - "traefik.http.routers.jtrade-frontend.tls=true"
+      - "traefik.http.routers.jtrade-frontend.tls.certresolver=le"
+
+      - "traefik.http.services.jtrade-frontend.loadbalancer.server.port=80"
+
+
+networks:
+
+  grapifly_proxy:
+    external: true
