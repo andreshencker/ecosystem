@@ -19,14 +19,14 @@ services:
     env_file: ./backend/.env.prod
     restart: unless-stopped
 
-  communication:
-    build:
-      context: ./communication
-      args:
-        NODE_ENV: prod
-    container_name: communication
-    env_file: ./communication/.env.prod
-    restart: unless-stopped
+#  communication:
+#    build:
+#      context: ./communication
+#      args:
+#        NODE_ENV: prod
+#    container_name: communication
+#    env_file: ./communication/.env.prod
+#    restart: unless-stopped
 
   frontend:
     build:

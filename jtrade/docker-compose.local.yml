@@ -23,16 +23,16 @@ services:
       - "3002:3002"
     restart: unless-stopped
 
-  communication:
-    build:
-      context: ./communication
-      args:
-        NODE_ENV: local
-    container_name: communication
-    env_file: ./communication/.env.local
-    ports:
-      - "3001:3001"
-    restart: unless-stopped
+#  communication:
+#    build:
+#      context: ./communication
+#      args:
+#        NODE_ENV: local
+#    container_name: communication
+#    env_file: ./communication/.env.local
+#    ports:
+#      - "3001:3001"
+#    restart: unless-stopped
 
   frontend:
     build:
