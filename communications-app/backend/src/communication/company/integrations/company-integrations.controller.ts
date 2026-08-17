@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -14,6 +15,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { CompanyIntegrationsService } from './company-integrations.service';
 import { CreateCompanyIntegrationDto } from './dto/create-company-integration.dto';
@@ -25,6 +29,7 @@ export class CompanyIntegrationsController {
   constructor(
     private readonly config: ConfigService,
     private readonly service: CompanyIntegrationsService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -33,10 +38,16 @@ export class CompanyIntegrationsController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Create integration — raw token returned ONCE' })
   async create(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: CreateCompanyIntegrationDto,
   ) {
-    this.assertApiKey(apiKey);
+    dto.companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      dto.companyId,
+      'relay.use',
+    );
     return this.service.create(dto);
   }
 
@@ -59,6 +70,7 @@ export class CompanyIntegrationsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   async listForPlatform(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('search') search?: string,
     @Query('companyId') companyId?: string,
@@ -69,7 +81,7 @@ export class CompanyIntegrationsController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    this.assertAdminAccess(ctx, apiKey);
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -94,13 +106,19 @@ export class CompanyIntegrationsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   async list(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('active') active?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -137,8 +155,19 @@ export class CompanyIntegrationsController {
   @Get(':id')
   @HttpCode(200)
   @ApiOperation({ summary: 'Get a single integration by ID' })
-  async getById(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async getById(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.findById(id);
   }
 
@@ -146,19 +175,38 @@ export class CompanyIntegrationsController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update an integration' })
   async update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateCompanyIntegrationDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(200)
   @ApiOperation({ summary: 'Delete an integration permanently' })
-  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async remove(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.remove(id);
   }
 
@@ -170,10 +218,18 @@ export class CompanyIntegrationsController {
     summary: 'Rotate the integration token — new raw token returned ONCE',
   })
   async rotateToken(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.rotateToken(id);
   }
 
@@ -185,10 +241,18 @@ export class CompanyIntegrationsController {
     summary: 'Deactivate an integration (blocks token resolver)',
   })
   async deactivate(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.deactivate(id);
   }
 
@@ -196,14 +260,61 @@ export class CompanyIntegrationsController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Re-activate a previously deactivated integration' })
   async activate(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.activate(id);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
+  }
+
+  private async resolveOptionalCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    permission: string,
+  ): Promise<string | undefined> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return undefined;
+  }
+
+  // Platform Admin global listing: platform_admin users (via Grapifly session)
+  // or the internal COMMUNICATION_API_KEY (engine-to-engine / provisioning).
+  private assertAdminAccess(ctx: AuthContext | undefined, apiKey: string) {
+    if (ctx?.actorType === 'user') {
+      if (ctx.role !== 'platform_admin') {
+        throw new ForbiddenException(
+          'Only platform_admin may list integrations across all companies',
+        );
+      }
+      return;
+    }
+    this.assertApiKey(apiKey);
+  }
 
   private assertApiKey(apiKey?: string): void {
     const expected = this.config.get<string>('COMMUNICATION_API_KEY');

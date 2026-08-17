@@ -6,6 +6,7 @@ export class CompanyChannelProviderMapper {
       id: String(doc._id),
 
       companyId: String(doc.companyId),
+      grapiflyOrganizationId: doc.grapiflyOrganizationId ?? null,
       providerId: String(doc.providerId?._id ?? doc.providerId),
       channelId: String(doc.channelId?._id ?? doc.channelId),
 

@@ -21,6 +21,7 @@ export class CompanyChannelProviderResponseDto {
   id!: string;
 
   companyId!: string;
+  grapiflyOrganizationId!: string | null;
   providerId!: string;
   channelId!: string;
 

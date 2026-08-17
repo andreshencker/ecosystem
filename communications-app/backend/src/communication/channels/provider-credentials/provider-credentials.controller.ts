@@ -16,6 +16,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { ProviderCredentialsService } from './provider-credentials.service';
 import { CreateProviderCredentialsDto } from './dto/create-provider-credentials.dto';
@@ -29,15 +32,27 @@ export class ProviderCredentialsController {
   constructor(
     private readonly config: ConfigService,
     private readonly service: ProviderCredentialsService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   @Post()
   @HttpCode(201)
   async create(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: CreateProviderCredentialsDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.credentials.manage',
+    );
+    if (companyId) {
+      await this.service.assertCompanyChannelProviderBelongsToCompany(
+        dto.companyChannelProviderId,
+        companyId,
+      );
+    }
     return this.service.create(dto);
   }
 
@@ -45,18 +60,46 @@ export class ProviderCredentialsController {
   @Get('options')
   @HttpCode(200)
   async options(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('channel') channel?: CredentialChannel,
     @Query('active') active?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
 
     return this.service.options({
       companyId,
       channel: this.normalizeChannel(channel),
       active: this.toBool(active),
     });
+  }
+
+  // GET /provider-credentials/configured-channels
+  // Distinct channelKeys with at least one active credential — drives which
+  // navbar tabs (Calendar, Payments, Accounting, Notifications, …) are shown.
+  @Get('configured-channels')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'List channels with at least one active credential',
+  })
+  async configuredChannels(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Query('companyId') companyId: string,
+  ) {
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
+    return this.service.getConfiguredChannels(companyId);
   }
 
   // GET /provider-credentials?companyChannelProviderId=...  (single-CCP list)
@@ -87,6 +130,7 @@ export class ProviderCredentialsController {
     description: 'Records to skip (default 0)',
   })
   async list(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyChannelProviderId') companyChannelProviderId?: string,
     @Query('companyId') companyId?: string,
@@ -95,7 +139,12 @@ export class ProviderCredentialsController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    const sessionCompanyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (sessionCompanyId) companyId = sessionCompanyId;
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -118,6 +167,13 @@ export class ProviderCredentialsController {
       );
     }
 
+    if (sessionCompanyId) {
+      await this.service.assertCompanyChannelProviderBelongsToCompany(
+        companyChannelProviderId,
+        sessionCompanyId,
+      );
+    }
+
     return this.service.findAll({
       companyChannelProviderId,
       active: this.toBool(active),
@@ -131,22 +187,29 @@ export class ProviderCredentialsController {
   @Get(':id')
   @HttpCode(200)
   async getById(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Query('populate') populate?: string,
   ) {
-    this.assertApiKey(apiKey);
+    await this.assertCredentialAccess(ctx, apiKey, id, 'relay.use');
     return this.service.getById(id, this.toBool(populate) ?? false);
   }
 
   @Patch(':id')
   @HttpCode(200)
   async update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateProviderCredentialsDto,
   ) {
-    this.assertApiKey(apiKey);
+    await this.assertCredentialAccess(
+      ctx,
+      apiKey,
+      id,
+      'relay.credentials.manage',
+    );
     return this.service.update(id, dto);
   }
 
@@ -155,15 +218,33 @@ export class ProviderCredentialsController {
   @ApiOperation({
     summary: 'Test stored credentials by decrypting and verifying connectivity',
   })
-  async test(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async test(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    await this.assertCredentialAccess(
+      ctx,
+      apiKey,
+      id,
+      'relay.credentials.manage',
+    );
     return this.service.testById(id);
   }
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async remove(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    await this.assertCredentialAccess(
+      ctx,
+      apiKey,
+      id,
+      'relay.credentials.manage',
+    );
     return this.service.remove(id);
   }
 
@@ -172,6 +253,50 @@ export class ProviderCredentialsController {
 
     if (!apiKey || !expected || apiKey !== expected) {
       throw new UnauthorizedException('Invalid API key');
+    }
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
+  }
+
+  private async resolveOptionalCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    permission: string,
+  ): Promise<string | undefined> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return undefined;
+  }
+
+  private async assertCredentialAccess(
+    ctx: AuthContext,
+    apiKey: string,
+    credentialId: string,
+    permission: string,
+  ): Promise<void> {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      permission,
+    );
+    if (companyId) {
+      await this.service.assertCredentialBelongsToCompany(
+        credentialId,
+        companyId,
+      );
     }
   }
 

@@ -13,6 +13,15 @@ import { UpdateCompanyChannelProviderDto } from './dto/update-company-channel-pr
 import { CompanyChannelProviderResponseDto } from './dto/company-channel-provider-response.dto';
 import { CompanyChannelProviderMapper } from './mappers/company-channel-provider.mapper';
 import type { PaginatedResponse } from '../../common/pagination/pagination.util';
+import {
+  Company,
+  CompanyDocument,
+} from '../../company/company-info/schemas/company.schema';
+
+type ProviderTenant = {
+  companyId: Types.ObjectId;
+  grapiflyOrganizationId: string | null;
+};
 
 // ✅ modelos existentes
 import {
@@ -39,6 +48,8 @@ export class CompanyChannelProvidersService {
     private readonly channelsModel: Model<ChannelDocument>,
     @InjectModel(ProviderCredentials.name)
     private readonly credentialsModel: Model<ProviderCredentialsDocument>,
+    @InjectModel(Company.name)
+    private readonly companiesModel: Model<CompanyDocument>,
   ) {}
 
   // ==========================
@@ -54,9 +65,8 @@ export class CompanyChannelProvidersService {
     limit?: number;
     offset?: number;
   }): Promise<PaginatedResponse<CompanyChannelProviderResponseDto>> {
-    const companyId = this.toObjectId(params.companyId, 'companyId');
-
-    const filter: any = { companyId };
+    const tenant = await this.resolveTenant(params.companyId);
+    const filter: any = this.tenantFilter(tenant);
     if (params.channelId)
       filter.channelId = this.toObjectId(params.channelId, 'channelId');
     if (typeof params.active === 'boolean') filter.isActive = params.active;
@@ -95,10 +105,14 @@ export class CompanyChannelProvidersService {
   async findById(
     id: string,
     populate = true,
+    companyId?: string,
   ): Promise<CompanyChannelProviderResponseDto> {
     const _id = this.toObjectId(id, 'id');
-
-    const q = this.model.findById(_id);
+    const tenant = companyId ? await this.resolveTenant(companyId) : undefined;
+    const q = this.model.findOne({
+      _id,
+      ...(tenant ? this.tenantFilter(tenant) : {}),
+    });
 
     if (populate) {
       q.populate({
@@ -131,11 +145,11 @@ export class CompanyChannelProvidersService {
     channelId: string;
     populate?: boolean;
   }): Promise<CompanyChannelProviderResponseDto> {
-    const companyId = this.toObjectId(params.companyId, 'companyId');
+    const tenant = await this.resolveTenant(params.companyId);
     const channelId = this.toObjectId(params.channelId, 'channelId');
 
     const q = this.model.findOne({
-      companyId,
+      ...this.tenantFilter(tenant),
       channelId,
       isActive: true,
       isDefault: true,
@@ -167,13 +181,14 @@ export class CompanyChannelProvidersService {
     dto: CreateCompanyChannelProviderDto,
   ): Promise<CompanyChannelProviderResponseDto> {
     try {
-      const companyId = this.toObjectId(dto.companyId, 'companyId');
+      const tenant = await this.resolveTenant(dto.companyId);
+      const companyId = tenant.companyId;
       const providerId = this.toObjectId(dto.providerId, 'providerId');
       const channelId = this.toObjectId(dto.channelId, 'channelId');
 
       // Explicit duplicate check — gives a clear 409 instead of a cryptic 11000
       const existingLink = await this.model
-        .findOne({ companyId, providerId })
+        .findOne({ ...this.tenantFilter(tenant), providerId, channelId })
         .lean();
       if (existingLink) {
         throw new HttpException(
@@ -191,11 +206,12 @@ export class CompanyChannelProvidersService {
 
       // ✅ si se va a setear como default, desmarcar el anterior default del canal
       if (isDefault) {
-        await this.unsetPreviousDefault({ companyId, channelId });
+        await this.unsetPreviousDefault({ tenant, channelId });
       }
 
       const created = await this.model.create({
         companyId,
+        grapiflyOrganizationId: tenant.grapiflyOrganizationId,
         providerId,
         channelId,
         isDefault,
@@ -234,11 +250,20 @@ export class CompanyChannelProvidersService {
   async update(
     id: string,
     dto: UpdateCompanyChannelProviderDto,
+    companyId?: string,
   ): Promise<CompanyChannelProviderResponseDto> {
     try {
       const _id = this.toObjectId(id, 'id');
 
-      const existing: any = await this.model.findById(_id).lean();
+      const requestedTenant = companyId
+        ? await this.resolveTenant(companyId)
+        : undefined;
+      const existing: any = await this.model
+        .findOne({
+          _id,
+          ...(requestedTenant ? this.tenantFilter(requestedTenant) : {}),
+        })
+        .lean();
       if (!existing)
         throw new HttpException(
           'CompanyChannelProvider not found',
@@ -246,6 +271,10 @@ export class CompanyChannelProvidersService {
         );
 
       const $set: any = {};
+      const tenant = await this.resolveTenant(String(existing.companyId));
+      if (tenant.grapiflyOrganizationId) {
+        $set.grapiflyOrganizationId = tenant.grapiflyOrganizationId;
+      }
 
       if (dto.isActive !== undefined) $set.isActive = dto.isActive;
 
@@ -269,14 +298,10 @@ export class CompanyChannelProvidersService {
         const isDefault = this.toBool(dto.isDefault) ?? false;
 
         if (isDefault) {
-          const companyIdObj = this.toObjectId(
-            String(existing.companyId),
-            'companyId',
-          );
           const channelIdObj = this.toObjectId(nextChannelId, 'channelId');
 
           await this.unsetPreviousDefault({
-            companyId: companyIdObj,
+            tenant,
             channelId: channelIdObj,
             excludeId: _id,
           });
@@ -324,10 +349,13 @@ export class CompanyChannelProvidersService {
   async remove(
     id: string,
     force = false,
+    companyId?: string,
   ): Promise<{ deleted: boolean; cascaded: number }> {
     const _id = this.toObjectId(id, 'id');
-
-    const doc = await this.model.findById(_id).lean();
+    const tenant = companyId ? await this.resolveTenant(companyId) : undefined;
+    const doc = await this.model
+      .findOne({ _id, ...(tenant ? this.tenantFilter(tenant) : {}) })
+      .lean();
     if (!doc)
       throw new HttpException(
         'CompanyChannelProvider not found',
@@ -433,12 +461,12 @@ export class CompanyChannelProvidersService {
    * para esa (companyId + channelId).
    */
   private async unsetPreviousDefault(params: {
-    companyId: Types.ObjectId;
+    tenant: ProviderTenant;
     channelId: Types.ObjectId;
     excludeId?: Types.ObjectId;
   }) {
     const filter: any = {
-      companyId: params.companyId,
+      ...this.tenantFilter(params.tenant),
       channelId: params.channelId,
       isDefault: true,
     };
@@ -446,5 +474,39 @@ export class CompanyChannelProvidersService {
     if (params.excludeId) filter._id = { $ne: params.excludeId };
 
     await this.model.updateMany(filter, { $set: { isDefault: false } });
+  }
+
+  private async resolveTenant(companyIdValue: string): Promise<ProviderTenant> {
+    const companyId = this.toObjectId(companyIdValue, 'companyId');
+    const company = await this.companiesModel
+      .findById(companyId)
+      .select({ grapiflyOrganizationId: 1 })
+      .lean();
+
+    if (!company) {
+      throw new HttpException('Company not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      companyId,
+      grapiflyOrganizationId: company.grapiflyOrganizationId ?? null,
+    };
+  }
+
+  private tenantFilter(tenant: ProviderTenant): Record<string, unknown> {
+    if (!tenant.grapiflyOrganizationId) return { companyId: tenant.companyId };
+
+    return {
+      $or: [
+        { grapiflyOrganizationId: tenant.grapiflyOrganizationId },
+        {
+          companyId: tenant.companyId,
+          $or: [
+            { grapiflyOrganizationId: null },
+            { grapiflyOrganizationId: { $exists: false } },
+          ],
+        },
+      ],
+    };
   }
 }

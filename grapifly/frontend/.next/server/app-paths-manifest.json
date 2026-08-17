@@ -1,0 +1,14 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/about/page": "app/about/page.js",
+  "/admin/access/page": "app/admin/access/page.js",
+  "/admin/applications/page": "app/admin/applications/page.js",
+  "/admin/users/page": "app/admin/users/page.js",
+  "/apps/relay/page": "app/apps/relay/page.js",
+  "/employee/users/page": "app/employee/users/page.js",
+  "/home/page": "app/home/page.js",
+  "/invitations/[token]/page": "app/invitations/[token]/page.js",
+  "/organizations/page": "app/organizations/page.js",
+  "/page": "app/page.js"
+}

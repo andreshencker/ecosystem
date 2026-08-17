@@ -6,6 +6,7 @@ export class CompanyThemeMapper {
     return {
       id: String(doc._id),
       companyId: String(doc.companyId),
+      grapiflyOrganizationId: doc.grapiflyOrganizationId ?? null,
       label: doc.label,
 
       primaryColor: doc.primaryColor,

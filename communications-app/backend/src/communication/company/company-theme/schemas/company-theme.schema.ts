@@ -11,6 +11,14 @@ export type CompanyThemeDocument = HydratedDocument<CompanyTheme>;
   timestamps: true,
 })
 export class CompanyTheme {
+  /** Canonical tenant identifier issued by Grapifly. */
+  @Prop({ type: String, default: null })
+  grapiflyOrganizationId!: string | null;
+
+  /**
+   * Temporary Relay projection used by resources that still reference Mongo ObjectIds.
+   * Remove only after every dependent resource has moved to Grapifly organization IDs.
+   */
   @Prop({
     type: Types.ObjectId,
     ref: Company.name,
@@ -44,9 +52,20 @@ export const CompanyThemeSchema = SchemaFactory.createForClass(CompanyTheme);
 
 // Consultas comunes
 CompanyThemeSchema.index({ companyId: 1, isActive: 1 });
+CompanyThemeSchema.index({ grapiflyOrganizationId: 1, isActive: 1 });
 
 // ✅ Regla: SOLO 1 default por company (solo aplica cuando isDefault=true)
 CompanyThemeSchema.index(
   { companyId: 1, isDefault: 1 },
   { unique: true, partialFilterExpression: { isDefault: true } },
+);
+CompanyThemeSchema.index(
+  { grapiflyOrganizationId: 1, isDefault: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      grapiflyOrganizationId: { $type: 'string' },
+      isDefault: true,
+    },
+  },
 );

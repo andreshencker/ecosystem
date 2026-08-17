@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -12,6 +19,11 @@ import { CompanyThemeResponseDto } from './dto/company-theme-response.dto';
 import { CompanyThemeMapper } from './mappers/company-theme.mapper';
 import type { PaginatedResponse } from '../../common/pagination/pagination.util';
 
+export interface CompanyThemeTenant {
+  companyId: string;
+  grapiflyOrganizationId?: string | null;
+}
+
 @Injectable()
 export class CompanyThemeService {
   constructor(
@@ -19,19 +31,21 @@ export class CompanyThemeService {
     private readonly model: Model<CompanyThemeDocument>,
   ) {}
 
-  async findAll(params?: {
-    companyId?: string;
+  async findAll(params: {
+    companyId: string;
+    grapiflyOrganizationId?: string | null;
     active?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<PaginatedResponse<CompanyThemeResponseDto>> {
-    const filter: any = {};
-    if (params?.companyId)
-      filter.companyId = new Types.ObjectId(params.companyId);
-    if (typeof params?.active === 'boolean') filter.isActive = params.active;
+    const filter: any = this.tenantFilter({
+      companyId: params.companyId,
+      grapiflyOrganizationId: params.grapiflyOrganizationId,
+    });
+    if (typeof params.active === 'boolean') filter.isActive = params.active;
 
-    const limit = Math.min(Number(params?.limit ?? 50), 200);
-    const offset = Math.max(0, Number(params?.offset ?? 0));
+    const limit = Math.min(Number(params.limit ?? 50), 200);
+    const offset = Math.max(0, Number(params.offset ?? 0));
 
     const [list, total] = await Promise.all([
       this.model
@@ -51,9 +65,17 @@ export class CompanyThemeService {
     };
   }
 
-  async findById(id: string): Promise<CompanyThemeResponseDto> {
-    const doc = await this.model.findById(id).lean();
-    if (!doc) throw new HttpException('Theme not found', HttpStatus.NOT_FOUND);
+  async findById(
+    tenant: CompanyThemeTenant | string,
+    id: string,
+  ): Promise<CompanyThemeResponseDto> {
+    const doc = await this.model
+      .findOne({
+        _id: this.toObjectId(id, 'themeId'),
+        ...this.tenantFilter(this.normalizeTenant(tenant)),
+      })
+      .lean();
+    if (!doc) throw new NotFoundException('Theme not found');
     return CompanyThemeMapper.toResponse(doc as any);
   }
 
@@ -82,9 +104,18 @@ export class CompanyThemeService {
     return lastActive ? CompanyThemeMapper.toResponse(lastActive as any) : null;
   }
 
-  async create(dto: CreateCompanyThemeDto): Promise<CompanyThemeResponseDto> {
-    const companyId = new Types.ObjectId(dto.companyId);
+  async create(
+    tenantValue: CompanyThemeTenant | string,
+    dto: CreateCompanyThemeDto,
+  ): Promise<CompanyThemeResponseDto> {
+    const tenant = this.normalizeTenant(tenantValue);
+    const companyId = this.toObjectId(tenant.companyId, 'companyId');
+    const tenantFilter = this.tenantFilter(tenant);
     const makeDefault = dto.isDefault === true;
+
+    if (makeDefault && dto.isActive === false) {
+      throw new BadRequestException('The default theme must be active');
+    }
 
     const session = await this.model.db.startSession();
     try {
@@ -93,7 +124,7 @@ export class CompanyThemeService {
       await session.withTransaction(async () => {
         if (makeDefault) {
           await this.model.updateMany(
-            { companyId, isDefault: true },
+            { ...tenantFilter, isDefault: true },
             { $set: { isDefault: false } },
             { session },
           );
@@ -103,6 +134,7 @@ export class CompanyThemeService {
           [
             {
               companyId,
+              grapiflyOrganizationId: tenant.grapiflyOrganizationId ?? null,
               label: dto.label,
               primaryColor: dto.primaryColor,
               secondaryColor: dto.secondaryColor,
@@ -139,12 +171,30 @@ export class CompanyThemeService {
   }
 
   async updateById(
+    tenantValue: CompanyThemeTenant | string,
     id: string,
     dto: UpdateCompanyThemeDto,
   ): Promise<CompanyThemeResponseDto> {
-    const existing = await this.model.findById(id);
-    if (!existing)
-      throw new HttpException('Theme not found', HttpStatus.NOT_FOUND);
+    const tenant = this.normalizeTenant(tenantValue);
+    const tenantFilter = this.tenantFilter(tenant);
+    const themeId = this.toObjectId(id, 'themeId');
+    const existing = await this.model.findOne({
+      _id: themeId,
+      ...tenantFilter,
+    });
+    if (!existing) throw new NotFoundException('Theme not found');
+
+    if (existing.isDefault && dto.isDefault === false) {
+      throw new ConflictException(
+        'Set another theme as default instead of unsetting the current default',
+      );
+    }
+    if (
+      (existing.isDefault || dto.isDefault === true) &&
+      dto.isActive === false
+    ) {
+      throw new ConflictException('The default theme must remain active');
+    }
 
     const makeDefault = dto.isDefault === true;
 
@@ -156,7 +206,7 @@ export class CompanyThemeService {
         if (makeDefault) {
           await this.model.updateMany(
             {
-              companyId: existing.companyId,
+              ...tenantFilter,
               isDefault: true,
               _id: { $ne: existing._id },
             },
@@ -165,9 +215,17 @@ export class CompanyThemeService {
           );
         }
 
-        updated = await this.model.findByIdAndUpdate(
-          existing._id,
-          { $set: { ...dto } },
+        updated = await this.model.findOneAndUpdate(
+          { _id: existing._id, ...tenantFilter },
+          {
+            $set: {
+              ...dto,
+              ...(tenant.grapiflyOrganizationId
+                ? { grapiflyOrganizationId: tenant.grapiflyOrganizationId }
+                : {}),
+              ...(makeDefault ? { isActive: true } : {}),
+            },
+          },
           { new: true, runValidators: true, session },
         );
       });
@@ -183,16 +241,65 @@ export class CompanyThemeService {
     }
   }
 
-  async removeById(id: string): Promise<{ deleted: boolean }> {
-    const doc = await this.model.findById(id).lean();
-    if (!doc) throw new HttpException('Theme not found', HttpStatus.NOT_FOUND);
+  async removeById(
+    tenantValue: CompanyThemeTenant | string,
+    id: string,
+  ): Promise<{ deleted: boolean }> {
+    const tenantFilter = this.tenantFilter(this.normalizeTenant(tenantValue));
+    const themeId = this.toObjectId(id, 'themeId');
+    const doc = await this.model
+      .findOne({ _id: themeId, ...tenantFilter })
+      .lean();
+    if (!doc) throw new NotFoundException('Theme not found');
     if ((doc as any).isDefault) {
-      throw new HttpException(
+      throw new ConflictException(
         'Cannot delete the default theme. Set another theme as default first.',
-        HttpStatus.CONFLICT,
       );
     }
-    await this.model.findByIdAndDelete(id);
+
+    const referencedLayouts = await this.model.db
+      .collection('layout_templates')
+      .countDocuments({ companyThemeId: themeId }, { limit: 1 });
+    if (referencedLayouts > 0) {
+      throw new ConflictException(
+        'Cannot delete a theme that is used by layout templates',
+      );
+    }
+
+    await this.model.deleteOne({ _id: themeId, ...tenantFilter });
     return { deleted: true };
+  }
+
+  private toObjectId(value: string | undefined, label: string): Types.ObjectId {
+    if (!value || !Types.ObjectId.isValid(value)) {
+      throw new BadRequestException(`Invalid ${label}`);
+    }
+    return new Types.ObjectId(value);
+  }
+
+  private normalizeTenant(
+    tenant: CompanyThemeTenant | string,
+  ): CompanyThemeTenant {
+    return typeof tenant === 'string' ? { companyId: tenant } : tenant;
+  }
+
+  private tenantFilter(tenant: CompanyThemeTenant): Record<string, unknown> {
+    const companyId = this.toObjectId(tenant.companyId, 'companyId');
+    if (!tenant.grapiflyOrganizationId) return { companyId };
+
+    // Compatibility window: canonical records and legacy projected records are
+    // both visible, but only for the local company bound to this Grapifly org.
+    return {
+      $or: [
+        { grapiflyOrganizationId: tenant.grapiflyOrganizationId },
+        {
+          companyId,
+          $or: [
+            { grapiflyOrganizationId: null },
+            { grapiflyOrganizationId: { $exists: false } },
+          ],
+        },
+      ],
+    };
   }
 }

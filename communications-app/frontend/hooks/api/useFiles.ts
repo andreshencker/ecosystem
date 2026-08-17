@@ -3,7 +3,7 @@ import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import { useUIStore } from '@/stores/ui.store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ export function useMediaInfo(companyId: string | null | undefined, key: string |
   return useQuery({
     queryKey: ['files', 'media', companyId, key],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<MediaInfo>('/files/media/info', { params: { companyId, key } })
         .then((r) => r.data),
     enabled: Boolean(companyId) && Boolean(key),
@@ -57,7 +57,7 @@ export function useStorageInfo(companyId: string | null | undefined, key: string
   return useQuery({
     queryKey: ['files', 'storage', companyId, key],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<StorageFileInfo>('/files/storage/info', { params: { companyId, key } })
         .then((r) => r.data),
     enabled: Boolean(companyId) && Boolean(key),
@@ -72,7 +72,7 @@ export function useStorageDownloadUrl(
   return useQuery({
     queryKey: ['files', 'storage', 'download', companyId, key, options],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<StorageDownloadUrl>('/files/storage/download', {
           params: { companyId, key, ...options },
         })
@@ -88,7 +88,7 @@ export function useUploadMediaMutation() {
 
   return useMutation({
     mutationFn: (formData: FormData) =>
-      engineClient
+      apiClient
         .post<MediaInfo>('/files/media', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
@@ -104,7 +104,7 @@ export function useDeleteMediaMutation() {
 
   return useMutation({
     mutationFn: ({ companyId, key }: { companyId: string; key: string }) =>
-      engineClient.delete('/files/media', { params: { companyId, key } }).then((r) => r.data),
+      apiClient.delete('/files/media', { params: { companyId, key } }).then((r) => r.data),
     onSuccess: () => pushSnack({ type: 'success', message: 'Media deleted' }),
     onError: (error) =>
       pushSnack({ type: 'error', message: extractApiMessage(error, 'Failed to delete media') }),
@@ -118,7 +118,7 @@ export function useUploadStorageMutation() {
 
   return useMutation({
     mutationFn: (formData: FormData) =>
-      engineClient
+      apiClient
         .post<StorageFileInfo>('/files/storage', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
@@ -134,7 +134,7 @@ export function useDeleteStorageMutation() {
 
   return useMutation({
     mutationFn: ({ companyId, key }: { companyId: string; key: string }) =>
-      engineClient.delete('/files/storage', { params: { companyId, key } }).then((r) => r.data),
+      apiClient.delete('/files/storage', { params: { companyId, key } }).then((r) => r.data),
     onSuccess: () => pushSnack({ type: 'success', message: 'File deleted' }),
     onError: (error) =>
       pushSnack({ type: 'error', message: extractApiMessage(error, 'Failed to delete file') }),
@@ -148,7 +148,7 @@ export function useGenerateReportMutation() {
 
   return useMutation({
     mutationFn: (dto: GenerateReportDto) =>
-      engineClient.post<Blob>('/files/reports/generate/pdf', dto, { responseType: 'blob' }).then((r) => r.data),
+      apiClient.post<Blob>('/files/reports/generate/pdf', dto, { responseType: 'blob' }).then((r) => r.data),
     onSuccess: () => pushSnack({ type: 'success', message: 'Report generated' }),
     onError: (error) =>
       pushSnack({ type: 'error', message: extractApiMessage(error, 'Failed to generate report') }),

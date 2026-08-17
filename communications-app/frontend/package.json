@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
+    "build:docker": "next build --no-lint",
     "start": "next start -p 3000",
     "lint": "next lint",
     "type-check": "tsc --noEmit"

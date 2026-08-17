@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type {
   CalendarConnection,
   CalendarConnectionsPage,
@@ -23,7 +23,7 @@ export function useCalendarConnections() {
   return useQuery({
     queryKey: ['calendar', 'connections'],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<CalendarConnectionsPage>('/calendar/connections')
         .then((r) => r.data),
   });
@@ -33,7 +33,7 @@ export function useConnectCalendarMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: ConnectCalendarDto) =>
-      engineClient.post<CalendarConnection>('/calendar/connect', dto).then((r) => r.data),
+      apiClient.post<CalendarConnection>('/calendar/connect', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar', 'connections'] });
     },
@@ -44,7 +44,7 @@ export function useDisconnectCalendarMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (credId: string) =>
-      engineClient.delete(`/calendar/connections/${credId}`).then((r) => r.data),
+      apiClient.delete(`/calendar/connections/${credId}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar', 'connections'] });
       qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] });
@@ -55,7 +55,7 @@ export function useDisconnectCalendarMutation() {
 export function useTestCalendarConnectionMutation() {
   return useMutation({
     mutationFn: (credId: string) =>
-      engineClient
+      apiClient
         .post<CalendarTestResult>(`/calendar/connections/${credId}/test`)
         .then((r) => r.data),
   });
@@ -67,7 +67,7 @@ export function useCalendars(credId: string | null | undefined) {
   return useQuery({
     queryKey: ['calendar', 'calendars', credId],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<{ data: CalendarInfo[] }>(`/calendar/connections/${credId}/calendars`)
         .then((r) => r.data.data ?? []),
     enabled: Boolean(credId),
@@ -78,7 +78,7 @@ export function useCreateCalendarMutation(credId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateCalendarDto) =>
-      engineClient
+      apiClient
         .post<CalendarInfo>(`/calendar/connections/${credId}/calendars`, dto)
         .then((r) => r.data),
     onSuccess: () => {
@@ -91,7 +91,7 @@ export function useUpdateCalendarMutation(credId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ calId, ...dto }: { calId: string } & UpdateCalendarDto) =>
-      engineClient
+      apiClient
         .patch<CalendarInfo>(
           `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}`,
           dto,
@@ -107,7 +107,7 @@ export function useDeleteCalendarMutation(credId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (calId: string) =>
-      engineClient
+      apiClient
         .delete(`/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}`)
         .then((r) => r.data),
     onSuccess: () => {
@@ -127,7 +127,7 @@ export function useCalendarEvents(
   return useQuery({
     queryKey: ['calendar', 'events', credId, calId, query],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<CalendarEventsPage>(
           `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId!)}/events`,
           { params: query },
@@ -141,7 +141,7 @@ export function useCreateEventMutation(credId: string, calId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateEventDto) =>
-      engineClient
+      apiClient
         .post<CalendarEvent>(
           `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}/events`,
           dto,
@@ -157,7 +157,7 @@ export function useUpdateEventMutation(credId: string, calId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ evId, ...dto }: { evId: string } & UpdateEventDto) =>
-      engineClient
+      apiClient
         .patch<CalendarEvent>(
           `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
           dto,
@@ -173,7 +173,7 @@ export function useDeleteEventMutation(credId: string, calId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (evId: string) =>
-      engineClient
+      apiClient
         .delete(
           `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
         )
@@ -200,7 +200,7 @@ export function useDeleteEventDirectMutation() {
       calId: string;
       evId: string;
     }) =>
-      engineClient
+      apiClient
         .delete(
           `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
         )
@@ -229,7 +229,7 @@ export function useAllCalendarsEvents(
       ? calendarIds.map((calId) => ({
           queryKey: ['calendar', 'events', credId, calId, query] as const,
           queryFn: () =>
-            engineClient
+            apiClient
               .get<CalendarEventsPage>(
                 `/calendar/connections/${credId}/calendars/${encodeURIComponent(calId)}/events`,
                 { params: query },

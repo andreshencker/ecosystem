@@ -126,6 +126,7 @@ export class EventCatalogueMapper {
 
       eventKey: lower(doc.eventKey),
       displayName: str(doc.displayName),
+      app: lower(doc.app ?? ''),
       description: str(doc.description ?? ''),
       eventType: doc.eventType,
 

@@ -49,7 +49,7 @@ import { extractApiMessage } from '@/lib/mapApiError';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const CAPABILITY_KEY = 'reconciliation';
+const CAPABILITY_KEY = 'reconciliation';
 
 // ─── Provider limitation panel ────────────────────────────────────────────────
 
@@ -247,7 +247,7 @@ export default function ReconciliationPage() {
       {noProviders && !providersError && (
         <EmptyState icon={HubOutlinedIcon} title="No accounting providers configured"
           description="Enable Xero (or another accounting provider) for your company."
-          action={<Button component={Link} href="/company-channel-providers" variant="contained" startIcon={<HubOutlinedIcon />}>Go to Enabled Providers</Button>}
+          action={<Button component={Link} href="/provider-credentials" variant="contained" startIcon={<HubOutlinedIcon />}>Go to Credentials</Button>}
         />
       )}
       {noConnections && !connectionsError && (

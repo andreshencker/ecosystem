@@ -1,7 +1,7 @@
 // Re-export canonical types so security-layer files can import from one place.
-export type { UserRole, UserScope } from '../../../users/schemas/user.schema';
+export type { UserRole, UserScope } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
-import type { UserRole, UserScope } from '../../../users/schemas/user.schema';
+import type { UserRole, UserScope } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
 /**
  * Attached to every authenticated request as request.authContext.
@@ -28,6 +28,12 @@ export interface AuthContext {
 
   /** Denormalised company slug. */
   companyKey?: string | null;
+
+  /** Grapifly organization selected when this app session was created. */
+  grapiflyOrganizationId?: string | null;
+
+  /** Capabilities granted by Grapifly for the selected app and organization. */
+  permissions?: string[];
 
   /** Present when actorType === 'apikey'. The ApiKey document ObjectId. */
   keyId?: string;

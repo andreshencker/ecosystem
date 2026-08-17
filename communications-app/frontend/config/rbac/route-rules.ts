@@ -43,12 +43,11 @@ import type { UserRole } from '@/types/api';
 // │                                                                         │
 // │  COMPANY BUSINESS VIEW (company roles)                                  │
 // │  /company            (own)     ✗    ✓    ✓    ✗    ✗                   │
-// │  /company-channel-providers    ✗    ✓    ✓    ✗    ✗                   │
 // │  /provider-credentials         ✗    ✓    ✓    ✗    ✗                   │
 // │  /layout-templates             ✗    ✓    ✓    ✗    ✗                   │
 // │  /domain-catalogue             ✗    ✓    ✓    ✗    ✗                   │
 // │  /event-catalogue              ✗    ✓    ✓    ✗    ✗                   │
-// │  /notifications/test           ✗    ✓    ✓    ✓    ✗                   │
+// │  /notifications      (prefix)  ✗    ✓    ✓    ✓    ✗                   │
 // │  /files/reports                ✗    ✓    ✓    ✓    ✓                   │
 // │  /files/media                  ✗    ✓    ✓    ✓    ✓                   │
 // │  /files/storage                ✗    ✓    ✓    ✓    ✗                   │
@@ -73,7 +72,6 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/dashboard',
     '/company',
     '/users',
-    '/company-channel-providers',
     '/provider-credentials',
     '/company/integrations',
     '/layout-templates',
@@ -84,7 +82,9 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/calendar',
     '/payments',
     '/accounting',
-    '/notifications/test',
+    '/notifications',
+    '/email',
+    '/identity',
     '/files/reports',
     '/files/media',
     '/files/storage',
@@ -97,7 +97,6 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/dashboard',
     '/company',
     '/users',
-    '/company-channel-providers',
     '/provider-credentials',
     '/company/integrations',
     '/layout-templates',
@@ -108,7 +107,9 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
     '/calendar',
     '/payments',
     '/accounting',
-    '/notifications/test',
+    '/notifications',
+    '/email',
+    '/identity',
     '/files/reports',
     '/files/media',
     '/files/storage',
@@ -119,7 +120,7 @@ export const ALLOWED_ROUTES: Record<UserRole, string[]> = {
   operator: [
     '/dashboard',
     '/users',           // read-only view of company team
-    '/notifications/test',
+    '/notifications',
     '/files/reports',
     '/files/media',
     '/files/storage',

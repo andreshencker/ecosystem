@@ -43,16 +43,7 @@ import {
 import {
   CompanySmtp,
   CompanySmtpDocument,
-} from '../../../company/schemas/company-smtp.schema';
-import {
-  Invitation,
-  InvitationDocument,
-} from '../../../user-invitations/schemas/invitation.schema';
-import { User, UserDocument } from '../../../users/schemas/user.schema';
-import {
-  RefreshToken,
-  RefreshTokenDocument,
-} from '../../../auth/schemas/refresh-token.schema';
+} from '../../../ecosystem/organization-portal/schemas/company-smtp.schema';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -85,7 +76,6 @@ interface DependencyIds {
   themeIds: Types.ObjectId[];
   ccpIds: Types.ObjectId[];
   domainIds: Types.ObjectId[];
-  userIds: Types.ObjectId[];
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -125,14 +115,6 @@ export class CompanyDeletionService {
     @InjectModel(CompanySmtp.name)
     private readonly smtpModel: Model<CompanySmtpDocument>,
 
-    @InjectModel(Invitation.name)
-    private readonly invitationModel: Model<InvitationDocument>,
-
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
-
-    @InjectModel(RefreshToken.name)
-    private readonly tokenModel: Model<RefreshTokenDocument>,
   ) {}
 
   // ─── Public API ─────────────────────────────────────────────────────────────
@@ -202,20 +184,16 @@ export class CompanyDeletionService {
     companyId: Types.ObjectId,
     companyIdStr: string,
   ): Promise<DependencyIds> {
-    const [themeIds, ccpIds, domainIds, userIds] = await Promise.all([
+    const [themeIds, ccpIds, domainIds] = await Promise.all([
       this.themeModel.find({ companyId }).distinct('_id'),
       this.ccpModel.find({ companyId }).distinct('_id'),
       this.domainModel.find({ companyId }).distinct('_id'),
-      this.userModel
-        .find({ companyId: companyIdStr, role: { $ne: 'platform_admin' } })
-        .distinct('_id'),
     ]);
 
     return {
       themeIds: themeIds,
       ccpIds: ccpIds,
       domainIds: domainIds,
-      userIds: userIds,
     };
   }
 
@@ -250,7 +228,7 @@ export class CompanyDeletionService {
   private async dryRunCounts(
     companyId: Types.ObjectId,
     companyIdStr: string,
-    { themeIds, ccpIds, domainIds, userIds }: DependencyIds,
+    { themeIds, ccpIds, domainIds }: DependencyIds,
   ): Promise<CascadeDeleteSummary> {
     const [
       company_themes,
@@ -259,8 +237,6 @@ export class CompanyDeletionService {
       domain_catalogues,
       notification_execution_logs,
       company_smtp,
-      invitations,
-      users,
     ] = await Promise.all([
       this.themeModel.countDocuments({ companyId }),
       this.integrationModel.countDocuments({ companyId }),
@@ -268,18 +244,12 @@ export class CompanyDeletionService {
       this.domainModel.countDocuments({ companyId }),
       this.logModel.countDocuments({ companyId }),
       this.smtpModel.countDocuments({ companyId: companyIdStr }),
-      this.invitationModel.countDocuments({ companyId: companyIdStr }),
-      this.userModel.countDocuments({
-        companyId: companyIdStr,
-        role: { $ne: 'platform_admin' },
-      }),
     ]);
 
     const [
       layout_templates,
       provider_credentials,
       event_catalogue,
-      refresh_tokens,
     ] = await Promise.all([
       themeIds.length
         ? this.layoutModel.countDocuments({ companyThemeId: { $in: themeIds } })
@@ -294,9 +264,6 @@ export class CompanyDeletionService {
             domainCatalogueId: { $in: domainIds },
           })
         : 0,
-      userIds.length
-        ? this.tokenModel.countDocuments({ userId: { $in: userIds } })
-        : 0,
     ]);
 
     return {
@@ -309,9 +276,9 @@ export class CompanyDeletionService {
       event_catalogue,
       notification_execution_logs,
       company_smtp,
-      invitations,
-      users,
-      refresh_tokens,
+      invitations: 0,
+      users: 0,
+      refresh_tokens: 0,
     };
   }
 
@@ -323,7 +290,7 @@ export class CompanyDeletionService {
     companyKey: string,
     deps: DependencyIds,
   ): Promise<CascadeDeleteSummary> {
-    const { themeIds, ccpIds, domainIds, userIds } = deps;
+    const { themeIds, ccpIds, domainIds } = deps;
 
     const summary: CascadeDeleteSummary = {
       company_themes: 0,
@@ -352,10 +319,6 @@ export class CompanyDeletionService {
           session,
         );
         summary.event_catalogue = await this.deleteEvents(domainIds, session);
-        summary.refresh_tokens = await this.deleteRefreshTokens(
-          userIds,
-          session,
-        );
 
         // ── Phase 3: Direct children (companyId: ObjectId) ───────────────────
         summary.notification_execution_logs = await this.deleteLogs(
@@ -378,11 +341,6 @@ export class CompanyDeletionService {
 
         // ── Phase 4: Direct children (companyId: string) ─────────────────────
         summary.company_smtp = await this.deleteSmtp(companyIdStr, session);
-        summary.invitations = await this.deleteInvitations(
-          companyIdStr,
-          session,
-        );
-        summary.users = await this.deleteUsers(companyIdStr, session);
 
         // ── Phase 5: Company document ─────────────────────────────────────────
         await this.deleteCompanyDocument(companyKey, session);
@@ -440,20 +398,6 @@ export class CompanyDeletionService {
       { session },
     );
     this.logger.log(`Deleted ${deletedCount} event catalogue entries.`);
-    return deletedCount;
-  }
-
-  private async deleteRefreshTokens(
-    userIds: Types.ObjectId[],
-    session: ClientSession,
-  ): Promise<number> {
-    if (!userIds.length) return 0;
-    this.logger.log('Deleting refresh tokens…');
-    const { deletedCount = 0 } = await this.tokenModel.deleteMany(
-      { userId: { $in: userIds } },
-      { session },
-    );
-    this.logger.log(`Deleted ${deletedCount} refresh tokens.`);
     return deletedCount;
   }
 
@@ -532,32 +476,6 @@ export class CompanyDeletionService {
       { session },
     );
     this.logger.log(`Deleted ${deletedCount} SMTP configuration.`);
-    return deletedCount;
-  }
-
-  private async deleteInvitations(
-    companyIdStr: string,
-    session: ClientSession,
-  ): Promise<number> {
-    this.logger.log('Deleting invitations…');
-    const { deletedCount = 0 } = await this.invitationModel.deleteMany(
-      { companyId: companyIdStr },
-      { session },
-    );
-    this.logger.log(`Deleted ${deletedCount} invitations.`);
-    return deletedCount;
-  }
-
-  private async deleteUsers(
-    companyIdStr: string,
-    session: ClientSession,
-  ): Promise<number> {
-    this.logger.log('Deleting company users…');
-    const { deletedCount = 0 } = await this.userModel.deleteMany(
-      { companyId: companyIdStr, role: { $ne: 'platform_admin' } },
-      { session },
-    );
-    this.logger.log(`Deleted ${deletedCount} users.`);
     return deletedCount;
   }
 

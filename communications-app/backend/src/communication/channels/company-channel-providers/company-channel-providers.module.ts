@@ -20,10 +20,16 @@ import {
   ProviderCredentials,
   ProviderCredentialsSchema,
 } from '../provider-credentials/schemas/provider-credentials.schema';
+import {
+  Company,
+  CompanySchema,
+} from '../../company/company-info/schemas/company.schema';
+import { RelayTenantContextModule } from '../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
     ConfigModule,
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       {
         name: CompanyChannelProvider.name,
@@ -32,6 +38,7 @@ import {
       { name: Provider.name, schema: ProviderSchema },
       { name: Channel.name, schema: ChannelSchema },
       { name: ProviderCredentials.name, schema: ProviderCredentialsSchema },
+      { name: Company.name, schema: CompanySchema },
     ]),
   ],
   controllers: [CompanyChannelProvidersController],

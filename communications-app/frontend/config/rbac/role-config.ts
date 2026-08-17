@@ -7,7 +7,6 @@ import BusinessOutlinedIcon            from '@mui/icons-material/BusinessOutline
 import DomainOutlinedIcon              from '@mui/icons-material/DomainOutlined';
 import RouterOutlinedIcon              from '@mui/icons-material/RouterOutlined';
 import ExtensionOutlinedIcon           from '@mui/icons-material/ExtensionOutlined';
-import HubOutlinedIcon                 from '@mui/icons-material/HubOutlined';
 import VpnKeyOutlinedIcon              from '@mui/icons-material/VpnKeyOutlined';
 import ArticleOutlinedIcon             from '@mui/icons-material/ArticleOutlined';
 import AccountTreeOutlinedIcon         from '@mui/icons-material/AccountTreeOutlined';
@@ -15,6 +14,7 @@ import EventOutlinedIcon               from '@mui/icons-material/EventOutlined';
 import GroupOutlinedIcon               from '@mui/icons-material/GroupOutlined';
 import AdminPanelSettingsOutlinedIcon  from '@mui/icons-material/AdminPanelSettingsOutlined';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
+import NotificationsOutlinedIcon       from '@mui/icons-material/NotificationsOutlined';
 import NotificationsOffOutlinedIcon    from '@mui/icons-material/NotificationsOffOutlined';
 import PersonOutlinedIcon              from '@mui/icons-material/PersonOutlined';
 import HistoryOutlinedIcon             from '@mui/icons-material/HistoryOutlined';
@@ -32,6 +32,9 @@ import ReceiptLongOutlinedIcon          from '@mui/icons-material/ReceiptLongOut
 import MenuBookOutlinedIcon             from '@mui/icons-material/MenuBookOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import CompareArrowsOutlinedIcon        from '@mui/icons-material/CompareArrowsOutlined';
+import BadgeOutlinedIcon                from '@mui/icons-material/BadgeOutlined';
+import MailOutlineOutlinedIcon          from '@mui/icons-material/MailOutlineOutlined';
+import InboxOutlinedIcon                from '@mui/icons-material/InboxOutlined';
 
 import CreditCardOutlinedIcon          from '@mui/icons-material/CreditCardOutlined';
 import PaymentsOutlinedIcon            from '@mui/icons-material/PaymentsOutlined';
@@ -99,6 +102,31 @@ export interface SidebarSectionConfig {
   items: SidebarItemConfig[];
 }
 
+/** One channel tab in the sidebar (Setup, Calendar, Payments, Accounting, …). */
+export interface SidebarTabConfig {
+  key: string;
+  label: string;
+  icon: ElementType;
+  items: SidebarItemConfig[];
+  /**
+   * channelKeys (from the channel catalog — "calendar", "payment", "email", …)
+   * required for this tab to show. Undefined/omitted = always shown (e.g. Setup,
+   * where channels get configured in the first place). When set, the tab shows
+   * if the company has an active credential for ANY of the listed channels.
+   */
+  requiresChannel?: string[];
+  /**
+   * providerKeys (from the provider catalog — "gmail_oauth", "xero", …)
+   * required for this tab to show, IN ADDITION to requiresChannel. Use this
+   * when only some providers within a channel support the capability the tab
+   * needs — e.g. only gmail_oauth can read a mailbox, while the "email"
+   * channel also covers send-only providers (SMTP, Mailgun, SendGrid). When
+   * set, the tab shows only if the company has an active credential for ANY
+   * of the listed providers.
+   */
+  requiresProviderKey?: string[];
+}
+
 /** Whether this role has a dual-mode nav (Business App / Platform Admin). */
 export type NavbarMode = 'single' | 'dual';
 
@@ -108,8 +136,12 @@ export interface RoleConfig {
   landingPage: string;
   navbar: NavbarConfig;
   navbarMode: NavbarMode;
-  /** Sidebar shown in Business App mode (also the only sidebar for company roles). */
-  sidebar: SidebarSectionConfig[];
+  /** Always-visible, above the channel tabs (currently just Dashboard). */
+  sidebarTop: SidebarItemConfig[];
+  /** Channel tabs — only one tab's items show at a time. Empty for roles with no channel setup access. */
+  sidebarTabs: SidebarTabConfig[];
+  /** Always-visible, below the active tab's items (Team, Profile, …). */
+  sidebarCommon: SidebarItemConfig[];
   /** Sidebar shown in Platform Admin mode — only set for platform_admin. */
   sidebarAdmin?: SidebarSectionConfig[];
   allowedRoutes: string[];
@@ -186,85 +218,101 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       roleBadgeLabel:      'Platform Admin',
     },
 
-    // ── Business App sidebar (DEC-016 configuration workflow order) ────────
-    sidebar: [
+    // ── Business App sidebar (Dashboard → channel tabs → common) ───────────
+    sidebarTop: [
+      { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+    ],
+    sidebarTabs: [
       {
-        label: 'Overview',
-        items: [
-          { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
-        ],
-      },
-      {
-        label: 'Communication Setup',
+        key: 'setup',
+        label: 'Setup',
+        icon: SettingsOutlinedIcon,
         items: [
           { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
           { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },
-          { href: '/company-channel-providers', label: 'Enabled Providers', icon: HubOutlinedIcon                 },
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
-          { href: '/domain-catalogue',          label: 'Domains',           icon: AccountTreeOutlinedIcon         },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
-          { href: '/event-catalogue',           label: 'Events',            icon: EventOutlinedIcon               },
+          { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
+          { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
       {
-        label: 'Document Setup',
-        items: [
-          { href: '/document-domain-catalogue', label: 'Doc Domains', icon: FolderOutlinedIcon       },
-          { href: '/document-catalogue',        label: 'Documents',   icon: DescriptionOutlinedIcon  },
-        ],
-      },
-      {
+        key: 'calendar',
         label: 'Calendar',
+        icon: CalendarMonthOutlinedIcon,
+        requiresChannel: ['calendar'],
         items: [
           { href: '/calendar/calendars', label: 'Calendars', icon: CalendarMonthOutlinedIcon },
           { href: '/calendar/events',    label: 'Events',    icon: EventOutlinedIcon          },
         ],
       },
       {
+        key: 'payments',
         label: 'Payments',
+        icon: PaymentsOutlinedIcon,
+        requiresChannel: ['payment'],
         items: [
-          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon      },
-
-          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon          },
-          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon             },
-          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon            },
-          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                },
-          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                },
-          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
-          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
-          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
+          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon          },
+          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon              },
+          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon                 },
+          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon                },
+          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                    },
+          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                    },
+          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                 },
+          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                },
         ],
       },
       {
+        key: 'accounting',
         label: 'Accounting',
+        icon: AccountBalanceWalletOutlinedIcon,
+        requiresChannel: ['accounting'],
         items: [
-          { href: '/accounting/bank-connections',       label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
-          { href: '/accounting/bank-feed',            label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
-          { href: '/accounting/accounting-transactions', label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon           },
-          { href: '/accounting/reconciliation',       label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
-          { href: '/accounting/manual-journals',      label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
-          { href: '/accounting/general-ledger',       label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
-          { href: '/accounting/chart-of-accounts',    label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
+          { href: '/accounting/bank-connections',         label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
+          { href: '/accounting/bank-feed',                label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
+          { href: '/accounting/accounting-transactions',  label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon             },
+          { href: '/accounting/reconciliation',           label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
+          { href: '/accounting/manual-journals',          label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/accounting/general-ledger',           label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
+          { href: '/accounting/chart-of-accounts',        label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
         ],
       },
       {
-        label: 'Operations',
+        key: 'notifications',
+        label: 'Notifications',
+        icon: NotificationsOutlinedIcon,
+        requiresChannel: ['email', 'sms'],
         items: [
+          { href: '/notifications',      label: 'Notifications',      icon: NotificationsOutlinedIcon       },
+          { href: '/domain-catalogue',   label: 'Domains',            icon: AccountTreeOutlinedIcon         },
+          { href: '/event-catalogue',    label: 'Events',             icon: EventOutlinedIcon               },
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
         ],
       },
       {
-        label: 'Users',
+        key: 'email',
+        label: 'Email',
+        icon: MailOutlineOutlinedIcon,
+        requiresChannel: ['email'],
+        requiresProviderKey: ['gmail_oauth'],
         items: [
-          { href: '/users', label: 'Team', icon: GroupOutlinedIcon },
+          { href: '/email/inbox', label: 'Inbox', icon: InboxOutlinedIcon },
         ],
       },
       {
-        label: 'Settings',
+        key: 'identity',
+        label: 'Identity',
+        icon: BadgeOutlinedIcon,
+        requiresChannel: ['identity'],
         items: [
-          { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
+          { href: '/identity/documentation', label: 'Documentation', icon: MenuBookOutlinedIcon                },
         ],
       },
+    ],
+    sidebarCommon: [
+      { href: '/users',            label: 'Team',    icon: GroupOutlinedIcon  },
+      { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
     ],
 
     // ── Platform Admin sidebar (DEC-016 modules management structure) ─────
@@ -352,7 +400,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   // COMPANY OWNER — company scope, manages their own company end-to-end
   //
   // Sees the full Communication Setup workflow (DEC-016):
-  //   My Company → Theme → Enabled Providers → Credentials →
+  //   My Company → Theme → Credentials →
   //   Domains → Templates → Events → Test Notifications
   //
   // Does NOT see: /companies (global list — platform_admin only)
@@ -369,85 +417,101 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       showCompanySwitcher: false,
       roleBadgeLabel:      'Owner',
     },
-    sidebar: [
+    sidebarTop: [
+      { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+    ],
+    sidebarTabs: [
       {
-        label: 'Overview',
+        key: 'setup',
+        label: 'Setup',
+        icon: SettingsOutlinedIcon,
         items: [
-          { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
+          { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },
+          { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
+          { href: '/company/integrations',      label: 'API Tokens',        icon: ExtensionOutlinedIcon           },
+          { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
+          { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
+          { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
       {
-        label: 'Communication Setup',
-        items: [
-          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon      },
-          { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon     },
-          { href: '/company-channel-providers', label: 'Enabled Providers', icon: HubOutlinedIcon         },
-          { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon      },
-          { href: '/company/integrations',      label: 'API Tokens',        icon: ExtensionOutlinedIcon   },
-          { href: '/domain-catalogue',          label: 'Domains',           icon: AccountTreeOutlinedIcon },
-          { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon     },
-          { href: '/event-catalogue',           label: 'Events',            icon: EventOutlinedIcon       },
-        ],
-      },
-      {
-        label: 'Document Setup',
-        items: [
-          { href: '/document-domain-catalogue', label: 'Doc Domains', icon: FolderOutlinedIcon       },
-          { href: '/document-catalogue',        label: 'Documents',   icon: DescriptionOutlinedIcon  },
-        ],
-      },
-      {
+        key: 'calendar',
         label: 'Calendar',
+        icon: CalendarMonthOutlinedIcon,
+        requiresChannel: ['calendar'],
         items: [
           { href: '/calendar/calendars', label: 'Calendars', icon: CalendarMonthOutlinedIcon },
           { href: '/calendar/events',    label: 'Events',    icon: EventOutlinedIcon          },
         ],
       },
       {
+        key: 'payments',
         label: 'Payments',
+        icon: PaymentsOutlinedIcon,
+        requiresChannel: ['payment'],
         items: [
-          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon      },
-
-          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon          },
-          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon             },
-          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon            },
-          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                },
-          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                },
-          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
-          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
-          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
+          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon          },
+          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon              },
+          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon                 },
+          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon                },
+          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                    },
+          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                    },
+          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                 },
+          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                },
         ],
       },
       {
+        key: 'accounting',
         label: 'Accounting',
+        icon: AccountBalanceWalletOutlinedIcon,
+        requiresChannel: ['accounting'],
         items: [
-          { href: '/accounting/bank-connections',       label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
-          { href: '/accounting/bank-feed',            label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
-          { href: '/accounting/accounting-transactions', label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon           },
-          { href: '/accounting/reconciliation',       label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
-          { href: '/accounting/manual-journals',      label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
-          { href: '/accounting/general-ledger',       label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
-          { href: '/accounting/chart-of-accounts',    label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
+          { href: '/accounting/bank-connections',         label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
+          { href: '/accounting/bank-feed',                label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
+          { href: '/accounting/accounting-transactions',  label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon             },
+          { href: '/accounting/reconciliation',           label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
+          { href: '/accounting/manual-journals',          label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/accounting/general-ledger',           label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
+          { href: '/accounting/chart-of-accounts',        label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
         ],
       },
       {
-        label: 'Operations',
+        key: 'notifications',
+        label: 'Notifications',
+        icon: NotificationsOutlinedIcon,
+        requiresChannel: ['email', 'sms'],
         items: [
+          { href: '/notifications',      label: 'Notifications',      icon: NotificationsOutlinedIcon       },
+          { href: '/domain-catalogue',   label: 'Domains',            icon: AccountTreeOutlinedIcon         },
+          { href: '/event-catalogue',    label: 'Events',             icon: EventOutlinedIcon               },
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
         ],
       },
       {
-        label: 'Users',
+        key: 'email',
+        label: 'Email',
+        icon: MailOutlineOutlinedIcon,
+        requiresChannel: ['email'],
+        requiresProviderKey: ['gmail_oauth'],
         items: [
-          { href: '/users', label: 'Team', icon: GroupOutlinedIcon },
+          { href: '/email/inbox', label: 'Inbox', icon: InboxOutlinedIcon },
         ],
       },
       {
-        label: 'Settings',
+        key: 'identity',
+        label: 'Identity',
+        icon: BadgeOutlinedIcon,
+        requiresChannel: ['identity'],
         items: [
-          { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
+          { href: '/identity/documentation', label: 'Documentation', icon: MenuBookOutlinedIcon                },
         ],
       },
+    ],
+    sidebarCommon: [
+      { href: '/users',            label: 'Team',    icon: GroupOutlinedIcon  },
+      { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
     ],
     allowedRoutes: ALLOWED_ROUTES.company_owner,
     permissions: {
@@ -491,85 +555,101 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       showCompanySwitcher: false,
       roleBadgeLabel:      'Company Admin',
     },
-    sidebar: [
+    sidebarTop: [
+      { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+    ],
+    sidebarTabs: [
       {
-        label: 'Overview',
+        key: 'setup',
+        label: 'Setup',
+        icon: SettingsOutlinedIcon,
         items: [
-          { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
+          { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },
+          { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
+          { href: '/company/integrations',      label: 'API Tokens',        icon: ExtensionOutlinedIcon           },
+          { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
+          { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
+          { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
       {
-        label: 'Communication Setup',
-        items: [
-          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon      },
-          { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon     },
-          { href: '/company-channel-providers', label: 'Enabled Providers', icon: HubOutlinedIcon         },
-          { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon      },
-          { href: '/company/integrations',      label: 'API Tokens',        icon: ExtensionOutlinedIcon   },
-          { href: '/domain-catalogue',          label: 'Domains',           icon: AccountTreeOutlinedIcon },
-          { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon     },
-          { href: '/event-catalogue',           label: 'Events',            icon: EventOutlinedIcon       },
-        ],
-      },
-      {
-        label: 'Document Setup',
-        items: [
-          { href: '/document-domain-catalogue', label: 'Doc Domains', icon: FolderOutlinedIcon       },
-          { href: '/document-catalogue',        label: 'Documents',   icon: DescriptionOutlinedIcon  },
-        ],
-      },
-      {
+        key: 'calendar',
         label: 'Calendar',
+        icon: CalendarMonthOutlinedIcon,
+        requiresChannel: ['calendar'],
         items: [
           { href: '/calendar/calendars', label: 'Calendars', icon: CalendarMonthOutlinedIcon },
           { href: '/calendar/events',    label: 'Events',    icon: EventOutlinedIcon          },
         ],
       },
       {
+        key: 'payments',
         label: 'Payments',
+        icon: PaymentsOutlinedIcon,
+        requiresChannel: ['payment'],
         items: [
-          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon      },
-
-          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon          },
-          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon             },
-          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon            },
-          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                },
-          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                },
-          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                        },
-          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon        },
-          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                       },
+          { href: '/payments',                 label: 'Dashboard',       icon: AccountBalanceOutlinedIcon          },
+          { href: '/payments/payment-methods', label: 'Payment Methods', icon: CreditCardOutlinedIcon              },
+          { href: '/payments/testing',         label: 'Payment Testing', icon: ScienceOutlinedIcon                 },
+          { href: '/payments/payments',        label: 'Payments',        icon: PaymentsOutlinedIcon                },
+          { href: '/payments/refunds',         label: 'Refunds',         icon: UndoOutlinedIcon                    },
+          { href: '/payments/payouts',         label: 'Payouts',         icon: SendOutlinedIcon                    },
+          { href: '/payments/webhooks',        label: 'Webhooks',        icon: WebhookOutlinedIcon                 },
+          { href: '/payments/gateway',         label: 'Gateway',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/payments/settings',        label: 'Settings',        icon: SettingsOutlinedIcon                },
         ],
       },
       {
+        key: 'accounting',
         label: 'Accounting',
+        icon: AccountBalanceWalletOutlinedIcon,
+        requiresChannel: ['accounting'],
         items: [
-          { href: '/accounting/bank-connections',       label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
-          { href: '/accounting/bank-feed',            label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
-          { href: '/accounting/accounting-transactions', label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon           },
-          { href: '/accounting/reconciliation',       label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
-          { href: '/accounting/manual-journals',      label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
-          { href: '/accounting/general-ledger',       label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
-          { href: '/accounting/chart-of-accounts',    label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
+          { href: '/accounting/bank-connections',         label: 'Bank Connections',        icon: LinkOutlinedIcon                    },
+          { href: '/accounting/bank-feed',                label: 'Bank Feed',               icon: AccountBalanceWalletOutlinedIcon    },
+          { href: '/accounting/accounting-transactions',  label: 'Accounting Transactions', icon: ReceiptLongOutlinedIcon             },
+          { href: '/accounting/reconciliation',           label: 'Reconciliation',          icon: CompareArrowsOutlinedIcon           },
+          { href: '/accounting/manual-journals',          label: 'Manual Journals',         icon: IntegrationInstructionsOutlinedIcon },
+          { href: '/accounting/general-ledger',           label: 'General Ledger',          icon: MenuBookOutlinedIcon                },
+          { href: '/accounting/chart-of-accounts',        label: 'Chart of Accounts',       icon: AccountTreeOutlinedIcon             },
         ],
       },
       {
-        label: 'Operations',
+        key: 'notifications',
+        label: 'Notifications',
+        icon: NotificationsOutlinedIcon,
+        requiresChannel: ['email', 'sms'],
         items: [
+          { href: '/notifications',      label: 'Notifications',      icon: NotificationsOutlinedIcon       },
+          { href: '/domain-catalogue',   label: 'Domains',            icon: AccountTreeOutlinedIcon         },
+          { href: '/event-catalogue',    label: 'Events',             icon: EventOutlinedIcon               },
           { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
         ],
       },
       {
-        label: 'Users',
+        key: 'email',
+        label: 'Email',
+        icon: MailOutlineOutlinedIcon,
+        requiresChannel: ['email'],
+        requiresProviderKey: ['gmail_oauth'],
         items: [
-          { href: '/users', label: 'Team', icon: GroupOutlinedIcon },
+          { href: '/email/inbox', label: 'Inbox', icon: InboxOutlinedIcon },
         ],
       },
       {
-        label: 'Settings',
+        key: 'identity',
+        label: 'Identity',
+        icon: BadgeOutlinedIcon,
+        requiresChannel: ['identity'],
         items: [
-          { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
+          { href: '/identity/documentation', label: 'Documentation', icon: MenuBookOutlinedIcon                },
         ],
       },
+    ],
+    sidebarCommon: [
+      { href: '/users',            label: 'Team',    icon: GroupOutlinedIcon  },
+      { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
     ],
     allowedRoutes: ALLOWED_ROUTES.company_admin,
     permissions: {
@@ -612,31 +692,14 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       showCompanySwitcher: false,
       roleBadgeLabel:      'Operator',
     },
-    sidebar: [
-      {
-        label: 'Overview',
-        items: [
-          { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
-        ],
-      },
-      {
-        label: 'Operations',
-        items: [
-          { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
-        ],
-      },
-      {
-        label: 'Users',
-        items: [
-          { href: '/users', label: 'Team', icon: GroupOutlinedIcon },
-        ],
-      },
-      {
-        label: 'Settings',
-        items: [
-          { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
-        ],
-      },
+    sidebarTop: [
+      { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+    ],
+    sidebarTabs: [],
+    sidebarCommon: [
+      { href: '/notifications/test', label: 'Test Notifications', icon: NotificationsActiveOutlinedIcon },
+      { href: '/users',              label: 'Team',               icon: GroupOutlinedIcon                },
+      { href: '/settings/profile',   label: 'Profile',            icon: PersonOutlinedIcon               },
     ],
     allowedRoutes: ALLOWED_ROUTES.operator,
     permissions: {
@@ -666,25 +729,13 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       showCompanySwitcher: false,
       roleBadgeLabel:      'Viewer',
     },
-    sidebar: [
-      {
-        label: 'Overview',
-        items: [
-          { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
-        ],
-      },
-      {
-        label: 'Users',
-        items: [
-          { href: '/users', label: 'Team', icon: GroupOutlinedIcon },
-        ],
-      },
-      {
-        label: 'Settings',
-        items: [
-          { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
-        ],
-      },
+    sidebarTop: [
+      { href: '/dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon },
+    ],
+    sidebarTabs: [],
+    sidebarCommon: [
+      { href: '/users',            label: 'Team',    icon: GroupOutlinedIcon  },
+      { href: '/settings/profile', label: 'Profile', icon: PersonOutlinedIcon },
     ],
     allowedRoutes: ALLOWED_ROUTES.viewer,
     permissions: {
@@ -706,16 +757,12 @@ export function getNavbarConfig(role: UserRole): NavbarConfig {
   return getRoleConfig(role).navbar;
 }
 
-export function getSidebarConfig(role: UserRole): SidebarSectionConfig[] {
-  return getRoleConfig(role).sidebar;
-}
-
 export function getPermissions(role: UserRole): UserPermissions {
   return getRoleConfig(role).permissions;
 }
 
 export function getAdminSidebarConfig(role: UserRole): SidebarSectionConfig[] {
-  return getRoleConfig(role).sidebarAdmin ?? getRoleConfig(role).sidebar;
+  return getRoleConfig(role).sidebarAdmin ?? [];
 }
 
 export function getNavbarMode(role: UserRole): NavbarMode {

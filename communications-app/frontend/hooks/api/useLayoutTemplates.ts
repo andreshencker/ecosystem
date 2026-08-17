@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { LayoutTemplate } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -56,7 +56,7 @@ export function useLayoutTemplates(
   return useQuery({
     queryKey: ['layout-templates', companyId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get('/layout-templates/by-company', {
           params: { companyId, populateTheme: true, ...params },
         })
@@ -74,7 +74,7 @@ export function useLayoutTemplate(id: string | null | undefined) {
   return useQuery({
     queryKey: ['layout-templates', 'single', id],
     queryFn: () =>
-      engineClient
+      apiClient
         .get(`/layout-templates/${id}`)
         .then((r) => (r.data.layout ?? r.data) as LayoutTemplate),
     enabled: Boolean(id),
@@ -89,7 +89,7 @@ export function useCreateLayoutTemplateMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateLayoutTemplateDto) =>
-      engineClient.post<LayoutTemplate>('/layout-templates', dto).then((r) => r.data),
+      apiClient.post<LayoutTemplate>('/layout-templates', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['layout-templates'] });
       pushSnack({ type: 'success', message: 'Template created' });
@@ -105,7 +105,7 @@ export function useUpdateLayoutTemplateMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateLayoutTemplateDto) =>
-      engineClient.patch<LayoutTemplate>(`/layout-templates/${id}`, dto).then((r) => r.data),
+      apiClient.patch<LayoutTemplate>(`/layout-templates/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['layout-templates'] });
       pushSnack({ type: 'success', message: 'Template updated' });
@@ -121,7 +121,7 @@ export function useDeleteLayoutTemplateMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/layout-templates/${id}`).then((r) => r.data),
+      apiClient.delete(`/layout-templates/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['layout-templates'] });
       pushSnack({ type: 'success', message: 'Template deleted' });
@@ -137,7 +137,7 @@ export function usePreviewLayoutHtmlMutation() {
 
   return useMutation({
     mutationFn: (layoutTemplateId: string) =>
-      engineClient
+      apiClient
         .post<string>(
           '/preview/layout/html',
           { layoutTemplateId },

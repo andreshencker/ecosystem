@@ -98,6 +98,15 @@ export class EventCatalogue {
   @Prop({ required: true, trim: true })
   displayName!: string;
 
+  /**
+   * Which application created/owns this event — e.g. 'relay', 'business-app'.
+   * Free text (not an enum) so new ecosystem apps can tag their events
+   * without a Relay code change. Purely informational: does not affect
+   * uniqueness or routing.
+   */
+  @Prop({ trim: true, lowercase: true, default: '', index: true })
+  app!: string;
+
   @Prop({ default: '', trim: true })
   description!: string;
 

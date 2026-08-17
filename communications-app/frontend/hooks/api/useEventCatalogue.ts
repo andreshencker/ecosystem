@@ -3,7 +3,7 @@ import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { EventCatalogue } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -51,6 +51,7 @@ export interface CreateEventCatalogueDto {
   domainCatalogueId: string;
   eventKey: string;
   displayName: string;
+  app?: string;
   description?: string;
   eventType: 'notification' | 'alert' | 'request' | 'security';
   channelContent?: EventChannelContent;
@@ -67,7 +68,7 @@ export function useEventCatalogues(
   return useQuery({
     queryKey: ['event-catalogue', domainCatalogueId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<EventCatalogue>>('/event-catalogue', {
           params: { domainCatalogueId, ...params },
         })
@@ -80,7 +81,7 @@ export function useEventCatalogue(id: string | null | undefined) {
   return useQuery({
     queryKey: ['event-catalogue', id],
     queryFn: () =>
-      engineClient.get<EventCatalogue>(`/event-catalogue/${id}`).then((r) => r.data),
+      apiClient.get<EventCatalogue>(`/event-catalogue/${id}`).then((r) => r.data),
     enabled: Boolean(id),
   });
 }
@@ -93,7 +94,7 @@ export function useBulkImportEventCatalogueMutation() {
 
   return useMutation({
     mutationFn: (events: CreateEventCatalogueDto[]) =>
-      engineClient.post('/event-catalogue/bulk', { events }).then((r) => r.data),
+      apiClient.post('/event-catalogue/bulk', { events }).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event-catalogue'] });
       pushSnack({ type: 'success', message: 'Events imported' });
@@ -109,7 +110,7 @@ export function useCreateEventCatalogueMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateEventCatalogueDto) =>
-      engineClient.post<EventCatalogue>('/event-catalogue', dto).then((r) => r.data),
+      apiClient.post<EventCatalogue>('/event-catalogue', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event-catalogue'] });
       pushSnack({ type: 'success', message: 'Event created' });
@@ -125,7 +126,7 @@ export function useUpdateEventCatalogueMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateEventCatalogueDto) =>
-      engineClient.patch<EventCatalogue>(`/event-catalogue/${id}`, dto).then((r) => r.data),
+      apiClient.patch<EventCatalogue>(`/event-catalogue/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event-catalogue'] });
       pushSnack({ type: 'success', message: 'Event updated' });
@@ -141,7 +142,7 @@ export function useDeleteEventCatalogueMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/event-catalogue/${id}`).then((r) => r.data),
+      apiClient.delete(`/event-catalogue/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event-catalogue'] });
       pushSnack({ type: 'success', message: 'Event deleted' });
@@ -166,7 +167,7 @@ export function usePreviewNotificationEmailHtmlMutation() {
       mock?: boolean;
       payload?: Record<string, unknown>;
     }) =>
-      engineClient
+      apiClient
         .post<string>(
           '/preview/notifications/email/html',
           { layoutTemplateId, eventCatalogueId, mock, payload },

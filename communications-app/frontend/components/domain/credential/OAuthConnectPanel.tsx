@@ -31,7 +31,7 @@ import NetworkCheckOutlinedIcon from '@mui/icons-material/NetworkCheckOutlined';
 import LinkOffOutlinedIcon from '@mui/icons-material/LinkOffOutlined';
 import { LoadingButton, ConfirmDialog } from '@/components/shared';
 import { useUIStore } from '@/stores/ui.store';
-import { mapApiError } from '@/lib/mapApiError';
+import { extractApiMessage } from '@/lib/mapApiError';
 import {
   useStartOAuthMutation,
   useTestOAuthConnectionMutation,
@@ -111,7 +111,7 @@ export function OAuthConnectPanel({
       // Full-page redirect to the provider's authorization page.
       window.location.href = authorizationUrl;
     } catch (e) {
-      pushSnack({ type: 'error', message: mapApiError(e) });
+      pushSnack({ type: 'error', message: extractApiMessage(e, `Could not start the ${providerName} connection.`) });
     }
   };
 
@@ -124,7 +124,7 @@ export function OAuthConnectPanel({
       const result = await testMutation.mutateAsync(credentialId);
       setTestResult(result);
     } catch (e) {
-      pushSnack({ type: 'error', message: mapApiError(e) });
+      pushSnack({ type: 'error', message: extractApiMessage(e, `Could not verify the ${providerName} connection.`) });
     }
   };
 
@@ -139,7 +139,7 @@ export function OAuthConnectPanel({
         message: result.message ?? `${result.nowAvailable} organisation(s) available`,
       });
     } catch (e) {
-      pushSnack({ type: 'error', message: mapApiError(e) });
+      pushSnack({ type: 'error', message: extractApiMessage(e, 'Could not refresh organisations.') });
     }
   };
 
@@ -155,7 +155,7 @@ export function OAuthConnectPanel({
       setTestResult(null);
       onDisconnected?.();
     } catch (e) {
-      pushSnack({ type: 'error', message: mapApiError(e) });
+      pushSnack({ type: 'error', message: extractApiMessage(e, `Could not disconnect ${providerName}.`) });
     }
   };
 

@@ -9,6 +9,7 @@ import { ChannelsRuntimeModule } from '../channels/runtime/channels-runtime.modu
 import { ChannelsImplementationModule } from '../channels/implementation/implementation.module';
 import { ExecutionLogModule } from './execution-log/execution-log.module';
 import { NotificationRenderModule } from './render/notification-render.module';
+import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { NotificationRenderModule } from './render/notification-render.module';
     ChannelsImplementationModule,
     ExecutionLogModule,
     NotificationRenderModule,
+    RelayTenantContextModule,
   ],
   controllers: [NotificationController],
   providers: [NotificationService],

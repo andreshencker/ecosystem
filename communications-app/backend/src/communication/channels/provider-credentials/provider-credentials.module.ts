@@ -18,7 +18,10 @@ import {
   Company,
   CompanySchema,
 } from '../../company/company-info/schemas/company.schema';
-import { User, UserSchema } from '../../../users/schemas/user.schema';
+import {
+  User,
+  UserSchema,
+} from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 
 import { ProviderCredentialsController } from './provider-credentials.controller';
 import { ProviderCredentialsService } from './provider-credentials.service';
@@ -44,10 +47,13 @@ import { S3IamRoleStorageChannel } from '../implementation/storage/iam_role/s3-i
 
 // CALENDAR
 import { CalendarImplementationModule } from '../../../calendar/factory/calendar-implementation.module';
+import { ProviderResourcesOrganizationMigration } from '../../../ecosystem/migrations/provider-resources-organization.migration';
+import { RelayTenantContextModule } from '../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
     ConfigModule,
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       { name: ProviderCredentials.name, schema: ProviderCredentialsSchema },
       {
@@ -63,6 +69,7 @@ import { CalendarImplementationModule } from '../../../calendar/factory/calendar
   controllers: [ProviderCredentialsController],
   providers: [
     ProviderCredentialsService,
+    ProviderResourcesOrganizationMigration,
     CryptoService,
 
     ChannelsImplementationFactory,

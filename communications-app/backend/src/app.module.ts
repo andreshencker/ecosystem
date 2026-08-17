@@ -16,9 +16,7 @@ import { EventBusModule } from './infrastructure/events/event-bus.module';
 
 // ─── Platform (SaaS layer) ────────────────────────────────────────────────────
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { UserInvitationsModule } from './user-invitations/user-invitations.module';
-import { CompanyPortalModule } from './company/company-portal.module';
+import { CompanyPortalModule } from './ecosystem/organization-portal/company-portal.module';
 
 // ─── Communication engine ─────────────────────────────────────────────────────
 import { CompanyModule } from './communication/company/company-info/company.module';
@@ -28,6 +26,9 @@ import { ChannelsCatalogModule } from './communication/channels/channels-catalog
 import { ProvidersModule } from './communication/channels/providers/providers.module';
 import { CompanyChannelProvidersModule } from './communication/channels/company-channel-providers/company-channel-providers.module';
 import { ProviderCredentialsModule } from './communication/channels/provider-credentials/provider-credentials.module';
+import { GmailOAuthModule } from './communication/channels/implementation/email/oauth/gmail-oauth.module';
+import { OAuthApplicationsModule } from './communication/channels/oauth-applications/oauth-applications.module';
+import { GoogleIdentityOAuthModule } from './communication/channels/implementation/identity/oauth/google-identity-oauth.module';
 import { LayoutTemplatesModule } from './communication/notifications/template/layout-templates/layout-templates.module';
 import { NotificationModule } from './communication/notifications/notification.module';
 import { DomainCatalogueModule } from './communication/notifications/events/domain-catalogue/domain-catalogue.module';
@@ -36,6 +37,7 @@ import { PreviewModule } from './communication/preview/preview.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AccountingModule } from './accounting/accounting.module';
+import { EcosystemModule } from './ecosystem/ecosystem.module';
 
 @Module({
   imports: [
@@ -51,10 +53,9 @@ import { AccountingModule } from './accounting/accounting.module';
     EventBusModule,
 
     // ── Platform (SaaS layer)
-    UsersModule,
-    UserInvitationsModule,
     AuthModule,
     CompanyPortalModule,
+    EcosystemModule,
 
     // ── Communication engine
     CompanyModule,
@@ -64,6 +65,9 @@ import { AccountingModule } from './accounting/accounting.module';
     ProvidersModule,
     CompanyChannelProvidersModule,
     ProviderCredentialsModule,
+    GmailOAuthModule,
+    OAuthApplicationsModule,
+    GoogleIdentityOAuthModule,
     LayoutTemplatesModule,
     NotificationModule,
     DomainCatalogueModule,

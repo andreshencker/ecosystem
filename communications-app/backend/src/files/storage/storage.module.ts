@@ -10,12 +10,14 @@ import { StorageValidatorService } from './services/storage-validator.service';
 // 🔌 módulos que ya usas en media
 import { ChannelsRuntimeModule } from '../../communication/channels/runtime/channels-runtime.module';
 import { ChannelsImplementationModule } from '../../communication/channels/implementation/implementation.module';
+import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
     MulterModule.register({}), // memoria (buffer)
     ChannelsRuntimeModule,
     ChannelsImplementationModule,
+    RelayTenantContextModule,
   ],
   controllers: [StorageController],
   providers: [StorageService, StorageKeyService, StorageValidatorService],

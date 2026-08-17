@@ -15,6 +15,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { EventCatalogueService } from './event-catalogue.service';
 import { CreateEventCatalogueDto } from './dto/create-event-catalogue.dto';
@@ -27,37 +30,66 @@ export class EventCatalogueController {
   constructor(
     private readonly config: ConfigService,
     private readonly service: EventCatalogueService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   @Post()
   @HttpCode(201)
   async create(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: CreateEventCatalogueDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertDomainBelongsToCompany(
+        dto.domainCatalogueId,
+        companyId,
+      );
+    }
     return this.service.create(dto);
   }
 
   @Post('bulk')
   @HttpCode(201)
   async bulk(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: BulkCreateEventCatalogueDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertDomainBelongsToCompany(
+        dto.domainCatalogueId,
+        companyId,
+      );
+    }
     return this.service.bulkUpsert(dto);
   }
 
   @Get('runtime/:companyId/:eventKey')
   @HttpCode(200)
   async runtime(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('companyId') companyId: string,
     @Param('eventKey') eventKey: string,
     @Query('populateChannelsRuntime') populateChannelsRuntime?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     return this.service.findByCompanyAndEventKey({
       companyId,
       eventKey,
@@ -69,12 +101,18 @@ export class EventCatalogueController {
   @Get('by-company-event')
   @HttpCode(200)
   async getByCompanyAndEventKey(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('eventKey') eventKey: string,
     @Query('populateDomainCatalogue') populateDomainCatalogue?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     return this.service.findByCompanyAndEventKey({
       companyId,
       eventKey,
@@ -102,6 +140,7 @@ export class EventCatalogueController {
     description: 'Records to skip (default 0)',
   })
   async list(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('domainCatalogueId') domainCatalogueId: string,
     @Query('active') active?: string,
@@ -109,7 +148,17 @@ export class EventCatalogueController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertDomainBelongsToCompany(
+        domainCatalogueId,
+        companyId,
+      );
+    }
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -129,11 +178,19 @@ export class EventCatalogueController {
   @Get(':id')
   @HttpCode(200)
   async getById(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Query('populateDomainCatalogue') populateDomainCatalogue?: string,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.getById({
       id,
       populateDomainCatalogue: this.toBool(populateDomainCatalogue) ?? true,
@@ -145,11 +202,19 @@ export class EventCatalogueController {
   @Patch(':id')
   @HttpCode(200)
   async update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateEventCatalogueDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.update(id, dto);
   }
 
@@ -157,9 +222,45 @@ export class EventCatalogueController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async remove(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.remove(id);
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
+  }
+
+  private async resolveOptionalCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    permission: string,
+  ): Promise<string | undefined> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return undefined;
   }
 
   private assertApiKey(apiKey?: string) {

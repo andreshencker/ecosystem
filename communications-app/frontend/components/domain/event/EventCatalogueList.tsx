@@ -89,6 +89,7 @@ const eventSchema = z.object({
   domainCatalogueId: z.string().min(1, 'Domain is required'),
   eventKey:          z.string().min(1, 'Required').max(200).regex(slugRegex, 'Lowercase letters, numbers, underscores and hyphens only'),
   displayName:       z.string().min(1, 'Required').max(300),
+  app:               z.string().max(60).optional().default(''),
   description:       z.string().max(1000).optional().default(''),
   eventType:         z.enum(['notification', 'alert', 'request', 'security']),
   isActive:          z.boolean().default(true),
@@ -417,6 +418,7 @@ function EventFormDrawer({ open, event, domains, defaultDomainId, companyId, onC
       domainCatalogueId: event ? findDomainIdFromEvent(event, domains) : defaultDomainId,
       eventKey:      event?.eventKey    ?? '',
       displayName:   event?.displayName ?? '',
+      app:           event?.app         ?? '',
       description:   event?.description ?? '',
       eventType:     event?.eventType   ?? 'notification',
       isActive:      event?.isActive    ?? true,
@@ -444,9 +446,9 @@ function EventFormDrawer({ open, event, domains, defaultDomainId, companyId, onC
 
   async function onSubmit(values: EventFormValues) {
     if (isEditing && event) {
-      await updateMutation.mutateAsync({ id: event.id, displayName: values.displayName, description: values.description, eventType: values.eventType, isActive: values.isActive, channelContent: buildChannelContent(values) });
+      await updateMutation.mutateAsync({ id: event.id, displayName: values.displayName, app: values.app, description: values.description, eventType: values.eventType, isActive: values.isActive, channelContent: buildChannelContent(values) });
     } else {
-      await createMutation.mutateAsync({ domainCatalogueId: values.domainCatalogueId, eventKey: values.eventKey, displayName: values.displayName, description: values.description, eventType: values.eventType, isActive: values.isActive, channelContent: buildChannelContent(values) } as CreateEventCatalogueDto & { isActive?: boolean });
+      await createMutation.mutateAsync({ domainCatalogueId: values.domainCatalogueId, eventKey: values.eventKey, displayName: values.displayName, app: values.app, description: values.description, eventType: values.eventType, isActive: values.isActive, channelContent: buildChannelContent(values) } as CreateEventCatalogueDto & { isActive?: boolean });
     }
     onClose();
   }
@@ -494,6 +496,9 @@ function EventFormDrawer({ open, event, domains, defaultDomainId, companyId, onC
               )} />
               <Controller name="displayName" control={control} render={({ field }) => (
                 <TextField {...field} label="Display Name" fullWidth size="small" required error={Boolean(errors.displayName)} helperText={errors.displayName?.message} />
+              )} />
+              <Controller name="app" control={control} render={({ field }) => (
+                <TextField {...field} label="App" fullWidth size="small" placeholder="relay, business-app, jtrade…" helperText="Which application creates/owns this event — used to identify it in the catalog" />
               )} />
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
@@ -660,6 +665,12 @@ const eventColumns: GridColDef<EventCatalogue>[] = [
     renderCell: (p) => <Chip label={EVENT_TYPE_LABELS[p.row.eventType] ?? p.row.eventType} size="small" color={EVENT_TYPE_COLORS[p.row.eventType] ?? 'default'} variant="outlined" />,
   },
   {
+    field: 'app', headerName: 'App', width: 130, sortable: false,
+    renderCell: (p) => p.row.app
+      ? <Chip label={p.row.app} size="small" variant="outlined" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }} />
+      : <Typography variant="caption" color="text.disabled">—</Typography>,
+  },
+  {
     field: 'emailStatus', headerName: 'Email', width: 120, sortable: false,
     renderCell: (p) => <ChannelStatusChip status={getEmailStatus(p.row.channelContent?.email)} />,
   },
@@ -685,6 +696,7 @@ const eventMobileConfig: MobileCardConfig<EventCatalogue> = {
   badge: (row) => <StatusBadge active={row.isActive} />,
   fields: [
     { field: 'eventType', label: 'Type', render: (v) => <Chip label={EVENT_TYPE_LABELS[v as string] ?? String(v)} size="small" color={EVENT_TYPE_COLORS[v as string] ?? 'default'} variant="outlined" /> },
+    { field: 'app', label: 'App', render: (v) => v ? <Chip label={v as string} size="small" variant="outlined" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }} /> : <Typography variant="caption" color="text.disabled">—</Typography> },
     {
       field: 'channelContent', label: 'Channels', render: (_v, row) => {
         const { email, sms } = (row.channelContent ?? {}) as EventChannelContent;
@@ -736,6 +748,12 @@ export function EventCatalogueList({ companyId }: EventCatalogueListProps) {
   const channelFilter  = list.filters['channel']  ?? '';
   const statusFilter   = list.filters['status']   ?? '';
   const templateFilter = list.filters['template'] ?? '';
+  const appFilter       = list.filters['app']      ?? '';
+
+  const appOptions = useMemo(
+    () => Array.from(new Set(allEvents.map((e) => e.app).filter((a): a is string => Boolean(a?.trim())))).sort(),
+    [allEvents],
+  );
 
   const filteredEvents = useMemo(() => {
     let result = allEvents;
@@ -762,6 +780,9 @@ export function EventCatalogueList({ companyId }: EventCatalogueListProps) {
       });
     }
     if (statusFilter) result = result.filter((e) => (statusFilter === 'active' ? e.isActive : !e.isActive));
+    if (appFilter) {
+      result = result.filter((e) => (appFilter === '__unspecified__' ? !e.app?.trim() : e.app === appFilter));
+    }
     if (templateFilter) {
       result = result.filter((e) => {
         const { email, sms } = e.channelContent ?? {};
@@ -772,7 +793,7 @@ export function EventCatalogueList({ companyId }: EventCatalogueListProps) {
       });
     }
     return result;
-  }, [allEvents, list.debouncedSearch, typeFilter, channelFilter, statusFilter, templateFilter]);
+  }, [allEvents, list.debouncedSearch, typeFilter, channelFilter, statusFilter, appFilter, templateFilter]);
 
   // ── Dialogs ────────────────────────────────────────────────────────────────
   const [drawerOpen,   setDrawerOpen]   = useState(false);
@@ -865,6 +886,15 @@ export function EventCatalogueList({ companyId }: EventCatalogueListProps) {
             <MenuItem value="alert">Alert</MenuItem>
             <MenuItem value="request">Request</MenuItem>
             <MenuItem value="security">Security</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 150 }} disabled={!selectedDomainId || eventsLoading}>
+          <InputLabel>App</InputLabel>
+          <Select value={appFilter} label="App" onChange={(e) => list.setFilter('app', e.target.value)}>
+            <MenuItem value="">All apps</MenuItem>
+            {appOptions.map((app) => <MenuItem key={app} value={app}>{app}</MenuItem>)}
+            <MenuItem value="__unspecified__">Unspecified</MenuItem>
           </Select>
         </FormControl>
 

@@ -17,6 +17,11 @@ export class BulkEventItemDto {
   @IsNotEmpty()
   displayName!: string;
 
+  /** Which application created/owns this event — e.g. 'relay', 'business-app'. */
+  @IsOptional()
+  @IsString()
+  app?: string;
+
   @IsOptional()
   @IsString()
   description?: string;

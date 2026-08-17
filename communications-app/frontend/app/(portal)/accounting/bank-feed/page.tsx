@@ -46,7 +46,7 @@ import type { BankAccountSummary } from '@/types/accounting';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const CAPABILITY_KEY = 'bankFeed';
+const CAPABILITY_KEY = 'bankFeed';
 
 type AccountType = 'BANK' | 'CREDITCARD';
 
@@ -284,7 +284,7 @@ export default function BankFeedPage() {
       {noProviders && !providersError && (
         <EmptyState icon={HubOutlinedIcon} title="No accounting providers configured"
           description="Enable Xero (or another accounting provider) for your company."
-          action={<Button component={Link} href="/company-channel-providers" variant="contained" startIcon={<HubOutlinedIcon />}>Go to Enabled Providers</Button>}
+          action={<Button component={Link} href="/provider-credentials" variant="contained" startIcon={<HubOutlinedIcon />}>Go to Credentials</Button>}
         />
       )}
       {noConnections && !connectionsError && (

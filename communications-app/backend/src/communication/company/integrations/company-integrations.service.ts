@@ -11,7 +11,7 @@ import {
   Company,
   CompanyDocument,
 } from '../company-info/schemas/company.schema';
-import { User, UserDocument } from '../../../users/schemas/user.schema';
+import { User, UserDocument } from '../../../ecosystem/identity/schemas/ecosystem-user.schema';
 import { CreateCompanyIntegrationDto } from './dto/create-company-integration.dto';
 import { UpdateCompanyIntegrationDto } from './dto/update-company-integration.dto';
 import {
@@ -202,6 +202,22 @@ export class CompanyIntegrationsService {
       throw new HttpException('Integration not found', HttpStatus.NOT_FOUND);
     }
     return doc as CompanyIntegrationDocument;
+  }
+
+  /**
+   * Ownership guard for tenant-scoped operations: verifies the integration
+   * identified by `id` belongs to `companyId`. Throws 404 if the integration
+   * doesn't exist or belongs to a different company — never leaks existence
+   * of another tenant's integration.
+   */
+  async assertBelongsToCompany(id: string, companyId: string): Promise<void> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+    const expectedCompanyId = this.toObjectIdOrThrow(companyId, 'companyId');
+
+    const doc = await this.model.findById(_id).select('companyId').lean();
+    if (!doc || String((doc as any).companyId) !== String(expectedCompanyId)) {
+      throw new HttpException('Integration not found', HttpStatus.NOT_FOUND);
+    }
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────

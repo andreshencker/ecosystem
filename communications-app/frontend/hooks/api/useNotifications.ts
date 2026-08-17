@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useMutation } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { NotificationResponse } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -24,7 +24,7 @@ export function useTriggerNotificationMutation() {
 
   return useMutation({
     mutationFn: (dto: TriggerNotificationDto) =>
-      engineClient.post<NotificationResponse>('/notifications/event', dto).then((r) => r.data),
+      apiClient.post<NotificationResponse>('/notifications/event', dto).then((r) => r.data),
     onSuccess: (data) => {
       const allOk = data.results.every((r) => r.success);
       if (allOk) {

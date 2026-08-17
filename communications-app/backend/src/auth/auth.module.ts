@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
 
 import {
   RefreshToken,
@@ -9,15 +10,14 @@ import {
 } from './schemas/refresh-token.schema';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module';
-import { NotificationModule } from '../communication/notifications/notification.module';
-import { CompanyProvisioningModule } from '../communication/company/provisioning/company-provisioning.module';
+import { EcosystemModule } from '../ecosystem/ecosystem.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
+    HttpModule,
 
     // Own JwtModule instance so AuthService can sign access tokens.
     // Uses the same JWT_ACCESS_SECRET as SecurityModule's JwtStrategy.
@@ -34,9 +34,7 @@ import { CompanyProvisioningModule } from '../communication/company/provisioning
       }),
     }),
 
-    UsersModule,
-    NotificationModule,
-    CompanyProvisioningModule,
+    EcosystemModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],

@@ -25,7 +25,6 @@ import ClearOutlinedIcon from '@mui/icons-material/ClearOutlined';
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
-import LockResetIcon from '@mui/icons-material/LockReset';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
@@ -37,13 +36,12 @@ import { PageHeader } from '@/components/layout';
 import { ConfirmDialog, EmptyState, PermissionGuard, RowActions } from '@/components/shared';
 import { UserViewDrawer, UserEditForm } from '@/components/domain/user';
 import {
-  useUsers,
-  useUpdateUserMutation,
-  useDeactivateUserMutation,
-  useReactivateUserMutation,
-  useDeleteUserMutation,
-  useAdminPasswordResetMutation,
-} from '@/hooks/api/useUsers';
+  useRelayTeamUsers,
+  useUpdateRelayTeamMemberMutation,
+  useSuspendRelayTeamMemberMutation,
+  useActivateRelayTeamMemberMutation,
+  useRevokeRelayTeamMemberMutation,
+} from '@/hooks/api/useRelayTeam';
 import {
   useInvitations,
   useInviteUserMutation,
@@ -165,11 +163,9 @@ interface CardActionsProps {
   onDeactivate: () => void;
   onReactivate: () => void;
   onDelete: () => void;
-  onResetPassword: () => void;
   onResend: () => void;
   onCancelInvite: () => void;
   resendPending: boolean;
-  resetPasswordPending: boolean;
 }
 
 function TeamRowCard({
@@ -183,11 +179,9 @@ function TeamRowCard({
   onDeactivate,
   onReactivate,
   onDelete,
-  onResetPassword,
   onResend,
   onCancelInvite,
   resendPending,
-  resetPasswordPending,
 }: CardActionsProps) {
   const isActive = row._user?.isActive !== false;
 
@@ -265,13 +259,6 @@ function TeamRowCard({
                   </IconButton>
                 </Tooltip>
               )}
-              {canManageUsers && isActive && (
-                <Tooltip title="Send password reset email">
-                  <IconButton size="small" onClick={onResetPassword} disabled={resetPasswordPending}>
-                    <LockResetIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
               {canDeactivateUsers && (
                 <Tooltip title={isActive ? 'Deactivate' : 'Reactivate'}>
                   <IconButton
@@ -286,7 +273,7 @@ function TeamRowCard({
                 </Tooltip>
               )}
               {canDeleteUsers && !isSelf && (
-                <Tooltip title="Delete permanently">
+                <Tooltip title="Revoke Relay access">
                   <IconButton size="small" color="error" onClick={onDelete}>
                     <DeleteOutlineOutlinedIcon fontSize="small" />
                   </IconButton>
@@ -306,7 +293,6 @@ type ConfirmAction =
   | { type: 'deactivate'; user: User }
   | { type: 'reactivate'; user: User }
   | { type: 'delete'; user: User }
-  | { type: 'reset-password'; user: User }
   | { type: 'cancel-invite'; invId: string; email: string }
   | null;
 
@@ -316,14 +302,10 @@ type DrawerMode = 'none' | 'view' | 'edit' | 'invite';
 
 export default function TeamPage() {
   const currentRole   = useAuthStore((s) => s.role);
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
-  const companyId     = useAuthStore((s) => s.companyId);
-  const scope         = useAuthStore((s) => s.scope);
-
-  // Determine UI context from the authenticated user's scope.
-  //   'modules' → global scope / no company  → only platform_admin roles shown
-  //   'company'  → company-scoped             → only company roles shown
-  const appContext: AppContext = scope === 'global' ? 'platform' : 'company';
+  const currentUserId = useAuthStore((s) => s.user?.grapiflyUserId ?? s.user?.id ?? null);
+  // Team always represents access to Relay in the selected organization,
+  // including when that organization is Grapifly's own platform workspace.
+  const appContext: AppContext = 'company';
 
   const allowedInviteRoles = getTeamInviteRoles(currentRole);
   const roleFilterOptions  = getVisibleRoleFilters(currentRole, appContext);
@@ -356,20 +338,15 @@ export default function TeamPage() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
   // ── Queries ────────────────────────────────────────────────────────────────
-  const { data: usersData, isLoading: usersLoading } = useUsers({
-    page: page + 1,
-    limit: pageSize,
-    companyId: companyId ?? undefined,
-  });
+  const { data: usersData, isLoading: usersLoading } = useRelayTeamUsers();
   const { data: invData, isLoading: invLoading } = useInvitations();
 
   // ── Mutations ──────────────────────────────────────────────────────────────
-  const updateMutation           = useUpdateUserMutation();
+  const updateMutation           = useUpdateRelayTeamMemberMutation();
   const inviteMutation           = useInviteUserMutation();
-  const deactivateMutation       = useDeactivateUserMutation();
-  const reactivateMutation       = useReactivateUserMutation();
-  const deleteMutation           = useDeleteUserMutation();
-  const adminPasswordResetMutation = useAdminPasswordResetMutation();
+  const deactivateMutation       = useSuspendRelayTeamMemberMutation();
+  const reactivateMutation       = useActivateRelayTeamMemberMutation();
+  const deleteMutation           = useRevokeRelayTeamMemberMutation();
   const resendMutation           = useResendInvitationMutation();
   const cancelInviteMutation     = useCancelInvitationMutation();
 
@@ -404,14 +381,6 @@ export default function TeamPage() {
   const filteredRows = useMemo(() => {
     let rows = allRows;
 
-    // Context gate: modules context shows only platform_admin users;
-    // company context never shows platform_admin.
-    if (appContext === 'platform') {
-      rows = rows.filter((r) => r.role === 'platform_admin');
-    } else {
-      rows = rows.filter((r) => r.role !== 'platform_admin');
-    }
-
     if (search) {
       const q = search.toLowerCase();
       rows = rows.filter(
@@ -421,7 +390,7 @@ export default function TeamPage() {
     if (roleFilter)   rows = rows.filter((r) => r.role === roleFilter);
     if (statusFilter) rows = rows.filter((r) => r.rowStatus === statusFilter);
     return rows;
-  }, [allRows, search, roleFilter, statusFilter, appContext]);
+  }, [allRows, search, roleFilter, statusFilter]);
 
   const isLoading = usersLoading || invLoading;
 
@@ -474,8 +443,6 @@ export default function TeamPage() {
       } else if (confirmAction.type === 'delete') {
         await deleteMutation.mutateAsync(confirmAction.user.id);
         if (selectedUser?.id === confirmAction.user.id) closeDrawer();
-      } else if (confirmAction.type === 'reset-password') {
-        await adminPasswordResetMutation.mutateAsync(confirmAction.user.id);
       } else if (confirmAction.type === 'cancel-invite') {
         await cancelInviteMutation.mutateAsync(confirmAction.invId);
       }
@@ -484,12 +451,12 @@ export default function TeamPage() {
     }
   }, [
     confirmAction, deactivateMutation, reactivateMutation,
-    deleteMutation, adminPasswordResetMutation, cancelInviteMutation, selectedUser, closeDrawer,
+    deleteMutation, cancelInviteMutation, selectedUser, closeDrawer,
   ]);
 
   const confirmPending =
     deactivateMutation.isPending || reactivateMutation.isPending ||
-    deleteMutation.isPending || adminPasswordResetMutation.isPending ||
+    deleteMutation.isPending ||
     cancelInviteMutation.isPending;
 
   const confirmText = useMemo(() => {
@@ -505,14 +472,9 @@ export default function TeamPage() {
       label: 'Reactivate',
     };
     if (confirmAction.type === 'delete') return {
-      title: 'Delete User',
-      description: `This will permanently delete ${confirmAction.user.email}. This action cannot be undone.`,
-      label: 'Delete',
-    };
-    if (confirmAction.type === 'reset-password') return {
-      title: 'Send Password Reset',
-      description: `A password reset email will be sent to ${confirmAction.user.email}. They will receive a link to set a new password.`,
-      label: 'Send Reset Email',
+      title: 'Revoke Relay Access',
+      description: `${confirmAction.user.email} will be removed from Relay while their Grapifly account and organization membership remain intact.`,
+      label: 'Revoke Access',
     };
     return {
       title: 'Cancel Invitation',
@@ -613,19 +575,6 @@ export default function TeamPage() {
                   </IconButton>
                 </Tooltip>
               </PermissionGuard>
-              <PermissionGuard allowed={canManageUsers}>
-                {isActive && (
-                  <Tooltip title="Send password reset email">
-                    <IconButton
-                      size="small"
-                      onClick={() => setConfirmAction({ type: 'reset-password', user: u })}
-                      disabled={adminPasswordResetMutation.isPending}
-                    >
-                      <LockResetIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </PermissionGuard>
               <PermissionGuard allowed={canDeactivateUsers}>
                 <Tooltip title={isActive ? 'Deactivate' : 'Reactivate'}>
                   <IconButton size="small" color={isActive ? 'warning' : 'success'}
@@ -635,7 +584,7 @@ export default function TeamPage() {
                 </Tooltip>
               </PermissionGuard>
               {canDeleteUsers && !isSelf && (
-                <Tooltip title="Delete permanently">
+                <Tooltip title="Revoke Relay access">
                   <IconButton size="small" color="error" onClick={() => setConfirmAction({ type: 'delete', user: u })}>
                     <DeleteOutlineOutlinedIcon fontSize="small" />
                   </IconButton>
@@ -647,7 +596,7 @@ export default function TeamPage() {
       },
     );
     return cols;
-  }, [canManageUsers, canDeactivateUsers, canDeleteUsers, currentUserId, openView, openEdit, resendMutation, adminPasswordResetMutation.isPending]);
+  }, [canManageUsers, canDeactivateUsers, canDeleteUsers, currentUserId, openView, openEdit, resendMutation]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -789,11 +738,9 @@ export default function TeamPage() {
                 onDeactivate={() => row._user && setConfirmAction({ type: 'deactivate', user: row._user })}
                 onReactivate={() => row._user && setConfirmAction({ type: 'reactivate', user: row._user })}
                 onDelete={() => row._user && setConfirmAction({ type: 'delete', user: row._user })}
-                onResetPassword={() => row._user && setConfirmAction({ type: 'reset-password', user: row._user })}
                 onResend={() => resendMutation.mutate(row.invId!)}
                 onCancelInvite={() => setConfirmAction({ type: 'cancel-invite', invId: row.invId!, email: row.email })}
                 resendPending={resendMutation.isPending}
-                resetPasswordPending={adminPasswordResetMutation.isPending}
               />
             ))}
           </Box>

@@ -14,6 +14,11 @@ export type CompanyChannelProviderDocument =
   timestamps: true,
 })
 export class CompanyChannelProvider {
+  /** Canonical organization identifier issued by Grapifly. */
+  @Prop({ type: String, default: null })
+  grapiflyOrganizationId!: string | null;
+
+  /** Temporary Relay projection retained while dependent resources migrate. */
   @Prop({ type: Types.ObjectId, ref: 'Company', required: true, index: true })
   companyId!: Types.ObjectId;
 
@@ -45,6 +50,14 @@ CompanyChannelProviderSchema.index(
   { companyId: 1, providerId: 1, channelId: 1 },
   { unique: true, name: 'uniq_company_provider_channel' },
 );
+CompanyChannelProviderSchema.index(
+  { grapiflyOrganizationId: 1, providerId: 1, channelId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { grapiflyOrganizationId: { $type: 'string' } },
+    name: 'uniq_grapifly_org_provider_channel',
+  },
+);
 
 // ✅ Solo 1 default por canal (company + channel) usando índice parcial
 CompanyChannelProviderSchema.index(
@@ -53,6 +66,17 @@ CompanyChannelProviderSchema.index(
     unique: true,
     partialFilterExpression: { isDefault: true },
     name: 'uniq_default_provider_per_channel',
+  },
+);
+CompanyChannelProviderSchema.index(
+  { grapiflyOrganizationId: 1, channelId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      grapiflyOrganizationId: { $type: 'string' },
+      isDefault: true,
+    },
+    name: 'uniq_default_provider_per_grapifly_org_channel',
   },
 );
 
@@ -64,4 +88,8 @@ CompanyChannelProviderSchema.index(
 CompanyChannelProviderSchema.index(
   { companyId: 1, isActive: 1 },
   { name: 'idx_company_active' },
+);
+CompanyChannelProviderSchema.index(
+  { grapiflyOrganizationId: 1, isActive: 1 },
+  { name: 'idx_grapifly_org_active' },
 );

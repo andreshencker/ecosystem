@@ -319,6 +319,52 @@ export class DocumentCatalogueService {
     });
   }
 
+  /** Throws 404 if the domain does not exist or does not belong to companyId. */
+  async assertDomainBelongsToCompany(
+    documentDomainCatalogueId: string,
+    companyId: string,
+  ): Promise<void> {
+    const domainId = this.toObjectIdOrThrow(
+      documentDomainCatalogueId,
+      'documentDomainCatalogueId',
+    );
+    const companyObjId = this.toObjectIdOrThrow(companyId, 'companyId');
+
+    const domain = await this.domainModel
+      .findOne({ _id: domainId, companyId: companyObjId })
+      .select('_id')
+      .lean();
+
+    if (!domain) {
+      throw new HttpException(
+        'DocumentDomainCatalogue not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+  }
+
+  /**
+   * Verifies that a document-catalogue entry belongs to companyId by joining
+   * through its parent DocumentDomainCatalogue. Throws 404 on mismatch.
+   */
+  async assertBelongsToCompany(id: string, companyId: string): Promise<void> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    const doc: any = await this.model
+      .findById(_id)
+      .select('documentDomainCatalogueId')
+      .lean();
+
+    if (!doc) {
+      throw new HttpException('Document not found', HttpStatus.NOT_FOUND);
+    }
+
+    await this.assertDomainBelongsToCompany(
+      String(doc.documentDomainCatalogueId),
+      companyId,
+    );
+  }
+
   private async getDomainOrThrow(documentDomainCatalogueId: Types.ObjectId) {
     const domain: any = await this.domainModel
       .findById(documentDomainCatalogueId)

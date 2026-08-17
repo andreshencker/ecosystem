@@ -51,8 +51,8 @@ import type { BankAccountSummary, BankTransactionSummary } from '@/types/account
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const CAPABILITY_KEY   = 'bankTransactions';
-export const DEFAULT_PAGE_SIZE = 25;
+const CAPABILITY_KEY   = 'bankTransactions';
+const DEFAULT_PAGE_SIZE = 25;
 
 type AccountType = 'BANK' | 'CREDITCARD';
 
@@ -614,7 +614,7 @@ export default function AccountingTransactionsPage() {
           icon={HubOutlinedIcon}
           title="No accounting providers configured"
           description="Enable Xero (or another accounting provider) for your company, then add OAuth credentials."
-          action={<Button component={Link} href="/company-channel-providers" variant="contained" startIcon={<HubOutlinedIcon />}>Go to Enabled Providers</Button>}
+          action={<Button component={Link} href="/provider-credentials" variant="contained" startIcon={<HubOutlinedIcon />}>Go to Credentials</Button>}
         />
       )}
       {noConnections && !connectionsError && (

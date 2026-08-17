@@ -59,7 +59,9 @@ export function getTeamInviteRoles(currentRole: UserRole | null) {
   switch (currentRole) {
     case 'platform_admin':
       return [
-        { value: 'platform_admin' as const, label: 'Platform Admin' },
+        { value: 'company_admin' as const, label: 'Relay Admin' },
+        { value: 'operator'      as const, label: 'Operator' },
+        { value: 'viewer'        as const, label: 'Viewer' },
       ];
     case 'company_owner':
       return [
@@ -221,8 +223,8 @@ export const updateUserSchema = z.object({
 // company_owner is excluded: it can only be created via POST /companies/with-owner (DEC-013 Phase 3).
 export const inviteUserSchema = z.object({
   email:           z.string().email('Valid email required'),
-  firstName:       z.string().min(1, 'Required').max(100),
-  lastName:        z.string().min(1, 'Required').max(100),
+  firstName:       z.string().max(100).optional().default(''),
+  lastName:        z.string().max(100).optional().default(''),
   role:            z.enum(['platform_admin', 'company_admin', 'operator', 'viewer'], {
     errorMap: () => ({ message: 'Please select a role' }),
   }),

@@ -1,4 +1,10 @@
-import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class UpdateProviderCredentialsDto {
   @IsOptional()
@@ -13,4 +19,9 @@ export class UpdateProviderCredentialsDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** See CreateProviderCredentialsDto.oauthAppSource. */
+  @IsOptional()
+  @IsIn(['ecosystem', 'own'])
+  oauthAppSource?: 'ecosystem' | 'own';
 }

@@ -1,8 +1,6 @@
 // src/company-theme/dto/create-company-theme.dto.ts
-import { IsMongoId } from 'class-validator';
 import { CompanyThemeBaseDto } from './company-theme-base.dto';
 
-export class CreateCompanyThemeDto extends CompanyThemeBaseDto {
-  @IsMongoId()
-  companyId!: string;
-}
+// The tenant is resolved from the Grapifly session. It must never be accepted
+// from a browser-controlled request body.
+export class CreateCompanyThemeDto extends CompanyThemeBaseDto {}

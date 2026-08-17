@@ -487,7 +487,12 @@ export default function CompanyDetailPage() {
       </TabPanel>
 
       <TabPanel value={activeTab} index={3}>
-        {/* Domains are scoped by companyId — engineClient sends x-api-key so platform_admin can view any company */}
+        {/* KNOWN GAP: RelayTenantContextService always resolves the caller's OWN
+            company from their session — it has no platform_admin "view any
+            company" override. When platform_admin opens another company's
+            page, this tab (and Credentials/Templates/Event Catalogue below)
+            will show the admin's own company data, not companyId's. See
+            relay-tenant-context.service.ts. */}
         <DomainList companyId={companyId} />
       </TabPanel>
 

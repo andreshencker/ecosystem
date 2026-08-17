@@ -16,15 +16,18 @@ import {
  *
  * Seed data represents the canonical communication layer:
  *
- *   Channels: email · sms · storage · calendar · payment · accounting · billing
+ *   Channels: email · sms · storage · calendar · payment · accounting · billing · identity
  *   Providers:
- *     email      → gmail (smtp) · sendgrid (api_key) · mailgun (api_key)
+ *     email      → gmail (smtp) · gmail_oauth (oauth) · sendgrid (api_key) · mailgun (api_key)
  *     sms        → twilio (api_key)
  *     storage    → aws-s3 (access_keys)
  *     calendar   → icloud (app_password) · google_calendar (oauth) · outlook_calendar (oauth)
  *     payment    → stripe (api_key) · coingate (token)
  *     accounting → xero (oauth)   ← also assigned to billing
  *     billing    → xero (oauth)   ← same provider record as above
+ *     identity   → google_identity (oauth) — "Sign in with Google"; can reuse
+ *                  the same OAuth application as email's gmail_oauth provider
+ *                  via oauth-applications
  */
 @Injectable()
 export class CatalogBootstrapService implements OnApplicationBootstrap {
@@ -118,6 +121,16 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         supportsFiles: false,
         isActive: true,
       },
+      {
+        channelKey: 'identity',
+        displayName: 'Identity',
+        description:
+          'OAuth-based "sign in with a provider" flows for external applications — Relay performs the provider handshake and hands back the verified profile',
+        contentFormat: 'text' as const,
+        supportsTemplates: false,
+        supportsFiles: false,
+        isActive: true,
+      },
     ];
 
     for (const ch of channels) {
@@ -152,6 +165,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
       paymentChannel,
       accountingChannel,
       billingChannel,
+      identityChannel,
     ] = await Promise.all([
       this.channelModel.findOne({ channelKey: 'email' }).lean(),
       this.channelModel.findOne({ channelKey: 'sms' }).lean(),
@@ -160,6 +174,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
       this.channelModel.findOne({ channelKey: 'payment' }).lean(),
       this.channelModel.findOne({ channelKey: 'accounting' }).lean(),
       this.channelModel.findOne({ channelKey: 'billing' }).lean(),
+      this.channelModel.findOne({ channelKey: 'identity' }).lean(),
     ]);
 
     if (!emailChannel || !smsChannel || !storageChannel) {
@@ -177,6 +192,15 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         description: 'Google Gmail SMTP — for personal and small-team email',
         channelIds: [emailChannel._id],
         connectionType: 'smtp' as const,
+        isActive: true,
+      },
+      {
+        providerKey: 'gmail_oauth',
+        displayName: 'Gmail (OAuth)',
+        description:
+          'Google Gmail via OAuth 2.0 — connect a real mailbox to send and read email (Gmail API)',
+        channelIds: [emailChannel._id],
+        connectionType: 'oauth' as const,
         isActive: true,
       },
       {
@@ -280,6 +304,21 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
               description:
                 'Xero cloud accounting platform — accounting and billing integrations via OAuth 2.0',
               channelIds: [accountingChannel._id, billingChannel._id],
+              connectionType: 'oauth' as const,
+              isActive: true,
+            },
+          ]
+        : []),
+
+      // ── Identity providers ───────────────────────────────────────────────
+      ...(identityChannel
+        ? [
+            {
+              providerKey: 'google_identity',
+              displayName: 'Google',
+              description:
+                '"Sign in with Google" via OAuth 2.0 — Relay performs the consent flow and hands back the verified profile (email, name)',
+              channelIds: [identityChannel._id],
               connectionType: 'oauth' as const,
               isActive: true,
             },

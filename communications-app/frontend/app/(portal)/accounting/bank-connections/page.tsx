@@ -544,11 +544,11 @@ export default function BankConnectionsPage() {
           action={
             <Button
               component={Link}
-              href="/company-channel-providers"
+              href="/provider-credentials"
               variant="contained"
               startIcon={<HubOutlinedIcon />}
             >
-              Go to Enabled Providers
+              Go to Credentials
             </Button>
           }
         />

@@ -6,13 +6,17 @@ import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from '@/lib/constants';
 import { useAuthStore } from '@/stores/auth.store';
-import { getRoleConfig, type SidebarSectionConfig } from '@/config/rbac/role-config';
+import { useCompanyById } from '@/hooks/api/useCompanies';
+import { useChannelTabs } from '@/hooks/useChannelTabs';
+import { getRoleConfig, type SidebarItemConfig, type SidebarSectionConfig } from '@/config/rbac/role-config';
 import { SidebarSection } from './SidebarSection';
 import { SidebarItem } from './SidebarItem';
+import { SidebarOrgCard } from './SidebarOrgCard';
+import { RelayBrand } from '@/components/brand/RelayBrand';
 
 interface SidebarProps {
   open: boolean;
@@ -27,7 +31,7 @@ const drawerSx = {
     boxSizing: 'border-box',
     borderRight: '1px solid',
     borderColor: 'divider',
-    backgroundColor: 'background.paper',
+    backgroundColor: '#FBFBFD',
   },
 };
 
@@ -39,9 +43,25 @@ function findBestMatch(pathname: string, hrefs: string[]): string | null {
   return prefixMatches[0] ?? null;
 }
 
-function DynamicNav({ sections }: { sections: SidebarSectionConfig[] }) {
-  const pathname = usePathname();
+function FlatItems({ items, bestMatch }: { items: SidebarItemConfig[]; bestMatch: string | null }) {
+  return (
+    <List disablePadding>
+      {items.map((item) => (
+        <SidebarItem
+          key={item.href}
+          href={item.href}
+          icon={item.icon}
+          label={item.label}
+          active={item.href === bestMatch}
+        />
+      ))}
+    </List>
+  );
+}
 
+// Admin-mode nav (platform_admin's "Platform" tab) — unchanged flat sections.
+function AdminNav({ sections }: { sections: SidebarSectionConfig[] }) {
+  const pathname = usePathname();
   const allHrefs = sections.flatMap((s) => s.items.map((i) => i.href));
   const bestMatch = findBestMatch(pathname, allHrefs);
 
@@ -66,13 +86,21 @@ function DynamicNav({ sections }: { sections: SidebarSectionConfig[] }) {
 
 function SidebarContent() {
   const role = useAuthStore((s) => s.role);
+  const companyId = useAuthStore((s) => s.companyId);
+  const pathname = usePathname();
   const [adminMode, setAdminMode] = useState(false);
+
+  // Fallback org name while the organization list is still loading — works
+  // for both platform_admin (Grapifly) and company-scoped roles.
+  const { data: companyData } = useCompanyById(companyId);
 
   const config = role ? getRoleConfig(role) : null;
   const isDual = config?.navbarMode === 'dual';
-  const sections = isDual
-    ? (adminMode ? (config?.sidebarAdmin ?? config?.sidebar) : config?.sidebar)
-    : config?.sidebar;
+  const { activeTab } = useChannelTabs();
+
+  const topBestMatch = config ? findBestMatch(pathname, config.sidebarTop.map((i) => i.href)) : null;
+  const tabBestMatch = activeTab ? findBestMatch(pathname, activeTab.items.map((i) => i.href)) : null;
+  const commonBestMatch = config ? findBestMatch(pathname, config.sidebarCommon.map((i) => i.href)) : null;
 
   return (
     <Box display="flex" flexDirection="column" height="100%">
@@ -86,54 +114,56 @@ function SidebarContent() {
           flexShrink: 0,
         }}
       >
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1,
-            backgroundColor: 'primary.main',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mr: 1.5,
-            flexShrink: 0,
-          }}
-        >
-          <Typography variant="caption" color="white" fontWeight={700}>
-            CP
-          </Typography>
-        </Box>
-        <Typography variant="subtitle2" color="text.primary" fontWeight={600} noWrap>
-          Communication Portal
-        </Typography>
+        <RelayBrand compact />
       </Box>
 
       {/* Dual-mode tab switcher — only for platform_admin */}
       {isDual && (
-        <>
-          <Tabs
-            value={adminMode ? 1 : 0}
-            onChange={(_, v: number) => setAdminMode(v === 1)}
-            variant="fullWidth"
-            sx={{
-              minHeight: 40,
-              '& .MuiTab-root': { minHeight: 40, fontSize: '0.7rem', py: 0.5 },
-            }}
-          >
-            <Tab label="Business App" />
-            <Tab label="Platform Admin" />
-          </Tabs>
-        </>
+        <Tabs
+          value={adminMode ? 1 : 0}
+          onChange={(_, v: number) => setAdminMode(v === 1)}
+          variant="fullWidth"
+          sx={{
+            minHeight: 40,
+            '& .MuiTab-root': { minHeight: 40, fontSize: '0.7rem', py: 0.5 },
+          }}
+        >
+          <Tab label="Workspace" />
+          <Tab label="Platform" />
+        </Tabs>
       )}
 
       <Divider />
 
-      {/* Navigation — rendered from role-config.ts */}
-      <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
-        {sections ? (
-          <DynamicNav sections={sections} />
-        ) : null}
-      </Box>
+      {isDual && adminMode ? (
+        // ── Platform Admin mode: unchanged flat global-admin nav ────────────
+        <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
+          {config?.sidebarAdmin ? <AdminNav sections={config.sidebarAdmin} /> : null}
+        </Box>
+      ) : (
+        // ── Business App mode: org card → Dashboard → active tab's pages → common ─
+        // The channel tabs themselves render in the Topbar (see TopbarChannelTabs).
+        config && (
+          <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <Box pt={1.5}>
+              <SidebarOrgCard fallbackName={companyData?.displayName} />
+            </Box>
+
+            <Box px={0} pb={1}>
+              <FlatItems items={config.sidebarTop} bestMatch={topBestMatch} />
+            </Box>
+
+            {activeTab && (
+              <Box sx={{ flex: 1 }}>
+                <FlatItems items={activeTab.items} bestMatch={tabBestMatch} />
+              </Box>
+            )}
+
+            <Divider sx={{ my: 1 }} />
+            <FlatItems items={config.sidebarCommon} bestMatch={commonBestMatch} />
+          </Box>
+        )
+      )}
     </Box>
   );
 }

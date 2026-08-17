@@ -20,6 +20,10 @@ export type EncryptedPayload = {
   timestamps: true,
 })
 export class ProviderCredentials {
+  /** Canonical tenant copied from the owning provider configuration. */
+  @Prop({ type: String, default: null, index: true })
+  grapiflyOrganizationId!: string | null;
+
   @Prop({
     type: Types.ObjectId,
     ref: 'CompanyChannelProvider',
@@ -68,6 +72,20 @@ export class ProviderCredentials {
    */
   @Prop({ type: String, default: null })
   mode?: 'test' | 'live' | null;
+
+  /**
+   * For OAuth credentials only: which app registration backs this
+   * connection — 'ecosystem' when it references a platform-owned
+   * OAuthApplication (oauthApplicationId), 'own' when the tenant entered
+   * their own clientId/clientSecret directly. Null for non-OAuth
+   * connection types or records predating this field.
+   *
+   * Non-secret — safe to return in list/detail responses without
+   * decryption. Lets the UI show an accurate "Connected" state per tab
+   * (Ecosystem vs Developer) instead of inferring it from form state.
+   */
+  @Prop({ type: String, default: null })
+  oauthAppSource?: 'ecosystem' | 'own' | null;
 }
 
 export const ProviderCredentialsSchema =
@@ -78,3 +96,4 @@ ProviderCredentialsSchema.index(
   { companyChannelProviderId: 1, tag: 1 },
   { unique: true, name: 'uniq_ccp_tag' },
 );
+ProviderCredentialsSchema.index({ grapiflyOrganizationId: 1, isActive: 1 });

@@ -12,9 +12,11 @@ export class ProviderCredentialsMapper {
     const res: ProviderCredentialsResponseDto = {
       id: String(doc._id),
       companyChannelProviderId: ccpId,
+      grapiflyOrganizationId: doc.grapiflyOrganizationId ?? null,
       tag: doc.tag,
       isActive: !!doc.isActive,
       displayIdentifier: doc.displayIdentifier ?? undefined,
+      oauthAppSource: doc.oauthAppSource ?? null,
       createdAt: doc.createdAt?.toISOString?.() ?? String(doc.createdAt),
       updatedAt: doc.updatedAt?.toISOString?.() ?? String(doc.updatedAt),
     };
@@ -27,6 +29,7 @@ export class ProviderCredentialsMapper {
       res.companyChannelProvider = {
         id: String(ccp._id ?? ccp.id),
         companyId: String(ccp.companyId),
+        grapiflyOrganizationId: ccp.grapiflyOrganizationId ?? null,
         isActive: !!ccp.isActive,
 
         provider: provider

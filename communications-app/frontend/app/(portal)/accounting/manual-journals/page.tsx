@@ -36,17 +36,17 @@ import { PageHeader } from '@/components/layout';
 // They are tested in manual-journals-guide.spec.ts to confirm they match
 // the actual backend implementation.
 
-export const MJ_ROUTES = {
+const MJ_ROUTES = {
   list:   'GET  /accounting/manual-journals/:credentialId',
   get:    'GET  /accounting/manual-journals/:credentialId/:manualJournalId',
   create: 'POST /accounting/manual-journals/:credentialId',
   update: 'PATCH /accounting/manual-journals/:credentialId/:manualJournalId',
 } as const;
 
-export const MJ_AUTH_HEADER = 'x-integration-token' as const;
-export const MJ_CAPABILITY_KEY = 'manualJournals' as const;
+const MJ_AUTH_HEADER = 'x-integration-token' as const;
+const MJ_CAPABILITY_KEY = 'manualJournals' as const;
 
-export const MJ_REQUEST_FIELDS = [
+const MJ_REQUEST_FIELDS = [
   { field: 'date',                    type: 'string',           required: true,  note: 'ISO date YYYY-MM-DD — journal date' },
   { field: 'narration',               type: 'string',           required: true,  note: 'Journal description (max 4000 chars)' },
   { field: 'lines',                   type: 'array (min 2)',    required: true,  note: 'Journal lines — see line contract below' },
@@ -57,7 +57,7 @@ export const MJ_REQUEST_FIELDS = [
   { field: 'organisationId',          type: 'string',           required: false, note: 'Communications organisation ID for multi-org connections (body field for writes)' },
 ] as const;
 
-export const MJ_LINE_FIELDS = [
+const MJ_LINE_FIELDS = [
   { field: 'accountCode', type: 'string',  required: true,  note: 'Provider account code (e.g. "400") — caller\'s responsibility' },
   { field: 'amount',      type: 'number',  required: true,  note: 'Signed amount — positive = debit, negative = credit' },
   { field: 'description', type: 'string',  required: false, note: 'Line description (max 4000 chars)' },
@@ -65,7 +65,7 @@ export const MJ_LINE_FIELDS = [
   { field: 'tracking',    type: 'array',   required: false, note: 'Tracking categories [{name, option}]' },
 ] as const;
 
-export const MJ_RESPONSE_FIELDS = [
+const MJ_RESPONSE_FIELDS = [
   { field: 'id',                    note: 'Communications/provider resource ID (UUID)' },
   { field: 'providerResourceId',    note: 'Provider-assigned ID (same as id for Xero)' },
   { field: 'externalReference',     note: 'Caller correlation ID, if supplied' },
@@ -81,7 +81,7 @@ export const MJ_RESPONSE_FIELDS = [
   { field: 'createdAt',             note: 'ISO date of creation (when available from provider)' },
 ] as const;
 
-export const MJ_ERRORS = [
+const MJ_ERRORS = [
   { status: '401', label: 'Unauthorised', note: 'Missing or invalid integration token' },
   { status: '401', label: 'No company context', note: 'Token does not resolve to a company' },
   { status: '404', label: 'Not found', note: 'Manual journal does not exist at the provider' },

@@ -50,7 +50,7 @@ import ToggleOffOutlinedIcon from '@mui/icons-material/ToggleOffOutlined';
 import ToggleOnOutlinedIcon from '@mui/icons-material/ToggleOnOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { PermissionGuard, RowActions, SearchToolbar } from '@/components/shared';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useListState } from '@/hooks/useListState';
 import {
@@ -671,7 +671,7 @@ export function TemplateList({ companyId }: TemplateListProps) {
 
   async function handleDuplicate(t: LayoutTemplate) {
     try {
-      const res = await engineClient.get(`/layout-templates/${t.id}`);
+      const res = await apiClient.get(`/layout-templates/${t.id}`);
       const full: LayoutTemplate = res.data.layout ?? res.data;
       const themeId = defaultThemeId ?? themes[0]?.themeId;
       if (!themeId) return;

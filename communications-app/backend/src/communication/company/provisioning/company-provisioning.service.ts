@@ -283,10 +283,7 @@ export class CompanyProvisioningService {
         return existing.id;
       }
 
-      const created = await this.themeService.create({
-        companyId,
-        ...DEFAULT_THEME,
-      });
+      const created = await this.themeService.create(companyId, DEFAULT_THEME);
       report.created.theme = true;
       return created.id;
     } catch (err: any) {
@@ -473,6 +470,7 @@ export class CompanyProvisioningService {
         domainCatalogueId: domainId,
         eventKey: eventDef.eventKey,
         displayName: eventDef.displayName,
+        app: 'relay',
         description: eventDef.description,
         eventType: eventDef.eventType,
         channelContent: eventDef.channelContent,
@@ -639,6 +637,7 @@ export class CompanyProvisioningService {
         domainCatalogueId: domainId,
         eventKey: eventDef.eventKey,
         displayName: eventDef.displayName,
+        app: 'relay',
         description: eventDef.description,
         eventType: eventDef.eventType,
         channelContent: eventDef.channelContent,

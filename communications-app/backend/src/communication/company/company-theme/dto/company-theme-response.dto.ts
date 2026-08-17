@@ -2,6 +2,7 @@
 export class CompanyThemeResponseDto {
   id!: string;
   companyId!: string;
+  grapiflyOrganizationId!: string | null;
 
   primaryColor!: string;
   secondaryColor!: string;

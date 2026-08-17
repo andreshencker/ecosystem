@@ -28,6 +28,24 @@ export class RefreshToken {
 
   @Prop({ required: true })
   expiresAt!: Date;
+
+  @Prop({ type: String, default: null })
+  companyId!: string | null;
+
+  @Prop({ type: String, default: null })
+  companyKey!: string | null;
+
+  @Prop({ type: String, default: null })
+  grapiflyOrganizationId!: string | null;
+
+  @Prop({ type: String, enum: ['platform_admin', 'company_owner', 'company_admin', 'operator', 'viewer'], default: null })
+  role!: string | null;
+
+  @Prop({ type: String, enum: ['global', 'company'], default: null })
+  scope!: string | null;
+
+  @Prop({ type: [String], default: [] })
+  permissions!: string[];
 }
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);

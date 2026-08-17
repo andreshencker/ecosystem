@@ -1,0 +1,77 @@
+name: communications-app
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: communications_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --appendonly yes
+    ports:
+      - '${COMMUNICATIONS_REDIS_PORT:-6379}:6379'
+    volumes:
+      - communications_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - communications_internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: communications-app-backend:local
+    container_name: communications_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      APP_BASE_URL: http://localhost:${COMMUNICATIONS_FRONTEND_PORT:-3000}
+      API_BASE_URL: http://localhost:${COMMUNICATIONS_BACKEND_PORT:-3001}
+      ALLOWED_ORIGINS: http://localhost:${COMMUNICATIONS_FRONTEND_PORT:-3000}
+      GRAPIFLY_ID_API_URL: http://host.docker.internal:3101
+      GRAPIFLY_SSO_CLIENT_SECRET: ${GRAPIFLY_SSO_CLIENT_SECRET:-development-grapifly-relay-sso-change-me}
+    ports:
+      - '${COMMUNICATIONS_BACKEND_PORT:-3001}:3001'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - communications_internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${COMMUNICATIONS_BACKEND_PORT:-3001}
+        NEXT_PUBLIC_APP_ENV: production
+        NEXT_PUBLIC_COMM_API_KEY: ${NEXT_PUBLIC_COMM_API_KEY:-}
+        NEXT_PUBLIC_GRAPIFLY_ID_URL: http://localhost:3101
+    image: communications-app-frontend:local
+    container_name: communications_frontend
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '${COMMUNICATIONS_FRONTEND_PORT:-3000}:3000'
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - communications_internal
+
+networks:
+  communications_internal:
+    name: communications_internal
+
+volumes:
+  communications_redis_data:
+    name: communications_redis_data

@@ -18,9 +18,11 @@ import {
   CompanyChannelProvider,
   CompanyChannelProviderSchema,
 } from '../../../channels/company-channel-providers/schemas/company-channel-provider.schema';
+import { RelayTenantContextModule } from '../../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       { name: DomainCatalogue.name, schema: DomainCatalogueSchema },
 

@@ -3,7 +3,7 @@ import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type {
   CompanyIntegration,
   CompanyIntegrationPlatformView,
@@ -57,7 +57,7 @@ export function useCompanyIntegrations(
   return useQuery({
     queryKey: ['company-integrations', companyId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<CompanyIntegration>>('/company-integrations', {
           params: { companyId, ...params },
         })
@@ -88,8 +88,8 @@ export function useCompanyIntegrationsPlatform(params: PlatformIntegrationParams
   return useQuery({
     queryKey: ['company-integrations', 'platform', params],
     queryFn: () =>
-      engineClient
-        .get<BackendPage<CompanyIntegrationPlatformView>>('/company-integrations/platform/all', { params })
+      apiClient
+        .get<BackendPage<CompanyIntegrationPlatformView>>('/company-integrations/modules/all', { params })
         .then((r) => ({ items: r.data.data ?? [], total: r.data.total ?? 0 })),
   });
 }
@@ -102,7 +102,7 @@ export function useCreateCompanyIntegrationMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateCompanyIntegrationDto) =>
-      engineClient
+      apiClient
         .post<CompanyIntegrationWithToken>('/company-integrations', dto)
         .then((r) => r.data),
     onSuccess: () => {
@@ -120,7 +120,7 @@ export function useUpdateCompanyIntegrationMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateCompanyIntegrationDto) =>
-      engineClient
+      apiClient
         .patch<CompanyIntegration>(`/company-integrations/${id}`, dto)
         .then((r) => r.data),
     onSuccess: () => {
@@ -138,7 +138,7 @@ export function useDeleteCompanyIntegrationMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/company-integrations/${id}`).then((r) => r.data),
+      apiClient.delete(`/company-integrations/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company-integrations'] });
       pushSnack({ type: 'success', message: 'Integration deleted' });
@@ -154,7 +154,7 @@ export function useRotateIntegrationTokenMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient
+      apiClient
         .post<CompanyIntegrationWithToken>(`/company-integrations/${id}/rotate-token`)
         .then((r) => r.data),
     onSuccess: () => {
@@ -172,7 +172,7 @@ export function useDeactivateCompanyIntegrationMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient
+      apiClient
         .post<CompanyIntegration>(`/company-integrations/${id}/deactivate`)
         .then((r) => r.data),
     onSuccess: () => {
@@ -190,7 +190,7 @@ export function useActivateCompanyIntegrationMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient
+      apiClient
         .post<CompanyIntegration>(`/company-integrations/${id}/activate`)
         .then((r) => r.data),
     onSuccess: () => {

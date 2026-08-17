@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { Channel } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -49,7 +49,7 @@ export function usePlatformChannels(params: PlatformChannelParams = {}) {
   return useQuery({
     queryKey: ['modules-channels', { limit, offset, ...rest }],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<Channel>>('/channels', {
           params: { limit, offset, ...rest },
         })
@@ -66,7 +66,7 @@ export function useCreateChannelMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateChannelDto) =>
-      engineClient.post<Channel>('/channels', dto).then((r) => r.data),
+      apiClient.post<Channel>('/channels', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modules-channels'] });
       qc.invalidateQueries({ queryKey: ['channels'] });
@@ -83,7 +83,7 @@ export function useUpdateChannelMutation() {
 
   return useMutation({
     mutationFn: (dto: UpdateChannelDto) =>
-      engineClient.put<Channel>('/channels', dto).then((r) => r.data),
+      apiClient.put<Channel>('/channels', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modules-channels'] });
       qc.invalidateQueries({ queryKey: ['channels'] });
@@ -100,7 +100,7 @@ export function useDeleteChannelMutation() {
 
   return useMutation({
     mutationFn: (channelKey: string) =>
-      engineClient.delete('/channels', { params: { channelKey } }).then((r) => r.data),
+      apiClient.delete('/channels', { params: { channelKey } }).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modules-channels'] });
       qc.invalidateQueries({ queryKey: ['channels'] });
@@ -117,7 +117,7 @@ export function useToggleChannelMutation() {
 
   return useMutation({
     mutationFn: ({ channelKey, isActive }: { channelKey: string; isActive: boolean }) =>
-      engineClient.put<Channel>('/channels', { channelKey, isActive }).then((r) => r.data),
+      apiClient.put<Channel>('/channels', { channelKey, isActive }).then((r) => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['modules-channels'] });
       qc.invalidateQueries({ queryKey: ['channels'] });

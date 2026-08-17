@@ -1,0 +1,14 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/about/page": "/about",
+  "/admin/access/page": "/admin/access",
+  "/admin/applications/page": "/admin/applications",
+  "/admin/users/page": "/admin/users",
+  "/apps/relay/page": "/apps/relay",
+  "/employee/users/page": "/employee/users",
+  "/home/page": "/home",
+  "/invitations/[token]/page": "/invitations/[token]",
+  "/organizations/page": "/organizations",
+  "/page": "/"
+}

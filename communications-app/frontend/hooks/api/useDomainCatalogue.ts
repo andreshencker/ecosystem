@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { DomainCatalogue, ChannelToUse } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -44,7 +44,7 @@ export function useDomainCatalogues(
   return useQuery({
     queryKey: ['domain-catalogue', companyId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<DomainCatalogue>>('/domain-catalogue', {
           params: { companyId, ...params },
         })
@@ -57,7 +57,7 @@ export function useDomainCatalogue(id: string | null | undefined) {
   return useQuery({
     queryKey: ['domain-catalogue', id],
     queryFn: () =>
-      engineClient.get<DomainCatalogue>(`/domain-catalogue/${id}`).then((r) => r.data),
+      apiClient.get<DomainCatalogue>(`/domain-catalogue/${id}`).then((r) => r.data),
     enabled: Boolean(id),
   });
 }
@@ -70,7 +70,7 @@ export function useCreateDomainCatalogueMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateDomainCatalogueDto) =>
-      engineClient.post<DomainCatalogue>('/domain-catalogue', dto).then((r) => r.data),
+      apiClient.post<DomainCatalogue>('/domain-catalogue', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['domain-catalogue'] });
       pushSnack({ type: 'success', message: 'Domain created' });
@@ -86,7 +86,7 @@ export function useUpdateDomainCatalogueMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateDomainCatalogueDto) =>
-      engineClient.patch<DomainCatalogue>(`/domain-catalogue/${id}`, dto).then((r) => r.data),
+      apiClient.patch<DomainCatalogue>(`/domain-catalogue/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['domain-catalogue'] });
       pushSnack({ type: 'success', message: 'Domain updated' });
@@ -102,7 +102,7 @@ export function useDeleteDomainCatalogueMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/domain-catalogue/${id}`).then((r) => r.data),
+      apiClient.delete(`/domain-catalogue/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['domain-catalogue'] });
       pushSnack({ type: 'success', message: 'Domain deleted' });
@@ -128,7 +128,7 @@ export function useBulkUpdateDomainCredentialsMutation() {
       channel: string;
       providerCredentialsId: string;
     }) =>
-      engineClient
+      apiClient
         .patch('/domain-catalogue/bulk/credentials', { companyId, domainIds, channel, providerCredentialsId })
         .then((r) => r.data),
     onSuccess: () => {
@@ -154,7 +154,7 @@ export function useUpdateDomainCredentialsMutation() {
       channel: string;
       providerCredentialsId: string;
     }) =>
-      engineClient
+      apiClient
         .patch(`/domain-catalogue/${id}/credentials/${channel}`, { providerCredentialsId })
         .then((r) => r.data),
     onSuccess: () => {

@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -19,12 +18,11 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import { PageHeader } from '@/components/layout';
 import { useAuthStore } from '@/stores/auth.store';
-import { useUpdateMeMutation, useChangePasswordMutation } from '@/hooks/api/useUsers';
+import { useUpdateMeMutation } from '@/hooks/api/useUsers';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -36,18 +34,6 @@ const profileSchema = z.object({
   avatarUrl: optUrl,
 });
 type ProfileValues = z.infer<typeof profileSchema>;
-
-const passwordSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Required'),
-    newPassword:     z.string().min(8, 'At least 8 characters').max(128),
-    confirmPassword: z.string(),
-  })
-  .refine((d) => d.newPassword === d.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  });
-type PasswordValues = z.infer<typeof passwordSchema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,10 +57,6 @@ export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
 
   const updateMeMutation       = useUpdateMeMutation();
-  const changePasswordMutation = useChangePasswordMutation();
-
-  const [passwordError,   setPasswordError]   = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [avatarMode,      setAvatarMode]      = useState<'url' | 'file'>('url');
 
   const profileForm = useForm<ProfileValues>({
@@ -86,11 +68,6 @@ export default function ProfilePage() {
     },
   });
 
-  const passwordForm = useForm<PasswordValues>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
-  });
-
   async function onProfileSubmit(values: ProfileValues) {
     await updateMeMutation.mutateAsync({
       firstName: values.firstName,
@@ -98,21 +75,6 @@ export default function ProfilePage() {
       avatarUrl: values.avatarUrl || null,
     });
     setAvatarMode('url');
-  }
-
-  async function onPasswordSubmit(values: PasswordValues) {
-    setPasswordError(null);
-    setPasswordSuccess(false);
-    try {
-      await changePasswordMutation.mutateAsync({
-        currentPassword: values.currentPassword,
-        newPassword:     values.newPassword,
-      });
-      passwordForm.reset();
-      setPasswordSuccess(true);
-    } catch (e: unknown) {
-      setPasswordError(e instanceof Error ? e.message : 'Failed to change password');
-    }
   }
 
   const previewAvatarUrl = profileForm.watch('avatarUrl') || user?.avatarUrl || undefined;
@@ -325,102 +287,6 @@ export default function ProfilePage() {
                       }
                     >
                       {updateMeMutation.isPending ? 'Saving…' : 'Save Changes'}
-                    </Button>
-                  </Box>
-                </Stack>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* ── Change password ─────────────────────────────────────────────── */}
-          <Card variant="outlined">
-            <CardHeader
-              avatar={<LockOutlinedIcon color="action" />}
-              title={<Typography variant="subtitle1" fontWeight={600}>Change Password</Typography>}
-              sx={{ pb: 1 }}
-            />
-            <Divider />
-            <CardContent>
-              {passwordSuccess && (
-                <Alert severity="success" sx={{ mb: 2 }}>Password changed successfully.</Alert>
-              )}
-              {passwordError && (
-                <Alert severity="error" sx={{ mb: 2 }}>{passwordError}</Alert>
-              )}
-              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
-                <Stack spacing={2.5}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Controller
-                        name="currentPassword"
-                        control={passwordForm.control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            label="Current password"
-                            type="password"
-                            fullWidth
-                            size="small"
-                            required
-                            error={!!passwordForm.formState.errors.currentPassword}
-                            helperText={passwordForm.formState.errors.currentPassword?.message}
-                            autoComplete="current-password"
-                          />
-                        )}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Controller
-                        name="newPassword"
-                        control={passwordForm.control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            label="New password"
-                            type="password"
-                            fullWidth
-                            size="small"
-                            required
-                            error={!!passwordForm.formState.errors.newPassword}
-                            helperText={passwordForm.formState.errors.newPassword?.message}
-                            autoComplete="new-password"
-                          />
-                        )}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Controller
-                        name="confirmPassword"
-                        control={passwordForm.control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            label="Confirm new password"
-                            type="password"
-                            fullWidth
-                            size="small"
-                            required
-                            error={!!passwordForm.formState.errors.confirmPassword}
-                            helperText={passwordForm.formState.errors.confirmPassword?.message}
-                            autoComplete="new-password"
-                          />
-                        )}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Box display="flex" justifyContent="flex-end">
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      disabled={changePasswordMutation.isPending}
-                      startIcon={
-                        changePasswordMutation.isPending
-                          ? <CircularProgress size={16} color="inherit" />
-                          : null
-                      }
-                    >
-                      {changePasswordMutation.isPending ? 'Changing…' : 'Change Password'}
                     </Button>
                   </Box>
                 </Stack>

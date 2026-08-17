@@ -15,6 +15,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { DomainCatalogueService } from './domain-catalogue.service';
 import { CreateDomainCatalogueDto } from './dto/create-domain-catalogue.dto';
@@ -26,15 +29,22 @@ export class DomainCatalogueController {
   constructor(
     private readonly config: ConfigService,
     private readonly service: DomainCatalogueService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   @Post()
   @HttpCode(201)
   async create(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: CreateDomainCatalogueDto,
   ) {
-    this.assertApiKey(apiKey);
+    dto.companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      dto.companyId,
+      'relay.use',
+    );
     return this.service.create(dto);
   }
 
@@ -56,13 +66,19 @@ export class DomainCatalogueController {
     description: 'Records to skip (default 0)',
   })
   async list(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('active') active?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -79,6 +95,7 @@ export class DomainCatalogueController {
   @Patch('bulk/credentials')
   @HttpCode(200)
   async bulkUpdateCredentials(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body()
     body: {
@@ -88,10 +105,15 @@ export class DomainCatalogueController {
       providerCredentialsId: string;
     },
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      String(body?.companyId ?? ''),
+      'relay.use',
+    );
 
     return this.service.bulkUpdateDomainsCredential({
-      companyId: String(body?.companyId ?? ''),
+      companyId,
       domainIds: Array.isArray(body?.domainIds) ? body.domainIds : [],
       channel: this.normalizeChannel(body?.channel as any),
       providerCredentialsId: String(body?.providerCredentialsId ?? ''),
@@ -104,19 +126,24 @@ export class DomainCatalogueController {
 
   @Get(':id')
   @HttpCode(200)
-  async getById(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async getById(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    await this.assertDomainAccess(ctx, apiKey, id, 'relay.use');
     return this.service.getById(id);
   }
 
   @Patch(':id')
   @HttpCode(200)
   async update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateDomainCatalogueDto,
   ) {
-    this.assertApiKey(apiKey);
+    await this.assertDomainAccess(ctx, apiKey, id, 'relay.use');
     return this.service.update(id, dto);
   }
 
@@ -127,8 +154,12 @@ export class DomainCatalogueController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async remove(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    await this.assertDomainAccess(ctx, apiKey, id, 'relay.use');
     return this.service.remove(id);
   }
 
@@ -136,10 +167,11 @@ export class DomainCatalogueController {
   @Get(':id/credentials')
   @HttpCode(200)
   async getCredentials(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
   ) {
-    this.assertApiKey(apiKey);
+    await this.assertDomainAccess(ctx, apiKey, id, 'relay.use');
     return this.service.getDomainCredentials(id);
   }
 
@@ -147,12 +179,13 @@ export class DomainCatalogueController {
   @Patch(':id/credentials/:channel')
   @HttpCode(200)
   async updateCredential(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Param('channel') channel: string,
     @Body() body: { providerCredentialsId: string },
   ) {
-    this.assertApiKey(apiKey);
+    await this.assertDomainAccess(ctx, apiKey, id, 'relay.use');
 
     return this.service.updateDomainCredential({
       domainId: id,
@@ -165,6 +198,47 @@ export class DomainCatalogueController {
     const expected = this.config.get<string>('COMMUNICATION_API_KEY');
     if (!apiKey || !expected || apiKey !== expected) {
       throw new UnauthorizedException('Invalid API key');
+    }
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
+  }
+
+  private async resolveOptionalCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    permission: string,
+  ): Promise<string | undefined> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return undefined;
+  }
+
+  private async assertDomainAccess(
+    ctx: AuthContext,
+    apiKey: string,
+    domainId: string,
+    permission: string,
+  ): Promise<void> {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      permission,
+    );
+    if (companyId) {
+      await this.service.assertDomainBelongsToCompany(domainId, companyId);
     }
   }
 

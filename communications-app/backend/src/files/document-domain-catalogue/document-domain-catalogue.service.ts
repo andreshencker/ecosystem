@@ -114,6 +114,33 @@ export class DocumentDomainCatalogueService {
     return DocumentDomainCatalogueMapper.toResponse(doc);
   }
 
+  /**
+   * Ownership guard for :id-based endpoints. When `companyId` is provided
+   * (i.e. the caller is a Grapifly session user, not an api-key caller),
+   * verifies the document domain belongs to that company — 404s otherwise
+   * so tenant boundaries are not leaked via a 403.
+   */
+  async assertDocumentDomainBelongsToCompany(
+    id: string,
+    companyId?: string,
+  ): Promise<void> {
+    const domain = (await this.model
+      .findById(this.toObjectIdOrThrow(id, 'id'))
+      .select('companyId')
+      .lean()) as any;
+    if (!domain)
+      throw new HttpException(
+        'Document domain not found',
+        HttpStatus.NOT_FOUND,
+      );
+    if (companyId && String(domain.companyId) !== String(companyId)) {
+      throw new HttpException(
+        'Document domain not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+  }
+
   async getByCompanyAndDomainKey(params: {
     companyId: string;
     domainKey: string;
