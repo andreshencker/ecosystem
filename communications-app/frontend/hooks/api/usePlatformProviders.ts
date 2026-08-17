@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { Provider } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -45,7 +45,7 @@ export function usePlatformProviders(params: PlatformProviderParams = {}) {
   return useQuery({
     queryKey: ['modules-providers', { limit, offset, ...rest }],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<Provider>>('/providers', {
           params: { limit, offset, populate: true, ...rest },
         })
@@ -58,7 +58,7 @@ export function usePlatformProvider(id: string | null | undefined) {
   return useQuery({
     queryKey: ['modules-providers', id],
     queryFn: () =>
-      engineClient.get<Provider>(`/providers/${id}`).then((r) => r.data),
+      apiClient.get<Provider>(`/providers/${id}`).then((r) => r.data),
     enabled: Boolean(id),
     staleTime: 2 * 60 * 1_000,
   });
@@ -72,7 +72,7 @@ export function useCreateProviderMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateProviderDto) =>
-      engineClient.post<Provider>('/providers', dto).then((r) => r.data),
+      apiClient.post<Provider>('/providers', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modules-providers'] });
       qc.invalidateQueries({ queryKey: ['providers'] });
@@ -89,7 +89,7 @@ export function useUpdateProviderMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateProviderDto) =>
-      engineClient.patch<Provider>(`/providers/${id}`, dto).then((r) => r.data),
+      apiClient.patch<Provider>(`/providers/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modules-providers'] });
       qc.invalidateQueries({ queryKey: ['providers'] });
@@ -106,7 +106,7 @@ export function useDeleteProviderMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/providers/${id}`).then((r) => r.data),
+      apiClient.delete(`/providers/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modules-providers'] });
       qc.invalidateQueries({ queryKey: ['providers'] });

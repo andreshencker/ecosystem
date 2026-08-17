@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { writeAuthCookie } from '@/lib/auth-cookie';
 import { REFRESH_TOKEN_KEY } from '@/lib/constants';
 import { getLandingPage } from '@/config/rbac/role-config';
+import { getQueryClient } from '@/lib/queryClient';
 import type { AuthResponse } from '@/types/api';
 
 function GrapiflyCallbackContent() {
@@ -27,6 +28,13 @@ function GrapiflyCallbackContent() {
     }
     apiClient.post<AuthResponse>('/auth/grapifly', { code })
       .then(({ data }) => {
+        // Clears every cached query (companies, templates, the org list
+        // itself, etc.) — required both on first login and on an
+        // organization switch, since this is a client-side transition and
+        // the singleton QueryClient would otherwise keep serving data
+        // fetched under the previous session/organization for up to its
+        // staleTime.
+        getQueryClient().clear();
         setAuth(data.user, data.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
         writeAuthCookie(data.accessToken, data.expiresIn ?? 900);

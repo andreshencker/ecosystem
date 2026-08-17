@@ -208,6 +208,7 @@ export class EventCatalogueService {
         domainCatalogueId,
         eventKey,
         displayName,
+        app: this.normalizeKey(dto.app ?? ''),
         description: String(dto.description ?? ''),
         eventType: dto.eventType,
         channelContent,
@@ -269,6 +270,7 @@ export class EventCatalogueService {
         domainCatalogueId,
         eventKey,
         displayName,
+        app: this.normalizeKey(it.app ?? ''),
         description: String(it.description ?? ''),
         eventType: it.eventType,
         channelContent,
@@ -403,6 +405,8 @@ export class EventCatalogueService {
       $set.displayName = displayName;
     }
 
+    if (dto.app !== undefined) $set.app = this.normalizeKey(dto.app ?? '');
+
     if (dto.description !== undefined)
       $set.description = String(dto.description ?? '');
     if (dto.eventType !== undefined) $set.eventType = dto.eventType;
@@ -522,6 +526,52 @@ export class EventCatalogueService {
       );
 
     return domain as any;
+  }
+
+  /** Throws 404 if the domain does not exist or does not belong to companyId. */
+  async assertDomainBelongsToCompany(
+    domainCatalogueId: string,
+    companyId: string,
+  ): Promise<void> {
+    const domainId = this.toObjectIdOrThrow(
+      domainCatalogueId,
+      'domainCatalogueId',
+    );
+    const companyObjId = this.toObjectIdOrThrow(companyId, 'companyId');
+
+    const domain = await this.domainModel
+      .findOne({ _id: domainId, companyId: companyObjId })
+      .select('_id')
+      .lean();
+
+    if (!domain) {
+      throw new HttpException(
+        'DomainCatalogue not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+  }
+
+  /**
+   * Verifies that an event-catalogue entry belongs to companyId by joining
+   * through its parent DomainCatalogue. Throws 404 on mismatch.
+   */
+  async assertBelongsToCompany(id: string, companyId: string): Promise<void> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    const doc: any = await this.model
+      .findById(_id)
+      .select('domainCatalogueId')
+      .lean();
+
+    if (!doc) {
+      throw new HttpException('Event not found', HttpStatus.NOT_FOUND);
+    }
+
+    await this.assertDomainBelongsToCompany(
+      String(doc.domainCatalogueId),
+      companyId,
+    );
   }
 
   async findByDomainAndEventKeyOrNull(

@@ -25,6 +25,16 @@ import {
 } from './schemas/refresh-token.schema';
 import { AuthResponseDto, TokensOnlyDto } from './dto/auth-response.dto';
 
+export interface SwitchableOrganization {
+  organizationId: string;
+  name: string;
+  slug: string;
+  isPlatform: boolean;
+  isDefault: boolean;
+  membership?: { role: 'owner' | 'admin' | 'member' };
+  applicationRole?: 'owner' | 'admin' | 'operator' | 'viewer';
+}
+
 interface RelaySessionContext {
   companyId: string;
   companyKey: string;
@@ -58,11 +68,8 @@ export class AuthService {
     if (!code) throw new UnauthorizedException('Missing Grapifly SSO code');
 
     const baseUrl =
-      this.config.get<string>('GRAPIFLY_ID_API_URL') ??
-      'http://localhost:3101';
-    const clientSecret = this.config.get<string>(
-      'GRAPIFLY_SSO_CLIENT_SECRET',
-    );
+      this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101';
+    const clientSecret = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
     if (!clientSecret) {
       throw new UnauthorizedException('Grapifly SSO is not configured');
     }
@@ -87,8 +94,7 @@ export class AuthService {
     this.assertContract(contract);
     const company = await this.identity.resolveGrapiflyCompany(contract);
     const role = this.toRelayRole(contract);
-    const scope: UserScope =
-      role === 'platform_admin' ? 'global' : 'company';
+    const scope: UserScope = role === 'platform_admin' ? 'global' : 'company';
     const sessionContext: RelaySessionContext = {
       companyId: String(company._id),
       companyKey: company.companyKey,
@@ -113,6 +119,44 @@ export class AuthService {
     responseUser.role = sessionContext.role;
     responseUser.scope = sessionContext.scope;
     return { ...tokens, user: responseUser };
+  }
+
+  /**
+   * Organizations the given Relay user can switch into — i.e. where they have
+   * an active Grapifly membership AND active 'relay' application access.
+   * Used to populate the global organization switcher.
+   */
+  async listSwitchableOrganizations(
+    relayUserId: string,
+  ): Promise<SwitchableOrganization[]> {
+    const user = await this.identity.findByIdOrThrow(relayUserId);
+    if (!user.grapiflyUserId) return [];
+
+    const baseUrl =
+      this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101';
+    const clientSecret = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
+    if (!clientSecret) return [];
+
+    try {
+      const response = await firstValueFrom(
+        this.http.get<{ organizations?: SwitchableOrganization[] }>(
+          `${baseUrl.replace(/\/$/, '')}/internal/apps/relay/organizations`,
+          {
+            headers: {
+              'x-grapifly-sso-secret': clientSecret,
+              'x-grapifly-user-id': user.grapiflyUserId,
+            },
+            timeout: 5000,
+          },
+        ),
+      );
+      return response.data.organizations ?? [];
+    } catch (err) {
+      this.logger.warn(
+        `Failed to list switchable organizations for userId=${relayUserId}: ${(err as Error).message}`,
+      );
+      return [];
+    }
   }
 
   async refreshTokens(rawRefreshToken: string): Promise<TokensOnlyDto> {

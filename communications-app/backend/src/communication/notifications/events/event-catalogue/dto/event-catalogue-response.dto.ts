@@ -23,6 +23,7 @@ export class EventCatalogueResponseDto {
 
   eventKey!: string;
   displayName!: string;
+  app!: string;
   description!: string;
   eventType!: 'notification' | 'alert' | 'request';
 

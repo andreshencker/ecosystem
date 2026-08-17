@@ -105,10 +105,14 @@ export class CompanyChannelProvidersService {
   async findById(
     id: string,
     populate = true,
+    companyId?: string,
   ): Promise<CompanyChannelProviderResponseDto> {
     const _id = this.toObjectId(id, 'id');
-
-    const q = this.model.findById(_id);
+    const tenant = companyId ? await this.resolveTenant(companyId) : undefined;
+    const q = this.model.findOne({
+      _id,
+      ...(tenant ? this.tenantFilter(tenant) : {}),
+    });
 
     if (populate) {
       q.populate({
@@ -246,11 +250,20 @@ export class CompanyChannelProvidersService {
   async update(
     id: string,
     dto: UpdateCompanyChannelProviderDto,
+    companyId?: string,
   ): Promise<CompanyChannelProviderResponseDto> {
     try {
       const _id = this.toObjectId(id, 'id');
 
-      const existing: any = await this.model.findById(_id).lean();
+      const requestedTenant = companyId
+        ? await this.resolveTenant(companyId)
+        : undefined;
+      const existing: any = await this.model
+        .findOne({
+          _id,
+          ...(requestedTenant ? this.tenantFilter(requestedTenant) : {}),
+        })
+        .lean();
       if (!existing)
         throw new HttpException(
           'CompanyChannelProvider not found',
@@ -336,10 +349,13 @@ export class CompanyChannelProvidersService {
   async remove(
     id: string,
     force = false,
+    companyId?: string,
   ): Promise<{ deleted: boolean; cascaded: number }> {
     const _id = this.toObjectId(id, 'id');
-
-    const doc = await this.model.findById(_id).lean();
+    const tenant = companyId ? await this.resolveTenant(companyId) : undefined;
+    const doc = await this.model
+      .findOne({ _id, ...(tenant ? this.tenantFilter(tenant) : {}) })
+      .lean();
     if (!doc)
       throw new HttpException(
         'CompanyChannelProvider not found',

@@ -72,6 +72,20 @@ export class ProviderCredentials {
    */
   @Prop({ type: String, default: null })
   mode?: 'test' | 'live' | null;
+
+  /**
+   * For OAuth credentials only: which app registration backs this
+   * connection — 'ecosystem' when it references a platform-owned
+   * OAuthApplication (oauthApplicationId), 'own' when the tenant entered
+   * their own clientId/clientSecret directly. Null for non-OAuth
+   * connection types or records predating this field.
+   *
+   * Non-secret — safe to return in list/detail responses without
+   * decryption. Lets the UI show an accurate "Connected" state per tab
+   * (Ecosystem vs Developer) instead of inferring it from form state.
+   */
+  @Prop({ type: String, default: null })
+  oauthAppSource?: 'ecosystem' | 'own' | null;
 }
 
 export const ProviderCredentialsSchema =

@@ -17,9 +17,11 @@ import {
   Company,
   CompanySchema,
 } from '../../../company/company-info/schemas/company.schema';
+import { RelayTenantContextModule } from '../../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       { name: LayoutTemplate.name, schema: LayoutTemplateSchema },
       { name: CompanyTheme.name, schema: CompanyThemeSchema },

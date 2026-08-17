@@ -37,6 +37,8 @@ import { NotificationService } from '../../notifications/notification.service';
 // Credential contracts — used to normalize+validate before encryption and
 // to surface field-level errors as structured 422 responses.
 import { SmtpCredentialsContract } from '../implementation/email/smtp/smtp-credentials.contract';
+import { OAuthEmailCredentialsContract } from '../implementation/email/oauth/oauth-credentials.contract';
+import { IdentityCredentialsContract } from '../implementation/identity/oauth/identity-credentials.contract';
 import { SendGridCredentialsContract } from '../implementation/email/api_key/sendgrid-credentials.contract';
 import { MailgunCredentialsContract } from '../implementation/email/api_key/mailgun-credentials.contract';
 import { TwilioCredentialsContract } from '../implementation/sms/api_key/twilio-credentials.contract';
@@ -290,6 +292,8 @@ export class ProviderCredentialsService {
     //    Provider-agnostic: any credential contract that normalises to
     //    { mode: 'test' | 'live' } will populate this field.
     const mode = this.extractMode(credentials);
+    const oauthAppSource =
+      dto.oauthAppSource ?? this.extractOAuthAppSource(credentials);
 
     try {
       const created = await this.model.create({
@@ -303,6 +307,7 @@ export class ProviderCredentialsService {
         isActive: dto.isActive ?? true,
         displayIdentifier: displayIdentifier || undefined,
         mode,
+        oauthAppSource,
       });
 
       const result = ProviderCredentialsMapper.toResponse(
@@ -417,6 +422,69 @@ export class ProviderCredentialsService {
       limit,
       offset,
     };
+  }
+
+  async assertCompanyChannelProviderBelongsToCompany(
+    companyChannelProviderId: string,
+    companyIdValue: string,
+  ): Promise<void> {
+    const companyId = this.toObjectIdOrThrow(companyIdValue, 'companyId');
+    const company = (await this.companyModel
+      .findById(companyId)
+      .select({ grapiflyOrganizationId: 1 })
+      .lean()) as any;
+    if (!company) {
+      throw new HttpException('Company not found', HttpStatus.NOT_FOUND);
+    }
+
+    const grapiflyOrganizationId = company.grapiflyOrganizationId ?? null;
+    const tenantFilter = grapiflyOrganizationId
+      ? {
+          $or: [
+            { grapiflyOrganizationId },
+            {
+              companyId,
+              $or: [
+                { grapiflyOrganizationId: null },
+                { grapiflyOrganizationId: { $exists: false } },
+              ],
+            },
+          ],
+        }
+      : { companyId };
+    const provider = await this.ccpModel
+      .findOne({
+        _id: this.toObjectIdOrThrow(
+          companyChannelProviderId,
+          'companyChannelProviderId',
+        ),
+        ...tenantFilter,
+      })
+      .select('_id')
+      .lean();
+    if (!provider) {
+      throw new HttpException(
+        'CompanyChannelProvider not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+  }
+
+  async assertCredentialBelongsToCompany(
+    credentialId: string,
+    companyId: string,
+  ): Promise<void> {
+    const credential = (await this.model
+      .findById(this.toObjectIdOrThrow(credentialId, 'id'))
+      .select('companyChannelProviderId')
+      .lean()) as any;
+    if (!credential) {
+      throw new HttpException('Credentials not found', HttpStatus.NOT_FOUND);
+    }
+    await this.assertCompanyChannelProviderBelongsToCompany(
+      String(credential.companyChannelProviderId),
+      companyId,
+    );
   }
 
   async findAll(params: {
@@ -583,6 +651,10 @@ export class ProviderCredentialsService {
 
       // 6) Re-extract canonical mode from the updated credentials
       $set.mode = this.extractMode(credentials);
+
+      // 7) Re-derive OAuth app source (Ecosystem vs Developer tab)
+      $set.oauthAppSource =
+        dto.oauthAppSource ?? this.extractOAuthAppSource(credentials);
     }
 
     try {
@@ -999,6 +1071,13 @@ export class ProviderCredentialsService {
       return 'Token configured';
     }
 
+    // Gmail OAuth / Google Identity → the connected/verified account email
+    // (set after the OAuth callback completes; empty for a not-yet-connected
+    // shell credential).
+    if (pk === 'gmail_oauth' || pk === 'google_identity') {
+      return str(credentials.emailAddress) || '';
+    }
+
     // OAuth → client ID (not the secret or tokens)
     // Covers google_calendar, outlook_calendar, and any future OAuth provider.
     if (ct === 'oauth') {
@@ -1027,6 +1106,21 @@ export class ProviderCredentialsService {
     return null;
   }
 
+  /**
+   * For OAuth credentials: whether this connection was authorised with the
+   * platform's own (ecosystem) OAuth app, or with the tenant's own
+   * clientId/clientSecret ("own" — Developer tab). Non-secret, stored in
+   * plain text alongside the encrypted blob so the UI can render an
+   * accurate connected state per auth-mode tab without decrypting.
+   */
+  private extractOAuthAppSource(
+    credentials: Record<string, unknown>,
+  ): 'ecosystem' | 'own' | null {
+    if (credentials['oauthApplicationId']) return 'ecosystem';
+    if (credentials['clientId']) return 'own';
+    return null;
+  }
+
   /** Maps channel + connectionType + providerKey to the appropriate credential contract. */
   private getContractForProvider(
     channelKey: string,
@@ -1041,6 +1135,7 @@ export class ProviderCredentialsService {
 
     if (ck === 'email') {
       if (ct === 'smtp') return SmtpCredentialsContract;
+      if (ct === 'oauth') return OAuthEmailCredentialsContract;
       if (ct === 'api_key') {
         if (pk === 'sendgrid') return SendGridCredentialsContract;
         if (pk === 'mailgun') return MailgunCredentialsContract;
@@ -1070,6 +1165,10 @@ export class ProviderCredentialsService {
       return XeroCredentialsContract;
     }
 
+    if (ck === 'identity' && ct === 'oauth') {
+      return IdentityCredentialsContract;
+    }
+
     return null;
   }
 
@@ -1090,6 +1189,13 @@ export class ProviderCredentialsService {
     const indexName = err?.keyPattern
       ? Object.keys(err.keyPattern).join('_')
       : (err?.indexName ?? err?.index ?? 'unknown_index');
+
+    // The one real-world case today: two credentials with the same tag on
+    // the same provider connection. Give a plain-language message instead
+    // of the raw Mongo key names.
+    if (err?.keyValue?.tag && err?.keyValue?.companyChannelProviderId) {
+      return `A credential with the tag "${err.keyValue.tag}" already exists for this provider. Use a different tag.`;
+    }
 
     const keyValue = err?.keyValue;
     if (keyValue) {
@@ -1283,6 +1389,27 @@ export class ProviderCredentialsService {
       return;
     }
 
+    // IDENTITY — format validation only, same as Accounting/Billing.
+    // Live verification happens on-demand via the connection status endpoint
+    // once the OAuth callback has populated real tokens.
+    if (channelKey === 'identity') {
+      const contract = this.getContractForProvider(
+        channelKey,
+        connectionType,
+        providerKey,
+      );
+      if (contract?.verify) {
+        const res = await contract.verify(credentials as any);
+        if (!res?.ok) {
+          throw new HttpException(
+            res?.message ?? 'IDENTITY credentials verification failed',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+      return;
+    }
+
     throw new HttpException(
       `Unsupported channelKey="${channelKey}"`,
       HttpStatus.BAD_REQUEST,
@@ -1397,5 +1524,49 @@ export class ProviderCredentialsService {
           companyChannelProviderId: String(ccp._id),
         };
       });
+  }
+
+  /**
+   * Distinct channelKeys ("email", "calendar", "payment", …) and providerKeys
+   * ("gmail_oauth", "xero", …) for which this company has at least one active
+   * credential. Drives which navbar tabs are shown — a channel with no
+   * configured credentials stays hidden, and a tab can additionally require
+   * a specific providerKey when only some providers within a channel support
+   * the capability it needs (e.g. only gmail_oauth can read a mailbox — the
+   * generic "email" channel also covers send-only providers like SMTP).
+   */
+  async getConfiguredChannels(
+    companyId: string,
+  ): Promise<{ channels: string[]; providerKeys: string[] }> {
+    const companyObjectId = this.toObjectIdOrThrow(companyId, 'companyId');
+
+    const list: any[] = await this.model
+      .find({ isActive: true })
+      .select('companyChannelProviderId')
+      .populate({
+        path: 'companyChannelProviderId',
+        match: { companyId: companyObjectId, isActive: true },
+        select: 'channelId providerId',
+        populate: [
+          { path: 'channelId', select: 'channelKey' },
+          { path: 'providerId', select: 'providerKey' },
+        ],
+      })
+      .lean();
+
+    const channelKeys = new Set<string>();
+    const providerKeys = new Set<string>();
+    for (const cred of list) {
+      const channelKey = cred.companyChannelProviderId?.channelId?.channelKey;
+      if (channelKey) channelKeys.add(String(channelKey).toLowerCase().trim());
+      const providerKey =
+        cred.companyChannelProviderId?.providerId?.providerKey;
+      if (providerKey)
+        providerKeys.add(String(providerKey).toLowerCase().trim());
+    }
+    return {
+      channels: Array.from(channelKeys),
+      providerKeys: Array.from(providerKeys),
+    };
   }
 }

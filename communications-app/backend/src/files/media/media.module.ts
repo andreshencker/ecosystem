@@ -7,9 +7,14 @@ import { MediaValidatorService } from './services/media-validator.service';
 
 import { ChannelsRuntimeModule } from '../../communication/channels/runtime/channels-runtime.module';
 import { ChannelsImplementationModule } from '../../communication/channels/implementation/implementation.module';
+import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
-  imports: [ChannelsRuntimeModule, ChannelsImplementationModule],
+  imports: [
+    ChannelsRuntimeModule,
+    ChannelsImplementationModule,
+    RelayTenantContextModule,
+  ],
   controllers: [MediaController],
   providers: [MediaService, MediaKeyService, MediaValidatorService],
   exports: [MediaService],

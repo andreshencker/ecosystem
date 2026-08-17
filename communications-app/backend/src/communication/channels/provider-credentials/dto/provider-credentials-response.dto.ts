@@ -11,6 +11,9 @@ export class ProviderCredentialsResponseDto {
   /** Non-secret display value. Undefined for records predating this field. */
   displayIdentifier?: string;
 
+  /** OAuth providers only — which auth-mode tab this was saved from. */
+  oauthAppSource?: 'ecosystem' | 'own' | null;
+
   createdAt!: string;
   updatedAt!: string;
 

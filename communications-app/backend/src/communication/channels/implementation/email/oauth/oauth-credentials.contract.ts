@@ -7,11 +7,15 @@ import type { OAuthEmailCredentials } from './oauth-email.types';
 
 const ALLOWED: (keyof OAuthEmailCredentials)[] = [
   'providerKey',
+  'clientId',
+  'clientSecret',
+  'oauthApplicationId',
   'accessToken',
   'refreshToken',
   'expiresAt',
   'tenantId',
   'scopes',
+  'emailAddress',
 ];
 
 // helpers locales (no las meto en shared para no contaminar)
@@ -61,6 +65,12 @@ export const OAuthEmailCredentialsContract: ContractSpec<OAuthEmailCredentials> 
       const c: any = input ?? {};
 
       // legacy / alternos comunes
+      const clientId = strTrim(c.clientId ?? c.client_id ?? c.CLIENT_ID);
+      const clientSecret = strTrim(
+        c.clientSecret ?? c.client_secret ?? c.CLIENT_SECRET,
+      );
+      const oauthApplicationId =
+        strTrim(c.oauthApplicationId ?? c.OAUTH_APPLICATION_ID) || undefined;
       const accessToken = strTrim(c.accessToken ?? c.ACCESS_TOKEN ?? c.token);
       const refreshToken =
         strTrim(c.refreshToken ?? c.REFRESH_TOKEN) || undefined;
@@ -73,14 +83,20 @@ export const OAuthEmailCredentialsContract: ContractSpec<OAuthEmailCredentials> 
 
       const tenantId = strTrim(c.tenantId ?? c.TENANT_ID) || undefined;
       const scopes = scopesToArray(c.scopes ?? c.SCOPE ?? c.SCOPES);
+      const emailAddress =
+        strTrim(c.emailAddress ?? c.EMAIL_ADDRESS) || undefined;
 
       const normalized: OAuthEmailCredentials = {
         providerKey,
+        clientId,
+        clientSecret,
+        oauthApplicationId,
         accessToken,
         refreshToken,
         expiresAt,
         tenantId,
         scopes,
+        emailAddress,
       };
 
       // ✅ whitelist
@@ -93,7 +109,21 @@ export const OAuthEmailCredentialsContract: ContractSpec<OAuthEmailCredentials> 
     },
 
     validate(value) {
-      requireField(value.accessToken, 'accessToken');
+      // clientId/clientSecret identify the caller's own Google Cloud OAuth
+      // app — same bring-your-own-app model as Xero. Required at creation,
+      // UNLESS this credential reuses an existing OAuthApplication instead
+      // (see oauth-applications module) — then oauthApplicationId stands in
+      // for both and the app's clientId/clientSecret are resolved from there.
+      if (!value.oauthApplicationId) {
+        requireField(value.clientId, 'clientId');
+        requireField(value.clientSecret, 'clientSecret');
+      }
+
+      // accessToken is intentionally NOT required here — a credential record
+      // can exist before the OAuth consent flow completes (the "Connect"
+      // button creates the shell first, then the provider's OAuth callback
+      // populates accessToken/refreshToken via a direct persistTokens() call
+      // that bypasses this validation path, same as Xero's contract).
 
       // opcional: sanity checks
       if (value.expiresAt) {

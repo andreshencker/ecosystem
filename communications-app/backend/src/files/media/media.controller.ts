@@ -16,6 +16,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { memoryStorage } from 'multer';
 
+import { CurrentUser } from '../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../infrastructure/security/services/relay-tenant-context.service';
+
 import { MediaService } from './services/media.service';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { ReplaceMediaDto } from './dto/replace-media.dto';
@@ -25,6 +29,7 @@ export class MediaController {
   constructor(
     private readonly config: ConfigService,
     private readonly media: MediaService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   @Post()
@@ -36,11 +41,17 @@ export class MediaController {
     }),
   )
   async upload(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadMediaDto,
   ) {
-    this.assertApiKey(apiKey);
+    dto.companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      dto.companyId,
+      'relay.use',
+    );
     return this.media.upload(file, dto);
   }
 
@@ -53,34 +64,65 @@ export class MediaController {
     }),
   )
   async replace(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: ReplaceMediaDto,
   ) {
-    this.assertApiKey(apiKey);
+    dto.companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      dto.companyId,
+      'relay.use',
+    );
     return this.media.replace(file, dto);
   }
 
   @Delete()
   @HttpCode(200)
   async remove(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('key') key: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     return this.media.remove(companyId, key);
   }
 
   @Get('info')
   @HttpCode(200)
   async info(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('key') key: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     return this.media.info(companyId, key);
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
   }
 
   private assertApiKey(apiKey: string) {

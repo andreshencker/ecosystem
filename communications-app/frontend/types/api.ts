@@ -237,6 +237,8 @@ export interface ProviderCredentials {
   isActive: boolean;
   /** Non-secret display identifier derived on the backend before encryption. Undefined for records created before this field existed. */
   displayIdentifier?: string;
+  /** OAuth providers only — which auth-mode tab this credential was saved from. */
+  oauthAppSource?: 'ecosystem' | 'own' | null;
   createdAt: string;
   updatedAt: string;
   /** Populated when the backend is called with populate=true or via the company-wide endpoint. */
@@ -301,6 +303,8 @@ export interface EventCatalogue {
   domainCatalogueId: string | DomainCatalogue;
   eventKey: string;
   displayName: string;
+  /** Which application created/owns this event — e.g. 'relay', 'business-app'. */
+  app?: string;
   description?: string;
   eventType: 'notification' | 'alert' | 'request' | 'security';
   channelContent: EventChannelContent;

@@ -50,6 +50,13 @@ export interface OAuthProviderConfig {
    * retrieve safe org metadata — no tenantIds or tokens are returned.
    */
   supportsOrganisations?: boolean;
+  /**
+   * When set, the form offers a "Reuse existing credential" picker listing
+   * this company's OAuthApplication registrations for the same family
+   * (e.g. 'google') — letting one Google app back both the Email and
+   * Identity channels without re-entering the Client Secret.
+   */
+  providerFamily?: string;
 }
 
 export interface ProviderCredentialConfig {
@@ -84,6 +91,43 @@ const GMAIL: ProviderCredentialConfig = {
     { key: 'fromName',  label: 'From Name',   type: 'text',    required: false, placeholder: 'My Company',      section: 'advanced' },
     { key: 'fromEmail', label: 'From Email',  type: 'text',    required: false, placeholder: 'you@gmail.com',   section: 'advanced' },
   ],
+};
+
+const GMAIL_OAUTH: ProviderCredentialConfig = {
+  connectionTypeLabel: 'OAuth 2.0',
+  helperText:
+    'Create an OAuth 2.0 client in Google Cloud Console (APIs & Services → Credentials). ' +
+    'Enable the Gmail API for your project, then register this callback URL as an authorized redirect URI: ' +
+    '{API_BASE_URL}/relay/channels/oauth/gmail/callback. ' +
+    'Save your Client ID and Client Secret below, then click Connect to authorise your Gmail mailbox.',
+  oauthConfig: {
+    basePath: '/relay/channels/oauth/gmail',
+    providerFamily: 'google',
+  },
+  basicFields: [
+    { key: 'clientId',     label: 'Client ID',     type: 'text',     required: true,  placeholder: 'xxxxx.apps.googleusercontent.com', section: 'basic' },
+    { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true,  section: 'basic' },
+  ],
+  advancedFields: [],
+};
+
+// ─── Identity provider-specific configs ──────────────────────────────────────
+
+const GOOGLE_IDENTITY: ProviderCredentialConfig = {
+  connectionTypeLabel: 'OAuth 2.0',
+  helperText:
+    'Create an OAuth 2.0 client in Google Cloud Console (APIs & Services → Credentials). ' +
+    'Register this callback URL as an authorized redirect URI: ' +
+    '{API_BASE_URL}/relay/channels/oauth/identity/google/callback. ' +
+    'Save your Client ID and Client Secret below, then click Connect.',
+  oauthConfig: {
+    basePath: '/relay/channels/oauth/identity/google',
+  },
+  basicFields: [
+    { key: 'clientId',     label: 'Client ID',     type: 'text',     required: true,  placeholder: 'xxxxx.apps.googleusercontent.com', section: 'basic' },
+    { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true,  section: 'basic' },
+  ],
+  advancedFields: [],
 };
 
 const SENDGRID: ProviderCredentialConfig = {
@@ -364,6 +408,8 @@ const COINGATE: ProviderCredentialConfig = {
 
 const BY_PROVIDER_KEY: Record<string, ProviderCredentialConfig> = {
   gmail:            GMAIL,
+  gmail_oauth:      GMAIL_OAUTH,
+  google_identity:  GOOGLE_IDENTITY,
   sendgrid:         SENDGRID,
   mailgun:          MAILGUN,
   twilio:           TWILIO,

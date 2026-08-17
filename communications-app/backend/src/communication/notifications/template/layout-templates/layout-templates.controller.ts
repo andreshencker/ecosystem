@@ -14,6 +14,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { LayoutTemplatesService } from './layout-templates.service';
 import { CreateLayoutTemplateDto } from './dto/create-layout-template.dto';
@@ -26,6 +29,7 @@ export class LayoutTemplatesController {
   constructor(
     private readonly config: ConfigService,
     private readonly service: LayoutTemplatesService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   /**
@@ -54,6 +58,7 @@ export class LayoutTemplatesController {
     description: 'Templates to skip (default 0)',
   })
   async listByCompany(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('templateType') templateType?: TemplateType,
@@ -64,7 +69,12 @@ export class LayoutTemplatesController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -89,13 +99,19 @@ export class LayoutTemplatesController {
   @Get('default-by-company')
   @HttpCode(200)
   async getDefaultByCompany(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('templateType') templateType: TemplateType,
     @Query('populateTheme') populateTheme?: string,
     @Query('populateCompany') populateCompany?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
 
     return this.service.getDefaultByCompanyWithContext({
       companyId,
@@ -116,11 +132,17 @@ export class LayoutTemplatesController {
   @Get('company-overview')
   @HttpCode(200)
   async companyOverview(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('includeHtml') includeHtml?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
 
     return this.service.getCompanyOverview({
       companyId,
@@ -130,11 +152,20 @@ export class LayoutTemplatesController {
 
   @Get(':id')
   @HttpCode(200)
-  async getById(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async getById(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
 
     return this.service.getByIdWithContext({
       id,
+      companyId,
       populateTheme: true,
       populateCompany: true,
     });
@@ -143,10 +174,21 @@ export class LayoutTemplatesController {
   @Post()
   @HttpCode(201)
   async create(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: CreateLayoutTemplateDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertThemeBelongsToCompany(
+        dto.companyThemeId,
+        companyId,
+      );
+    }
     return this.service.create(dto);
   }
 
@@ -157,19 +199,63 @@ export class LayoutTemplatesController {
   @Patch(':id')
   @HttpCode(200)
   async update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateLayoutTemplateDto,
   ) {
-    this.assertApiKey(apiKey);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  async remove(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    if (companyId) {
+      await this.service.assertBelongsToCompany(id, companyId);
+    }
     return this.service.remove(id);
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
+  }
+
+  private async resolveOptionalCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    permission: string,
+  ): Promise<string | undefined> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return undefined;
   }
 
   private assertApiKey(apiKey?: string) {

@@ -69,6 +69,9 @@ export class OrganizationsService implements OnApplicationBootstrap {
     if (!['company', 'individual'].includes(entityType)) throw new BadRequestException('Organization type must be company or individual');
     const organization = await this.organizations.create({ organizationId, name: normalizedName, slug, entityType, createdBy: grapiflyUserId, status: 'active', isPlatform: false, isDefault: false });
     await this.memberships.create({ membershipId: `gpf_mem_${randomUUID().replaceAll('-', '')}`, organizationId, grapiflyUserId, role: 'owner', status: 'active' });
+    // Every newly created organization gets Relay enabled by default — same
+    // as the auto-provisioned personal workspace (see UsersService.ensureDefaultOrganization).
+    await this.enableApplication(grapiflyUserId, organizationId, 'relay');
     return organization.toObject();
   }
 
@@ -85,6 +88,37 @@ export class OrganizationsService implements OnApplicationBootstrap {
       membership: membershipByOrganization.get(organization.organizationId),
       applications: applications.filter((app) => app.organizationId === organization.organizationId).map((app) => app.applicationKey),
     }));
+  }
+
+  /**
+   * Organizations where grapiflyUserId has an active membership, the org has
+   * applicationKey enabled, and the user has active per-app access to it.
+   * Used by client apps (e.g. Relay) to populate an organization switcher.
+   */
+  async listForUserByApplication(grapiflyUserId: string, applicationKey: string) {
+    const [memberships, memberApplications] = await Promise.all([
+      this.memberships.find({ grapiflyUserId, status: 'active' }).lean(),
+      this.memberApplications.find({ grapiflyUserId, applicationKey, status: 'active' }).lean(),
+    ]);
+    const memberApplicationOrgIds = new Set(memberApplications.map((item) => item.organizationId));
+    const organizationIds = memberships
+      .map((membership) => membership.organizationId)
+      .filter((organizationId) => memberApplicationOrgIds.has(organizationId));
+    if (organizationIds.length === 0) return [];
+    const [organizations, organizationApplications] = await Promise.all([
+      this.organizations.find({ organizationId: { $in: organizationIds }, status: 'active' }).sort({ name: 1 }).lean(),
+      this.organizationApplications.find({ organizationId: { $in: organizationIds }, applicationKey, status: 'active' }).lean(),
+    ]);
+    const enabledOrgIds = new Set(organizationApplications.map((item) => item.organizationId));
+    const membershipByOrganization = new Map(memberships.map((membership) => [membership.organizationId, membership]));
+    const memberApplicationByOrganization = new Map(memberApplications.map((item) => [item.organizationId, item]));
+    return organizations
+      .filter((organization) => enabledOrgIds.has(organization.organizationId))
+      .map((organization) => ({
+        ...organization,
+        membership: membershipByOrganization.get(organization.organizationId),
+        applicationRole: memberApplicationByOrganization.get(organization.organizationId)?.role,
+      }));
   }
 
   async getDetails(grapiflyUserId: string, organizationId: string) {

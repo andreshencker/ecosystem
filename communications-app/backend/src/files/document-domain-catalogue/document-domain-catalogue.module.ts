@@ -6,9 +6,11 @@ import {
 } from './schemas/document-domain-catalogue.schema';
 import { DocumentDomainCatalogueService } from './document-domain-catalogue.service';
 import { DocumentDomainCatalogueController } from './document-domain-catalogue.controller';
+import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       {
         name: DocumentDomainCatalogue.name,

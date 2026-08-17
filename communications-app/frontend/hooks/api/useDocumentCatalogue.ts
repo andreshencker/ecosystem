@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { DocumentCatalogue, DocumentFormatContracts } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -37,7 +37,7 @@ export function useDocumentCatalogues(
   return useQuery({
     queryKey: ['document-catalogue', documentDomainCatalogueId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<DocumentCatalogue>>('/document-catalogue', {
           params: { documentDomainCatalogueId, ...params },
         })
@@ -50,7 +50,7 @@ export function useDocumentCatalogue(id: string | null | undefined) {
   return useQuery({
     queryKey: ['document-catalogue', id],
     queryFn: () =>
-      engineClient.get<DocumentCatalogue>(`/document-catalogue/${id}`).then((r) => r.data),
+      apiClient.get<DocumentCatalogue>(`/document-catalogue/${id}`).then((r) => r.data),
     enabled: Boolean(id),
   });
 }
@@ -63,7 +63,7 @@ export function useCreateDocumentCatalogueMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateDocumentCatalogueDto) =>
-      engineClient.post<DocumentCatalogue>('/document-catalogue', dto).then((r) => r.data),
+      apiClient.post<DocumentCatalogue>('/document-catalogue', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['document-catalogue'] });
       pushSnack({ type: 'success', message: 'Document created' });
@@ -79,7 +79,7 @@ export function useUpdateDocumentCatalogueMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateDocumentCatalogueDto) =>
-      engineClient.patch<DocumentCatalogue>(`/document-catalogue/${id}`, dto).then((r) => r.data),
+      apiClient.patch<DocumentCatalogue>(`/document-catalogue/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['document-catalogue'] });
       pushSnack({ type: 'success', message: 'Document updated' });
@@ -95,7 +95,7 @@ export function useDeleteDocumentCatalogueMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/document-catalogue/${id}`).then((r) => r.data),
+      apiClient.delete(`/document-catalogue/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['document-catalogue'] });
       pushSnack({ type: 'success', message: 'Document deleted' });
@@ -109,7 +109,7 @@ export function useDeleteDocumentCatalogueMutation() {
 export function usePreviewDocumentStructurePdfMutation() {
   return useMutation({
     mutationFn: ({ companyId, canonicalKey }: { companyId: string; canonicalKey: string }) =>
-      engineClient
+      apiClient
         .post<Blob>(
           '/preview/documents/structure/pdf',
           { companyId, canonicalKey },

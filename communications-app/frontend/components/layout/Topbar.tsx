@@ -15,11 +15,11 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { useTheme } from '@mui/material/styles';
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
+import { TopbarChannelTabs } from './TopbarChannelTabs';
 
 interface TopbarProps {
   onMenuToggle: () => void;
   user: { name: string; email: string; avatarUrl?: string } | null;
-  company: { name: string; logoUrl?: string } | null;
 }
 
 function getInitials(name: string): string {
@@ -29,7 +29,7 @@ function getInitials(name: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-export function Topbar({ onMenuToggle, user, company }: TopbarProps) {
+export function Topbar({ onMenuToggle, user }: TopbarProps) {
   const theme = useTheme();
   const { logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -58,7 +58,6 @@ export function Topbar({ onMenuToggle, user, company }: TopbarProps) {
         borderBottom: '1px solid',
         borderColor: 'divider',
         zIndex: theme.zIndex.drawer + 1,
-        height: TOPBAR_HEIGHT,
         ml: { md: `${SIDEBAR_WIDTH}px` },
         width: { md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
         backgroundColor: 'rgba(255,255,255,.82)',
@@ -83,54 +82,11 @@ export function Topbar({ onMenuToggle, user, company }: TopbarProps) {
           <MenuIcon />
         </IconButton>
 
-        {/* Company branding */}
-        {company && (
-          <Box
-            display="flex"
-            alignItems="center"
-            gap={1}
-            sx={{ minWidth: 0, flexShrink: 1, overflow: 'hidden' }}
-          >
-            {company.logoUrl ? (
-              <Box
-                component="img"
-                src={company.logoUrl}
-                alt={company.name}
-                sx={{
-                  width: 28,
-                  height: 28,
-                  objectFit: 'contain',
-                  flexShrink: 0,
-                  borderRadius: 0.5,
-                }}
-              />
-            ) : (
-              <Avatar
-                sx={{
-                  width: 28,
-                  height: 28,
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  bgcolor: 'primary.main',
-                  flexShrink: 0,
-                }}
-              >
-                {getInitials(company.name)}
-              </Avatar>
-            )}
-            <Typography
-              variant="subtitle2"
-              fontWeight={600}
-              noWrap
-              sx={{ maxWidth: { xs: 100, sm: 200 } }}
-            >
-              {company.name}
-            </Typography>
-          </Box>
-        )}
-
         {/* Spacer */}
         <Box flex={1} />
+
+        {/* Channel tabs — right-aligned, next to the user's avatar */}
+        <TopbarChannelTabs />
 
         {/* Right: user avatar */}
         {user && (

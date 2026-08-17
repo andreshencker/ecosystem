@@ -7,6 +7,13 @@ import { ACCESS_TOKEN_COOKIE } from '@/lib/constants';
 // Unauthenticated users may access these; authenticated users are redirected away.
 const AUTH_PATH_PREFIX = '/auth/';
 
+// Callback-style auth routes must always be allowed to run, even when the
+// browser already holds a session — e.g. switching Grapifly organizations
+// redirects an already-authenticated user back through this exact path with
+// a fresh SSO code to exchange. Bouncing them away here (the generic auth-route
+// rule below) would silently strand the old session and burn the code unused.
+const AUTH_CALLBACK_PATHS = ['/auth/grapifly/callback'];
+
 // ─── JWT decode ───────────────────────────────────────────────────────────────
 // Decodes the payload from a JWT string (base64url, no signature verification).
 // Middleware is a UX routing guard — real security is enforced by the backend.
@@ -51,6 +58,11 @@ export function middleware(request: NextRequest): NextResponse {
 
   // ── Auth routes (/auth/login, /auth/register, …) ────────────────────────────
   if (pathname.startsWith(AUTH_PATH_PREFIX)) {
+    // Always let callback routes run their own exchange logic, regardless of
+    // whether an (old) session is already present.
+    if (AUTH_CALLBACK_PATHS.some((path) => pathname.startsWith(path))) {
+      return NextResponse.next();
+    }
     // All other /auth/* routes: authenticated users are sent to their landing page.
     if (isAuthenticated) {
       const destination = role ? getLandingPage(role) : '/dashboard';

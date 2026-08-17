@@ -16,7 +16,9 @@ export class AuthController {
   @Public()
   @Post('grapifly')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Exchange a Grapifly ID SSO code for a Relay session' })
+  @ApiOperation({
+    summary: 'Exchange a Grapifly ID SSO code for a Relay session',
+  })
   grapifly(@Body() dto: { code: string }) {
     return this.auth.loginWithGrapifly(dto.code);
   }
@@ -50,5 +52,26 @@ export class AuthController {
   })
   me(@CurrentUser() ctx: AuthContext) {
     return { actorType: ctx.actorType, userId: ctx.userId };
+  }
+
+  // ── GET /auth/organizations ───────────────────────────────────────────────
+  // Populates the global organization switcher: every Grapifly organization
+  // this user has active 'relay' access to.
+  @Get('organizations')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'List organizations the current user can switch into',
+  })
+  async organizations(@CurrentUser() ctx: AuthContext) {
+    if (ctx.actorType !== 'user' || !ctx.userId) {
+      return { organizations: [], currentOrganizationId: null };
+    }
+    const organizations = await this.auth.listSwitchableOrganizations(
+      ctx.userId,
+    );
+    return {
+      organizations,
+      currentOrganizationId: ctx.grapiflyOrganizationId ?? null,
+    };
   }
 }

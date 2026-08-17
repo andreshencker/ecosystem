@@ -271,15 +271,10 @@ export class CompanyController {
       'Provision (or repair) default communication assets for a company (platform_admin only, DEC-017 §3)',
   })
   async reprovision(
-    @CurrentUser() ctx: AuthContext,
+    @CurrentUser() ctx: AuthContext | undefined,
     @Param('companyId') companyId: string,
   ) {
-    if (ctx?.actorType !== 'user')
-      throw new UnauthorizedException('Authentication required');
-    const actor = await this.identity.findByIdOrThrow(ctx.userId!);
-    if (actor.role !== 'platform_admin') {
-      throw new ForbiddenException('Only platform_admin may use this endpoint');
-    }
+    this.assertAccess(undefined, ctx);
     // Determine whether this is the modules company so the correct provisioning
     // path runs: modules gets theme+layouts+domain+events; tenant gets theme+layouts only.
     const platformCompanyId = await this.identity.getPlatformCompanyId();
@@ -289,13 +284,21 @@ export class CompanyController {
   }
 
   // ==========================
-  // Accepts either a JWT-authenticated user (set by GlobalAuthGuard) or the
-  // internal COMMUNICATION_API_KEY header used by engine-to-engine calls.
+  // Cross-tenant company management (list/create/update/delete ANY company)
+  // is platform_admin only. Accepts either a platform_admin Grapifly session
+  // or the internal COMMUNICATION_API_KEY header used by engine-to-engine calls.
   private assertAccess(
     apiKey: string | undefined,
     ctx: AuthContext | undefined,
   ): void {
-    if (ctx?.actorType === 'user') return;
+    if (ctx?.actorType === 'user') {
+      if (ctx.role !== 'platform_admin') {
+        throw new ForbiddenException(
+          'Only platform_admin may manage companies',
+        );
+      }
+      return;
+    }
     const expected = this.config.get<string>('COMMUNICATION_API_KEY');
     if (apiKey && expected && apiKey === expected) return;
     throw new UnauthorizedException('Authentication required');

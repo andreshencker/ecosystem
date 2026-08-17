@@ -36,9 +36,11 @@ import {
   Channel,
   ChannelSchema,
 } from '../../../channels/channels-catalogue/schemas/channel-catalog.schema';
+import { RelayTenantContextModule } from '../../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       { name: EventCatalogue.name, schema: EventCatalogueSchema },
       { name: DomainCatalogue.name, schema: DomainCatalogueSchema },

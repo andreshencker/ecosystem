@@ -2,7 +2,7 @@
 import { extractApiMessage } from '@/lib/mapApiError';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { DocumentDomainCatalogue, DocumentFormat } from '@/types/api';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -37,7 +37,7 @@ export function useDocumentDomainCatalogues(
   return useQuery({
     queryKey: ['document-domain-catalogue', companyId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<DocumentDomainCatalogue>>('/document-domain-catalogue', {
           params: { companyId, ...params },
         })
@@ -50,7 +50,7 @@ export function useDocumentDomainCatalogue(id: string | null | undefined) {
   return useQuery({
     queryKey: ['document-domain-catalogue', id],
     queryFn: () =>
-      engineClient.get<DocumentDomainCatalogue>(`/document-domain-catalogue/${id}`).then((r) => r.data),
+      apiClient.get<DocumentDomainCatalogue>(`/document-domain-catalogue/${id}`).then((r) => r.data),
     enabled: Boolean(id),
   });
 }
@@ -63,7 +63,7 @@ export function useCreateDocumentDomainCatalogueMutation() {
 
   return useMutation({
     mutationFn: (dto: CreateDocumentDomainCatalogueDto) =>
-      engineClient.post<DocumentDomainCatalogue>('/document-domain-catalogue', dto).then((r) => r.data),
+      apiClient.post<DocumentDomainCatalogue>('/document-domain-catalogue', dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['document-domain-catalogue'] });
       pushSnack({ type: 'success', message: 'Document domain created' });
@@ -79,7 +79,7 @@ export function useUpdateDocumentDomainCatalogueMutation() {
 
   return useMutation({
     mutationFn: ({ id, ...dto }: { id: string } & UpdateDocumentDomainCatalogueDto) =>
-      engineClient.patch<DocumentDomainCatalogue>(`/document-domain-catalogue/${id}`, dto).then((r) => r.data),
+      apiClient.patch<DocumentDomainCatalogue>(`/document-domain-catalogue/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['document-domain-catalogue'] });
       pushSnack({ type: 'success', message: 'Document domain updated' });
@@ -95,7 +95,7 @@ export function useDeleteDocumentDomainCatalogueMutation() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient.delete(`/document-domain-catalogue/${id}`).then((r) => r.data),
+      apiClient.delete(`/document-domain-catalogue/${id}`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['document-domain-catalogue'] });
       pushSnack({ type: 'success', message: 'Document domain deleted' });

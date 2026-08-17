@@ -24,6 +24,9 @@ import { ExecutionLogService } from './execution-log/execution-log.service';
 import { NotificationRenderService } from './render/notification-render.service';
 import { EventCatalogueService } from './events/event-catalogue/event-catalogue.service';
 import { parsePagination } from '../common/pagination/pagination.util';
+import { CurrentUser } from '../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../infrastructure/security/services/relay-tenant-context.service';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -36,6 +39,7 @@ export class NotificationController {
     private readonly logs: ExecutionLogService,
     private readonly renderer: NotificationRenderService,
     private readonly eventCatalogue: EventCatalogueService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   /**
@@ -60,6 +64,7 @@ export class NotificationController {
     description: 'One or more channels failed — inspect results[].success',
   })
   async notifyEvent(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Req() req: Request,
     @Body() dto: NotifyEventDto,
@@ -68,25 +73,37 @@ export class NotificationController {
     const authCtx = (req as any).authContext as
       | { keyId?: string; companyId?: string }
       | undefined;
-    const authMethod =
-      authCtx?.keyId === 'integration-token'
-        ? 'integration-token'
-        : 'x-api-key';
     const isAdminAuth = authCtx?.keyId === 'internal';
     const isIntegration = authCtx?.keyId === 'integration-token';
-
-    // Admin-key requests still require assertApiKey() as a second confirmation.
-    // Integration-token requests were fully validated by GlobalAuthGuard.
-    if (!isIntegration) {
-      this.assertApiKey(apiKey);
-    }
+    const authMethod =
+      ctx.actorType === 'user'
+        ? 'relay-session'
+        : isIntegration
+          ? 'integration-token'
+          : 'x-api-key';
 
     // ── Effective companyId resolution ────────────────────────────────────────
-    // authCtx.companyId is set by GlobalAuthGuard for both auth methods:
-    //   - admin key       → modules company (isPlatformCompany: true)
-    //   - integration-token → company that owns the token
+    //   - Grapifly session user  → resolved + permission-checked via
+    //     RelayTenantContextService ('relay.use'), never trusted directly from
+    //     the raw authContext claim.
+    //   - admin key              → modules company (isPlatformCompany: true),
+    //     set on authCtx.companyId by GlobalAuthGuard.
+    //   - integration-token      → company that owns the token, also set on
+    //     authCtx.companyId by GlobalAuthGuard.
     // dto.companyId (from body) is never trusted — always ignored.
-    const effectiveCompanyId = authCtx?.companyId;
+    let effectiveCompanyId: string | undefined;
+
+    if (ctx.actorType === 'user') {
+      effectiveCompanyId = (await this.tenantContext.resolve(ctx, 'relay.use'))
+        .companyId;
+    } else {
+      // Admin-key requests still require assertApiKey() as a second confirmation.
+      // Integration-token requests were fully validated by GlobalAuthGuard.
+      if (!isIntegration) {
+        this.assertApiKey(apiKey);
+      }
+      effectiveCompanyId = authCtx?.companyId;
+    }
 
     if (!effectiveCompanyId) {
       this.logger.error(
@@ -151,16 +168,24 @@ export class NotificationController {
       'Preview a notification email by canonical event key — rendering only, no delivery (DEC-017 §10.4)',
   })
   async previewByEventKey(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Req() req: Request,
     @Body() dto: PreviewByEventKeyDto,
   ): Promise<{ subject: string; html: string }> {
-    this.assertApiKey(apiKey);
+    let effectiveCompanyId: string | undefined;
 
-    const authCtx = (req as any).authContext as
-      | { companyId?: string }
-      | undefined;
-    const effectiveCompanyId = authCtx?.companyId;
+    if (ctx.actorType === 'user') {
+      effectiveCompanyId = (await this.tenantContext.resolve(ctx, 'relay.use'))
+        .companyId;
+    } else {
+      this.assertApiKey(apiKey);
+
+      const authCtx = (req as any).authContext as
+        | { companyId?: string }
+        | undefined;
+      effectiveCompanyId = authCtx?.companyId;
+    }
 
     if (!effectiveCompanyId) {
       throw new UnauthorizedException(
@@ -192,14 +217,33 @@ export class NotificationController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   async listLogs(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     const { limit: l, offset: o } = parsePagination(limit, offset);
     return this.logs.findAll({ companyId, limit: l, offset: o });
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return requestedCompanyId;
   }
 
   private assertApiKey(apiKey?: string): void {

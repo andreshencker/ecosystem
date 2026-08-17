@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -14,6 +15,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
 
 import { ChannelsCatalogService } from './channels-catalog.service';
 import { CreateChannelDto } from './dto/create-channel-catalog.dto';
@@ -44,12 +47,10 @@ export class ChannelsCatalogController {
     description: 'Records to skip (default 0)',
   })
   list(
-    @Headers('x-api-key') apiKey: string,
     @Query('active') active?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
     const activeBool =
       active === undefined ? undefined : active === 'true' || active === '1';
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
@@ -66,11 +67,7 @@ export class ChannelsCatalogController {
   @Get('by-key')
   @HttpCode(200)
   @ApiOperation({ summary: 'Get channel by channelKey' })
-  getByKey(
-    @Headers('x-api-key') apiKey: string,
-    @Query('channelKey') channelKey: string,
-  ) {
-    this.assertApiKey(apiKey);
+  getByKey(@Query('channelKey') channelKey: string) {
     return this.service.findByKey(channelKey);
   }
 
@@ -78,8 +75,12 @@ export class ChannelsCatalogController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Create channel (catalog)' })
   @ApiBody({ type: CreateChannelDto })
-  create(@Headers('x-api-key') apiKey: string, @Body() dto: CreateChannelDto) {
-    this.assertApiKey(apiKey);
+  create(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Body() dto: CreateChannelDto,
+  ) {
+    this.assertAdminAccess(ctx, apiKey);
     return this.service.create(dto);
   }
 
@@ -88,11 +89,12 @@ export class ChannelsCatalogController {
   @ApiOperation({ summary: 'Update channel by channelKey' })
   @ApiBody({ type: UpdateChannelDto })
   update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('channelKey') channelKey: string,
     @Body() dto: UpdateChannelDto,
   ) {
-    this.assertApiKey(apiKey);
+    this.assertAdminAccess(ctx, apiKey);
     return this.service.updateByKey(channelKey, dto);
   }
 
@@ -100,11 +102,26 @@ export class ChannelsCatalogController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Delete channel by channelKey' })
   remove(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('channelKey') channelKey: string,
   ) {
-    this.assertApiKey(apiKey);
+    this.assertAdminAccess(ctx, apiKey);
     return this.service.removeByKey(channelKey);
+  }
+
+  // Global catalog writes: platform_admin users (via Grapifly session) or the
+  // internal COMMUNICATION_API_KEY (engine-to-engine / provisioning scripts).
+  private assertAdminAccess(ctx: AuthContext | undefined, apiKey: string) {
+    if (ctx?.actorType === 'user') {
+      if (ctx.role !== 'platform_admin') {
+        throw new ForbiddenException(
+          'Only platform_admin may manage the channel catalog',
+        );
+      }
+      return;
+    }
+    this.assertApiKey(apiKey);
   }
 
   private assertApiKey(apiKey: string) {

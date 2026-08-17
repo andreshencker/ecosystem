@@ -7,7 +7,8 @@ export type ChannelKey =
   | 'calendar'
   | 'payment'
   | 'accounting'
-  | 'billing';
+  | 'billing'
+  | 'identity';
 
 export type EmailConnectionType = 'smtp' | 'oauth' | 'api_key';
 export type SmsConnectionType = 'api_key' | 'oauth';

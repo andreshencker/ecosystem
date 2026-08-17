@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { engineClient } from '@/lib/engine-axios';
+import { apiClient } from '@/lib/axios';
 import type { CompanyChannelProvider, Channel, Provider } from '@/types/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ export function useChannels() {
   return useQuery({
     queryKey: ['channels'],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<Channel>>('/channels', { params: { limit: 100 } })
         .then((r) => r.data.data ?? []),
     staleTime: 5 * 60 * 1_000,
@@ -59,7 +59,7 @@ export function useProviders(channelId?: string) {
   return useQuery({
     queryKey: ['providers', channelId],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<Provider>>('/providers', {
           params: { channelId, limit: 100 },
         })
@@ -78,7 +78,7 @@ export function useCompanyChannelProviders(
   return useQuery({
     queryKey: ['company-channel-providers', companyId, params],
     queryFn: () =>
-      engineClient
+      apiClient
         .get<BackendPage<CompanyChannelProvider>>('/company-channel-providers', {
           params: { companyId, populate: true, limit: 200, ...params },
         })
@@ -95,8 +95,11 @@ export function useCompanyChannelProviders(
 
 export function useCreateChannelProviderMutation() {
   return useMutation({
+    // Suppress global error toast — CredentialForm (the only caller) shows
+    // the specific backend message inline via setFormError.
+    meta: { suppressGlobalError: true },
     mutationFn: (dto: CreateChannelProviderDto) =>
-      engineClient
+      apiClient
         .post<CompanyChannelProvider>('/company-channel-providers', dto)
         .then((r) => r.data),
   });
@@ -104,8 +107,11 @@ export function useCreateChannelProviderMutation() {
 
 export function useUpdateChannelProviderMutation() {
   return useMutation({
+    // Suppress global error toast — CredentialForm (the only caller) shows
+    // the specific backend message inline via setFormError.
+    meta: { suppressGlobalError: true },
     mutationFn: ({ id, ...dto }: { id: string } & UpdateChannelProviderDto) =>
-      engineClient
+      apiClient
         .patch<CompanyChannelProvider>(`/company-channel-providers/${id}`, dto)
         .then((r) => r.data),
   });
@@ -115,7 +121,7 @@ export function useSetDefaultChannelProviderMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      engineClient
+      apiClient
         .patch<CompanyChannelProvider>(`/company-channel-providers/${id}`, { isDefault: true })
         .then((r) => r.data),
     onSuccess: () => {
@@ -130,7 +136,7 @@ export function useDeleteChannelProviderMutation() {
     // (distinguishes 409-hasCredentials from real errors).
     meta: { suppressGlobalError: true },
     mutationFn: ({ id, force = false }: { id: string; force?: boolean }) =>
-      engineClient
+      apiClient
         .delete(`/company-channel-providers/${id}`, {
           params: force ? { force: 'true' } : undefined,
         })

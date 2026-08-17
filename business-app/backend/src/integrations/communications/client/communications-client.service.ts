@@ -314,6 +314,7 @@ export class CommunicationsClientService {
       domainCatalogueId,
       eventKey: event.eventKey,
       displayName: event.displayName,
+      app: 'business-app',
       description: event.description,
       eventType: event.eventType,
       channelContent,

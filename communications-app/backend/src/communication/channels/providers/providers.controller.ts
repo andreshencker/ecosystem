@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -14,6 +15,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
 
 import { ProvidersService } from './providers.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
@@ -46,15 +49,12 @@ export class ProvidersController {
     description: 'Records to skip (default 0)',
   })
   list(
-    @Headers('x-api-key') apiKey: string,
     @Query('active') active?: string,
     @Query('channelId') channelId?: string,
     @Query('populate') populate?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
-
     const activeBool =
       typeof active === 'string'
         ? active === 'true' || active === '1'
@@ -81,34 +81,56 @@ export class ProvidersController {
 
   @Get(':id')
   @HttpCode(200)
-  getById(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  getById(@Param('id') id: string) {
     return this.service.findById(id, true);
   }
 
   @Post()
   @HttpCode(201)
-  create(@Headers('x-api-key') apiKey: string, @Body() dto: CreateProviderDto) {
-    this.assertApiKey(apiKey);
+  create(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Body() dto: CreateProviderDto,
+  ) {
+    this.assertAdminAccess(ctx, apiKey);
     return this.service.create(dto);
   }
 
   @Patch(':id')
   @HttpCode(200)
   update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateProviderDto,
   ) {
-    this.assertApiKey(apiKey);
+    this.assertAdminAccess(ctx, apiKey);
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(200)
-  remove(@Headers('x-api-key') apiKey: string, @Param('id') id: string) {
-    this.assertApiKey(apiKey);
+  remove(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Param('id') id: string,
+  ) {
+    this.assertAdminAccess(ctx, apiKey);
     return this.service.remove(id);
+  }
+
+  // Global catalog writes: platform_admin users (via Grapifly session) or the
+  // internal COMMUNICATION_API_KEY (engine-to-engine / provisioning scripts).
+  private assertAdminAccess(ctx: AuthContext | undefined, apiKey: string) {
+    if (ctx?.actorType === 'user') {
+      if (ctx.role !== 'platform_admin') {
+        throw new ForbiddenException(
+          'Only platform_admin may manage the provider catalog',
+        );
+      }
+      return;
+    }
+    this.assertApiKey(apiKey);
   }
 
   private assertApiKey(apiKey: string) {

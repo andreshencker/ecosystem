@@ -124,10 +124,15 @@ export class LayoutTemplatesService {
 
   async getByIdWithContext(params: {
     id: string;
+    companyId?: string;
     populateTheme?: boolean;
     populateCompany?: boolean;
   }): Promise<LayoutTemplateContextResponseDto> {
     const _id = this.toObjectIdOrThrow(params.id, 'id');
+
+    if (params.companyId) {
+      await this.assertBelongsToCompany(params.id, params.companyId);
+    }
 
     let q = this.model.findById(_id);
 
@@ -140,6 +145,49 @@ export class LayoutTemplatesService {
     if (!doc) throw new HttpException('Layout not found', HttpStatus.NOT_FOUND);
 
     return LayoutTemplateMapper.toContext(doc);
+  }
+
+  /**
+   * ✅ Ownership-assert via join: layout -> companyThemeId -> CompanyTheme.companyId
+   * Throws 404 if the layout doesn't exist or its theme doesn't belong to companyId.
+   */
+  async assertBelongsToCompany(id: string, companyId: string): Promise<void> {
+    const _id = this.toObjectIdOrThrow(id, 'id');
+
+    const layout = await this.model
+      .findById(_id)
+      .select('companyThemeId')
+      .lean();
+
+    if (!layout) {
+      throw new HttpException('Layout not found', HttpStatus.NOT_FOUND);
+    }
+
+    await this.assertThemeBelongsToCompany(
+      String((layout as any).companyThemeId),
+      companyId,
+    );
+  }
+
+  /**
+   * ✅ Ownership-assert for create(): verifies the target CompanyTheme
+   * belongs to the resolved tenant companyId before a layout is attached to it.
+   */
+  async assertThemeBelongsToCompany(
+    companyThemeId: string,
+    companyId: string,
+  ): Promise<void> {
+    const themeId = this.toObjectIdOrThrow(companyThemeId, 'companyThemeId');
+    const companyObjectId = this.toObjectIdOrThrow(companyId, 'companyId');
+
+    const theme = await this.themeModel
+      .findOne({ _id: themeId, companyId: companyObjectId })
+      .select('_id')
+      .lean();
+
+    if (!theme) {
+      throw new HttpException('CompanyTheme not found', HttpStatus.NOT_FOUND);
+    }
   }
 
   async findAllByCompanyFlat(params: {

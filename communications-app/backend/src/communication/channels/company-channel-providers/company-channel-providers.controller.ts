@@ -15,6 +15,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { parsePagination } from '../../common/pagination/pagination.util';
+import { CurrentUser } from '../../../infrastructure/security/decorators/current-user.decorator';
+import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
+import { RelayTenantContextService } from '../../../infrastructure/security/services/relay-tenant-context.service';
 
 import { CompanyChannelProvidersService } from './company-channel-providers.service';
 import { CreateCompanyChannelProviderDto } from './dto/create-company-channel-provider.dto';
@@ -26,6 +29,7 @@ export class CompanyChannelProvidersController {
   constructor(
     private readonly config: ConfigService,
     private readonly service: CompanyChannelProvidersService,
+    private readonly tenantContext: RelayTenantContextService,
   ) {}
 
   @Get()
@@ -48,7 +52,8 @@ export class CompanyChannelProvidersController {
     type: Number,
     description: 'Records to skip (default 0)',
   })
-  list(
+  async list(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('channelId') channelId?: string,
@@ -58,7 +63,12 @@ export class CompanyChannelProvidersController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
     const { limit: parsedLimit, offset: parsedOffset } = parsePagination(
       limit,
       offset,
@@ -77,13 +87,19 @@ export class CompanyChannelProvidersController {
 
   @Get('default/by-channel')
   @HttpCode(200)
-  getDefaultByChannel(
+  async getDefaultByChannel(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('channelId') channelId: string,
     @Query('populate') populate?: string,
   ) {
-    this.assertApiKey(apiKey);
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
 
     return this.service.findDefaultByChannel({
       companyId,
@@ -94,34 +110,50 @@ export class CompanyChannelProvidersController {
 
   @Get(':id')
   @HttpCode(200)
-  getById(
+  async getById(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Query('populate') populate?: string,
   ) {
-    this.assertApiKey(apiKey);
-    return this.service.findById(id, this.toBool(populate) ?? true);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.use',
+    );
+    return this.service.findById(id, this.toBool(populate) ?? true, companyId);
   }
 
   @Post()
   @HttpCode(201)
-  create(
+  async create(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Body() dto: CreateCompanyChannelProviderDto,
   ) {
-    this.assertApiKey(apiKey);
+    dto.companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      dto.companyId,
+      'relay.connections.manage',
+    );
     return this.service.create(dto);
   }
 
   @Patch(':id')
   @HttpCode(200)
-  update(
+  async update(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Body() dto: UpdateCompanyChannelProviderDto,
   ) {
-    this.assertApiKey(apiKey);
-    return this.service.update(id, dto);
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.connections.manage',
+    );
+    return this.service.update(id, dto, companyId);
   }
 
   @Delete(':id')
@@ -132,13 +164,43 @@ export class CompanyChannelProvidersController {
     type: Boolean,
     description: 'Cascade-delete related credentials',
   })
-  remove(
+  async remove(
+    @CurrentUser() ctx: AuthContext,
     @Headers('x-api-key') apiKey: string,
     @Param('id') id: string,
     @Query('force') force?: string,
   ) {
+    const companyId = await this.resolveOptionalCompanyId(
+      ctx,
+      apiKey,
+      'relay.connections.manage',
+    );
+    return this.service.remove(id, this.toBool(force) ?? false, companyId);
+  }
+
+  private async resolveCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    requestedCompanyId: string,
+    permission: string,
+  ): Promise<string> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
     this.assertApiKey(apiKey);
-    return this.service.remove(id, this.toBool(force) ?? false);
+    return requestedCompanyId;
+  }
+
+  private async resolveOptionalCompanyId(
+    ctx: AuthContext,
+    apiKey: string,
+    permission: string,
+  ): Promise<string | undefined> {
+    if (ctx.actorType === 'user') {
+      return (await this.tenantContext.resolve(ctx, permission)).companyId;
+    }
+    this.assertApiKey(apiKey);
+    return undefined;
   }
 
   private assertApiKey(apiKey: string) {

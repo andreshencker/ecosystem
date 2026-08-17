@@ -208,6 +208,7 @@ export class CommunicationEventsService {
       domainCatalogueId: dto.domainCatalogueId,
       eventKey:          dto.eventKey,
       displayName:       dto.displayName,
+      app:               'business-app',
       description:       dto.description ?? '',
       eventType:         dto.eventType,
       channelContent:    dto.channelContent ?? {},

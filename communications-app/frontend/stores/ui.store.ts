@@ -15,6 +15,12 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
 
+  // Which channel tab (Setup / Calendar / Payments / …) is active in the
+  // navbar. Shared between Topbar (renders the tabs) and Sidebar (renders
+  // the active tab's pages) — they're siblings, not parent/child.
+  activeChannelTab: string;
+  setActiveChannelTab: (key: string) => void;
+
   snackQueue: SnackMessage[];
   pushSnack: (msg: Omit<SnackMessage, 'id'>) => void;
   dismissSnack: (id: string) => void;
@@ -25,6 +31,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+
+  activeChannelTab: '',
+  setActiveChannelTab: (key) => set({ activeChannelTab: key }),
 
   snackQueue: [],
 

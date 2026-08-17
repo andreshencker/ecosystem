@@ -26,6 +26,9 @@ import { ChannelsCatalogModule } from './communication/channels/channels-catalog
 import { ProvidersModule } from './communication/channels/providers/providers.module';
 import { CompanyChannelProvidersModule } from './communication/channels/company-channel-providers/company-channel-providers.module';
 import { ProviderCredentialsModule } from './communication/channels/provider-credentials/provider-credentials.module';
+import { GmailOAuthModule } from './communication/channels/implementation/email/oauth/gmail-oauth.module';
+import { OAuthApplicationsModule } from './communication/channels/oauth-applications/oauth-applications.module';
+import { GoogleIdentityOAuthModule } from './communication/channels/implementation/identity/oauth/google-identity-oauth.module';
 import { LayoutTemplatesModule } from './communication/notifications/template/layout-templates/layout-templates.module';
 import { NotificationModule } from './communication/notifications/notification.module';
 import { DomainCatalogueModule } from './communication/notifications/events/domain-catalogue/domain-catalogue.module';
@@ -62,6 +65,9 @@ import { EcosystemModule } from './ecosystem/ecosystem.module';
     ProvidersModule,
     CompanyChannelProvidersModule,
     ProviderCredentialsModule,
+    GmailOAuthModule,
+    OAuthApplicationsModule,
+    GoogleIdentityOAuthModule,
     LayoutTemplatesModule,
     NotificationModule,
     DomainCatalogueModule,

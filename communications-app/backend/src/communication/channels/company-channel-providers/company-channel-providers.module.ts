@@ -24,10 +24,12 @@ import {
   Company,
   CompanySchema,
 } from '../../company/company-info/schemas/company.schema';
+import { RelayTenantContextModule } from '../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
     ConfigModule,
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       {
         name: CompanyChannelProvider.name,

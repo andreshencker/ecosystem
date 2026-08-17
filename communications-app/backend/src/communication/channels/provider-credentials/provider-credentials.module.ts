@@ -48,10 +48,12 @@ import { S3IamRoleStorageChannel } from '../implementation/storage/iam_role/s3-i
 // CALENDAR
 import { CalendarImplementationModule } from '../../../calendar/factory/calendar-implementation.module';
 import { ProviderResourcesOrganizationMigration } from '../../../ecosystem/migrations/provider-resources-organization.migration';
+import { RelayTenantContextModule } from '../../../infrastructure/security/relay-tenant-context.module';
 
 @Module({
   imports: [
     ConfigModule,
+    RelayTenantContextModule,
     MongooseModule.forFeature([
       { name: ProviderCredentials.name, schema: ProviderCredentialsSchema },
       {
