@@ -39,5 +39,5 @@ services:
     depends_on:
       - backend
       - orchestrator
-      - communication
+#      - communication
     restart: unless-stopped

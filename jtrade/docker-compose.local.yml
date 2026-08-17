@@ -56,5 +56,5 @@ services:
       - frontend
       - backend
       - orchestrator
-      - communication
+#      - communication
     restart: unless-stopped
