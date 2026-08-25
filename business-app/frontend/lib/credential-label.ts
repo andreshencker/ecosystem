@@ -2,7 +2,7 @@ import type { CredentialOption } from '@/types/communication-purposes';
 
 /**
  * Maps connection type slugs to the same human-readable labels shown
- * in the Communications Credentials page "Connection" column.
+ * in the Relay Credentials page "Connection" column.
  */
 const CONNECTION_TYPE_LABELS: Record<string, string> = {
   smtp:         'SMTP',
@@ -14,7 +14,7 @@ const CONNECTION_TYPE_LABELS: Record<string, string> = {
 
 /**
  * Formats a connection type slug into a readable label.
- * Matches the labels used by the Communications Credentials page.
+ * Matches the labels used by the Relay Credentials page.
  *   "smtp"         → "SMTP"
  *   "api_key"      → "API Key"
  *   "oauth"        → "OAuth 2.0"

@@ -1,150 +1,253 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GrapiflyAppShell } from '@/components/GrapiflyAppShell';
-import { OrganizationProfile, OrganizationProfileTabs } from '@/components/OrganizationProfileTabs';
-import '../invitations.css';
 
-interface OrganizationSummary {
-  organizationId: string;
-  name: string;
-  slug: string;
-  isDefault: boolean;
-  isPlatform: boolean;
-  membership: { role: 'owner' | 'admin' | 'member' };
+type EntityType = 'company' | 'individual';
+type Role = 'owner' | 'admin' | 'member';
+
+interface OrgEntry {
+  organizationId: string; name: string; slug: string; entityType: EntityType;
+  legalName: string; tagline: string; timezone: string;
+  officialEmail: string; supportEmail: string; supportPhone: string; supportPhoneCountryCode: string; supportPhoneNumber: string; supportHours: string;
+  addressLine1: string; addressLine2: string; addressCity: string; addressState: string; addressPostalCode: string; addressCountry: string;
+  websiteUrl: string; helpCenterUrl: string; privacyPolicyUrl: string; termsUrl: string;
+  facebook: string; instagram: string; linkedin: string; x: string; youtube: string; tiktok: string; whatsapp: string; telegram: string;
+  copyrightText: string; disclaimerShort: string; disclaimerLong: string; logoIconUrl: string; logoFullUrl: string;
+  isPlatform: boolean; isDefault: boolean;
+  membership: { role: Role };
   applications: string[];
 }
 
-interface OrganizationDetails {
-  organization: OrganizationProfile;
-  membership: { role: 'owner' | 'admin' | 'member' };
-  applications: { applicationKey: string }[];
-  members: { membershipId: string; role: string; applications: { applicationKey: string; role: string }[]; user: { displayName: string; email: string; avatarUrl: string | null } | null }[];
-  invitations: { invitationId: string; email: string; role: string; applicationKeys: string[]; expiresAt: string; status: 'pending' | 'expired' }[];
+type DrawerMode = 'create' | 'edit' | null;
+
+const TEXT_FIELDS = [
+  'legalName', 'tagline', 'timezone',
+  'officialEmail', 'supportEmail', 'supportPhoneCountryCode', 'supportPhoneNumber', 'supportHours',
+  'addressLine1', 'addressLine2', 'addressCity', 'addressState', 'addressPostalCode', 'addressCountry',
+  'websiteUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl',
+  'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram',
+  'copyrightText', 'disclaimerShort', 'disclaimerLong', 'logoIconUrl', 'logoFullUrl',
+] as const;
+type TextField = typeof TEXT_FIELDS[number];
+
+interface FormState {
+  name: string; entityType: EntityType;
+  fields: Record<TextField, string>;
+}
+
+function emptyTextFields(): Record<TextField, string> {
+  return Object.fromEntries(TEXT_FIELDS.map(field => [field, ''])) as Record<TextField, string>;
+}
+function emptyForm(): FormState {
+  return { name: '', entityType: 'company', fields: emptyTextFields() };
+}
+function formFromOrg(org: OrgEntry): FormState {
+  const fields = emptyTextFields();
+  for (const field of TEXT_FIELDS) fields[field] = org[field] ?? '';
+  return { name: org.name, entityType: org.entityType, fields };
+}
+
+function EditIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.474 5.408 18.592 7.53M4 20l.688-3.44a2 2 0 0 1 .551-1.03l9.9-9.9a1.5 1.5 0 0 1 2.122 0l1.61 1.61a1.5 1.5 0 0 1 0 2.122l-9.9 9.9a2 2 0 0 1-1.03.55L4 20Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+function ViewIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.6" /></svg>;
+}
+function DeleteIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 7h14M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+function TextField({ label, field, form, setForm, disabled, placeholder }: { label: string; field: TextField; form: FormState; setForm: (f: FormState) => void; disabled: boolean; placeholder?: string }) {
+  return <label className="drawer-field"><span>{label}</span><input value={form.fields[field]} disabled={disabled} onChange={event => setForm({ ...form, fields: { ...form.fields, [field]: event.target.value } })} placeholder={placeholder} /></label>;
 }
 
 export default function OrganizationsPage() {
+  return <GrapiflyAppShell><OrganizationsContent /></GrapiflyAppShell>;
+}
+
+function OrganizationsContent() {
   const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
-  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [details, setDetails] = useState<OrganizationDetails | null>(null);
-  const [organizationName, setOrganizationName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
-  const [invitationLink, setInvitationLink] = useState('');
-  const [message, setMessage] = useState('');
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-  const [invitationActionId, setInvitationActionId] = useState<string | null>(null);
+  const [orgs, setOrgs] = useState<OrgEntry[]>([]);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
 
-  async function loadOrganizations(preferredId?: string) {
-    const response = await fetch(`${apiUrl}/organizations`, { credentials: 'include' });
-    if (response.status === 401) { window.location.replace('/'); return; }
-    if (!response.ok) throw new Error('Unable to load organizations');
-    const data = await response.json();
-    setOrganizations(data.organizations);
-    const requestedId = preferredId ?? selectedId;
-    const nextId = data.organizations.some((organization: OrganizationSummary) => organization.organizationId === requestedId) ? requestedId : data.organizations[0]?.organizationId ?? null;
-    setSelectedId(nextId);
-    if (nextId) await loadDetails(nextId);
+  const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
+  const [drawerOrg, setDrawerOrg] = useState<OrgEntry | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const load = useCallback(() => {
+    return fetch(`${apiUrl}/organizations`, { credentials: 'include' }).then(async response => {
+      if (response.status === 401) { window.location.replace('/'); return null; }
+      if (!response.ok) throw new Error();
+      return response.json();
+    }).then(data => { if (data) { setOrgs(data.organizations); setState('ready'); } }).catch(() => setState('error'));
+  }, [apiUrl]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return orgs.filter(org => {
+      if (roleFilter !== 'all' && org.membership.role !== roleFilter) return false;
+      if (q && !`${org.name} ${org.slug}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [orgs, query, roleFilter]);
+
+  function openCreate() {
+    setDrawerMode('create'); setDrawerOrg(null); setForm(emptyForm()); setFormError('');
+  }
+  function openEdit(org: OrgEntry) {
+    setDrawerMode('edit'); setDrawerOrg(org); setForm(formFromOrg(org)); setFormError('');
+  }
+  function closeDrawer() {
+    if (saving) return;
+    setDrawerMode(null); setDrawerOrg(null); setFormError('');
   }
 
-  async function loadDetails(organizationId: string) {
-    const response = await fetch(`${apiUrl}/organizations/${organizationId}`, { credentials: 'include' });
-    if (!response.ok) throw new Error('Unable to load organization');
-    setDetails(await response.json());
-  }
+  const canManage = drawerOrg ? ['owner', 'admin'].includes(drawerOrg.membership.role) : true;
 
-  useEffect(() => { loadOrganizations().catch(() => setMessage('Organizations could not be loaded.')); }, []);
-
-  async function createOrganization(event: FormEvent) {
-    event.preventDefault(); setMessage('');
-    const response = await fetch(`${apiUrl}/organizations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: organizationName }) });
-    const data = await response.json();
-    if (!response.ok) { setMessage(data.message ?? 'Organization could not be created.'); return; }
-    setOrganizationName('');
-    await loadOrganizations(data.organizationId);
-    setMessage('Organization created. You are its owner.');
-  }
-
-  async function enableRelay() {
-    if (!selectedId) return;
-    const response = await fetch(`${apiUrl}/organizations/${selectedId}/applications`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationKey: 'relay' }) });
-    if (!response.ok) { const data = await response.json(); setMessage(data.message ?? 'Relay could not be enabled.'); return; }
-    await loadOrganizations(selectedId);
-    setMessage('Relay is now enabled for this organization.');
-  }
-
-  async function invite(event: FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!selectedId) return;
-    const applicationKeys = details?.applications.map((application) => application.applicationKey) ?? [];
-    const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: inviteEmail, role: inviteRole, applicationKeys }) });
-    const data = await response.json();
-    if (!response.ok) { setMessage(data.message ?? 'Invitation could not be created.'); return; }
-    const link = `${window.location.origin}/invitations/${data.token}`;
-    setInvitationLink(link); setInviteEmail('');
-    await loadDetails(selectedId);
-    setMessage('Invitation created. Copy the secure link and send it to the invited person.');
-  }
-
-  async function regenerateInvitation(invitationId: string) {
-    if (!selectedId) return;
-    setInvitationActionId(invitationId); setMessage('');
+    setFormError(''); setSaving(true);
     try {
-      const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations/${invitationId}/regenerate`, { method: 'POST', credentials: 'include' });
-      const data = await response.json();
-      if (!response.ok) { setMessage(data.message ?? 'Invitation link could not be regenerated.'); return; }
-      setInvitationLink(`${window.location.origin}/invitations/${data.token}`);
-      await loadDetails(selectedId);
-      setMessage('A new invitation link was generated. The previous link is no longer valid.');
-    } finally { setInvitationActionId(null); }
+      if (drawerMode === 'create') {
+        const response = await fetch(`${apiUrl}/organizations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, entityType: form.entityType }) });
+        const created = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(created?.message ?? 'Could not create organization');
+        const filledFields = Object.fromEntries(Object.entries(form.fields).filter(([, value]) => value.trim() !== ''));
+        if (Object.keys(filledFields).length > 0) {
+          const patchResponse = await fetch(`${apiUrl}/organizations/${created.organizationId}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(filledFields) });
+          if (!patchResponse.ok) { const body = await patchResponse.json().catch(() => null); throw new Error(body?.message ?? 'Organization was created, but its profile details could not be saved'); }
+        }
+      } else if (drawerMode === 'edit' && drawerOrg) {
+        if (!canManage) throw new Error('You do not have permission to edit this organization');
+        const response = await fetch(`${apiUrl}/organizations/${drawerOrg.organizationId}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, entityType: form.entityType, ...form.fields }) });
+        if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.message ?? 'Could not update organization'); }
+      }
+      setDrawerMode(null); setDrawerOrg(null);
+      await load();
+    } catch (err) { setFormError(err instanceof Error ? err.message : 'Could not save organization'); }
+    finally { setSaving(false); }
   }
 
-  async function cancelInvitation(invitationId: string, email: string) {
-    if (!selectedId || !window.confirm(`Cancel the invitation for ${email}?`)) return;
-    setInvitationActionId(invitationId); setMessage('');
+  async function handleArchive(org: OrgEntry) {
+    if (!window.confirm(`Archive organization "${org.name}"? Its apps and invitations will be disabled.`)) return;
     try {
-      const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations/${invitationId}/cancel`, { method: 'POST', credentials: 'include' });
-      const data = await response.json();
-      if (!response.ok) { setMessage(data.message ?? 'Invitation could not be cancelled.'); return; }
-      setInvitationLink('');
-      await loadDetails(selectedId);
-      setMessage('Invitation cancelled.');
-    } finally { setInvitationActionId(null); }
+      const response = await fetch(`${apiUrl}/organizations/${org.organizationId}/archive`, { method: 'POST', credentials: 'include' });
+      if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.message ?? 'Could not archive organization'); }
+      await load();
+    } catch (err) { window.alert(err instanceof Error ? err.message : 'Could not archive organization'); }
   }
 
-  async function archiveOrganization(organization: OrganizationSummary) {
-    setActionMenuId(null);
-    if (organization.isDefault || organization.isPlatform) { setMessage('The official and default organizations are protected.'); return; }
-    if (!window.confirm(`Archive ${organization.name}? Its applications and pending invitations will be disabled.`)) return;
-    const response = await fetch(`${apiUrl}/organizations/${organization.organizationId}/archive`, { method: 'POST', credentials: 'include' });
-    const data = await response.json();
-    if (!response.ok) { setMessage(data.message ?? 'Organization could not be archived.'); return; }
-    if (selectedId === organization.organizationId) { setSelectedId(null); setDetails(null); }
-    await loadOrganizations();
-    setMessage('Organization archived.');
-  }
+  return <section className="organizations-page organizations-embedded"><section className="organizations-shell">
+    <header className="organizations-heading"><div><span className="section-kicker">Grapifly Organizations</span><h1>Your identity.<br />Your profile.</h1><p>Every organization you own or belong to — team and apps now live under Teams and My apps.</p></div></header>
 
-  const canManage = details && ['owner', 'admin'].includes(details.membership.role);
-  return <GrapiflyAppShell><section className="organizations-page organizations-embedded">
-    <section className="organizations-shell">
-      <header className="organizations-heading"><div><span className="section-kicker">Grapifly Organizations</span><h1>Your teams.<br/>One identity.</h1><p>Create several organizations, choose their apps and invite the people who work with you.</p></div>
-        <form onSubmit={createOrganization}><label>New organization</label><div><input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Organization name" required/><button>Create</button></div></form>
-      </header>
-      {message && <div className="organization-message">{message}</div>}
-      <div className="organizations-layout">
-        <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <div className={`organization-list-row ${selectedId === organization.organizationId ? 'active' : ''}`} key={organization.organizationId}><button className="organization-select" onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); setActionMenuId(null); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps{organization.isDefault ? ' · default' : ''}</small></div></button><button className="organization-actions-trigger" aria-label={`Actions for ${organization.name}`} onClick={() => setActionMenuId(actionMenuId === organization.organizationId ? null : organization.organizationId)}>•••</button>{actionMenuId === organization.organizationId && <div className="organization-actions-menu"><button onClick={() => { navigator.clipboard.writeText(organization.organizationId); setActionMenuId(null); setMessage('Organization ID copied.'); }}>Copy organization ID</button><button className="danger" disabled={organization.isDefault || organization.isPlatform || organization.membership.role !== 'owner'} onClick={() => archiveOrganization(organization)}>{organization.isDefault || organization.isPlatform ? 'Protected organization' : 'Archive organization'}</button></div>}</div>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
-        <section className="organization-detail">{details ? <>
-          <header><div><span>{details.membership.role}</span><h2>{details.organization.name}</h2><p>{details.organization.slug}</p></div><code>{details.organization.organizationId}</code></header>
-          <OrganizationProfileTabs organization={details.organization} ownerEmail={details.members.find((member) => member.role === 'owner')?.user?.email ?? 'Not assigned'} canManage={Boolean(canManage)} apiUrl={apiUrl} onSaved={(organization) => setDetails({ ...details, organization })}/>
-          <div className="organization-section-title"><div><h3>Applications</h3><p>Solutions enabled for everyone in this organization.</p></div>{canManage && !details.applications.some((app) => app.applicationKey === 'relay') && <button onClick={enableRelay}>Enable Relay</button>}</div>
-          <div className="organization-apps">{details.applications.map((application) => <span key={application.applicationKey}>✦ {application.applicationKey}</span>)}{details.applications.length === 0 && <p>No applications enabled yet.</p>}</div>
-          <div className="organization-section-title"><div><h3>Members</h3><p>Identity and membership are managed centrally by Grapifly.</p></div></div>
-          <div className="member-list">{details.members.map((member) => <article key={member.membershipId}>{member.user?.avatarUrl ? <img src={member.user.avatarUrl} alt=""/> : <span>{member.user?.displayName?.[0] ?? 'G'}</span>}<div><strong>{member.user?.displayName ?? 'Grapifly user'}</strong><small>{member.user?.email}{member.applications.length > 0 ? ` · ${member.applications.map((app) => app.applicationKey).join(', ')}` : ''}</small></div><b>{member.role}</b></article>)}</div>
-          {canManage && <form className="invitation-form" onSubmit={invite}><div><h3>Invite a member</h3><p>The invitation grants membership and access to the enabled applications.</p></div><div className="invitation-fields"><input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="name@company.com" required/><select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'member' | 'admin')}><option value="member">Member</option><option value="admin">Administrator</option></select><button>Invite</button></div>{invitationLink && <div className="invitation-link"><input readOnly value={invitationLink}/><button type="button" onClick={() => navigator.clipboard.writeText(invitationLink)}>Copy link</button></div>}</form>}
-          {details.invitations.length > 0 && <div className="pending-invitations"><h3>Invitations</h3>{details.invitations.map((invitation) => <article key={invitation.invitationId}><div><strong>{invitation.email}</strong><span>{invitation.role} · {invitation.status === 'expired' ? 'expired' : `expires ${new Date(invitation.expiresAt).toLocaleDateString()}`}</span></div>{canManage && <div className="invitation-actions"><button disabled={invitationActionId === invitation.invitationId} onClick={() => regenerateInvitation(invitation.invitationId)}>New link</button>{invitation.status === 'pending' && <button className="danger" disabled={invitationActionId === invitation.invitationId} onClick={() => cancelInvitation(invitation.invitationId, invitation.email)}>Cancel</button>}</div>}</article>)}</div>}
-        </> : <div className="organization-empty"><h2>Select an organization</h2><p>Its applications, members and invitations will appear here.</p></div>}</section>
+    {state === 'loading' && <div className="organization-empty"><p>Loading organizations…</p></div>}
+    {state === 'error' && <div className="organization-empty"><p>Organizations could not be loaded.</p></div>}
+
+    {state === 'ready' && <section className="role-panel">
+      <div className="role-panel-header">
+        <div><h3>Your organizations</h3><p>{orgs.length} organizations total, {filtered.length} matching current filters</p></div>
+        <button type="button" className="role-add-button" onClick={openCreate}>+ New organization</button>
       </div>
-    </section>
-  </section></GrapiflyAppShell>;
+
+      <div className="role-filters">
+        <label className="role-filter-field"><span>Role</span><select value={roleFilter} onChange={event => setRoleFilter(event.target.value as any)}>
+          <option value="all">All</option><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option>
+        </select></label>
+        <label className="role-filter-field role-filter-search"><span>Search</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search organization" /></label>
+      </div>
+
+      <div className="users-table-wrap"><table className="users-table app-table"><thead><tr><th>Organization</th><th>Role</th><th>Apps</th><th></th></tr></thead><tbody>
+        {filtered.map(org => <tr key={org.organizationId}>
+          <td><div className="app-row-identity"><span className="app-swatch" style={{ background: '#efeaff', color: '#5c47ce' }}>{org.name[0]}</span><div><strong>{org.name}</strong><small>{org.slug}{org.isPlatform ? ' · platform' : ''}{org.isDefault ? ' · default' : ''}</small></div></div></td>
+          <td style={{ textTransform: 'capitalize' }}>{org.membership.role}</td>
+          <td>{org.applications.length}</td>
+          <td><div className="role-row-actions">
+            <button type="button" title={['owner', 'admin'].includes(org.membership.role) ? 'Edit organization' : 'View organization'} aria-label={['owner', 'admin'].includes(org.membership.role) ? 'Edit organization' : 'View organization'} onClick={() => openEdit(org)}>{['owner', 'admin'].includes(org.membership.role) ? <EditIcon /> : <ViewIcon />}</button>
+            {org.membership.role === 'owner' && !org.isPlatform && !org.isDefault && <button type="button" className="danger" title="Archive organization" aria-label="Archive organization" onClick={() => handleArchive(org)}><DeleteIcon /></button>}
+          </div></td>
+        </tr>)}
+      </tbody></table>
+      {filtered.length === 0 && <div className="organization-empty"><p>{orgs.length === 0 ? 'Create your first organization to begin.' : 'No organizations match your filters.'}</p></div>}
+      </div>
+    </section>}
+
+    {drawerMode && <div className="drawer-overlay" onClick={closeDrawer}><aside className="drawer" onClick={event => event.stopPropagation()}>
+      <header className="drawer-header"><div><h3>{drawerMode === 'create' ? 'Create organization' : canManage ? `Edit ${drawerOrg?.name}` : drawerOrg?.name}</h3><p>{drawerMode === 'create' ? 'You become its owner.' : canManage ? `ID: ${drawerOrg?.organizationId}` : `You are a ${drawerOrg?.membership.role} — view only.`}</p></div><button type="button" className="drawer-close" onClick={closeDrawer}>×</button></header>
+      <form className="drawer-body" onSubmit={handleSubmit} id="org-form">
+        {formError && <div className="drawer-error">{formError}</div>}
+
+        <h4 className="drawer-section-title">General</h4>
+        <label className="drawer-field"><span>Name</span><input value={form.name} disabled={!canManage} onChange={event => setForm({ ...form, name: event.target.value })} placeholder="Organization name" required /></label>
+        <label className="drawer-field"><span>Type</span><select value={form.entityType} disabled={!canManage} onChange={event => setForm({ ...form, entityType: event.target.value as EntityType })}><option value="company">Company</option><option value="individual">Individual</option></select></label>
+
+        <>
+          <TextField label="Legal name" field="legalName" form={form} setForm={setForm} disabled={!canManage} />
+          <TextField label="Tagline" field="tagline" form={form} setForm={setForm} disabled={!canManage} />
+          <TextField label="Timezone" field="timezone" form={form} setForm={setForm} disabled={!canManage} />
+
+          <h4 className="drawer-section-title">Contact</h4>
+          <TextField label="Official email" field="officialEmail" form={form} setForm={setForm} disabled={!canManage} />
+          <TextField label="Support email" field="supportEmail" form={form} setForm={setForm} disabled={!canManage} />
+          <div className="drawer-field-row">
+            <TextField label="Support phone country code" field="supportPhoneCountryCode" form={form} setForm={setForm} disabled={!canManage} placeholder="+61" />
+            <TextField label="Support phone number" field="supportPhoneNumber" form={form} setForm={setForm} disabled={!canManage} />
+          </div>
+          <TextField label="Support hours" field="supportHours" form={form} setForm={setForm} disabled={!canManage} />
+
+          <h4 className="drawer-section-title">Address</h4>
+          <TextField label="Address line 1" field="addressLine1" form={form} setForm={setForm} disabled={!canManage} />
+          <TextField label="Address line 2" field="addressLine2" form={form} setForm={setForm} disabled={!canManage} />
+          <div className="drawer-field-row">
+            <TextField label="City" field="addressCity" form={form} setForm={setForm} disabled={!canManage} />
+            <TextField label="State" field="addressState" form={form} setForm={setForm} disabled={!canManage} />
+          </div>
+          <div className="drawer-field-row">
+            <TextField label="Postal code" field="addressPostalCode" form={form} setForm={setForm} disabled={!canManage} />
+            <TextField label="Country" field="addressCountry" form={form} setForm={setForm} disabled={!canManage} />
+          </div>
+
+          <h4 className="drawer-section-title">Digital</h4>
+          <TextField label="Website" field="websiteUrl" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          <TextField label="Help center" field="helpCenterUrl" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          <TextField label="Privacy policy" field="privacyPolicyUrl" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          <TextField label="Terms" field="termsUrl" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+
+          <h4 className="drawer-section-title">Social</h4>
+          <div className="drawer-field-row">
+            <TextField label="Facebook" field="facebook" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+            <TextField label="Instagram" field="instagram" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          </div>
+          <div className="drawer-field-row">
+            <TextField label="LinkedIn" field="linkedin" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+            <TextField label="X" field="x" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          </div>
+          <div className="drawer-field-row">
+            <TextField label="YouTube" field="youtube" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+            <TextField label="TikTok" field="tiktok" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          </div>
+          <div className="drawer-field-row">
+            <TextField label="WhatsApp" field="whatsapp" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+            <TextField label="Telegram" field="telegram" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          </div>
+
+          <h4 className="drawer-section-title">Legal</h4>
+          <TextField label="Copyright text" field="copyrightText" form={form} setForm={setForm} disabled={!canManage} />
+          <TextField label="Disclaimer (short)" field="disclaimerShort" form={form} setForm={setForm} disabled={!canManage} />
+          <TextField label="Disclaimer (long)" field="disclaimerLong" form={form} setForm={setForm} disabled={!canManage} />
+
+          <h4 className="drawer-section-title">Brand</h4>
+          <TextField label="Icon logo URL" field="logoIconUrl" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+          <TextField label="Full logo URL" field="logoFullUrl" form={form} setForm={setForm} disabled={!canManage} placeholder="https://" />
+        </>
+      </form>
+      <footer className="drawer-footer"><button type="button" onClick={closeDrawer} disabled={saving}>{canManage ? 'Cancel' : 'Close'}</button>{canManage && <button type="submit" form="org-form" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>}</footer>
+    </aside></div>}
+  </section></section>;
 }

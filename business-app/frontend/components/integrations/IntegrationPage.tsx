@@ -34,7 +34,7 @@ import {
   useIntegration,
   type IntegrationConnection,
   type IntegrationTestResult,
-} from '@/hooks/api/useCommunicationConnection';
+} from '@/hooks/api/useRelayConnection';
 
 // ─── Public props ─────────────────────────────────────────────────────────────
 
@@ -281,7 +281,7 @@ function ConnectView({ provider, onDone }: { provider: string; onDone: () => voi
       >
         <Stack spacing={2.5}>
           <Typography variant="body2" color="text.secondary">
-            Generate an integration token in Communications App and paste it below.
+            Generate an integration token in Relay and paste it below.
             The token is encrypted on save — it is never stored in plaintext.
           </Typography>
           <ConnectForm provider={provider} mode="connect" onDone={onDone} />
@@ -405,7 +405,7 @@ function SavedView({
       >
         <Stack spacing={1} alignItems="flex-start">
           <Typography variant="body2" color="text.secondary" mb={1}>
-            Verify the stored token or replace it with a new one generated in Communications App.
+            Verify the stored token or replace it with a new one generated in Relay.
           </Typography>
           <Stack direction="row" gap={1.5} flexWrap="wrap">
             <Button

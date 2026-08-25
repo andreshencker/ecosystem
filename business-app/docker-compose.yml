@@ -52,7 +52,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BI_SERVICE_URL: http://bi:8000
-      COMMUNICATION_API_URL: ${COMMUNICATION_API_URL:-http://host.docker.internal:3001}
+      RELAY_API_URL: ${RELAY_API_URL:-http://host.docker.internal:3001}
       FRONTEND_BASE_URL: http://localhost:${BUSINESS_FRONTEND_PORT:-3005}
       APP_BASE_URL: http://localhost:${BUSINESS_FRONTEND_PORT:-3005}
       ALLOWED_ORIGINS: http://localhost:${BUSINESS_FRONTEND_PORT:-3005}

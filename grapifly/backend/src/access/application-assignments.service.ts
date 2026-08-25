@@ -1,58 +1,85 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { timingSafeEqual } from 'crypto';
 import { Model } from 'mongoose';
 import { ApplicationsService } from '../applications/applications.service';
-import { UsersService } from '../users/users.service';
 import { ApplicationAssignment, ApplicationAssignmentDocument } from './schemas/application-assignment.schema';
+import {
+  OrganizationApplication,
+  OrganizationApplicationDocument,
+} from '../organizations/schemas/organization-application.schema';
+import {
+  OrganizationMemberApplication,
+  OrganizationMemberApplicationDocument,
+} from '../organizations/schemas/organization-member-application.schema';
+import { GrapiflyUser, GrapiflyUserDocument } from '../users/schemas/user.schema';
 
-const DEFAULT_RELAY_USERS = [
-  'grapiflydeveloper@gmail.com',
-  'grapiflytrading@gmail.com',
-  'grapiflyvideo@gmail.com',
-  'andreshenckerq@gmail.com',
-];
-
+/**
+ * The ecosystem's access "gestor" — the one place that decides and grants
+ * app access, reading the rule from the Application catalogue instead of
+ * having each caller hardcode which app(s) a new organization should get.
+ */
 @Injectable()
-export class ApplicationAssignmentsService implements OnApplicationBootstrap {
-  private readonly logger = new Logger(ApplicationAssignmentsService.name);
-
+export class ApplicationAssignmentsService {
   constructor(
     @InjectModel(ApplicationAssignment.name) private readonly assignments: Model<ApplicationAssignmentDocument>,
-    private readonly users: UsersService,
+    @InjectModel(OrganizationApplication.name) private readonly organizationApplications: Model<OrganizationApplicationDocument>,
+    @InjectModel(OrganizationMemberApplication.name) private readonly memberApplications: Model<OrganizationMemberApplicationDocument>,
+    @InjectModel(GrapiflyUser.name) private readonly users: Model<GrapiflyUserDocument>,
     private readonly applications: ApplicationsService,
-    private readonly config: ConfigService,
   ) {}
 
-  async onApplicationBootstrap() {
-    const relay = await this.applications.findByKey('relay');
-    if (!relay) {
-      this.logger.warn('Relay is not present in the application catalogue; access bootstrap skipped.');
-      return;
-    }
-    const configured = this.config.get<string>('RELAY_INITIAL_ACCESS_EMAILS');
-    const emails = configured ? configured.split(',').map((email) => email.trim().toLowerCase()).filter(Boolean) : DEFAULT_RELAY_USERS;
-    let created = 0;
-    for (const email of emails) {
-      const user = await this.users.findByEmail(email);
-      if (!user) {
-        this.logger.warn(`Relay access pending: Grapifly user not found (${email}).`);
-        continue;
-      }
-      await this.assignments.findOneAndUpdate(
-        { grapiflyUserId: user.grapiflyUserId, applicationKey: 'relay' },
-        { $set: { status: 'active' }, $setOnInsert: { source: 'bootstrap', grantedAt: new Date() } },
+  /**
+   * Grants every catalogue app marked `defaultAccess.autoGrantOnSignup` to a
+   * newly created organization, and gives its owner the 'owner' role on each.
+   * Replaces the hardcoded `applicationKey: 'relay'` writes that used to live
+   * inline in UsersService/OrganizationsService.
+   */
+  async grantDefaultAccess(grapiflyUserId: string, organizationId: string): Promise<string[]> {
+    const applications = await this.applications.listAll();
+    const defaults = applications.filter((app) => app.status === 'active' && app.defaultAccess?.autoGrantOnSignup);
+    for (const app of defaults) {
+      await this.organizationApplications.findOneAndUpdate(
+        { organizationId, applicationKey: app.key },
+        { $set: { status: 'active', enabledBy: grapiflyUserId } },
         { upsert: true, returnDocument: 'after' },
       );
-      created += 1;
+      await this.memberApplications.findOneAndUpdate(
+        { organizationId, grapiflyUserId, applicationKey: app.key },
+        { $set: { role: 'owner', status: 'active' } },
+        { upsert: true, returnDocument: 'after' },
+      );
+      await this.assignments.findOneAndUpdate(
+        { grapiflyUserId, applicationKey: app.key },
+        { $set: { status: 'active' }, $setOnInsert: { source: 'auto', grantedAt: new Date() } },
+        { upsert: true, returnDocument: 'after' },
+      );
     }
-    this.logger.log(`Relay access catalogue ready (${created} active assignments).`);
+    return defaults.map((app) => app.key);
+  }
+
+  /**
+   * Validates a service-to-service call as coming from the app registered
+   * under `appKey` in the catalogue — replaces assertRelayClient's single
+   * global secret with a secret scoped to that specific app.
+   */
+  async assertAppClient(appKey: string, candidate: string | undefined): Promise<void> {
+    const application = await this.applications.findByKeyWithSecret(appKey);
+    if (!application?.serviceSecretHash || !candidate) {
+      throw new ForbiddenException('Invalid Grapifly application client');
+    }
+    const candidateHash = this.applications.hashSecret(candidate);
+    const actualBuffer = Buffer.from(candidateHash);
+    const expectedBuffer = Buffer.from(application.serviceSecretHash);
+    if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
+      throw new ForbiddenException('Invalid Grapifly application client');
+    }
   }
 
   async listAll() {
     const [assignments, users, applications] = await Promise.all([
       this.assignments.find().sort({ applicationKey: 1, grantedAt: 1 }).lean(),
-      this.users.listAll(),
+      this.users.find().lean(),
       this.applications.listAll(),
     ]);
     const usersById = new Map(users.map((user) => [user.grapiflyUserId, user]));

@@ -6,7 +6,7 @@ import { Business, BusinessSchema } from '../business/schemas/business.schema';
 import { UserInvitationsService } from './user-invitations.service';
 import { UserInvitationsController } from './user-invitations.controller';
 import { UsersModule } from '../users/users.module';
-import { CommunicationsModule } from '../../integrations/communications/communications.module';
+import { RelayModule } from '../../integrations/relay/relay.module';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { CommunicationsModule } from '../../integrations/communications/communic
       { name: Business.name, schema: BusinessSchema },
     ]),
     UsersModule,
-    CommunicationsModule,
+    RelayModule,
   ],
   controllers: [UserInvitationsController],
   providers: [UserInvitationsService],

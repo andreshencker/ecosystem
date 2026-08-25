@@ -4,8 +4,8 @@ import { ShiftSyncService } from '../services/shift-sync.service';
 import { Shift } from '../../schemas/shift.schema';
 import { SyncHistory } from '../schemas/sync-history.schema';
 import { LinkedCalendarsService } from '../../../linked-calendars/linked-calendars.service';
-import { CommunicationsCalendarClient } from '../../../linked-calendars/clients/communications-calendar.client';
-import { CommunicationsClientService } from '../../../../integrations/communications/client/communications-client.service';
+import { RelayCalendarClient } from '../../../linked-calendars/clients/relay-calendar.client';
+import { RelayClientService } from '../../../../integrations/relay/client/relay-client.service';
 import { UsersService } from '../../../users/users.service';
 import { BusinessIntelligenceService } from '../../../../integrations/business-intelligence/business-intelligence.service';
 
@@ -13,23 +13,23 @@ import { BusinessIntelligenceService } from '../../../../integrations/business-i
 
 function makeCalendar(flow: string | null, status = 'active') {
   return {
-    id:                 `cal-${flow ?? 'null'}`,
-    companyId:          'biz1',
-    connectionId:       'conn1',
-    providerKey:        'google_calendar',
+    id: `cal-${flow ?? 'null'}`,
+    companyId: 'biz1',
+    connectionId: 'conn1',
+    providerKey: 'google_calendar',
     providerDisplayName: 'Google Calendar',
-    accountIdentifier:  'user@example.com',
+    accountIdentifier: 'user@example.com',
     externalCalendarId: `ext-cal-${flow}`,
-    calendarName:       `Test Calendar (${flow})`,
+    calendarName: `Test Calendar (${flow})`,
     calendarDescription: null,
-    timezone:           'Australia/Sydney',
-    accessRole:         'owner',
-    isPrimary:          false,
+    timezone: 'Australia/Sydney',
+    accessRole: 'owner',
+    isPrimary: false,
     status,
     flow,
-    linkedByUserId:     null,
-    createdAt:          new Date().toISOString(),
-    updatedAt:          new Date().toISOString(),
+    linkedByUserId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -38,24 +38,33 @@ const actor = { userId: 'u1', email: 'admin@biz.com', firstName: 'Admin' };
 // ── Mock setup ────────────────────────────────────────────────────────────────
 
 const mockLinkedCalendarsService = { findAll: jest.fn() };
-const mockCalendarClient         = { listCalendarEvents: jest.fn() };
-const mockCommClient             = { notifyEvent: jest.fn().mockResolvedValue(true) };
-const mockUsersService           = { getCompanyDisplayName: jest.fn().mockResolvedValue('Biz Name') };
-const mockShiftModel             = { findOne: jest.fn(), findOneAndUpdate: jest.fn(), create: jest.fn(), updateMany: jest.fn() };
-const mockHistoryModel           = { create: jest.fn(), findOneAndUpdate: jest.fn() };
-const mockBiService              = { syncModel: jest.fn().mockResolvedValue({ inserted: 0, updated: 0 }) };
+const mockCalendarClient = { listCalendarEvents: jest.fn() };
+const mockCommClient = { notifyEvent: jest.fn().mockResolvedValue(true) };
+const mockUsersService = {
+  getCompanyDisplayName: jest.fn().mockResolvedValue('Biz Name'),
+};
+const mockShiftModel = {
+  findOne: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  create: jest.fn(),
+  updateMany: jest.fn(),
+};
+const mockHistoryModel = { create: jest.fn(), findOneAndUpdate: jest.fn() };
+const mockBiService = {
+  syncModel: jest.fn().mockResolvedValue({ inserted: 0, updated: 0 }),
+};
 
 async function buildModule(): Promise<TestingModule> {
   return Test.createTestingModule({
     providers: [
       ShiftSyncService,
-      { provide: getModelToken(Shift.name),       useValue: mockShiftModel   },
+      { provide: getModelToken(Shift.name), useValue: mockShiftModel },
       { provide: getModelToken(SyncHistory.name), useValue: mockHistoryModel },
-      { provide: LinkedCalendarsService,          useValue: mockLinkedCalendarsService },
-      { provide: CommunicationsCalendarClient,    useValue: mockCalendarClient         },
-      { provide: CommunicationsClientService,     useValue: mockCommClient             },
-      { provide: UsersService,                    useValue: mockUsersService           },
-      { provide: BusinessIntelligenceService,     useValue: mockBiService              },
+      { provide: LinkedCalendarsService, useValue: mockLinkedCalendarsService },
+      { provide: RelayCalendarClient, useValue: mockCalendarClient },
+      { provide: RelayClientService, useValue: mockCommClient },
+      { provide: UsersService, useValue: mockUsersService },
+      { provide: BusinessIntelligenceService, useValue: mockBiService },
     ],
   }).compile();
 }
@@ -72,8 +81,12 @@ describe('ShiftSyncService — calendar flow filter', () => {
     // Default: no events returned so syncCalendar exits cleanly
     mockCalendarClient.listCalendarEvents.mockResolvedValue([]);
     mockHistoryModel.create.mockResolvedValue({ _id: 'h1' });
-    mockHistoryModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
-    mockShiftModel.updateMany.mockReturnValue({ exec: jest.fn().mockResolvedValue({ modifiedCount: 0 }) });
+    mockHistoryModel.findOneAndUpdate.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({}),
+    });
+    mockShiftModel.updateMany.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
+    });
   });
 
   it('queries only { status: active, flow: shifts } linked calendars', async () => {
@@ -86,7 +99,9 @@ describe('ShiftSyncService — calendar flow filter', () => {
   });
 
   it('syncs a shifts-flow calendar', async () => {
-    mockLinkedCalendarsService.findAll.mockResolvedValue([makeCalendar('shifts')]);
+    mockLinkedCalendarsService.findAll.mockResolvedValue([
+      makeCalendar('shifts'),
+    ]);
     const result = await service.syncBusiness('biz1', actor);
     expect(result.calendars).toHaveLength(1);
     expect(mockCalendarClient.listCalendarEvents).toHaveBeenCalledTimes(1);
@@ -142,21 +157,31 @@ describe('ShiftSyncService — calendar flow filter', () => {
   });
 
   it('idempotent upsert — existing shift updated, not duplicated', async () => {
-    mockLinkedCalendarsService.findAll.mockResolvedValue([makeCalendar('shifts')]);
+    mockLinkedCalendarsService.findAll.mockResolvedValue([
+      makeCalendar('shifts'),
+    ]);
     mockCalendarClient.listCalendarEvents.mockResolvedValue([
       {
-        id:          'occ_001',
-        calendarId:  'ext-cal-shifts',
-        title:       'Work session',
-        startAt:     '2026-07-18T09:00:00Z',
-        endAt:       '2026-07-18T17:00:00Z',
-        allDay:      false,
-        timeZone:    'Australia/Sydney',
-        uid:         'uid_001',
+        id: 'occ_001',
+        calendarId: 'ext-cal-shifts',
+        title: 'Work session',
+        startAt: '2026-07-18T09:00:00Z',
+        endAt: '2026-07-18T17:00:00Z',
+        allDay: false,
+        timeZone: 'Australia/Sydney',
+        uid: 'uid_001',
       },
     ]);
-    mockShiftModel.findOne.mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'existing-shift' }) }) }) });
-    mockShiftModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+    mockShiftModel.findOne.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: 'existing-shift' }),
+        }),
+      }),
+    });
+    mockShiftModel.findOneAndUpdate.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({}),
+    });
 
     const result = await service.syncBusiness('biz1', actor);
     // updated, not created
@@ -165,21 +190,33 @@ describe('ShiftSyncService — calendar flow filter', () => {
   });
 
   it('business-owned fields (contractId, status, notes) not overwritten during update', async () => {
-    mockLinkedCalendarsService.findAll.mockResolvedValue([makeCalendar('shifts')]);
+    mockLinkedCalendarsService.findAll.mockResolvedValue([
+      makeCalendar('shifts'),
+    ]);
     mockCalendarClient.listCalendarEvents.mockResolvedValue([
       {
-        id: 'occ_002', calendarId: 'ext', title: 'Shift',
-        startAt: '2026-07-18T09:00:00Z', endAt: '2026-07-18T17:00:00Z', allDay: false,
+        id: 'occ_002',
+        calendarId: 'ext',
+        title: 'Shift',
+        startAt: '2026-07-18T09:00:00Z',
+        endAt: '2026-07-18T17:00:00Z',
+        allDay: false,
       },
     ]);
     mockShiftModel.findOne.mockReturnValue({
-      select: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'shift-with-contract' }) }) }),
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: 'shift-with-contract' }),
+        }),
+      }),
     });
     let updatePayload: any = null;
-    mockShiftModel.findOneAndUpdate.mockImplementation((_filter: any, update: any) => {
-      updatePayload = update;
-      return { exec: jest.fn().mockResolvedValue({}) };
-    });
+    mockShiftModel.findOneAndUpdate.mockImplementation(
+      (_filter: any, update: any) => {
+        updatePayload = update;
+        return { exec: jest.fn().mockResolvedValue({}) };
+      },
+    );
 
     await service.syncBusiness('biz1', actor);
 
@@ -198,7 +235,9 @@ describe('ShiftSyncService — calendar flow filter', () => {
   });
 
   it('disappeared events marked syncStatus=deleted, not hard-deleted', async () => {
-    mockLinkedCalendarsService.findAll.mockResolvedValue([makeCalendar('shifts')]);
+    mockLinkedCalendarsService.findAll.mockResolvedValue([
+      makeCalendar('shifts'),
+    ]);
     mockCalendarClient.listCalendarEvents.mockResolvedValue([]); // no events returned
     let updateManyFilter: any = null;
     mockShiftModel.updateMany.mockImplementation((filter: any) => {
@@ -215,15 +254,23 @@ describe('ShiftSyncService — calendar flow filter', () => {
   });
 
   it('provider-cancelled events are marked deleted and are not upserted', async () => {
-    mockLinkedCalendarsService.findAll.mockResolvedValue([makeCalendar('shifts')]);
+    mockLinkedCalendarsService.findAll.mockResolvedValue([
+      makeCalendar('shifts'),
+    ]);
     mockCalendarClient.listCalendarEvents.mockResolvedValue([
       {
-        id: 'cancelled_occurrence', calendarId: 'ext', title: 'Cancelled shift',
-        startAt: '2026-07-18T09:00:00Z', endAt: '2026-07-18T17:00:00Z',
-        allDay: false, status: 'cancelled',
+        id: 'cancelled_occurrence',
+        calendarId: 'ext',
+        title: 'Cancelled shift',
+        startAt: '2026-07-18T09:00:00Z',
+        endAt: '2026-07-18T17:00:00Z',
+        allDay: false,
+        status: 'cancelled',
       },
     ]);
-    mockShiftModel.updateMany.mockReturnValue({ exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }) });
+    mockShiftModel.updateMany.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+    });
 
     const result = await service.syncBusiness('biz1', actor);
 
@@ -242,8 +289,12 @@ describe('ShiftSyncService — BI ETL trigger after sync', () => {
     jest.clearAllMocks();
     mockCalendarClient.listCalendarEvents.mockResolvedValue([]);
     mockHistoryModel.create.mockResolvedValue({ _id: 'h1' });
-    mockHistoryModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
-    mockShiftModel.updateMany.mockReturnValue({ exec: jest.fn().mockResolvedValue({ modifiedCount: 0 }) });
+    mockHistoryModel.findOneAndUpdate.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({}),
+    });
+    mockShiftModel.updateMany.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
+    });
     mockBiService.syncModel.mockResolvedValue({ inserted: 0, updated: 0 });
   });
 
@@ -252,7 +303,11 @@ describe('ShiftSyncService — BI ETL trigger after sync', () => {
     await service.syncBusiness('biz1', actor);
     // Give fire-and-forget a tick
     await Promise.resolve();
-    expect(mockBiService.syncModel).toHaveBeenCalledWith('biz1', 'shift', false);
+    expect(mockBiService.syncModel).toHaveBeenCalledWith(
+      'biz1',
+      'shift',
+      false,
+    );
   });
 
   it('BI ETL uses authenticated businessId, not a frontend param', async () => {

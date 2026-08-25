@@ -3,7 +3,7 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { BrandMark } from './BrandMark';
-import { getVisibleNavigation, GrapiflyCapability } from '@/config/navigation.config';
+import { getVisibleNavigation, GrapiflyCapability, NavigationMode } from '@/config/navigation.config';
 
 interface ShellUser { grapiflyUserId: string; displayName: string; email: string; avatarUrl: string | null }
 interface ShellOrganization { organizationId: string; name: string; membership: { role: 'owner' | 'admin' | 'member' } }
@@ -22,6 +22,7 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [navMode, setNavMode] = useState<NavigationMode>('app');
 
   useEffect(() => {
     Promise.all([
@@ -49,6 +50,7 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setActiveView(new URLSearchParams(window.location.search).get('view'));
     setSidebarCollapsed(window.localStorage.getItem('grapifly_sidebar_collapsed') === 'true');
+    setNavMode(pathname.startsWith('/admin') ? 'admin' : 'app');
   }, [pathname]);
 
   const selectedOrganization = organizations.find((organization) => organization.organizationId === selectedOrganizationId) ?? null;
@@ -61,12 +63,16 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
     }
     if (isPlatformAdmin) {
       result.add('platform.users.view');
+      result.add('platform.organizations.view');
       result.add('platform.applications.view');
       result.add('platform.access.view');
+      result.add('platform.roles.view');
     }
     return result;
   }, [isPlatformAdmin, selectedOrganization]);
-  const navigation = useMemo(() => getVisibleNavigation(capabilities), [capabilities]);
+  const visibleNavigation = useMemo(() => getVisibleNavigation(capabilities), [capabilities]);
+  const hasAdminAccess = visibleNavigation.some((section) => section.mode === 'admin');
+  const navigation = visibleNavigation.filter((section) => section.mode === navMode);
 
   async function logout() {
     await fetch(`${apiUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
@@ -85,6 +91,10 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
           </select> : <a href="/organizations">+ Create organization</a>}
           {selectedOrganization && <small>{selectedOrganization.membership.role}</small>}
         </div>
+        {hasAdminAccess && <div className="sidebar-mode-tabs">
+          <button type="button" className={navMode === 'app' ? 'active' : ''} onClick={() => setNavMode('app')}>App</button>
+          <button type="button" className={navMode === 'admin' ? 'active' : ''} onClick={() => setNavMode('admin')}>Admin</button>
+        </div>}
         <nav>{navigation.map((section) => <section key={section.label}><span>{section.label}</span>{section.items.map((item) => {
           const [itemPath, itemQuery] = item.href.split('?');
           const requestedView = itemQuery ? new URLSearchParams(itemQuery).get('view') : null;

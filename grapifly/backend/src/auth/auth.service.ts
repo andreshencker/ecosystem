@@ -1,28 +1,30 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { GoogleIdentity, UsersService } from '../users/users.service';
 import { SsoCode, SsoCodeDocument } from './schemas/sso-code.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { OrganizationMembership, OrganizationMembershipDocument } from '../organizations/schemas/organization-membership.schema';
 import { OrganizationApplication, OrganizationApplicationDocument } from '../organizations/schemas/organization-application.schema';
 import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } from '../organizations/schemas/organization-member-application.schema';
-import type { RelaySsoIdentityContract } from './contracts/relay-sso-contract';
+import { ApplicationsService } from '../applications/applications.service';
+import { ApplicationAssignmentsService } from '../access/application-assignments.service';
+import type { EcosystemSsoIdentityContract } from './contracts/relay-sso-contract';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly users: UsersService,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService,
     @InjectModel(SsoCode.name) private readonly ssoCodes: Model<SsoCodeDocument>,
     @InjectModel(Organization.name) private readonly organizations: Model<OrganizationDocument>,
     @InjectModel(OrganizationMembership.name) private readonly memberships: Model<OrganizationMembershipDocument>,
     @InjectModel(OrganizationApplication.name) private readonly organizationApps: Model<OrganizationApplicationDocument>,
     @InjectModel(OrganizationMemberApplication.name) private readonly memberApps: Model<OrganizationMemberApplicationDocument>,
+    private readonly applications: ApplicationsService,
+    private readonly applicationAssignments: ApplicationAssignmentsService,
   ) {}
 
   async loginWithGoogle(identity: GoogleIdentity) {
@@ -46,15 +48,22 @@ export class AuthService {
     }
   }
 
-  async createRelaySsoCode(grapiflyUserId: string, requestedOrganizationId?: string) {
+  /** Throws NotFoundException if appKey isn't a real, active entry in the Applications catalogue. */
+  async assertActiveApplication(appKey: string) {
+    const application = await this.applications.findByKey(appKey);
+    if (!application) throw new NotFoundException(`Unknown or inactive application: ${appKey}`);
+    return application;
+  }
+
+  async createSsoCode(appKey: string, grapiflyUserId: string, requestedOrganizationId?: string) {
     const user = await this.users.findByGrapiflyUserId(grapiflyUserId);
     if (!user) throw new UnauthorizedException('Grapifly account is inactive');
-    const access = await this.resolveRelayAccess(grapiflyUserId, requestedOrganizationId);
+    const access = await this.resolveApplicationAccess(appKey, grapiflyUserId, requestedOrganizationId);
     const code = randomBytes(32).toString('base64url');
     await this.ssoCodes.create({
       codeHash: this.hash(code),
       grapiflyUserId,
-      appKey: 'relay',
+      appKey,
       organizationId: access.organization.organizationId,
       expiresAt: new Date(Date.now() + 60_000),
     });
@@ -62,23 +71,21 @@ export class AuthService {
   }
 
   async exchangeSsoCode(code: string, appKey: string, clientSecret: string | undefined) {
-    if (appKey !== 'relay' || !this.validClientSecret(clientSecret)) {
-      throw new UnauthorizedException('Invalid SSO client');
-    }
+    await this.applicationAssignments.assertAppClient(appKey, clientSecret);
     const now = new Date();
     const grant = await this.ssoCodes.findOneAndUpdate(
-      { codeHash: this.hash(code), appKey: 'relay', consumedAt: null, expiresAt: { $gt: now } },
+      { codeHash: this.hash(code), appKey, consumedAt: null, expiresAt: { $gt: now } },
       { $set: { consumedAt: now } },
       { new: true },
     ).lean();
     if (!grant) throw new UnauthorizedException('Invalid or expired SSO code');
     const user = await this.users.findByGrapiflyUserId(grant.grapiflyUserId);
     if (!user) throw new UnauthorizedException('Grapifly account is inactive');
-    const access = await this.resolveRelayAccess(grant.grapiflyUserId, grant.organizationId);
+    const access = await this.resolveApplicationAccess(appKey, grant.grapiflyUserId, grant.organizationId);
     return {
       contractVersion: 2,
       issuer: 'grapifly',
-      audience: 'relay',
+      audience: appKey,
       grapiflyUserId: user.grapiflyUserId,
       email: user.email,
       emailVerified: user.emailVerified,
@@ -88,9 +95,8 @@ export class AuthService {
       access: {
         organizationRole: access.membership.role,
         applicationRole: access.memberApp.role,
-        permissions: this.relayPermissions(access.memberApp.role),
       },
-    } satisfies RelaySsoIdentityContract;
+    } satisfies EcosystemSsoIdentityContract;
   }
 
   private toRelayOrganization(organization: Organization) {
@@ -139,7 +145,8 @@ export class AuthService {
     };
   }
 
-  private async resolveRelayAccess(grapiflyUserId: string, requestedOrganizationId?: string) {
+  /** Picks the best organization (per the sort order below) where the user has both org-membership and active access to the given app. */
+  private async resolveApplicationAccess(appKey: string, grapiflyUserId: string, requestedOrganizationId?: string) {
     const memberships = await this.memberships.find({
       grapiflyUserId,
       status: 'active',
@@ -157,38 +164,17 @@ export class AuthService {
     for (const organization of organizations) {
       const membership = membershipByOrganization.get(organization.organizationId)!;
       const [organizationApp, memberApp] = await Promise.all([
-        this.organizationApps.findOne({ organizationId: membership.organizationId, applicationKey: 'relay', status: 'active' }).lean(),
-        this.memberApps.findOne({ organizationId: membership.organizationId, grapiflyUserId, applicationKey: 'relay', status: 'active' }).lean(),
+        this.organizationApps.findOne({ organizationId: membership.organizationId, applicationKey: appKey, status: 'active' }).lean(),
+        this.memberApps.findOne({ organizationId: membership.organizationId, grapiflyUserId, applicationKey: appKey, status: 'active' }).lean(),
       ]);
       if (organizationApp && memberApp) {
         return { organization, membership, memberApp };
       }
     }
-    throw new ForbiddenException('Relay access is not enabled for this organization');
-  }
-
-  private relayPermissions(role: 'owner' | 'admin' | 'operator' | 'viewer'): string[] {
-    const base = ['relay.use'];
-    if (role === 'viewer') return base;
-    if (role === 'operator') return [...base, 'relay.execute'];
-    const management = [
-      'relay.connections.manage',
-      'relay.credentials.manage',
-      'relay.automations.manage',
-      'relay.theme.manage',
-    ];
-    return role === 'owner' ? [...base, ...management, 'relay.members.manage', 'relay.organization.manage'] : [...base, ...management, 'relay.members.manage'];
+    throw new ForbiddenException(`${appKey} access is not enabled for this organization`);
   }
 
   private hash(value: string) {
     return createHash('sha256').update(value).digest('hex');
-  }
-
-  private validClientSecret(candidate: string | undefined) {
-    const expected = this.config.get<string>('GRAPIFLY_SSO_CLIENT_SECRET');
-    if (!candidate || !expected) return false;
-    const a = Buffer.from(candidate);
-    const b = Buffer.from(expected);
-    return a.length === b.length && timingSafeEqual(a, b);
   }
 }

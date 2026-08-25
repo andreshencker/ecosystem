@@ -39,7 +39,7 @@ export class ProvisioningService {
     await this.p03FiscalProfileDefaults(companyId);
     this.p14ChartOfAccountsStub(companyId);
     this.pDocumentPackagesStub(companyId);
-    this.pCommunicationConnectionStub(companyId);
+    this.pRelayConnectionStub(companyId);
 
     this.logger.log(`[PROVISION] Phase 2 complete for companyId=${companyId}`);
   }
@@ -104,13 +104,13 @@ export class ProvisioningService {
     );
   }
 
-  // ─── P-xx — Default Communication Connection ─────────────────────────────
-  // Requires manual admin configuration (communications-app API key + companyId).
+  // ─── P-xx — Default Relay Connection ─────────────────────────────
+  // Requires manual admin configuration (relay-app API key + companyId).
   // Cannot be auto-created without environment-level secrets.
 
-  private pCommunicationConnectionStub(companyId: string): void {
+  private pRelayConnectionStub(companyId: string): void {
     this.logger.log(
-      `[PROVISION:P-xx] CommunicationConnection — requires admin configuration companyId=${companyId}`,
+      `[PROVISION:P-xx] RelayConnection — requires admin configuration companyId=${companyId}`,
     );
   }
 }

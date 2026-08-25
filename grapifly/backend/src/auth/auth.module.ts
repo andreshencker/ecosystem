@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from '../users/users.module';
+import { ApplicationsModule } from '../applications/applications.module';
+import { ApplicationAssignmentsModule } from '../access/application-assignments.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleStrategy } from './google.strategy';
@@ -18,6 +20,8 @@ import { OrganizationMemberApplication, OrganizationMemberApplicationSchema } fr
 @Module({
   imports: [
     UsersModule,
+    ApplicationsModule,
+    ApplicationAssignmentsModule,
     MongooseModule.forFeature([
       { name: SsoCode.name, schema: SsoCodeSchema },
       { name: Organization.name, schema: OrganizationSchema },

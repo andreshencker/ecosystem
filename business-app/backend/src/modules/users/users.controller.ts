@@ -31,7 +31,7 @@ import {
   EventBusService,
   PLATFORM_EVENTS,
 } from '../../infrastructure/events/event-bus.service';
-import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../integrations/relay/client/relay-client.service';
 
 // ─── Change Password DTO ──────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export class UsersController {
     private readonly users: UsersService,
     private readonly config: ConfigService,
     private readonly eventBus: EventBusService,
-    private readonly commClient: CommunicationsClientService,
+    private readonly commClient: RelayClientService,
   ) {}
 
   // ── List users ─────────────────────────────────────────────────────────────
@@ -187,11 +187,15 @@ export class UsersController {
           },
         })
         .then((delivered) =>
-          this.logger.log(`[changePassword] security.company_password_changed delivered=${delivered} userId=${String(before._id ?? '')}`),
+          this.logger.log(
+            `[changePassword] security.company_password_changed delivered=${delivered} userId=${String(before._id ?? '')}`,
+          ),
         )
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
-          this.logger.error(`[changePassword] notification threw unexpectedly: ${msg}`);
+          this.logger.error(
+            `[changePassword] notification threw unexpectedly: ${msg}`,
+          );
         });
     }
 
@@ -420,11 +424,15 @@ export class UsersController {
         },
       })
       .then((delivered) =>
-        this.logger.log(`[sendPasswordReset] security.company_forgot_password delivered=${delivered} targetId=${targetId}`),
+        this.logger.log(
+          `[sendPasswordReset] security.company_forgot_password delivered=${delivered} targetId=${targetId}`,
+        ),
       )
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error(`[sendPasswordReset] notification threw unexpectedly: ${msg}`);
+        this.logger.error(
+          `[sendPasswordReset] notification threw unexpectedly: ${msg}`,
+        );
       });
 
     return { message: 'Password reset email sent.' };

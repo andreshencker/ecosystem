@@ -8,34 +8,40 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, ClientSession } from 'mongoose';
 
 import { Shift, ShiftDocument } from './schemas/shift.schema';
-import { Contract, ContractDocument } from '../contracts/schemas/contract.schema';
-import { Customer, CustomerDocument } from '../customer/schemas/customer.schema';
+import {
+  Contract,
+  ContractDocument,
+} from '../contracts/schemas/contract.schema';
+import {
+  Customer,
+  CustomerDocument,
+} from '../customer/schemas/customer.schema';
 import { ContractSummary } from './dto/shift-response.dto';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
-import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../integrations/relay/client/relay-client.service';
 import { BusinessIntelligenceService } from '../../integrations/business-intelligence/business-intelligence.service';
 import { UsersService } from '../users/users.service';
 import { LinkedCalendarsService } from '../linked-calendars/linked-calendars.service';
-import { CommunicationsCalendarClient } from '../linked-calendars/clients/communications-calendar.client';
+import { RelayCalendarClient } from '../linked-calendars/clients/relay-calendar.client';
 
 export interface ShiftListParams {
-  page:              number;
-  limit:             number;
-  contractId?:       string;
-  customerId?:       string;
-  status?:           string;
-  date?:             string;
-  dateFrom?:         string;
-  dateTo?:           string;
-  search?:           string;
+  page: number;
+  limit: number;
+  contractId?: string;
+  customerId?: string;
+  status?: string;
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
   /** 'calendar' = createdFromCalendar=true; 'manual' = createdFromCalendar=false */
-  source?:           string;
+  source?: string;
   linkedCalendarId?: string;
 }
 
 export interface ActorContext {
-  email:     string;
+  email: string;
   firstName: string;
   companyId: string;
 }
@@ -51,11 +57,11 @@ export class ShiftsService {
     private readonly contractModel: Model<ContractDocument>,
     @InjectModel(Customer.name)
     private readonly customerModel: Model<CustomerDocument>,
-    private readonly commClient: CommunicationsClientService,
+    private readonly commClient: RelayClientService,
     private readonly biService: BusinessIntelligenceService,
     private readonly usersService: UsersService,
     private readonly linkedCalendarsService: LinkedCalendarsService,
-    private readonly calendarClient: CommunicationsCalendarClient,
+    private readonly calendarClient: RelayCalendarClient,
   ) {}
 
   // ─── Tenant validation ────────────────────────────────────────────────────
@@ -72,20 +78,28 @@ export class ShiftsService {
       .lean()
       .exec();
     if (!contract) {
-      throw new NotFoundException('Contract not found or does not belong to this business');
+      throw new NotFoundException(
+        'Contract not found or does not belong to this business',
+      );
     }
-    return contract as ContractDocument;
+    return contract;
   }
 
   // ─── Contract summary resolution ─────────────────────────────────────────
 
-  private async _summaryFromContractDoc(contract: any): Promise<ContractSummary> {
+  private async _summaryFromContractDoc(
+    contract: any,
+  ): Promise<ContractSummary> {
     const customerId = contract.customerId ?? null;
     const customer = customerId
-      ? await this.customerModel.findById(customerId).select('displayName').lean().exec()
+      ? await this.customerModel
+          .findById(customerId)
+          .select('displayName')
+          .lean()
+          .exec()
       : null;
     return {
-      id:           String(contract._id),
+      id: String(contract._id),
       customerId,
       customerName: (customer as any)?.displayName ?? null,
       positionName: contract.positionName,
@@ -109,7 +123,9 @@ export class ShiftsService {
     shifts: any[],
     businessId: string,
   ): Promise<Map<string, ContractSummary>> {
-    const contractIds = [...new Set(shifts.map((s) => s.contractId).filter(Boolean))];
+    const contractIds = [
+      ...new Set(shifts.map((s) => s.contractId).filter(Boolean)),
+    ];
     if (!contractIds.length) return new Map();
 
     const contracts = await this.contractModel
@@ -117,14 +133,17 @@ export class ShiftsService {
       .lean()
       .exec();
 
-    const customerIds = [...new Set((contracts as any[]).map((c) => c.customerId).filter(Boolean))];
-    const customers = customerIds.length > 0
-      ? await this.customerModel
-          .find({ _id: { $in: customerIds } })
-          .select('_id displayName')
-          .lean()
-          .exec()
-      : [];
+    const customerIds = [
+      ...new Set((contracts as any[]).map((c) => c.customerId).filter(Boolean)),
+    ];
+    const customers =
+      customerIds.length > 0
+        ? await this.customerModel
+            .find({ _id: { $in: customerIds } })
+            .select('_id displayName')
+            .lean()
+            .exec()
+        : [];
     const customerNameMap = new Map(
       (customers as any[]).map((c) => [String(c._id), c.displayName ?? null]),
     );
@@ -132,8 +151,8 @@ export class ShiftsService {
     const result = new Map<string, ContractSummary>();
     for (const contract of contracts as any[]) {
       result.set(String(contract._id), {
-        id:           String(contract._id),
-        customerId:   contract.customerId ?? null,
+        id: String(contract._id),
+        customerId: contract.customerId ?? null,
         customerName: customerNameMap.get(String(contract.customerId)) ?? null,
         positionName: contract.positionName,
       });
@@ -149,7 +168,7 @@ export class ShiftsService {
    * Consistency strategy (Option B — local-first):
    *   1. Validate ownership of Contract and, if provided, Linked Calendar.
    *   2. Create local Shift with syncStatus='pending'.
-   *   3. If linkedCalendarId supplied: create provider calendar event via Communications.
+   *   3. If linkedCalendarId supplied: create provider calendar event via Relay.
    *      On success: patch local Shift with external identity + syncStatus='synced'.
    *      On failure: patch local Shift with syncStatus='error'; throw to surface the failure.
    *   4. Fire notification after final Shift state is persisted.
@@ -159,14 +178,18 @@ export class ShiftsService {
     dto: CreateShiftDto,
     actor: ActorContext,
   ): Promise<ShiftDocument> {
-    const contract = await this.assertContractOwnership(dto.contractId, businessId);
+    const contract = await this.assertContractOwnership(
+      dto.contractId,
+      businessId,
+    );
 
     // Resolve Linked Calendar metadata when caller specifies a target calendar
-    let linkedCalendar: Awaited<ReturnType<LinkedCalendarsService['findAll']>>[0] | null = null;
+    let linkedCalendar:
+      Awaited<ReturnType<LinkedCalendarsService['findAll']>>[0] | null = null;
     if (dto.linkedCalendarId) {
       const cals = await this.linkedCalendarsService.findAll(businessId, {
         status: 'active',
-        flow:   'shifts',
+        flow: 'shifts',
       });
       linkedCalendar = cals.find((c) => c.id === dto.linkedCalendarId) ?? null;
       if (!linkedCalendar) {
@@ -177,29 +200,30 @@ export class ShiftsService {
     }
 
     // Determine event title: use provided title, fall back to contract position name
-    const eventTitle = dto.title?.trim() || (contract as any).positionName || 'Shift';
+    const eventTitle =
+      dto.title?.trim() || (contract as any).positionName || 'Shift';
 
     // Step 1 — Create local Shift with pending sync status
     const doc = await this.model.create({
       businessId,
-      contractId:       dto.contractId,
-      customerId:       (contract as any).customerId,
-      date:             dto.date,
-      startTime:        dto.startTime,
-      endTime:          dto.endTime,
-      breakTaken:       dto.breakTaken ?? false,
-      status:           dto.status ?? 'draft',
-      location:         dto.location?.trim() ?? null,
-      notes:            dto.notes?.trim() ?? null,
-      title:            linkedCalendar ? eventTitle : null,
+      contractId: dto.contractId,
+      customerId: (contract as any).customerId,
+      date: dto.date,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      breakTaken: dto.breakTaken ?? false,
+      status: dto.status ?? 'draft',
+      location: dto.location?.trim() ?? null,
+      notes: dto.notes?.trim() ?? null,
+      title: linkedCalendar ? eventTitle : null,
       createdFromCalendar: false,
       contractAssigned: true,
-      syncStatus:       linkedCalendar ? 'pending' : null,
+      syncStatus: linkedCalendar ? 'pending' : null,
       linkedCalendarId: linkedCalendar?.id ?? null,
       calendarProvider: linkedCalendar?.providerKey ?? null,
-      calendarAccount:  linkedCalendar?.accountIdentifier ?? null,
-      calendarId:       linkedCalendar?.externalCalendarId ?? null,
-      calendarName:     linkedCalendar?.calendarName ?? null,
+      calendarAccount: linkedCalendar?.accountIdentifier ?? null,
+      calendarId: linkedCalendar?.externalCalendarId ?? null,
+      calendarName: linkedCalendar?.calendarName ?? null,
     });
 
     // Step 2 — Push to external calendar if a Shift calendar was specified
@@ -207,22 +231,28 @@ export class ShiftsService {
       try {
         // Compute the end date: if endTime is strictly before startTime the shift
         // crosses midnight — the end belongs to the following calendar day.
-        const endDateStr = ShiftsService.computeEndDateStr(dto.date, dto.startTime, dto.endTime);
+        const endDateStr = ShiftsService.computeEndDateStr(
+          dto.date,
+          dto.startTime,
+          dto.endTime,
+        );
 
         const externalEvent = await this.calendarClient.createCalendarEvent(
           businessId,
           linkedCalendar.connectionId,
           linkedCalendar.externalCalendarId,
           {
-            title:       eventTitle,
-            startAt:     `${dto.date}T${dto.startTime}:00`,
-            endAt:       `${endDateStr}T${dto.endTime}:00`,
+            title: eventTitle,
+            startAt: `${dto.date}T${dto.startTime}:00`,
+            endAt: `${endDateStr}T${dto.endTime}:00`,
             description: dto.notes ?? undefined,
-            location:    dto.location ?? undefined,
-            // Include the calendar's IANA timezone so Communications can produce
+            location: dto.location ?? undefined,
+            // Include the calendar's IANA timezone so Relay can produce
             // an offset-aware timestamp. Without this, the provider may treat the
             // naive local datetime as UTC, shifting the event by the tz offset.
-            ...(linkedCalendar.timezone ? { timeZone: linkedCalendar.timezone } : {}),
+            ...(linkedCalendar.timezone
+              ? { timeZone: linkedCalendar.timezone }
+              : {}),
           },
         );
 
@@ -232,9 +262,9 @@ export class ShiftsService {
             { _id: doc._id, businessId },
             {
               $set: {
-                externalEventId:      externalEvent.uid ?? externalEvent.id,
+                externalEventId: externalEvent.uid ?? externalEvent.id,
                 externalOccurrenceId: externalEvent.id,
-                syncStatus:           'synced',
+                syncStatus: 'synced',
               },
             },
             { new: true },
@@ -242,16 +272,24 @@ export class ShiftsService {
           .lean()
           .exec();
 
-        const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+        const contractSummary = await this._summaryFromContractDoc(
+          contract,
+        ).catch(() => null);
         // TODO(shifts-notifications): notifyEvent() intentionally disabled.
         // Shift notification strategy is still under definition.
         // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
         // this._notify('shifts.shift_created', synced ?? doc, contract, actor).catch(() => void 0);
-        return { ...((synced ?? doc) as any), contractSummary } as ShiftDocument;
+        return {
+          ...((synced ?? doc) as any),
+          contractSummary,
+        } as ShiftDocument;
       } catch (err: any) {
         // External creation failed — mark Shift as error so the user knows it is unsynced
         await this.model
-          .findOneAndUpdate({ _id: doc._id, businessId }, { $set: { syncStatus: 'error' } })
+          .findOneAndUpdate(
+            { _id: doc._id, businessId },
+            { $set: { syncStatus: 'error' } },
+          )
           .lean()
           .exec()
           .catch(() => void 0);
@@ -264,7 +302,9 @@ export class ShiftsService {
       }
     }
 
-    const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+    const contractSummary = await this._summaryFromContractDoc(contract).catch(
+      () => null,
+    );
     // TODO(shifts-notifications): notifyEvent() intentionally disabled.
     // Shift notification strategy is still under definition.
     // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
@@ -275,16 +315,36 @@ export class ShiftsService {
   async findAll(
     businessId: string,
     params: ShiftListParams,
-  ): Promise<{ items: ShiftDocument[]; total: number; page: number; limit: number }> {
-    const { page, limit, contractId, customerId, status, date, dateFrom, dateTo, search, source, linkedCalendarId } = params;
+  ): Promise<{
+    items: ShiftDocument[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const {
+      page,
+      limit,
+      contractId,
+      customerId,
+      status,
+      date,
+      dateFrom,
+      dateTo,
+      search,
+      source,
+      linkedCalendarId,
+    } = params;
     const skip = (page - 1) * limit;
 
     // Calendar events removed or cancelled at the provider are soft-deleted for
     // auditability. They must not remain in the operational Shifts list.
-    const filter: Record<string, any> = { businessId, syncStatus: { $ne: 'deleted' } };
-    if (contractId)       filter.contractId       = contractId;
-    if (customerId)       filter.customerId       = customerId;
-    if (status)           filter.status           = status;
+    const filter: Record<string, any> = {
+      businessId,
+      syncStatus: { $ne: 'deleted' },
+    };
+    if (contractId) filter.contractId = contractId;
+    if (customerId) filter.customerId = customerId;
+    if (status) filter.status = status;
     if (date) {
       filter.date = date;
     } else if (dateFrom || dateTo) {
@@ -294,7 +354,7 @@ export class ShiftsService {
     }
     if (linkedCalendarId) filter.linkedCalendarId = linkedCalendarId;
     if (source === 'calendar') filter.createdFromCalendar = true;
-    if (source === 'manual')   filter.createdFromCalendar = false;
+    if (source === 'manual') filter.createdFromCalendar = false;
     if (search?.trim()) {
       const re = new RegExp(search.trim(), 'i');
       filter.$or = [{ location: re }, { notes: re }, { title: re }];
@@ -320,15 +380,24 @@ export class ShiftsService {
     return { items: enriched, total, page, limit };
   }
 
-  async findById(id: string, businessId: string): Promise<ShiftDocument | null> {
+  async findById(
+    id: string,
+    businessId: string,
+  ): Promise<ShiftDocument | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await this.model.findOne({ _id: id, businessId }).lean().exec();
     if (!doc) return null;
-    const contractSummary = await this._resolveContractSummary((doc as any).contractId, businessId);
+    const contractSummary = await this._resolveContractSummary(
+      (doc as any).contractId,
+      businessId,
+    );
     return { ...(doc as any), contractSummary } as ShiftDocument;
   }
 
-  async findByIdOrThrow(id: string, businessId: string): Promise<ShiftDocument> {
+  async findByIdOrThrow(
+    id: string,
+    businessId: string,
+  ): Promise<ShiftDocument> {
     const doc = await this.findById(id, businessId);
     if (!doc) throw new NotFoundException('Shift not found');
     return doc;
@@ -349,19 +418,23 @@ export class ShiftsService {
     let resolvedContract: any = null;
 
     const $set: Record<string, any> = {};
-    if (dto.contractId   !== undefined) {
-      resolvedContract = await this.assertContractOwnership(dto.contractId, businessId);
-      $set.contractId       = dto.contractId;
-      $set.customerId       = (resolvedContract as any).customerId ?? null;
+    if (dto.contractId !== undefined) {
+      resolvedContract = await this.assertContractOwnership(
+        dto.contractId,
+        businessId,
+      );
+      $set.contractId = dto.contractId;
+      $set.customerId = resolvedContract.customerId ?? null;
       $set.contractAssigned = true;
     }
-    if (dto.title        !== undefined) $set.title        = dto.title?.trim() ?? null;
-    if (dto.date         !== undefined) $set.date         = dto.date;
-    if (dto.startTime    !== undefined) $set.startTime    = dto.startTime;
-    if (dto.endTime      !== undefined) $set.endTime      = dto.endTime;
+    if (dto.title !== undefined) $set.title = dto.title?.trim() ?? null;
+    if (dto.date !== undefined) $set.date = dto.date;
+    if (dto.startTime !== undefined) $set.startTime = dto.startTime;
+    if (dto.endTime !== undefined) $set.endTime = dto.endTime;
     if (dto.breakTaken !== undefined) $set.breakTaken = dto.breakTaken;
-    if (dto.location     !== undefined) $set.location     = dto.location?.trim() ?? null;
-    if (dto.notes        !== undefined) $set.notes        = dto.notes?.trim() ?? null;
+    if (dto.location !== undefined)
+      $set.location = dto.location?.trim() ?? null;
+    if (dto.notes !== undefined) $set.notes = dto.notes?.trim() ?? null;
 
     const updated = await this.model
       .findOneAndUpdate({ _id: id, businessId }, { $set }, { new: true })
@@ -371,8 +444,12 @@ export class ShiftsService {
     if (!updated) throw new NotFoundException('Shift not found');
 
     const effectiveContractId = $set.contractId ?? (existing as any).contractId;
-    const contract = resolvedContract
-      ?? await this.contractModel.findById((existing as any).contractId).lean().exec();
+    const contract =
+      resolvedContract ??
+      (await this.contractModel
+        .findById((existing as any).contractId)
+        .lean()
+        .exec());
     const contractSummary = contract
       ? await this._summaryFromContractDoc(contract).catch(() => null)
       : await this._resolveContractSummary(effectiveContractId, businessId);
@@ -382,12 +459,19 @@ export class ShiftsService {
     // this._notify('shifts.shift_updated', updated, contract, actor).catch(() => void 0);
 
     // Push changes to external calendar when Shift is linked to a provider event
-    const externalOccurrenceId = (existing as any).externalOccurrenceId as string | null;
-    const linkedCalendarId     = (existing as any).linkedCalendarId as string | null;
+    const externalOccurrenceId = (existing as any).externalOccurrenceId as
+      string | null;
+    const linkedCalendarId = (existing as any).linkedCalendarId as
+      string | null;
 
     if (externalOccurrenceId && linkedCalendarId) {
-      this._pushExternalUpdate(businessId, linkedCalendarId, externalOccurrenceId, updated as any).catch(
-        (err: any) => this.logger.warn(
+      this._pushExternalUpdate(
+        businessId,
+        linkedCalendarId,
+        externalOccurrenceId,
+        updated as any,
+      ).catch((err: any) =>
+        this.logger.warn(
           `[ShiftsService.update] External calendar update failed for shift ${id}: ${err?.message}`,
         ),
       );
@@ -400,7 +484,11 @@ export class ShiftsService {
    * Advance the end date by one local calendar day when the shift crosses midnight
    * (endTime strictly before startTime). Otherwise return the same date.
    */
-  static computeEndDateStr(date: string, startTime: string, endTime: string): string {
+  static computeEndDateStr(
+    date: string,
+    startTime: string,
+    endTime: string,
+  ): string {
     if (endTime < startTime) {
       const [year, month, day] = date.split('-').map(Number);
       const next = new Date(Date.UTC(year, month - 1, day + 1));
@@ -415,20 +503,26 @@ export class ShiftsService {
     eventId: string,
     shift: any,
   ): Promise<void> {
-    const cals = await this.linkedCalendarsService.findAll(businessId, { status: 'active', flow: 'shifts' });
-    const cal  = cals.find((c) => c.id === linkedCalendarId);
+    const cals = await this.linkedCalendarsService.findAll(businessId, {
+      status: 'active',
+      flow: 'shifts',
+    });
+    const cal = cals.find((c) => c.id === linkedCalendarId);
     if (!cal) {
-      this.logger.warn(`[_pushExternalUpdate] LinkedCalendar ${linkedCalendarId} not found or inactive for business ${businessId}`);
+      this.logger.warn(
+        `[_pushExternalUpdate] LinkedCalendar ${linkedCalendarId} not found or inactive for business ${businessId}`,
+      );
       return;
     }
 
-    const date      = shift.date      as string | null;
+    const date = shift.date as string | null;
     const startTime = shift.startTime as string | null;
-    const endTime   = shift.endTime   as string | null;
+    const endTime = shift.endTime as string | null;
 
-    const endDateStr = date && startTime && endTime
-      ? ShiftsService.computeEndDateStr(date, startTime, endTime)
-      : date;
+    const endDateStr =
+      date && startTime && endTime
+        ? ShiftsService.computeEndDateStr(date, startTime, endTime)
+        : date;
 
     await this.calendarClient.updateCalendarEvent(
       businessId,
@@ -436,18 +530,26 @@ export class ShiftsService {
       cal.externalCalendarId,
       eventId,
       {
-        ...(shift.title    ? { title:       shift.title    } : {}),
+        ...(shift.title ? { title: shift.title } : {}),
         ...(date && startTime ? { startAt: `${date}T${startTime}:00` } : {}),
-        ...(date && endTime && endDateStr ? { endAt: `${endDateStr}T${endTime}:00` } : {}),
-        ...(shift.location !== undefined ? { location: shift.location ?? undefined } : {}),
-        ...(cal.timezone   ? { timeZone:   cal.timezone   } : {}),
+        ...(date && endTime && endDateStr
+          ? { endAt: `${endDateStr}T${endTime}:00` }
+          : {}),
+        ...(shift.location !== undefined
+          ? { location: shift.location ?? undefined }
+          : {}),
+        ...(cal.timezone ? { timeZone: cal.timezone } : {}),
       },
     );
   }
 
   // ─── Status transitions ───────────────────────────────────────────────────
 
-  async confirm(id: string, businessId: string, actor: ActorContext): Promise<ShiftDocument> {
+  async confirm(
+    id: string,
+    businessId: string,
+    actor: ActorContext,
+  ): Promise<ShiftDocument> {
     const doc = await this.findByIdOrThrow(id, businessId);
     const current = (doc as any).status as string;
 
@@ -458,13 +560,20 @@ export class ShiftsService {
     }
 
     const updated = await this.model
-      .findOneAndUpdate({ _id: id, businessId }, { $set: { status: 'confirmed' } }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, businessId },
+        { $set: { status: 'confirmed' } },
+        { new: true },
+      )
       .lean()
       .exec();
 
     if (!updated) throw new NotFoundException('Shift not found');
 
-    const contract = await this.contractModel.findById((doc as any).contractId).lean().exec();
+    const contract = await this.contractModel
+      .findById((doc as any).contractId)
+      .lean()
+      .exec();
     const contractSummary = contract
       ? await this._summaryFromContractDoc(contract).catch(() => null)
       : null;
@@ -475,7 +584,11 @@ export class ShiftsService {
     return { ...(updated as any), contractSummary } as ShiftDocument;
   }
 
-  async cancel(id: string, businessId: string, actor: ActorContext): Promise<ShiftDocument> {
+  async cancel(
+    id: string,
+    businessId: string,
+    actor: ActorContext,
+  ): Promise<ShiftDocument> {
     const doc = await this.findByIdOrThrow(id, businessId);
     const current = (doc as any).status as string;
 
@@ -484,13 +597,20 @@ export class ShiftsService {
     }
 
     const updated = await this.model
-      .findOneAndUpdate({ _id: id, businessId }, { $set: { status: 'cancelled' } }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, businessId },
+        { $set: { status: 'cancelled' } },
+        { new: true },
+      )
       .lean()
       .exec();
 
     if (!updated) throw new NotFoundException('Shift not found');
 
-    const contract = await this.contractModel.findById((doc as any).contractId).lean().exec();
+    const contract = await this.contractModel
+      .findById((doc as any).contractId)
+      .lean()
+      .exec();
     const contractSummary = contract
       ? await this._summaryFromContractDoc(contract).catch(() => null)
       : null;
@@ -518,11 +638,13 @@ export class ShiftsService {
     contractId: string,
     actor: ActorContext,
   ): Promise<ShiftDocument> {
-    const doc      = await this.findByIdOrThrow(id, businessId);
+    const doc = await this.findByIdOrThrow(id, businessId);
     const contract = await this.assertContractOwnership(contractId, businessId);
 
     if ((doc as any).status === 'cancelled') {
-      throw new BadRequestException('Cannot assign a contract to a cancelled shift');
+      throw new BadRequestException(
+        'Cannot assign a contract to a cancelled shift',
+      );
     }
 
     const updated = await this.model
@@ -530,8 +652,8 @@ export class ShiftsService {
         { _id: id, businessId },
         {
           $set: {
-            contractId:       contractId,
-            customerId:       (contract as any).customerId ?? null,
+            contractId: contractId,
+            customerId: (contract as any).customerId ?? null,
             contractAssigned: true,
           },
         },
@@ -542,7 +664,9 @@ export class ShiftsService {
 
     if (!updated) throw new NotFoundException('Shift not found');
 
-    const contractSummary = await this._summaryFromContractDoc(contract).catch(() => null);
+    const contractSummary = await this._summaryFromContractDoc(contract).catch(
+      () => null,
+    );
     // TODO(shifts-notifications): notifyEvent() intentionally disabled.
     // Shift notification strategy is still under definition.
     // When re-enabled it MUST use type: 'platform' — do not restore with type: 'business'.
@@ -563,7 +687,13 @@ export class ShiftsService {
     businessId: string,
     assignments: Array<{ shiftId: string; contractId: string }>,
     actor: ActorContext,
-  ): Promise<{ success: true; total: number; updated: number; skipped: number; shiftIds: string[] }> {
+  ): Promise<{
+    success: true;
+    total: number;
+    updated: number;
+    skipped: number;
+    shiftIds: string[];
+  }> {
     if (!assignments.length) {
       throw new BadRequestException('assignments must not be empty');
     }
@@ -571,14 +701,20 @@ export class ShiftsService {
     // Reject duplicate shiftId values in a single request
     const shiftIdSet = new Set(assignments.map((a) => a.shiftId));
     if (shiftIdSet.size !== assignments.length) {
-      throw new BadRequestException('assignments contains duplicate shiftId values');
+      throw new BadRequestException(
+        'assignments contains duplicate shiftId values',
+      );
     }
 
     // ── Validation pass ───────────────────────────────────────────────────────
     // Collect all errors before rejecting so the client can fix everything at once.
     type ValidationError = { shiftId: string; code: string; message: string };
     const validationErrors: ValidationError[] = [];
-    type ValidPair = { shiftId: string; contractId: string; customerId: string | null };
+    type ValidPair = {
+      shiftId: string;
+      contractId: string;
+      customerId: string | null;
+    };
     const validPairs: ValidPair[] = [];
 
     // Assignments where the shiftId is not found in this business are silently
@@ -589,15 +725,26 @@ export class ShiftsService {
 
     for (const { shiftId, contractId } of assignments) {
       if (!Types.ObjectId.isValid(shiftId)) {
-        validationErrors.push({ shiftId, code: 'SHIFT_INVALID_ID', message: 'Invalid Shift ID format' });
+        validationErrors.push({
+          shiftId,
+          code: 'SHIFT_INVALID_ID',
+          message: 'Invalid Shift ID format',
+        });
         continue;
       }
       if (!Types.ObjectId.isValid(contractId)) {
-        validationErrors.push({ shiftId, code: 'CONTRACT_INVALID_ID', message: 'Invalid Contract ID format' });
+        validationErrors.push({
+          shiftId,
+          code: 'CONTRACT_INVALID_ID',
+          message: 'Invalid Contract ID format',
+        });
         continue;
       }
 
-      const shift = await this.model.findOne({ _id: shiftId, businessId }).lean().exec();
+      const shift = await this.model
+        .findOne({ _id: shiftId, businessId })
+        .lean()
+        .exec();
       if (!shift) {
         // Orphaned BI record — the MongoDB shift no longer exists.
         // Skip silently and log; a subsequent full BI sync will remove the stale row.
@@ -608,28 +755,47 @@ export class ShiftsService {
         continue;
       }
       if ((shift as any).status === 'cancelled') {
-        validationErrors.push({ shiftId, code: 'SHIFT_CANCELLED', message: 'Cannot assign a Contract to a cancelled Shift' });
+        validationErrors.push({
+          shiftId,
+          code: 'SHIFT_CANCELLED',
+          message: 'Cannot assign a Contract to a cancelled Shift',
+        });
         continue;
       }
 
-      const contract = await this.contractModel.findOne({ _id: contractId, businessId }).lean().exec();
+      const contract = await this.contractModel
+        .findOne({ _id: contractId, businessId })
+        .lean()
+        .exec();
       if (!contract) {
-        validationErrors.push({ shiftId, code: 'CONTRACT_NOT_FOUND', message: 'Contract not found or belongs to another business' });
+        validationErrors.push({
+          shiftId,
+          code: 'CONTRACT_NOT_FOUND',
+          message: 'Contract not found or belongs to another business',
+        });
         continue;
       }
       if ((contract as any).status !== 'active') {
-        validationErrors.push({ shiftId, code: 'CONTRACT_INACTIVE', message: 'The selected Contract is not active' });
+        validationErrors.push({
+          shiftId,
+          code: 'CONTRACT_INACTIVE',
+          message: 'The selected Contract is not active',
+        });
         continue;
       }
 
-      validPairs.push({ shiftId, contractId, customerId: (contract as any).customerId ?? null });
+      validPairs.push({
+        shiftId,
+        contractId,
+        customerId: (contract as any).customerId ?? null,
+      });
     }
 
     if (validationErrors.length > 0) {
       throw new BadRequestException({
-        success:  false,
-        message:  'One or more assignments are invalid',
-        errors:   validationErrors,
+        success: false,
+        message: 'One or more assignments are invalid',
+        errors: validationErrors,
       });
     }
 
@@ -639,24 +805,42 @@ export class ShiftsService {
       this.logger.warn(
         `[bulkAssign] businessId=${businessId} all ${skippedOrphanedIds.length} assignments were orphaned BI records — triggering full BI cleanup`,
       );
-      this.biService.syncModel(businessId, 'shift', true)
-        .then((r) => this.logger.log(`[bulkAssign] full BI cleanup done inserted=${r?.inserted ?? 0} updated=${r?.updated ?? 0}`))
-        .catch((err: any) => this.logger.warn(`[bulkAssign] full BI cleanup failed: ${err?.message ?? 'unknown'}`));
-      return { success: true, total: 0, updated: 0, skipped: skippedOrphanedIds.length, shiftIds: [] };
+      this.biService
+        .syncModel(businessId, 'shift', true)
+        .then((r) =>
+          this.logger.log(
+            `[bulkAssign] full BI cleanup done inserted=${r?.inserted ?? 0} updated=${r?.updated ?? 0}`,
+          ),
+        )
+        .catch((err: any) =>
+          this.logger.warn(
+            `[bulkAssign] full BI cleanup failed: ${err?.message ?? 'unknown'}`,
+          ),
+        );
+      return {
+        success: true,
+        total: 0,
+        updated: 0,
+        skipped: skippedOrphanedIds.length,
+        shiftIds: [],
+      };
     }
 
     // ── Transactional write ───────────────────────────────────────────────────
     let session: ClientSession | null = null;
     try {
-      session = await (this.model as any).db.startSession() as ClientSession;
+      session = (await (this.model as any).db.startSession()) as ClientSession;
       session.startTransaction();
 
       for (const { shiftId, contractId, customerId } of validPairs) {
-        await this.model.findOneAndUpdate(
-          { _id: shiftId, businessId },
-          { $set: { contractId, customerId, contractAssigned: true } },
-          { session: session as any, new: true },
-        ).lean().exec();
+        await this.model
+          .findOneAndUpdate(
+            { _id: shiftId, businessId },
+            { $set: { contractId, customerId, contractAssigned: true } },
+            { session: session as any, new: true },
+          )
+          .lean()
+          .exec();
       }
 
       await session.commitTransaction();
@@ -670,14 +854,17 @@ export class ShiftsService {
     // ── Post-commit: full BI ETL fire-and-forget ─────────────────────────────
     // Use full=true so BI runs the orphan-cleanup step and removes stale
     // fact_shift rows alongside updating the freshly-assigned shifts.
-    this.biService.syncModel(businessId, 'shift', true)
+    this.biService
+      .syncModel(businessId, 'shift', true)
       .then((r) =>
         this.logger.log(
           `[bulkAssign] full BI sync done businessId=${businessId} inserted=${r?.inserted ?? 0} updated=${r?.updated ?? 0}`,
         ),
       )
       .catch((err: any) =>
-        this.logger.warn(`[bulkAssign] full BI sync failed businessId=${businessId}: ${err?.message ?? 'unknown'}`),
+        this.logger.warn(
+          `[bulkAssign] full BI sync failed businessId=${businessId}: ${err?.message ?? 'unknown'}`,
+        ),
       );
 
     const updatedIds = validPairs.map((p) => p.shiftId);
@@ -688,7 +875,7 @@ export class ShiftsService {
 
     return {
       success: true,
-      total:   updatedIds.length + skippedOrphanedIds.length,
+      total: updatedIds.length + skippedOrphanedIds.length,
       updated: updatedIds.length,
       skipped: skippedOrphanedIds.length,
       shiftIds: updatedIds,
@@ -701,13 +888,17 @@ export class ShiftsService {
    * Business rule: only draft shifts can be deleted.
    *
    * When the Shift is linked to an external calendar event:
-   *   1. Delete the external event through Communications (404 = idempotent success).
+   *   1. Delete the external event through Relay (404 = idempotent success).
    *   2. Only on external success (or 404) remove the local Shift.
    *   3. On other external failure: throw — local Shift is preserved, nothing lost.
    *
    * The Linked Calendar document is never deleted.
    */
-  async remove(id: string, businessId: string, actor: ActorContext): Promise<void> {
+  async remove(
+    id: string,
+    businessId: string,
+    actor: ActorContext,
+  ): Promise<void> {
     const doc = await this.findByIdOrThrow(id, businessId);
 
     if ((doc as any).status !== 'draft') {
@@ -717,12 +908,16 @@ export class ShiftsService {
     }
 
     // Delete external calendar event before removing the local record
-    const externalOccurrenceId = (doc as any).externalOccurrenceId as string | null;
-    const linkedCalendarId     = (doc as any).linkedCalendarId as string | null;
+    const externalOccurrenceId = (doc as any).externalOccurrenceId as
+      string | null;
+    const linkedCalendarId = (doc as any).linkedCalendarId as string | null;
 
     if (externalOccurrenceId && linkedCalendarId) {
-      const cals = await this.linkedCalendarsService.findAll(businessId, { status: 'active', flow: 'shifts' });
-      const cal  = cals.find((c) => c.id === linkedCalendarId);
+      const cals = await this.linkedCalendarsService.findAll(businessId, {
+        status: 'active',
+        flow: 'shifts',
+      });
+      const cal = cals.find((c) => c.id === linkedCalendarId);
 
       if (cal) {
         // May throw on non-404 errors — local Shift is preserved in that case
@@ -743,7 +938,10 @@ export class ShiftsService {
       }
     }
 
-    const contract = await this.contractModel.findById((doc as any).contractId).lean().exec();
+    const contract = await this.contractModel
+      .findById((doc as any).contractId)
+      .lean()
+      .exec();
     await this.model.findOneAndDelete({ _id: id, businessId }).exec();
     // TODO(shifts-notifications): notifyEvent() intentionally disabled.
     // Shift notification strategy is still under definition.
@@ -766,7 +964,10 @@ export class ShiftsService {
     contract: any,
     actor: ActorContext,
   ): Promise<void> {
-    void eventKey; void shift; void contract; void actor; // suppress unused-param warnings
+    void eventKey;
+    void shift;
+    void contract;
+    void actor; // suppress unused-param warnings
     // try {
     //   const businessName = await this.usersService
     //     .getCompanyDisplayName(actor.companyId)

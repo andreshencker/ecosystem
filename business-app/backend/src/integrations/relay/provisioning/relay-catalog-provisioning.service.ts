@@ -1,0 +1,414 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import { RelayClientService } from '../client/relay-client.service';
+import { RelayConnectionService } from '../connection/relay-connection.service';
+import { RELAY_CATALOG } from '../catalog/relay-catalog';
+import { assertCatalogValid } from '../catalog/relay-catalog.validator';
+import type {
+  CatalogDomain,
+  CatalogEvent,
+} from '../catalog/relay-catalog.types';
+import { BUSINESS_DOCUMENT_SEED_DOMAINS } from '../seed/document-seed';
+
+/**
+ * RelayCatalogProvisioningService
+ *
+ * Responsible for pushing the RELAY_CATALOG to Relay App.
+ * All operations are idempotent: check before create, skip if already exists.
+ *
+ * PLATFORM provisioning: uses RELAY_API_KEY, runs at Business App startup.
+ * BUSINESS provisioning: uses each Business's integration token, runs at token-save time.
+ */
+@Injectable()
+export class RelayCatalogProvisioningService {
+  private readonly logger = new Logger(RelayCatalogProvisioningService.name);
+
+  constructor(
+    private readonly commClient: RelayClientService,
+    private readonly connectionService: RelayConnectionService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private get adminApiKey(): string {
+    return this.config.get<string>('RELAY_API_KEY') ?? '';
+  }
+
+  // ─── Platform provisioning ────────────────────────────────────────────────
+
+  /**
+   * Provision all platform domains and events in the RELAY_CATALOG.
+   * Called at Business App startup via onApplicationBootstrap.
+   * Idempotent — safe to run on every restart.
+   */
+  async provisionPlatformCatalog(): Promise<void> {
+    this.logger.log('[provisionPlatformCatalog] Starting...');
+
+    try {
+      assertCatalogValid(RELAY_CATALOG);
+    } catch (err: any) {
+      this.logger.error(
+        `[provisionPlatformCatalog] Catalog invalid: ${err.message}`,
+      );
+      return;
+    }
+
+    const apiKey = this.adminApiKey;
+    if (!apiKey) {
+      this.logger.error(
+        '[provisionPlatformCatalog] SKIPPED — RELAY_API_KEY env var is not set. ' +
+          'Set it to the admin API key of Relay App.',
+      );
+      return;
+    }
+
+    const conn =
+      await this.connectionService.getRelayConnectionForContext('platform');
+    if (!conn) {
+      this.logger.warn(
+        '[provisionPlatformCatalog] Platform company has no active RelayConnection — ' +
+          'platform event catalog provisioning skipped. ' +
+          'Configure the integration token in Settings → Relay to enable notifications.',
+      );
+      return;
+    }
+
+    const remoteCompanyId = conn.relayCompanyId;
+
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const domain of RELAY_CATALOG.platform) {
+      const result = await this.provisionDomain(
+        remoteCompanyId,
+        apiKey,
+        domain,
+        'platform',
+      );
+      if (result.authFailed) {
+        this.logger.error(
+          '[provisionPlatformCatalog] SKIPPED — cannot provision Relay catalog because authentication failed. ' +
+            'The platform integration token is invalid or missing. Fix the token in Settings → Integrations → Relay.',
+        );
+        return;
+      }
+      created += result.created;
+      skipped += result.skipped;
+      errors += result.errors;
+    }
+
+    this.logger.log(
+      `[provisionPlatformCatalog] Done — created=${created} skipped=${skipped} errors=${errors}`,
+    );
+  }
+
+  // ─── Business provisioning ────────────────────────────────────────────────
+
+  /**
+   * Provision all business domains and events for a specific Business.
+   * Called when a Business saves its integration token.
+   * Idempotent — safe to call multiple times.
+   */
+  async provisionBusinessCatalog(businessId: string): Promise<void> {
+    if (RELAY_CATALOG.business.length === 0) {
+      this.logger.log(
+        `[provisionBusinessCatalog] No business domains defined yet — nothing to provision for businessId=${businessId}`,
+      );
+      return;
+    }
+
+    const apiKey = this.adminApiKey;
+    if (!apiKey) {
+      this.logger.error(
+        `[provisionBusinessCatalog] SKIPPED businessId=${businessId} — RELAY_API_KEY env var is not set.`,
+      );
+      return;
+    }
+
+    const conn = await this.connectionService.getRelayConnectionForContext(
+      'business',
+      businessId,
+    );
+    if (!conn) {
+      this.logger.warn(
+        `[provisionBusinessCatalog] No active RelayConnection for businessId=${businessId} — skipping.`,
+      );
+      return;
+    }
+
+    try {
+      assertCatalogValid(RELAY_CATALOG);
+    } catch (err: any) {
+      this.logger.error(
+        `[provisionBusinessCatalog] Catalog invalid: ${err.message}`,
+      );
+      return;
+    }
+
+    const remoteCompanyId = conn.relayCompanyId;
+
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const domain of RELAY_CATALOG.business) {
+      const result = await this.provisionDomain(
+        remoteCompanyId,
+        apiKey,
+        domain,
+        'business',
+      );
+      if (result.authFailed) {
+        this.logger.error(
+          `[provisionBusinessCatalog] SKIPPED businessId=${businessId} — cannot provision Relay catalog because authentication failed. ` +
+            'The business integration token is invalid or expired.',
+        );
+        return;
+      }
+      created += result.created;
+      skipped += result.skipped;
+      errors += result.errors;
+    }
+
+    this.logger.log(
+      `[provisionBusinessCatalog] Done businessId=${businessId} — created=${created} skipped=${skipped} errors=${errors}`,
+    );
+  }
+
+  /**
+   * Sync catalog for a single Business that already has an active connection.
+   * Creates only missing domains/events. Never overwrites existing ones.
+   */
+  async syncBusinessCatalog(businessId: string): Promise<void> {
+    return this.provisionBusinessCatalog(businessId);
+  }
+
+  /** Provision notification events and file contracts owned by one Business. */
+  async provisionBusinessResources(businessId: string): Promise<void> {
+    await this.provisionBusinessCatalog(businessId);
+    await this.provisionBusinessDocumentCatalog(businessId);
+  }
+
+  /**
+   * Provision document domains and document contracts in Relay Files.
+   * Existing entries are preserved; only missing records are created.
+   */
+  async provisionBusinessDocumentCatalog(businessId: string): Promise<void> {
+    const apiKey = this.adminApiKey;
+    if (!apiKey) {
+      this.logger.error(
+        `[provisionBusinessDocumentCatalog] SKIPPED businessId=${businessId} — RELAY_API_KEY is not set.`,
+      );
+      return;
+    }
+    const conn = await this.connectionService.getRelayConnectionForContext(
+      'business',
+      businessId,
+    );
+    if (!conn?.relayCompanyId) {
+      this.logger.warn(
+        `[provisionBusinessDocumentCatalog] SKIPPED businessId=${businessId} — active verified connection required.`,
+      );
+      return;
+    }
+
+    const existingDomains = await this.commClient.getDocumentDomains(
+      conn.relayCompanyId,
+      apiKey,
+    );
+    if (existingDomains === null) {
+      this.logger.error(
+        `[provisionBusinessDocumentCatalog] Authentication failed businessId=${businessId}.`,
+      );
+      return;
+    }
+
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+    for (const seed of BUSINESS_DOCUMENT_SEED_DOMAINS) {
+      const existing = existingDomains.find(
+        (domain: any) => domain.domainKey === seed.domainKey,
+      );
+      let domainId = String(existing?.id ?? existing?._id ?? '');
+      if (!domainId) {
+        domainId =
+          (await this.commClient.createDocumentDomain(
+            conn.relayCompanyId,
+            apiKey,
+            seed,
+          )) ?? '';
+        if (!domainId) {
+          errors++;
+          continue;
+        }
+        created++;
+      } else {
+        skipped++;
+        const currentFormats = Array.isArray(existing?.allowedFormats)
+          ? existing.allowedFormats
+          : [];
+        if (
+          seed.allowedFormats.some((format) => !currentFormats.includes(format))
+        ) {
+          const updated = await this.commClient.updateDocumentDomainFormats(
+            domainId,
+            apiKey,
+            seed.allowedFormats,
+          );
+          if (!updated) errors++;
+        }
+      }
+
+      const documents = await this.commClient.getDocuments(domainId, apiKey);
+      const keys = new Set(
+        documents.map((document: any) => document.documentKey),
+      );
+      for (const document of seed.documents) {
+        if (keys.has(document.documentKey)) {
+          skipped++;
+          continue;
+        }
+        const documentId = await this.commClient.createDocument(
+          domainId,
+          apiKey,
+          document,
+        );
+        if (documentId) created++;
+        else errors++;
+      }
+    }
+    this.logger.log(
+      `[provisionBusinessDocumentCatalog] Done businessId=${businessId} — created=${created} skipped=${skipped} errors=${errors}`,
+    );
+  }
+
+  /**
+   * Sync catalog for all Businesses that have an active RelayConnection.
+   * Used when a new event is added to RELAY_CATALOG.business.
+   */
+  async syncAllBusinessesWithActiveConnection(): Promise<void> {
+    this.logger.log('[syncAllBusinessesWithActiveConnection] Starting...');
+
+    const connections =
+      await this.connectionService.findAllActiveBusinessConnections();
+    this.logger.log(
+      `[syncAllBusinessesWithActiveConnection] Found ${connections.length} active connections`,
+    );
+
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const conn of connections) {
+      try {
+        await this.provisionBusinessResources(conn.businessId);
+        succeeded++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `[syncAllBusinessesWithActiveConnection] Failed for businessId=${conn.businessId}: ${msg}`,
+        );
+        failed++;
+      }
+    }
+
+    this.logger.log(
+      `[syncAllBusinessesWithActiveConnection] Done — succeeded=${succeeded} failed=${failed}`,
+    );
+  }
+
+  // ─── Private helpers ──────────────────────────────────────────────────────
+
+  private async provisionDomain(
+    remoteCompanyId: string,
+    apiKey: string,
+    domain: CatalogDomain,
+    scope: 'platform' | 'business',
+  ): Promise<{
+    created: number;
+    skipped: number;
+    errors: number;
+    authFailed?: boolean;
+  }> {
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    // Check if domain already exists.
+    // null means the API returned 401/403 — abort immediately, do not attempt any writes.
+    const existingDomains = await this.commClient.getDomains(
+      remoteCompanyId,
+      apiKey,
+    );
+    if (existingDomains === null) {
+      return { created: 0, skipped: 0, errors: 0, authFailed: true };
+    }
+    const existingDomain = existingDomains.find(
+      (d: Record<string, unknown>) => d['domainKey'] === domain.domainKey,
+    );
+
+    let domainId: string;
+
+    if (existingDomain) {
+      domainId = String(existingDomain['_id'] ?? existingDomain['id'] ?? '');
+      this.logger.log(
+        `[provisionDomain] SKIP domain="${domain.domainKey}" already exists id=${domainId}`,
+      );
+      skipped++;
+    } else {
+      this.logger.log(`[provisionDomain] CREATE domain="${domain.domainKey}"`);
+      const newId = await this.commClient.createDomain(
+        remoteCompanyId,
+        apiKey,
+        domain,
+      );
+      if (!newId) {
+        this.logger.error(
+          `[provisionDomain] FAILED to create domain="${domain.domainKey}"`,
+        );
+        errors++;
+        return { created, skipped, errors };
+      }
+      domainId = newId;
+      created++;
+      this.logger.log(
+        `[provisionDomain] CREATED domain="${domain.domainKey}" id=${domainId}`,
+      );
+    }
+
+    // Provision events under this domain.
+    const existingEvents = await this.commClient.getEvents(domainId, apiKey);
+    const existingKeys = new Set(
+      existingEvents.map((e: Record<string, unknown>) => e['eventKey']),
+    );
+
+    for (const event of domain.events) {
+      if (existingKeys.has(event.eventKey)) {
+        this.logger.log(
+          `[provisionDomain] SKIP event="${domain.domainKey}.${event.eventKey}" already exists`,
+        );
+        skipped++;
+        continue;
+      }
+
+      this.logger.log(
+        `[provisionDomain] CREATE event="${domain.domainKey}.${event.eventKey}"`,
+      );
+      try {
+        await this.commClient.createEvent(domainId, apiKey, event, scope);
+        created++;
+        this.logger.log(
+          `[provisionDomain] CREATED event="${domain.domainKey}.${event.eventKey}"`,
+        );
+      } catch {
+        this.logger.error(
+          `[provisionDomain] FAILED event="${domain.domainKey}.${event.eventKey}"`,
+        );
+        errors++;
+      }
+    }
+
+    return { created, skipped, errors };
+  }
+}

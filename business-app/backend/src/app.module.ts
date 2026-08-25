@@ -24,9 +24,9 @@ import { UserInvitationsModule } from './modules/user-invitations/user-invitatio
 import { BusinessModule as BusinessPortalModule } from './modules/business/business.module';
 
 // ─── Integrations ─────────────────────────────────────────────────────────────
-import { CommunicationsModule } from './integrations/communications/communications.module';
-import { CommunicationPurposesModule } from './integrations/communications/purposes/communication-purposes.module';
-import { CommunicationEventsModule } from './integrations/communications/events/communication-events.module';
+import { RelayModule } from './integrations/relay/relay.module';
+import { RelayPurposesModule } from './integrations/relay/purposes/relay-purposes.module';
+import { RelayEventsModule } from './integrations/relay/events/relay-events.module';
 
 // ─── ERP Domains ──────────────────────────────────────────────────────────────
 import { CustomerModule } from './modules/customer/customer.module';
@@ -35,7 +35,6 @@ import { ShiftsModule } from './modules/shifts/shifts.module';
 import { LinkedCalendarsModule } from './modules/linked-calendars/linked-calendars.module';
 import { MdmModule } from './mdm/mdm.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
-
 
 // ─── Analytics Gateway (proxies to BI service) ───────────────────────────────
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -73,9 +72,9 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
     BusinessPortalModule,
 
     // ── Integrations
-    CommunicationsModule,
-    CommunicationPurposesModule,
-    CommunicationEventsModule,
+    RelayModule,
+    RelayPurposesModule,
+    RelayEventsModule,
 
     // ── ERP Domains (Sprint 1+)
     CustomerModule,
@@ -84,7 +83,6 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
     LinkedCalendarsModule,
     MdmModule,
     InvoicesModule,
-
 
     // ── Analytics Gateway
     AnalyticsModule,

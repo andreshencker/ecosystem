@@ -5,7 +5,7 @@ import { Business, BusinessSchema } from '../business/schemas/business.schema';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { UsersBootstrapService } from './users-bootstrap.service';
-import { CommunicationsModule } from '../../integrations/communications/communications.module';
+import { RelayModule } from '../../integrations/relay/relay.module';
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { CommunicationsModule } from '../../integrations/communications/communic
       { name: User.name, schema: UserSchema },
       { name: Business.name, schema: BusinessSchema },
     ]),
-    CommunicationsModule,
+    RelayModule,
   ],
   controllers: [UsersController],
   providers: [UsersService, UsersBootstrapService],

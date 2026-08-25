@@ -5,8 +5,7 @@ import { Model } from 'mongoose';
 import { GrapiflyUser, GrapiflyUserDocument } from './schemas/user.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { OrganizationMembership, OrganizationMembershipDocument } from '../organizations/schemas/organization-membership.schema';
-import { OrganizationApplication, OrganizationApplicationDocument } from '../organizations/schemas/organization-application.schema';
-import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } from '../organizations/schemas/organization-member-application.schema';
+import { ApplicationAssignmentsService } from '../access/application-assignments.service';
 
 export interface GoogleIdentity {
   subject: string;
@@ -24,11 +23,13 @@ export class UsersService implements OnApplicationBootstrap {
     private readonly users: Model<GrapiflyUserDocument>,
     @InjectModel(Organization.name) private readonly organizations: Model<OrganizationDocument>,
     @InjectModel(OrganizationMembership.name) private readonly memberships: Model<OrganizationMembershipDocument>,
-    @InjectModel(OrganizationApplication.name) private readonly organizationApplications: Model<OrganizationApplicationDocument>,
-    @InjectModel(OrganizationMemberApplication.name) private readonly memberApplications: Model<OrganizationMemberApplicationDocument>,
+    private readonly accessAssignments: ApplicationAssignmentsService,
   ) {}
 
   async onApplicationBootstrap() {
+    // Backfill 'tipo' on any account created before that field existed —
+    // every such account came in through the self-serve Google button.
+    await this.users.updateMany({ tipo: { $exists: false } }, { $set: { tipo: 'owner' } });
     const users = await this.users.find({ isActive: true, email: { $ne: 'grapiflydeveloper@gmail.com' } }).lean();
     await Promise.all(users.map((user) => this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email)));
     this.logger.log(`Default organization provisioning ready (${users.length} user accounts checked).`);
@@ -50,6 +51,9 @@ export class UsersService implements OnApplicationBootstrap {
           provider: 'google',
           providerSubject: identity.subject,
           isActive: true,
+          // Self-serve Google sign-in always creates an 'owner' account —
+          // 'interno' is only set when accepting an admin invitation.
+          tipo: 'owner',
         },
       },
       { upsert: true, new: true },
@@ -84,16 +88,7 @@ export class UsersService implements OnApplicationBootstrap {
       { $set: { role: 'owner', status: 'active' }, $setOnInsert: { membershipId: `gpf_mem_default_${suffix}` } },
       { upsert: true, returnDocument: 'after' },
     );
-    await this.organizationApplications.findOneAndUpdate(
-      { organizationId, applicationKey: 'relay' },
-      { $set: { status: 'active', enabledBy: grapiflyUserId } },
-      { upsert: true, returnDocument: 'after' },
-    );
-    await this.memberApplications.findOneAndUpdate(
-      { organizationId, grapiflyUserId, applicationKey: 'relay' },
-      { $set: { role: 'owner', status: 'active' } },
-      { upsert: true, returnDocument: 'after' },
-    );
+    await this.accessAssignments.grantDefaultAccess(grapiflyUserId, organizationId);
   }
 
   findByGrapiflyUserId(grapiflyUserId: string) {

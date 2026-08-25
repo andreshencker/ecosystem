@@ -16,7 +16,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import SmsOutlinedIcon   from '@mui/icons-material/SmsOutlined';
 
 import { ConfirmDialog } from '@/components/shared';
-import { usePurposes }   from '@/hooks/api/useCommunicationPurposes';
+import { usePurposes }   from '@/hooks/api/useRelayPurposes';
 import type { CommPurposeFormEntry } from '@/types/customer';
 import type { ContactFormRow } from './CustomerContactsFieldArray';
 import { PurposeConfigDrawer, type ContactOption } from './PurposeConfigDrawer';

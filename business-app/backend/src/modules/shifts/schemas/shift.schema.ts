@@ -2,9 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 export type ShiftStatus = 'draft' | 'confirmed' | 'cancelled';
-export type SyncStatus  = 'pending' | 'synced' | 'deleted' | 'error';
-export type HourCalcStatus  = 'pending' | 'ready' | 'calculated';
-export type InvoiceStatus   = 'pending' | 'invoiced';
+export type SyncStatus = 'pending' | 'synced' | 'deleted' | 'error';
+export type HourCalcStatus = 'pending' | 'ready' | 'calculated';
+export type InvoiceStatus = 'pending' | 'invoiced';
 
 export type ShiftDocument = HydratedDocument<Shift>;
 
@@ -82,7 +82,7 @@ export class Shift {
   @Prop({ type: String, default: null })
   calendarAccount!: string | null;
 
-  /** External calendar ID from Communications. */
+  /** External calendar ID from Relay. */
   @Prop({ type: String, default: null })
   calendarId!: string | null;
 
@@ -98,7 +98,7 @@ export class Shift {
   externalEventId!: string | null;
 
   /**
-   * Unique occurrence identifier returned by Communications after RRULE expansion.
+   * Unique occurrence identifier returned by Relay after RRULE expansion.
    * Format: uid_occurrenceStartISO for recurring, uid for single events.
    * Used as the upsert key for idempotent sync.
    */

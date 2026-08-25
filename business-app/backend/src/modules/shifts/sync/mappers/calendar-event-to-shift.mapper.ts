@@ -1,4 +1,4 @@
-import type { CommCalendarEventInfo } from '../../../linked-calendars/clients/communications-calendar.client';
+import type { CommCalendarEventInfo } from '../../../linked-calendars/clients/relay-calendar.client';
 import type { LinkedCalendarResponseDto } from '../../../linked-calendars/dto/linked-calendar-response.dto';
 
 /**
@@ -7,47 +7,47 @@ import type { LinkedCalendarResponseDto } from '../../../linked-calendars/dto/li
  */
 export interface NormalizedShiftFromEvent {
   // Calendar identity
-  linkedCalendarId:     string;
-  calendarProvider:     string;
-  calendarAccount:      string;
-  calendarId:           string;
-  calendarName:         string;
-  externalEventId:      string;
+  linkedCalendarId: string;
+  calendarProvider: string;
+  calendarAccount: string;
+  calendarId: string;
+  calendarName: string;
+  externalEventId: string;
   externalOccurrenceId: string;
 
   // Business time fields
-  date:      string;   // YYYY-MM-DD — local start date in the event timezone
-  startTime: string;   // HH:mm — local start time
-  endTime:   string;   // HH:mm — local end time
-  endDate:   string;   // YYYY-MM-DD — local end date (differs from date for overnight shifts)
+  date: string; // YYYY-MM-DD — local start date in the event timezone
+  startTime: string; // HH:mm — local start time
+  endTime: string; // HH:mm — local end time
+  endDate: string; // YYYY-MM-DD — local end date (differs from date for overnight shifts)
 
   // Calendar event fields
-  title:       string;
+  title: string;
   description: string | null;
-  location:    string | null;
-  start:       Date;
-  end:         Date;
-  allDay:      boolean;
-  timezone:    string | null;
-  organizer:   string | null;
-  attendees:   string[];
+  location: string | null;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+  timezone: string | null;
+  organizer: string | null;
+  attendees: string[];
   lastExternalUpdate: Date | null;
 
   // Sync metadata
-  syncStatus:             'synced';
-  createdFromCalendar:    true;
-  contractAssigned:       false;
-  hourCalculationStatus:  'pending';
-  invoiceStatus:          'pending';
-  status:                 'draft';
-  contractId:             null;
-  customerId:             null;
-  metadata:               Record<string, any> | null;
+  syncStatus: 'synced';
+  createdFromCalendar: true;
+  contractAssigned: false;
+  hourCalculationStatus: 'pending';
+  invoiceStatus: 'pending';
+  status: 'draft';
+  contractId: null;
+  customerId: null;
+  metadata: Record<string, any> | null;
 }
 
 export class CalendarEventToShiftMapper {
   /**
-   * Map a Communications calendar event to the fields stored in a Shift document.
+   * Map a Relay calendar event to the fields stored in a Shift document.
    * Never throws — returns null if the event cannot be parsed.
    */
 
@@ -56,7 +56,7 @@ export class CalendarEventToShiftMapper {
    * built-in Intl.DateTimeFormat (no external library required).
    *
    * Fallback chain (in order):
-   *   1. event.timeZone (IANA string from Communications)
+   *   1. event.timeZone (IANA string from Relay)
    *   2. calendar.timezone (account-level default)
    *   3. Offset embedded in the raw provider string (e.g. +10:00) — when the
    *      provider sends a non-UTC offset but omits the IANA timezone label, the
@@ -70,15 +70,17 @@ export class CalendarEventToShiftMapper {
     const tz = tzid || 'UTC';
     try {
       const fmt = new Intl.DateTimeFormat('en-CA', {
-        timeZone:    tz,
-        year:        'numeric',
-        month:       '2-digit',
-        day:         '2-digit',
-        hour:        '2-digit',
-        minute:      '2-digit',
-        hour12:      false,
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
       });
-      const parts = Object.fromEntries(fmt.formatToParts(dt).map((p) => [p.type, p.value]));
+      const parts = Object.fromEntries(
+        fmt.formatToParts(dt).map((p) => [p.type, p.value]),
+      );
       // en-CA locale always produces YYYY-MM-DD for date parts
       const date = `${parts.year}-${parts.month}-${parts.day}`;
       // Normalize midnight-as-"24:00" edge case produced by some Intl implementations
@@ -90,11 +92,16 @@ export class CalendarEventToShiftMapper {
       // rather than opaque ISO string slicing.  Documented fallback: UTC.
       const utcFmt = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'UTC',
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
         hour12: false,
       });
-      const up = Object.fromEntries(utcFmt.formatToParts(dt).map((p) => [p.type, p.value]));
+      const up = Object.fromEntries(
+        utcFmt.formatToParts(dt).map((p) => [p.type, p.value]),
+      );
       return {
         date: `${up.year}-${up.month}-${up.day}`,
         time: up.hour === '24' ? `00:${up.minute}` : `${up.hour}:${up.minute}`,
@@ -119,7 +126,7 @@ export class CalendarEventToShiftMapper {
     );
     if (!match) return null;
 
-    const offset = match[4].replace(':', '');  // e.g. "+1000" or "-0500"
+    const offset = match[4].replace(':', ''); // e.g. "+1000" or "-0500"
     // UTC offsets carry no local-time info beyond UTC itself.
     if (offset === '+0000' || offset === '-0000') return null;
 
@@ -134,7 +141,7 @@ export class CalendarEventToShiftMapper {
    * caller. The local date and time components are literally encoded in the string:
    *   "2026-07-09T12:00:00" → local 12:00 on 2026-07-09
    *
-   * This is the format emitted by Communications when it strips the iCal TZID
+   * This is the format emitted by Relay when it strips the iCal TZID
    * parameter from DTSTART and converts the compact iCal form to ISO 8601 without
    * appending a Z. It must NOT be parsed through new Date() because that would
    * interpret it as local machine time and silently shift the result to UTC.
@@ -158,7 +165,7 @@ export class CalendarEventToShiftMapper {
    *
    * Fallback order (in priority):
    * 1. Bare local datetime string (no Z, no offset) — the local components ARE the
-   *    value. Must be checked FIRST. Communications emits bare-local strings for
+   *    value. Must be checked FIRST. Relay emits bare-local strings for
    *    TZID-qualified iCal events (utcToLocalDateTimeString output) and for floating
    *    times. Applying new Date() + Intl.DateTimeFormat to a bare-local string on a
    *    UTC Node server would treat it as UTC and produce wrong local times.
@@ -174,11 +181,12 @@ export class CalendarEventToShiftMapper {
     tzid: string | null | undefined,
   ): { date: string; time: string } {
     // 1. Bare local datetime string — local components are literally in the string.
-    //    This covers: TZID-qualified events (Communications emits local string + timeZone),
+    //    This covers: TZID-qualified events (Relay emits local string + timeZone),
     //    floating times, and utcToLocalDateTimeString output for recurring occurrences.
     //    Must precede IANA: new Date('2026-07-21T13:00:00') on a UTC server = 13:00Z,
     //    and Intl would then convert 13:00Z → 23:00 AEST (double-conversion).
-    const fromLocal = CalendarEventToShiftMapper.extractFromLocalDateTimeString(rawString);
+    const fromLocal =
+      CalendarEventToShiftMapper.extractFromLocalDateTimeString(rawString);
     if (fromLocal) return fromLocal;
 
     // 2. IANA timezone — converts a UTC instant (Z-string or offset-aware string) to local.
@@ -186,17 +194,20 @@ export class CalendarEventToShiftMapper {
       return CalendarEventToShiftMapper.toLocalDateTime(dt, tzid);
     }
     // 3. Explicit non-UTC offset in the string (+10:00 etc.)
-    const fromOffset = CalendarEventToShiftMapper.extractFromOffsetAwareString(rawString);
+    const fromOffset =
+      CalendarEventToShiftMapper.extractFromOffsetAwareString(rawString);
     if (fromOffset) return fromOffset;
     // 4. UTC fallback (Z-terminated strings; no local info available)
     return CalendarEventToShiftMapper.toLocalDateTime(dt, null);
   }
 
   // Temporary diagnostic logger — remove after timezone flow is verified.
-  private static readonly _logger = { log: (msg: string) => process.stdout.write(`[SHIFT_MAPPER] ${msg}\n`) };
+  private static readonly _logger = {
+    log: (msg: string) => process.stdout.write(`[SHIFT_MAPPER] ${msg}\n`),
+  };
 
   static map(
-    event:    CommCalendarEventInfo,
+    event: CommCalendarEventInfo,
     calendar: LinkedCalendarResponseDto,
   ): NormalizedShiftFromEvent | null {
     if (!event.startAt) return null;
@@ -204,79 +215,87 @@ export class CalendarEventToShiftMapper {
     // BUSINESS_APP_SYNC_RECEIVED
     CalendarEventToShiftMapper._logger.log(
       `BUSINESS_APP_SYNC_RECEIVED | eventId=${event.id} calendarId=${event.calendarId} ` +
-      `startAt=${event.startAt} endAt=${event.endAt ?? 'undefined'} ` +
-      `event.timeZone=${event.timeZone ?? 'undefined'} calendar.timezone=${calendar.timezone ?? 'null'}`,
+        `startAt=${event.startAt} endAt=${event.endAt ?? 'undefined'} ` +
+        `event.timeZone=${event.timeZone ?? 'undefined'} calendar.timezone=${calendar.timezone ?? 'null'}`,
     );
 
     const start = new Date(event.startAt);
-    const end   = event.endAt ? new Date(event.endAt) : start;
+    const end = event.endAt ? new Date(event.endAt) : start;
 
     if (isNaN(start.getTime())) return null;
 
     const tzid = event.timeZone ?? calendar.timezone;
 
-    let date:      string;
+    let date: string;
     let startTime: string;
-    let endTime:   string;
-    let endDate:   string;
+    let endTime: string;
+    let endDate: string;
 
     if (event.allDay) {
       // All-day events: the provider date string is authoritative.
       // iCal DATE type carries no time component, so slicing the raw string
       // is correct — we must NOT convert through UTC (which would shift the date).
-      date      = event.startAt.slice(0, 10);
-      endDate   = event.endAt ? event.endAt.slice(0, 10) : date;
+      date = event.startAt.slice(0, 10);
+      endDate = event.endAt ? event.endAt.slice(0, 10) : date;
       startTime = '00:00';
-      endTime   = '23:59';
+      endTime = '23:59';
     } else {
-      const startLocal = CalendarEventToShiftMapper.resolveLocalDateTime(start, event.startAt, tzid);
-      const endRaw     = event.endAt ?? event.startAt;
-      const endLocal   = CalendarEventToShiftMapper.resolveLocalDateTime(end, endRaw, tzid);
-      date      = startLocal.date;
+      const startLocal = CalendarEventToShiftMapper.resolveLocalDateTime(
+        start,
+        event.startAt,
+        tzid,
+      );
+      const endRaw = event.endAt ?? event.startAt;
+      const endLocal = CalendarEventToShiftMapper.resolveLocalDateTime(
+        end,
+        endRaw,
+        tzid,
+      );
+      date = startLocal.date;
       startTime = startLocal.time;
-      endDate   = endLocal.date;
-      endTime   = endLocal.time;
+      endDate = endLocal.date;
+      endTime = endLocal.time;
     }
 
     // BUSINESS_APP_SHIFT_NORMALIZED
     CalendarEventToShiftMapper._logger.log(
       `BUSINESS_APP_SHIFT_NORMALIZED | eventId=${event.id} ` +
-      `resolvedTzid=${tzid ?? 'null'} ` +
-      `date=${date} startTime=${startTime} endDate=${endDate} endTime=${endTime}`,
+        `resolvedTzid=${tzid ?? 'null'} ` +
+        `date=${date} startTime=${startTime} endDate=${endDate} endTime=${endTime}`,
     );
 
     return {
-      linkedCalendarId:     calendar.id,
-      calendarProvider:     calendar.providerKey,
-      calendarAccount:      calendar.accountIdentifier,
-      calendarId:           calendar.externalCalendarId,
-      calendarName:         calendar.calendarName,
-      externalEventId:      event.uid    ?? event.id,
+      linkedCalendarId: calendar.id,
+      calendarProvider: calendar.providerKey,
+      calendarAccount: calendar.accountIdentifier,
+      calendarId: calendar.externalCalendarId,
+      calendarName: calendar.calendarName,
+      externalEventId: event.uid ?? event.id,
       externalOccurrenceId: event.id,
       date,
       startTime,
       endDate,
       endTime,
-      title:       event.title       || '(no title)',
+      title: event.title || '(no title)',
       description: event.description ?? null,
-      location:    event.location    ?? null,
+      location: event.location ?? null,
       start,
       end,
-      allDay:    event.allDay  ?? false,
-      timezone:  tzid ?? null,
+      allDay: event.allDay ?? false,
+      timezone: tzid ?? null,
       organizer: event.organizerEmail ?? null,
       attendees: (event.attendees ?? []).map((a) => a.email).filter(Boolean),
       lastExternalUpdate: event.raw?.lastModified
         ? new Date(event.raw.lastModified as string)
         : null,
-      syncStatus:            'synced',
-      createdFromCalendar:   true,
-      contractAssigned:      false,
+      syncStatus: 'synced',
+      createdFromCalendar: true,
+      contractAssigned: false,
       hourCalculationStatus: 'pending',
-      invoiceStatus:         'pending',
-      status:                'draft',
-      contractId:            null,
-      customerId:            null,
+      invoiceStatus: 'pending',
+      status: 'draft',
+      contractId: null,
+      customerId: null,
       metadata: event.raw ?? null,
     };
   }

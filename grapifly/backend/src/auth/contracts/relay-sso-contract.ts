@@ -42,10 +42,15 @@ export interface RelayOrganizationContract {
   status: 'active' | 'suspended' | 'archived';
 }
 
-export interface RelaySsoIdentityContract {
+/**
+ * Issued for any appKey registered (and active) in the Applications catalogue —
+ * not Relay-specific. `audience` echoes back whichever appKey the caller
+ * requested and was granted access for.
+ */
+export interface EcosystemSsoIdentityContract {
   contractVersion: 2;
   issuer: 'grapifly';
-  audience: 'relay';
+  audience: string;
   grapiflyUserId: string;
   email: string;
   emailVerified: boolean;
@@ -54,7 +59,9 @@ export interface RelaySsoIdentityContract {
   organization: RelayOrganizationContract;
   access: {
     organizationRole: 'owner' | 'admin' | 'member';
-    applicationRole: 'owner' | 'admin' | 'operator' | 'viewer';
-    permissions: string[];
+    // App-defined (RoleCatalogService), not a fixed shared union.
+    applicationRole: string;
+    // No permissions here by design — Grapifly only knows the raw role.
+    // Each consuming app owns its own role→permission vocabulary locally.
   };
 }

@@ -8,7 +8,7 @@ import { Contract } from '../schemas/contract.schema';
 import { Customer } from '../../customer/schemas/customer.schema';
 import { Shift } from '../../shifts/schemas/shift.schema';
 import { LinkedCalendar } from '../../linked-calendars/schemas/linked-calendar.schema';
-import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../../integrations/relay/client/relay-client.service';
 import { UsersService } from '../../users/users.service';
 import { toContractResponse } from '../dto/contract-response.dto';
 import type { CreateContractDto } from '../dto/create-contract.dto';
@@ -19,95 +19,108 @@ import type { UpdateContractDto } from '../dto/update-contract.dto';
 const HOLIDAY_CAL_ID = '6a58a9a43be409328fa6f4d1';
 const PAYMENT_CAL_ID = '6a58a9a43be409328fa6f4d2';
 
-const BIZ   = 'biz_1';
-const OTHER  = 'biz_other';
-const CUST  = new Types.ObjectId().toHexString();
+const BIZ = 'biz_1';
+const OTHER = 'biz_other';
+const CUST = new Types.ObjectId().toHexString();
 const VALID_CONTRACT_ID = new Types.ObjectId().toHexString();
 
-const ACTOR = { email: 'admin@example.com', firstName: 'Admin', companyId: BIZ };
+const ACTOR = {
+  email: 'admin@example.com',
+  firstName: 'Admin',
+  companyId: BIZ,
+};
 
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
 function mockChain(value: any) {
   const q: any = {};
-  q.sort   = () => q;
-  q.skip   = () => q;
-  q.limit  = () => q;
-  q.lean   = () => q;
+  q.sort = () => q;
+  q.skip = () => q;
+  q.limit = () => q;
+  q.lean = () => q;
   q.select = () => q;
-  q.exec   = () => Promise.resolve(value);
+  q.exec = () => Promise.resolve(value);
   return q;
 }
 
 const mockComm = { notifyEvent: jest.fn().mockResolvedValue(true) };
-const mockUsers = { getCompanyDisplayName: jest.fn().mockResolvedValue('Test Co') };
+const mockUsers = {
+  getCompanyDisplayName: jest.fn().mockResolvedValue('Test Co'),
+};
 
 function buildContractModel(overrides: Partial<Record<string, any>> = {}) {
   return {
-    create:            jest.fn(),
-    find:              jest.fn(() => mockChain([])),
-    findOne:           jest.fn(() => mockChain(null)),
-    findOneAndUpdate:  jest.fn(() => mockChain(null)),
-    findOneAndDelete:  jest.fn(() => mockChain(null)),
-    countDocuments:    jest.fn().mockResolvedValue(0),
+    create: jest.fn(),
+    find: jest.fn(() => mockChain([])),
+    findOne: jest.fn(() => mockChain(null)),
+    findOneAndUpdate: jest.fn(() => mockChain(null)),
+    findOneAndDelete: jest.fn(() => mockChain(null)),
+    countDocuments: jest.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
 
 function buildCustomerModel(overrides: Partial<Record<string, any>> = {}) {
   return {
-    findOne:   jest.fn(() => mockChain(null)),
-    findById:  jest.fn(() => mockChain(null)),
-    find:      jest.fn(() => mockChain([])),   // batch name lookup in findAll
+    findOne: jest.fn(() => mockChain(null)),
+    findById: jest.fn(() => mockChain(null)),
+    find: jest.fn(() => mockChain([])), // batch name lookup in findAll
     ...overrides,
   };
 }
 
 function fakeCustomer(overrides: Record<string, any> = {}) {
-  return { _id: new Types.ObjectId(CUST), companyId: BIZ, displayName: 'Acme Ltd', ...overrides };
+  return {
+    _id: new Types.ObjectId(CUST),
+    companyId: BIZ,
+    displayName: 'Acme Ltd',
+    ...overrides,
+  };
 }
 
-function fakeContract(overrides: Record<string, any> = {}): Record<string, any> {
+function fakeContract(
+  overrides: Record<string, any> = {},
+): Record<string, any> {
   return {
-    _id:                   new Types.ObjectId(VALID_CONTRACT_ID),
-    businessId:            BIZ,
-    customerId:            CUST,
-    startDate:             new Date('2024-01-01'),
-    endDate:               null,
-    positionName:          'Senior Developer',
-    workType:              'contractor',
-    invoiceDescription:      'Software development services',
-    status:                  'active',
-    billingCycle:            'per_shift',
-    paymentTermsDays:        14,
+    _id: new Types.ObjectId(VALID_CONTRACT_ID),
+    businessId: BIZ,
+    customerId: CUST,
+    startDate: new Date('2024-01-01'),
+    endDate: null,
+    positionName: 'Senior Developer',
+    workType: 'contractor',
+    invoiceDescription: 'Software development services',
+    status: 'active',
+    billingCycle: 'per_shift',
+    paymentTermsDays: 14,
     scheduledPaymentEnabled: false,
-    scheduledPaymentDay:     null,
-    rateType:                'fixed',
-    minimumHours:          4,
-    defaultBreakMinutes:   30,
-    rates:                 [{ days: ['all'], startTime: null, endTime: null, hourlyRate: 95 }],
-    notes:                 null,
-    useInvoicePrefix:      false,
-    invoicePrefix:         null,
+    scheduledPaymentDay: null,
+    rateType: 'fixed',
+    minimumHours: 4,
+    defaultBreakMinutes: 30,
+    rates: [{ days: ['all'], startTime: null, endTime: null, hourlyRate: 95 }],
+    notes: null,
+    useInvoicePrefix: false,
+    invoicePrefix: null,
     startingInvoiceNumber: 1,
-    currency:              'AUD',
-    chargeGst:             false,
-    gstRate:               null,
+    currency: 'AUD',
+    chargeGst: false,
+    gstRate: null,
     holidayRules: {
-      enabled:             false,
-      calendarId:          null,
-      calendarName:        null,
+      enabled: false,
+      calendarId: null,
+      calendarName: null,
       calendarProviderName: null,
-      behaviour:           'normal_rate',
-      multiplier:          null,
-      fixedHourlyRate:     null,
+      behaviour: 'normal_rate',
+      multiplier: null,
+      fixedHourlyRate: null,
     },
     superannuationRules: {
-      enabled:          false,
-      rate:             null,
+      enabled: false,
+      rate: null,
       paymentFrequency: null,
     },
-    paymentCalendarEnabled:        false,
+    paymentCalendarEnabled: false,
     paymentCalendarSubscriptionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -115,19 +128,21 @@ function fakeContract(overrides: Record<string, any> = {}): Record<string, any> 
   };
 }
 
-function baseCreateDto(overrides: Partial<CreateContractDto> = {}): CreateContractDto {
+function baseCreateDto(
+  overrides: Partial<CreateContractDto> = {},
+): CreateContractDto {
   return {
-    customerId:         CUST,
-    startDate:          '2024-01-01',
-    positionName:       'Senior Developer',
-    workType:           'contractor',
+    customerId: CUST,
+    startDate: '2024-01-01',
+    positionName: 'Senior Developer',
+    workType: 'contractor',
     invoiceDescription: 'Software development services',
-    billingCycle:       'per_shift',
-    paymentTermsDays:   14,
-    rateType:           'fixed',
-    rates:              [{ days: ['all'], hourlyRate: 95 }],
+    billingCycle: 'per_shift',
+    paymentTermsDays: 14,
+    rateType: 'fixed',
+    rates: [{ days: ['all'], hourlyRate: 95 }],
     ...overrides,
-  } as CreateContractDto;
+  };
 }
 
 // ─── Build helper ─────────────────────────────────────────────────────────────
@@ -156,17 +171,17 @@ async function build(
   const contractModel = buildContractModel(contractOverrides);
   const customerModel = buildCustomerModel(customerOverrides);
   const calendarModel = buildCalendarModel(calendarOverrides);
-  const shiftModel    = buildShiftModel(shiftOverrides);
+  const shiftModel = buildShiftModel(shiftOverrides);
 
   const module: TestingModule = await Test.createTestingModule({
     providers: [
       ContractsService,
-      { provide: getModelToken(Contract.name),       useValue: contractModel  },
-      { provide: getModelToken(Customer.name),       useValue: customerModel  },
-      { provide: getModelToken(LinkedCalendar.name), useValue: calendarModel  },
-      { provide: getModelToken(Shift.name),          useValue: shiftModel     },
-      { provide: CommunicationsClientService,        useValue: mockComm       },
-      { provide: UsersService,                       useValue: mockUsers      },
+      { provide: getModelToken(Contract.name), useValue: contractModel },
+      { provide: getModelToken(Customer.name), useValue: customerModel },
+      { provide: getModelToken(LinkedCalendar.name), useValue: calendarModel },
+      { provide: getModelToken(Shift.name), useValue: shiftModel },
+      { provide: RelayClientService, useValue: mockComm },
+      { provide: UsersService, useValue: mockUsers },
     ],
   }).compile();
 
@@ -204,7 +219,14 @@ describe('toContractResponse', () => {
   });
 
   it('maps all six work types correctly', () => {
-    const types = ['casual', 'contractor', 'subcontractor', 'service_agreement', 'project_based', 'other'];
+    const types = [
+      'casual',
+      'contractor',
+      'subcontractor',
+      'service_agreement',
+      'project_based',
+      'other',
+    ];
     for (const workType of types) {
       const res = toContractResponse(fakeContract({ workType }) as any);
       expect(res.workType).toBe(workType);
@@ -228,14 +250,30 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
 
   it('maps new-format disabled holiday rules', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: false, calendarId: null, calendarName: null, calendarProviderName: null, behaviour: 'normal_rate', multiplier: null, fixedHourlyRate: null },
+      holidayRules: {
+        enabled: false,
+        calendarId: null,
+        calendarName: null,
+        calendarProviderName: null,
+        behaviour: 'normal_rate',
+        multiplier: null,
+        fixedHourlyRate: null,
+      },
     });
     expect(toContractResponse(doc as any).holidayRules.enabled).toBe(false);
   });
 
   it('maps new-format enabled multiplier rules', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: true, calendarId: 'cal1', calendarName: 'AU Holidays', calendarProviderName: 'iCloud', behaviour: 'multiplier', multiplier: 2.5, fixedHourlyRate: null },
+      holidayRules: {
+        enabled: true,
+        calendarId: 'cal1',
+        calendarName: 'AU Holidays',
+        calendarProviderName: 'iCloud',
+        behaviour: 'multiplier',
+        multiplier: 2.5,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.enabled).toBe(true);
@@ -246,7 +284,15 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
 
   it('maps new-format enabled fixed_rate rules', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: true, calendarId: 'cal1', calendarName: 'VIC Holidays', calendarProviderName: 'Google', behaviour: 'fixed_rate', multiplier: null, fixedHourlyRate: 80 },
+      holidayRules: {
+        enabled: true,
+        calendarId: 'cal1',
+        calendarName: 'VIC Holidays',
+        calendarProviderName: 'Google',
+        behaviour: 'fixed_rate',
+        multiplier: null,
+        fixedHourlyRate: 80,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.behaviour).toBe('fixed_rate');
@@ -256,7 +302,15 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
 
   it('maps new-format no_work', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: true, calendarId: 'cal1', calendarName: 'NSW', calendarProviderName: 'iCloud', behaviour: 'no_work', multiplier: null, fixedHourlyRate: null },
+      holidayRules: {
+        enabled: true,
+        calendarId: 'cal1',
+        calendarName: 'NSW',
+        calendarProviderName: 'iCloud',
+        behaviour: 'no_work',
+        multiplier: null,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.enabled).toBe(true);
@@ -266,7 +320,16 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
   // Format 2 (previous session) — workAllowed + payMethod → behaviour
   it('maps Format 2 workAllowed=false + payMethod=null → behaviour=no_work', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: true, calendarId: 'cal1', calendarName: 'NSW', calendarProviderName: 'iCloud', workAllowed: false, payMethod: null, multiplier: null, fixedHourlyRate: null },
+      holidayRules: {
+        enabled: true,
+        calendarId: 'cal1',
+        calendarName: 'NSW',
+        calendarProviderName: 'iCloud',
+        workAllowed: false,
+        payMethod: null,
+        multiplier: null,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.behaviour).toBe('no_work');
@@ -274,7 +337,16 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
 
   it('maps Format 2 workAllowed=true + payMethod=multiplier → behaviour=multiplier', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: true, calendarId: 'cal1', calendarName: 'AU Holidays', calendarProviderName: 'iCloud', workAllowed: true, payMethod: 'multiplier', multiplier: 2.0, fixedHourlyRate: null },
+      holidayRules: {
+        enabled: true,
+        calendarId: 'cal1',
+        calendarName: 'AU Holidays',
+        calendarProviderName: 'iCloud',
+        workAllowed: true,
+        payMethod: 'multiplier',
+        multiplier: 2.0,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.behaviour).toBe('multiplier');
@@ -283,7 +355,16 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
 
   it('maps Format 2 workAllowed=true + payMethod=fixed_rate → behaviour=fixed_rate', () => {
     const doc = fakeContract({
-      holidayRules: { enabled: true, calendarId: 'cal1', calendarName: 'AU Holidays', calendarProviderName: 'Google', workAllowed: true, payMethod: 'fixed_rate', multiplier: null, fixedHourlyRate: 80 },
+      holidayRules: {
+        enabled: true,
+        calendarId: 'cal1',
+        calendarName: 'AU Holidays',
+        calendarProviderName: 'Google',
+        workAllowed: true,
+        payMethod: 'fixed_rate',
+        multiplier: null,
+        fixedHourlyRate: 80,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.behaviour).toBe('fixed_rate');
@@ -293,16 +374,28 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
   // Format 1 (original legacy) — behaviour without enabled
   it('maps Format 1 (original legacy): behaviour=no_work without enabled field', () => {
     const doc = fakeContract({
-      holidayRules: { behaviour: 'no_work', calendarId: 'cal1', calendarName: 'AU Holidays', multiplier: null, fixedHourlyRate: null },
+      holidayRules: {
+        behaviour: 'no_work',
+        calendarId: 'cal1',
+        calendarName: 'AU Holidays',
+        multiplier: null,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
-    expect(res.holidayRules.enabled).toBe(true);   // inferred from calendarId
+    expect(res.holidayRules.enabled).toBe(true); // inferred from calendarId
     expect(res.holidayRules.behaviour).toBe('no_work');
   });
 
   it('maps Format 1: behaviour=multiplier with calendar → enabled=true', () => {
     const doc = fakeContract({
-      holidayRules: { behaviour: 'multiplier', calendarId: 'cal1', calendarName: 'AU Holidays', multiplier: 2.0, fixedHourlyRate: null },
+      holidayRules: {
+        behaviour: 'multiplier',
+        calendarId: 'cal1',
+        calendarName: 'AU Holidays',
+        multiplier: 2.0,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.enabled).toBe(true);
@@ -312,7 +405,12 @@ describe('toContractResponse — holiday rules (behaviour model)', () => {
 
   it('maps Format 1: behaviour=normal_rate with no calendar → enabled=false', () => {
     const doc = fakeContract({
-      holidayRules: { behaviour: 'normal_rate', calendarId: null, multiplier: null, fixedHourlyRate: null },
+      holidayRules: {
+        behaviour: 'normal_rate',
+        calendarId: null,
+        multiplier: null,
+        fixedHourlyRate: null,
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.holidayRules.enabled).toBe(false);
@@ -387,17 +485,28 @@ describe('ContractsService — create', () => {
       {},
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    const dto = baseCreateDto({ startDate: '2026-06-01', endDate: '2026-01-01' });
-    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(BadRequestException);
+    const dto = baseCreateDto({
+      startDate: '2026-06-01',
+      endDate: '2026-01-01',
+    });
+    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('allows endDate equal to startDate', async () => {
-    const created = fakeContract({ startDate: new Date('2026-06-01'), endDate: new Date('2026-06-01') });
+    const created = fakeContract({
+      startDate: new Date('2026-06-01'),
+      endDate: new Date('2026-06-01'),
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    const dto = baseCreateDto({ startDate: '2026-06-01', endDate: '2026-06-01' });
+    const dto = baseCreateDto({
+      startDate: '2026-06-01',
+      endDate: '2026-06-01',
+    });
     await expect(service.create(BIZ, dto, ACTOR)).resolves.toBeDefined();
   });
 
@@ -406,25 +515,52 @@ describe('ContractsService — create', () => {
       {},
       { findOne: jest.fn(() => mockChain(null)) },
     );
-    await expect(service.create(BIZ, baseCreateDto(), ACTOR)).rejects.toThrow(NotFoundException);
+    await expect(service.create(BIZ, baseCreateDto(), ACTOR)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('creates contract with holiday rules — multiplier', async () => {
     const created = fakeContract({
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, calendarName: 'AU Holidays', calendarProviderName: 'iCloud', behaviour: 'multiplier', multiplier: 2.0, fixedHourlyRate: null },
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        calendarName: 'AU Holidays',
+        calendarProviderName: 'iCloud',
+        behaviour: 'multiplier',
+        multiplier: 2.0,
+        fixedHourlyRate: null,
+      },
     });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
-      { findOne: jest.fn(() => mockChain({ _id: HOLIDAY_CAL_ID, flow: 'holidays', status: 'active' })) },
+      {
+        findOne: jest.fn(() =>
+          mockChain({
+            _id: HOLIDAY_CAL_ID,
+            flow: 'holidays',
+            status: 'active',
+          }),
+        ),
+      },
     );
     const dto = baseCreateDto({
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, behaviour: 'multiplier', multiplier: 2.0 },
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        behaviour: 'multiplier',
+        multiplier: 2.0,
+      },
     });
     await service.create(BIZ, dto, ACTOR);
     expect(contractModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        holidayRules: expect.objectContaining({ enabled: true, behaviour: 'multiplier', multiplier: 2.0 }),
+        holidayRules: expect.objectContaining({
+          enabled: true,
+          behaviour: 'multiplier',
+          multiplier: 2.0,
+        }),
       }),
     );
   });
@@ -465,7 +601,7 @@ describe('ContractsService — create', () => {
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
     await service.create(BIZ, baseCreateDto(), ACTOR);
-    const callArg = (contractModel.create as jest.Mock).mock.calls[0][0];
+    const callArg = contractModel.create.mock.calls[0][0];
     expect(callArg.status).not.toBe('draft');
   });
 });
@@ -475,7 +611,7 @@ describe('ContractsService — create', () => {
 describe('ContractsService — update', () => {
   it('updates workType', async () => {
     const existing = fakeContract({ workType: 'contractor' });
-    const updated  = fakeContract({ workType: 'casual' });
+    const updated = fakeContract({ workType: 'casual' });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -485,7 +621,9 @@ describe('ContractsService — update', () => {
     const result = await service.update(VALID_CONTRACT_ID, BIZ, dto, ACTOR);
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ $set: expect.objectContaining({ workType: 'casual' }) }),
+      expect.objectContaining({
+        $set: expect.objectContaining({ workType: 'casual' }),
+      }),
       expect.anything(),
     );
     expect((result as any).workType).toBe('casual');
@@ -493,7 +631,7 @@ describe('ContractsService — update', () => {
 
   it('clears endDate when null is supplied (open-ended transition)', async () => {
     const existing = fakeContract({ endDate: new Date('2026-12-31') });
-    const updated  = fakeContract({ endDate: null });
+    const updated = fakeContract({ endDate: null });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -503,15 +641,23 @@ describe('ContractsService — update', () => {
     await service.update(VALID_CONTRACT_ID, BIZ, dto, ACTOR);
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ $set: expect.objectContaining({ endDate: null }) }),
+      expect.objectContaining({
+        $set: expect.objectContaining({ endDate: null }),
+      }),
       expect.anything(),
     );
   });
 
   it('updates holidayRules with fixed_rate', async () => {
     const existing = fakeContract();
-    const updated  = fakeContract({
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, behaviour: 'fixed_rate', multiplier: null, fixedHourlyRate: 80 },
+    const updated = fakeContract({
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        behaviour: 'fixed_rate',
+        multiplier: null,
+        fixedHourlyRate: 80,
+      },
     });
     const { service, contractModel } = await build(
       {
@@ -519,18 +665,34 @@ describe('ContractsService — update', () => {
         findOneAndUpdate: jest.fn(() => mockChain(updated)),
       },
       {},
-      { findOne: jest.fn(() => mockChain({ _id: HOLIDAY_CAL_ID, flow: 'holidays', status: 'active' })) },
+      {
+        findOne: jest.fn(() =>
+          mockChain({
+            _id: HOLIDAY_CAL_ID,
+            flow: 'holidays',
+            status: 'active',
+          }),
+        ),
+      },
     );
 
     const dto: UpdateContractDto = {
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, behaviour: 'fixed_rate', fixedHourlyRate: 80 },
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        behaviour: 'fixed_rate',
+        fixedHourlyRate: 80,
+      },
     };
     await service.update(VALID_CONTRACT_ID, BIZ, dto, ACTOR);
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         $set: expect.objectContaining({
-          holidayRules: expect.objectContaining({ behaviour: 'fixed_rate', fixedHourlyRate: 80 }),
+          holidayRules: expect.objectContaining({
+            behaviour: 'fixed_rate',
+            fixedHourlyRate: 80,
+          }),
         }),
       }),
       expect.anything(),
@@ -543,7 +705,12 @@ describe('ContractsService — update', () => {
       findOne: jest.fn(() => mockChain(existing)),
     });
     await expect(
-      service.update(VALID_CONTRACT_ID, BIZ, { positionName: 'New Name' }, ACTOR),
+      service.update(
+        VALID_CONTRACT_ID,
+        BIZ,
+        { positionName: 'New Name' },
+        ACTOR,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -552,7 +719,12 @@ describe('ContractsService — update', () => {
       findOne: jest.fn(() => mockChain(null)),
     });
     await expect(
-      service.update(VALID_CONTRACT_ID, BIZ, { positionName: 'New Name' }, ACTOR),
+      service.update(
+        VALID_CONTRACT_ID,
+        BIZ,
+        { positionName: 'New Name' },
+        ACTOR,
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 });
@@ -561,12 +733,18 @@ describe('ContractsService — update', () => {
 
 describe('ContractsService — date validation', () => {
   it('allows endDate equal to startDate', async () => {
-    const created = fakeContract({ startDate: new Date('2026-06-01'), endDate: new Date('2026-06-01') });
+    const created = fakeContract({
+      startDate: new Date('2026-06-01'),
+      endDate: new Date('2026-06-01'),
+    });
     const { service } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    const dto = baseCreateDto({ startDate: '2026-06-01', endDate: '2026-06-01' });
+    const dto = baseCreateDto({
+      startDate: '2026-06-01',
+      endDate: '2026-06-01',
+    });
     await expect(service.create(BIZ, dto, ACTOR)).resolves.toBeDefined();
   });
 
@@ -575,8 +753,13 @@ describe('ContractsService — date validation', () => {
       {},
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    const dto = baseCreateDto({ startDate: '2026-06-15', endDate: '2026-06-14' });
-    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(BadRequestException);
+    const dto = baseCreateDto({
+      startDate: '2026-06-15',
+      endDate: '2026-06-14',
+    });
+    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });
 
@@ -585,7 +768,7 @@ describe('ContractsService — date validation', () => {
 describe('ContractsService — status transitions', () => {
   it('activates a draft contract', async () => {
     const existing = fakeContract({ status: 'draft' });
-    const updated  = fakeContract({ status: 'active' });
+    const updated = fakeContract({ status: 'active' });
     const { service } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -599,12 +782,14 @@ describe('ContractsService — status transitions', () => {
     const { service } = await build({
       findOne: jest.fn(() => mockChain(existing)),
     });
-    await expect(service.activate(VALID_CONTRACT_ID, BIZ, ACTOR)).rejects.toThrow(BadRequestException);
+    await expect(
+      service.activate(VALID_CONTRACT_ID, BIZ, ACTOR),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('cancels an active contract', async () => {
     const existing = fakeContract({ status: 'active' });
-    const updated  = fakeContract({ status: 'cancelled' });
+    const updated = fakeContract({ status: 'cancelled' });
     const { service } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -615,7 +800,7 @@ describe('ContractsService — status transitions', () => {
 
   it('finishes an active contract', async () => {
     const existing = fakeContract({ status: 'active' });
-    const updated  = fakeContract({ status: 'finished' });
+    const updated = fakeContract({ status: 'finished' });
     const { service } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -633,7 +818,9 @@ describe('ContractsService — status transitions', () => {
       // shiftModel.exists returns a truthy document → shifts exist
       { exists: jest.fn(() => mockChain({ _id: 'shift-001' })) },
     );
-    await expect(service.remove(VALID_CONTRACT_ID, BIZ)).rejects.toThrow(BadRequestException);
+    await expect(service.remove(VALID_CONTRACT_ID, BIZ)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('allows deletion when contract has no associated shifts', async () => {
@@ -648,8 +835,13 @@ describe('ContractsService — status transitions', () => {
       // shiftModel.exists returns null → no shifts
       { exists: jest.fn(() => mockChain(null)) },
     );
-    await expect(service.remove(VALID_CONTRACT_ID, BIZ)).resolves.toBeUndefined();
-    expect(contractModel.findOneAndDelete).toHaveBeenCalledWith({ _id: VALID_CONTRACT_ID, businessId: BIZ });
+    await expect(
+      service.remove(VALID_CONTRACT_ID, BIZ),
+    ).resolves.toBeUndefined();
+    expect(contractModel.findOneAndDelete).toHaveBeenCalledWith({
+      _id: VALID_CONTRACT_ID,
+      businessId: BIZ,
+    });
   });
 
   it('delete error message is user-friendly (no technical jargon)', async () => {
@@ -661,7 +853,11 @@ describe('ContractsService — status transitions', () => {
       { exists: jest.fn(() => mockChain({ _id: 'shift-001' })) },
     );
     let caught: any;
-    try { await service.remove(VALID_CONTRACT_ID, BIZ); } catch (e) { caught = e; }
+    try {
+      await service.remove(VALID_CONTRACT_ID, BIZ);
+    } catch (e) {
+      caught = e;
+    }
     expect(caught).toBeInstanceOf(BadRequestException);
     expect(caught.message).toContain('cannot be deleted');
   });
@@ -690,7 +886,11 @@ describe('ContractsService — queries', () => {
         countDocuments: jest.fn().mockResolvedValue(1),
       },
       // customerModel.find returns the customer with a displayName
-      { find: jest.fn(() => mockChain([{ _id: CUST, displayName: 'Acme Ltd' }])) },
+      {
+        find: jest.fn(() =>
+          mockChain([{ _id: CUST, displayName: 'Acme Ltd' }]),
+        ),
+      },
     );
     const result = await service.findAll(BIZ, { page: 1, limit: 20 });
     expect((result.items[0] as any).customerName).toBe('Acme Ltd');
@@ -720,7 +920,9 @@ describe('ContractsService — queries', () => {
     const { service } = await build({
       findOne: jest.fn(() => mockChain(null)),
     });
-    await expect(service.findByIdOrThrow(VALID_CONTRACT_ID, BIZ)).rejects.toThrow(NotFoundException);
+    await expect(
+      service.findByIdOrThrow(VALID_CONTRACT_ID, BIZ),
+    ).rejects.toThrow(NotFoundException);
   });
 });
 
@@ -815,24 +1017,41 @@ describe('Schema backward compatibility', () => {
 
 describe('Invoice Settings — create', () => {
   it('creates with useInvoicePrefix=true and prefix', async () => {
-    const created = fakeContract({ useInvoicePrefix: true, invoicePrefix: 'PROJ-' });
+    const created = fakeContract({
+      useInvoicePrefix: true,
+      invoicePrefix: 'PROJ-',
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ useInvoicePrefix: true, invoicePrefix: 'PROJ-' }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({ useInvoicePrefix: true, invoicePrefix: 'PROJ-' }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ useInvoicePrefix: true, invoicePrefix: 'PROJ-' }),
+      expect.objectContaining({
+        useInvoicePrefix: true,
+        invoicePrefix: 'PROJ-',
+      }),
     );
   });
 
   it('creates with useInvoicePrefix=false → invoicePrefix stored as null', async () => {
-    const created = fakeContract({ useInvoicePrefix: false, invoicePrefix: null });
+    const created = fakeContract({
+      useInvoicePrefix: false,
+      invoicePrefix: null,
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ useInvoicePrefix: false }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({ useInvoicePrefix: false }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
       expect.objectContaining({ useInvoicePrefix: false, invoicePrefix: null }),
     );
@@ -894,7 +1113,7 @@ describe('Invoice Settings — create', () => {
 describe('Invoice Settings — update', () => {
   it('updates currency', async () => {
     const existing = fakeContract({ currency: 'AUD' });
-    const updated  = fakeContract({ currency: 'GBP' });
+    const updated = fakeContract({ currency: 'GBP' });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -902,14 +1121,16 @@ describe('Invoice Settings — update', () => {
     await service.update(VALID_CONTRACT_ID, BIZ, { currency: 'GBP' }, ACTOR);
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ $set: expect.objectContaining({ currency: 'GBP' }) }),
+      expect.objectContaining({
+        $set: expect.objectContaining({ currency: 'GBP' }),
+      }),
       expect.anything(),
     );
   });
 
   it('updates chargeGst', async () => {
     const existing = fakeContract({ chargeGst: false });
-    const updated  = fakeContract({ chargeGst: true });
+    const updated = fakeContract({ chargeGst: true });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
@@ -917,23 +1138,39 @@ describe('Invoice Settings — update', () => {
     await service.update(VALID_CONTRACT_ID, BIZ, { chargeGst: true }, ACTOR);
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ $set: expect.objectContaining({ chargeGst: true }) }),
+      expect.objectContaining({
+        $set: expect.objectContaining({ chargeGst: true }),
+      }),
       expect.anything(),
     );
   });
 
   it('disabling prefix clears it to null', async () => {
-    const existing = fakeContract({ useInvoicePrefix: true, invoicePrefix: 'INV-' });
-    const updated  = fakeContract({ useInvoicePrefix: false, invoicePrefix: null });
+    const existing = fakeContract({
+      useInvoicePrefix: true,
+      invoicePrefix: 'INV-',
+    });
+    const updated = fakeContract({
+      useInvoicePrefix: false,
+      invoicePrefix: null,
+    });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
-    await service.update(VALID_CONTRACT_ID, BIZ, { useInvoicePrefix: false, invoicePrefix: null }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      { useInvoicePrefix: false, invoicePrefix: null },
+      ACTOR,
+    );
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        $set: expect.objectContaining({ useInvoicePrefix: false, invoicePrefix: null }),
+        $set: expect.objectContaining({
+          useInvoicePrefix: false,
+          invoicePrefix: null,
+        }),
       }),
       expect.anything(),
     );
@@ -972,7 +1209,11 @@ describe('GST Rate — create', () => {
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ chargeGst: true, gstRate: 10 }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({ chargeGst: true, gstRate: 10 }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
       expect.objectContaining({ chargeGst: true, gstRate: 10 }),
     );
@@ -984,7 +1225,11 @@ describe('GST Rate — create', () => {
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ chargeGst: false, gstRate: 10 }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({ chargeGst: false, gstRate: 10 }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
       expect.objectContaining({ chargeGst: false, gstRate: null }),
     );
@@ -1005,7 +1250,11 @@ describe('Superannuation — toContractResponse', () => {
 
   it('maps enabled superannuation with rate and frequency', () => {
     const doc = fakeContract({
-      superannuationRules: { enabled: true, rate: 12, paymentFrequency: 'quarterly' },
+      superannuationRules: {
+        enabled: true,
+        rate: 12,
+        paymentFrequency: 'quarterly',
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.superannuationRules.enabled).toBe(true);
@@ -1015,7 +1264,11 @@ describe('Superannuation — toContractResponse', () => {
 
   it('returns null rate/frequency when disabled even if values present', () => {
     const doc = fakeContract({
-      superannuationRules: { enabled: false, rate: 12, paymentFrequency: 'quarterly' },
+      superannuationRules: {
+        enabled: false,
+        rate: 12,
+        paymentFrequency: 'quarterly',
+      },
     });
     const res = toContractResponse(doc as any);
     expect(res.superannuationRules.enabled).toBe(false);
@@ -1027,18 +1280,34 @@ describe('Superannuation — toContractResponse', () => {
 describe('Superannuation — create', () => {
   it('creates with superannuationRules enabled', async () => {
     const created = fakeContract({
-      superannuationRules: { enabled: true, rate: 12, paymentFrequency: 'quarterly' },
+      superannuationRules: {
+        enabled: true,
+        rate: 12,
+        paymentFrequency: 'quarterly',
+      },
     });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({
-      superannuationRules: { enabled: true, rate: 12, paymentFrequency: 'quarterly' },
-    }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({
+        superannuationRules: {
+          enabled: true,
+          rate: 12,
+          paymentFrequency: 'quarterly',
+        },
+      }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        superannuationRules: expect.objectContaining({ enabled: true, rate: 12, paymentFrequency: 'quarterly' }),
+        superannuationRules: expect.objectContaining({
+          enabled: true,
+          rate: 12,
+          paymentFrequency: 'quarterly',
+        }),
       }),
     );
   });
@@ -1049,12 +1318,24 @@ describe('Superannuation — create', () => {
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({
-      superannuationRules: { enabled: false, rate: 12, paymentFrequency: 'monthly' },
-    }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({
+        superannuationRules: {
+          enabled: false,
+          rate: 12,
+          paymentFrequency: 'monthly',
+        },
+      }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        superannuationRules: expect.objectContaining({ enabled: false, rate: null, paymentFrequency: null }),
+        superannuationRules: expect.objectContaining({
+          enabled: false,
+          rate: null,
+          paymentFrequency: null,
+        }),
       }),
     );
   });
@@ -1063,21 +1344,38 @@ describe('Superannuation — create', () => {
 describe('Superannuation — update', () => {
   it('updates superannuationRules', async () => {
     const existing = fakeContract();
-    const updated  = fakeContract({
-      superannuationRules: { enabled: true, rate: 11.5, paymentFrequency: 'monthly' },
+    const updated = fakeContract({
+      superannuationRules: {
+        enabled: true,
+        rate: 11.5,
+        paymentFrequency: 'monthly',
+      },
     });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      superannuationRules: { enabled: true, rate: 11.5, paymentFrequency: 'monthly' },
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        superannuationRules: {
+          enabled: true,
+          rate: 11.5,
+          paymentFrequency: 'monthly',
+        },
+      },
+      ACTOR,
+    );
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         $set: expect.objectContaining({
-          superannuationRules: expect.objectContaining({ enabled: true, rate: 11.5, paymentFrequency: 'monthly' }),
+          superannuationRules: expect.objectContaining({
+            enabled: true,
+            rate: 11.5,
+            paymentFrequency: 'monthly',
+          }),
         }),
       }),
       expect.anything(),
@@ -1097,14 +1395,20 @@ describe('Scheduled Payment — toContractResponse', () => {
   });
 
   it('maps enabled scheduled payment with a day', () => {
-    const doc = fakeContract({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'friday' });
+    const doc = fakeContract({
+      scheduledPaymentEnabled: true,
+      scheduledPaymentDay: 'friday',
+    });
     const res = toContractResponse(doc as any);
     expect(res.scheduledPaymentEnabled).toBe(true);
     expect(res.scheduledPaymentDay).toBe('friday');
   });
 
   it('returns null day when disabled even if a day is stored', () => {
-    const doc = fakeContract({ scheduledPaymentEnabled: false, scheduledPaymentDay: 'friday' });
+    const doc = fakeContract({
+      scheduledPaymentEnabled: false,
+      scheduledPaymentDay: 'friday',
+    });
     const res = toContractResponse(doc as any);
     expect(res.scheduledPaymentEnabled).toBe(false);
     expect(res.scheduledPaymentDay).toBeNull();
@@ -1113,7 +1417,12 @@ describe('Scheduled Payment — toContractResponse', () => {
   it('maps all valid weekday values', () => {
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     for (const day of days) {
-      const res = toContractResponse(fakeContract({ scheduledPaymentEnabled: true, scheduledPaymentDay: day }) as any);
+      const res = toContractResponse(
+        fakeContract({
+          scheduledPaymentEnabled: true,
+          scheduledPaymentDay: day,
+        }) as any,
+      );
       expect(res.scheduledPaymentDay).toBe(day);
     }
   });
@@ -1128,31 +1437,60 @@ describe('Scheduled Payment — create', () => {
     );
     await service.create(BIZ, baseCreateDto(), ACTOR);
     expect(contractModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledPaymentEnabled: false, scheduledPaymentDay: null }),
+      expect.objectContaining({
+        scheduledPaymentEnabled: false,
+        scheduledPaymentDay: null,
+      }),
     );
   });
 
   it('creates with scheduledPaymentEnabled=true and a day', async () => {
-    const created = fakeContract({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'friday' });
+    const created = fakeContract({
+      scheduledPaymentEnabled: true,
+      scheduledPaymentDay: 'friday',
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'friday' }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({
+        scheduledPaymentEnabled: true,
+        scheduledPaymentDay: 'friday',
+      }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'friday' }),
+      expect.objectContaining({
+        scheduledPaymentEnabled: true,
+        scheduledPaymentDay: 'friday',
+      }),
     );
   });
 
   it('clears day when scheduledPaymentEnabled=false even if a day is provided', async () => {
-    const created = fakeContract({ scheduledPaymentEnabled: false, scheduledPaymentDay: null });
+    const created = fakeContract({
+      scheduledPaymentEnabled: false,
+      scheduledPaymentDay: null,
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ scheduledPaymentEnabled: false, scheduledPaymentDay: 'friday' }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({
+        scheduledPaymentEnabled: false,
+        scheduledPaymentDay: 'friday',
+      }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledPaymentEnabled: false, scheduledPaymentDay: null }),
+      expect.objectContaining({
+        scheduledPaymentEnabled: false,
+        scheduledPaymentDay: null,
+      }),
     );
   });
 });
@@ -1160,37 +1498,64 @@ describe('Scheduled Payment — create', () => {
 describe('Scheduled Payment — update', () => {
   it('enables scheduled payment and sets a day', async () => {
     const existing = fakeContract();
-    const updated  = fakeContract({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'tuesday' });
+    const updated = fakeContract({
+      scheduledPaymentEnabled: true,
+      scheduledPaymentDay: 'tuesday',
+    });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      scheduledPaymentEnabled: true, scheduledPaymentDay: 'tuesday',
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        scheduledPaymentEnabled: true,
+        scheduledPaymentDay: 'tuesday',
+      },
+      ACTOR,
+    );
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        $set: expect.objectContaining({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'tuesday' }),
+        $set: expect.objectContaining({
+          scheduledPaymentEnabled: true,
+          scheduledPaymentDay: 'tuesday',
+        }),
       }),
       expect.anything(),
     );
   });
 
   it('disabling clears the stored day', async () => {
-    const existing = fakeContract({ scheduledPaymentEnabled: true, scheduledPaymentDay: 'friday' });
-    const updated  = fakeContract({ scheduledPaymentEnabled: false, scheduledPaymentDay: null });
+    const existing = fakeContract({
+      scheduledPaymentEnabled: true,
+      scheduledPaymentDay: 'friday',
+    });
+    const updated = fakeContract({
+      scheduledPaymentEnabled: false,
+      scheduledPaymentDay: null,
+    });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      scheduledPaymentEnabled: false, scheduledPaymentDay: null,
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        scheduledPaymentEnabled: false,
+        scheduledPaymentDay: null,
+      },
+      ACTOR,
+    );
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        $set: expect.objectContaining({ scheduledPaymentEnabled: false, scheduledPaymentDay: null }),
+        $set: expect.objectContaining({
+          scheduledPaymentEnabled: false,
+          scheduledPaymentDay: null,
+        }),
       }),
       expect.anything(),
     );
@@ -1201,81 +1566,153 @@ describe('Scheduled Payment — update', () => {
 
 describe('Payment Mode — mutual exclusion', () => {
   it('toContractResponse: paymentTermsDays=14 when scheduled=false', () => {
-    const doc = fakeContract({ scheduledPaymentEnabled: false, paymentTermsDays: 14, scheduledPaymentDay: null });
+    const doc = fakeContract({
+      scheduledPaymentEnabled: false,
+      paymentTermsDays: 14,
+      scheduledPaymentDay: null,
+    });
     const res = toContractResponse(doc as any);
     expect(res.paymentTermsDays).toBe(14);
     expect(res.scheduledPaymentDay).toBeNull();
   });
 
   it('toContractResponse: paymentTermsDays=null when scheduled=true', () => {
-    const doc = fakeContract({ scheduledPaymentEnabled: true, paymentTermsDays: null, scheduledPaymentDay: 'friday' });
+    const doc = fakeContract({
+      scheduledPaymentEnabled: true,
+      paymentTermsDays: null,
+      scheduledPaymentDay: 'friday',
+    });
     const res = toContractResponse(doc as any);
     expect(res.paymentTermsDays).toBeNull();
     expect(res.scheduledPaymentDay).toBe('friday');
   });
 
   it('create: schedEnabled=false stores paymentTermsDays and clears day', async () => {
-    const created = fakeContract({ scheduledPaymentEnabled: false, paymentTermsDays: 30, scheduledPaymentDay: null });
+    const created = fakeContract({
+      scheduledPaymentEnabled: false,
+      paymentTermsDays: 30,
+      scheduledPaymentDay: null,
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({ scheduledPaymentEnabled: false, paymentTermsDays: 30 }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({ scheduledPaymentEnabled: false, paymentTermsDays: 30 }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledPaymentEnabled: false, paymentTermsDays: 30, scheduledPaymentDay: null }),
+      expect.objectContaining({
+        scheduledPaymentEnabled: false,
+        paymentTermsDays: 30,
+        scheduledPaymentDay: null,
+      }),
     );
   });
 
   it('create: schedEnabled=true stores day and clears paymentTermsDays', async () => {
-    const created = fakeContract({ scheduledPaymentEnabled: true, paymentTermsDays: null, scheduledPaymentDay: 'friday' });
+    const created = fakeContract({
+      scheduledPaymentEnabled: true,
+      paymentTermsDays: null,
+      scheduledPaymentDay: 'friday',
+    });
     const { service, contractModel } = await build(
       { create: jest.fn().mockResolvedValue(created) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
     );
-    await service.create(BIZ, baseCreateDto({
-      scheduledPaymentEnabled: true, scheduledPaymentDay: 'friday', paymentTermsDays: undefined,
-    }), ACTOR);
+    await service.create(
+      BIZ,
+      baseCreateDto({
+        scheduledPaymentEnabled: true,
+        scheduledPaymentDay: 'friday',
+        paymentTermsDays: undefined,
+      }),
+      ACTOR,
+    );
     expect(contractModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledPaymentEnabled: true, paymentTermsDays: null, scheduledPaymentDay: 'friday' }),
+      expect.objectContaining({
+        scheduledPaymentEnabled: true,
+        paymentTermsDays: null,
+        scheduledPaymentDay: 'friday',
+      }),
     );
   });
 
   it('update: switching to scheduled clears paymentTermsDays', async () => {
-    const existing = fakeContract({ scheduledPaymentEnabled: false, paymentTermsDays: 14 });
-    const updated  = fakeContract({ scheduledPaymentEnabled: true, paymentTermsDays: null, scheduledPaymentDay: 'tuesday' });
+    const existing = fakeContract({
+      scheduledPaymentEnabled: false,
+      paymentTermsDays: 14,
+    });
+    const updated = fakeContract({
+      scheduledPaymentEnabled: true,
+      paymentTermsDays: null,
+      scheduledPaymentDay: 'tuesday',
+    });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      scheduledPaymentEnabled: true, scheduledPaymentDay: 'tuesday',
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        scheduledPaymentEnabled: true,
+        scheduledPaymentDay: 'tuesday',
+      },
+      ACTOR,
+    );
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ $set: expect.objectContaining({ paymentTermsDays: null }) }),
+      expect.objectContaining({
+        $set: expect.objectContaining({ paymentTermsDays: null }),
+      }),
       expect.anything(),
     );
   });
 
   it('update: switching to payment terms clears scheduled day', async () => {
-    const existing = fakeContract({ scheduledPaymentEnabled: true, paymentTermsDays: null, scheduledPaymentDay: 'friday' });
-    const updated  = fakeContract({ scheduledPaymentEnabled: false, paymentTermsDays: 7, scheduledPaymentDay: null });
+    const existing = fakeContract({
+      scheduledPaymentEnabled: true,
+      paymentTermsDays: null,
+      scheduledPaymentDay: 'friday',
+    });
+    const updated = fakeContract({
+      scheduledPaymentEnabled: false,
+      paymentTermsDays: 7,
+      scheduledPaymentDay: null,
+    });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      scheduledPaymentEnabled: false, paymentTermsDays: 7,
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        scheduledPaymentEnabled: false,
+        paymentTermsDays: 7,
+      },
+      ACTOR,
+    );
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ $set: expect.objectContaining({ scheduledPaymentEnabled: false, paymentTermsDays: 7, scheduledPaymentDay: null }) }),
+      expect.objectContaining({
+        $set: expect.objectContaining({
+          scheduledPaymentEnabled: false,
+          paymentTermsDays: 7,
+          scheduledPaymentDay: null,
+        }),
+      }),
       expect.anything(),
     );
   });
 
   it('existing Contract without scheduledPaymentEnabled uses paymentTermsDays as-is', () => {
-    const doc = fakeContract({ paymentTermsDays: 14, scheduledPaymentEnabled: false });
+    const doc = fakeContract({
+      paymentTermsDays: 14,
+      scheduledPaymentEnabled: false,
+    });
     const res = toContractResponse(doc as any);
     expect(res.paymentTermsDays).toBe(14);
     expect(res.scheduledPaymentEnabled).toBe(false);
@@ -1285,20 +1722,43 @@ describe('Payment Mode — mutual exclusion', () => {
 // ─── Calendar flow validation ──────────────────────────────────────────────────
 
 describe('ContractsService — calendar flow validation', () => {
-  const validHolCal = { _id: HOLIDAY_CAL_ID, flow: 'holidays', status: 'active' };
-  const validPayCal = { _id: PAYMENT_CAL_ID, flow: 'payments', status: 'active' };
+  const validHolCal = {
+    _id: HOLIDAY_CAL_ID,
+    flow: 'holidays',
+    status: 'active',
+  };
+  const validPayCal = {
+    _id: PAYMENT_CAL_ID,
+    flow: 'payments',
+    status: 'active',
+  };
 
   it('create: rejects holiday calendar with wrong flow', async () => {
     const { service } = await build(
       { create: jest.fn() },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
       // Calendar has wrong flow (payments instead of holidays)
-      { findOne: jest.fn(() => mockChain({ _id: HOLIDAY_CAL_ID, flow: 'payments', status: 'active' })) },
+      {
+        findOne: jest.fn(() =>
+          mockChain({
+            _id: HOLIDAY_CAL_ID,
+            flow: 'payments',
+            status: 'active',
+          }),
+        ),
+      },
     );
     const dto = baseCreateDto({
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, behaviour: 'multiplier', multiplier: 2.0 },
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        behaviour: 'multiplier',
+        multiplier: 2.0,
+      },
     });
-    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow('expected "holidays"');
+    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(
+      'expected "holidays"',
+    );
   });
 
   it('create: rejects holiday calendar belonging to another business', async () => {
@@ -1309,19 +1769,39 @@ describe('ContractsService — calendar flow validation', () => {
       { findOne: jest.fn(() => mockChain(null)) },
     );
     const dto = baseCreateDto({
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, behaviour: 'multiplier', multiplier: 2.0 },
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        behaviour: 'multiplier',
+        multiplier: 2.0,
+      },
     });
-    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow('holidays calendar not found');
+    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(
+      'holidays calendar not found',
+    );
   });
 
   it('create: rejects inactive holiday calendar on new assignment', async () => {
     const { service } = await build(
       { create: jest.fn() },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
-      { findOne: jest.fn(() => mockChain({ _id: HOLIDAY_CAL_ID, flow: 'holidays', status: 'paused' })) },
+      {
+        findOne: jest.fn(() =>
+          mockChain({
+            _id: HOLIDAY_CAL_ID,
+            flow: 'holidays',
+            status: 'paused',
+          }),
+        ),
+      },
     );
     const dto = baseCreateDto({
-      holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID, behaviour: 'multiplier', multiplier: 2.0 },
+      holidayRules: {
+        enabled: true,
+        calendarId: HOLIDAY_CAL_ID,
+        behaviour: 'multiplier',
+        multiplier: 2.0,
+      },
     });
     await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow('inactive');
   });
@@ -1331,10 +1811,14 @@ describe('ContractsService — calendar flow validation', () => {
     const { service } = await build(
       { create: jest.fn().mockResolvedValue(fakeContract()) },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
-      { findOne: jest.fn(() => mockChain(
-        calCallCount++ === 0 ? null : validPayCal
-        // First call is for holiday (disabled, not called), second for payment
-      )) },
+      {
+        findOne: jest.fn(() =>
+          mockChain(
+            calCallCount++ === 0 ? null : validPayCal,
+            // First call is for holiday (disabled, not called), second for payment
+          ),
+        ),
+      },
     );
     const dto = baseCreateDto({
       paymentCalendarEnabled: true,
@@ -1353,13 +1837,23 @@ describe('ContractsService — calendar flow validation', () => {
     const { service } = await build(
       { create: jest.fn() },
       { findOne: jest.fn(() => mockChain(fakeCustomer())) },
-      { findOne: jest.fn(() => mockChain({ _id: PAYMENT_CAL_ID, flow: 'holidays', status: 'active' })) },
+      {
+        findOne: jest.fn(() =>
+          mockChain({
+            _id: PAYMENT_CAL_ID,
+            flow: 'holidays',
+            status: 'active',
+          }),
+        ),
+      },
     );
     const dto = baseCreateDto({
       paymentCalendarEnabled: true,
       paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
     });
-    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow('expected "payments"');
+    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(
+      'expected "payments"',
+    );
   });
 
   it('create: requires paymentCalendarSubscriptionId when paymentCalendarEnabled=true', async () => {
@@ -1371,29 +1865,49 @@ describe('ContractsService — calendar flow validation', () => {
       paymentCalendarEnabled: true,
       // paymentCalendarSubscriptionId omitted
     });
-    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow('paymentCalendarSubscriptionId is required');
+    await expect(service.create(BIZ, dto, ACTOR)).rejects.toThrow(
+      'paymentCalendarSubscriptionId is required',
+    );
   });
 
   it('update: rejects wrong-flow calendar on new assignment', async () => {
-    const existing = fakeContract({ holidayRules: { ...fakeContract().holidayRules, calendarId: null } });
+    const existing = fakeContract({
+      holidayRules: { ...fakeContract().holidayRules, calendarId: null },
+    });
     const { service } = await build(
       {
         findOne: jest.fn(() => mockChain(existing)),
         findOneAndUpdate: jest.fn(() => mockChain(existing)),
       },
       {},
-      { findOne: jest.fn(() => mockChain({ _id: HOLIDAY_CAL_ID, flow: 'payments', status: 'active' })) },
+      {
+        findOne: jest.fn(() =>
+          mockChain({
+            _id: HOLIDAY_CAL_ID,
+            flow: 'payments',
+            status: 'active',
+          }),
+        ),
+      },
     );
     await expect(
-      service.update(VALID_CONTRACT_ID, BIZ, {
-        holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID },
-      }, ACTOR),
+      service.update(
+        VALID_CONTRACT_ID,
+        BIZ,
+        {
+          holidayRules: { enabled: true, calendarId: HOLIDAY_CAL_ID },
+        },
+        ACTOR,
+      ),
     ).rejects.toThrow('expected "holidays"');
   });
 
   it('update: persists paymentCalendarEnabled=true with subscriptionId', async () => {
     const existing = fakeContract();
-    const updated = fakeContract({ paymentCalendarEnabled: true, paymentCalendarSubscriptionId: PAYMENT_CAL_ID });
+    const updated = fakeContract({
+      paymentCalendarEnabled: true,
+      paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
+    });
     const { service, contractModel } = await build(
       {
         findOne: jest.fn(() => mockChain(existing)),
@@ -1403,10 +1917,15 @@ describe('ContractsService — calendar flow validation', () => {
       { findOne: jest.fn(() => mockChain(validPayCal)) },
     );
 
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      paymentCalendarEnabled: true,
-      paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        paymentCalendarEnabled: true,
+        paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
+      },
+      ACTOR,
+    );
 
     expect(contractModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
@@ -1421,16 +1940,27 @@ describe('ContractsService — calendar flow validation', () => {
   });
 
   it('update: clears paymentCalendarSubscriptionId when disabled', async () => {
-    const existing = fakeContract({ paymentCalendarEnabled: true, paymentCalendarSubscriptionId: PAYMENT_CAL_ID });
-    const updated = fakeContract({ paymentCalendarEnabled: false, paymentCalendarSubscriptionId: null });
+    const existing = fakeContract({
+      paymentCalendarEnabled: true,
+      paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
+    });
+    const updated = fakeContract({
+      paymentCalendarEnabled: false,
+      paymentCalendarSubscriptionId: null,
+    });
     const { service, contractModel } = await build({
       findOne: jest.fn(() => mockChain(existing)),
       findOneAndUpdate: jest.fn(() => mockChain(updated)),
     });
 
-    await service.update(VALID_CONTRACT_ID, BIZ, {
-      paymentCalendarEnabled: false,
-    }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      {
+        paymentCalendarEnabled: false,
+      },
+      ACTOR,
+    );
 
     const call = (contractModel.findOneAndUpdate as jest.Mock).mock.calls[0];
     expect(call[1].$set.paymentCalendarEnabled).toBe(false);
@@ -1446,13 +1976,19 @@ describe('ContractsService — calendar flow validation', () => {
   });
 
   it('toContractResponse: clears subscriptionId when disabled', () => {
-    const doc = fakeContract({ paymentCalendarEnabled: false, paymentCalendarSubscriptionId: PAYMENT_CAL_ID });
+    const doc = fakeContract({
+      paymentCalendarEnabled: false,
+      paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
+    });
     const res = toContractResponse(doc as any);
     expect(res.paymentCalendarSubscriptionId).toBeNull();
   });
 
   it('toContractResponse: includes subscriptionId when enabled', () => {
-    const doc = fakeContract({ paymentCalendarEnabled: true, paymentCalendarSubscriptionId: PAYMENT_CAL_ID });
+    const doc = fakeContract({
+      paymentCalendarEnabled: true,
+      paymentCalendarSubscriptionId: PAYMENT_CAL_ID,
+    });
     const res = toContractResponse(doc as any);
     expect(res.paymentCalendarEnabled).toBe(true);
     expect(res.paymentCalendarSubscriptionId).toBe(PAYMENT_CAL_ID);
@@ -1472,7 +2008,7 @@ describe('ContractsService — calendar flow validation', () => {
 //   contracts.contract_cancelled
 //   contracts.contract_finished
 //
-// The communications client is fire-and-forget; delivery failures must never
+// The relay client is fire-and-forget; delivery failures must never
 // propagate to the caller.
 
 describe('Contract notifications — platform credentials', () => {
@@ -1485,13 +2021,16 @@ describe('Contract notifications — platform credentials', () => {
 
   it('create: emits contracts.contract_created after successful persistence', async () => {
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain(fakeCustomer())),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain(fakeCustomer())),
+      },
+    );
 
     await service.create(BIZ, baseCreateDto(), ACTOR);
     await new Promise((r) => setImmediate(r));
@@ -1503,13 +2042,16 @@ describe('Contract notifications — platform credentials', () => {
 
   it('create: uses type="platform" — never "business"', async () => {
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain(fakeCustomer())),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain(fakeCustomer())),
+      },
+    );
 
     await service.create(BIZ, baseCreateDto(), ACTOR);
 
@@ -1526,13 +2068,16 @@ describe('Contract notifications — platform credentials', () => {
 
   it('create: notification payload does not include businessId (platform type has none)', async () => {
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain(fakeCustomer())),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain(fakeCustomer())),
+      },
+    );
 
     await service.create(BIZ, baseCreateDto(), ACTOR);
     await new Promise((r) => setImmediate(r));
@@ -1544,40 +2089,46 @@ describe('Contract notifications — platform credentials', () => {
 
   it('create: payload includes all required seed variables', async () => {
     const created = fakeContract({ status: 'active', positionName: 'Dev' });
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.create(BIZ, baseCreateDto({ positionName: 'Dev' }), ACTOR);
     await new Promise((r) => setImmediate(r));
 
     const call = mockComm.notifyEvent.mock.calls[0]?.[0];
     expect(call?.data).toMatchObject({
-      firstName:      ACTOR.firstName,
-      businessName:   expect.any(String),
-      customerName:   expect.any(String),
-      positionName:   expect.any(String),
+      firstName: ACTOR.firstName,
+      businessName: expect.any(String),
+      customerName: expect.any(String),
+      positionName: expect.any(String),
       contractStatus: expect.any(String),
-      actionDate:     expect.any(String),
+      actionDate: expect.any(String),
     });
   });
 
   it('create: payload includes optional startDate and endDate', async () => {
     const created = fakeContract({
       startDate: new Date('2026-01-01'),
-      endDate:   new Date('2026-12-31'),
+      endDate: new Date('2026-12-31'),
     });
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.create(BIZ, baseCreateDto(), ACTOR);
     await new Promise((r) => setImmediate(r));
@@ -1588,16 +2139,19 @@ describe('Contract notifications — platform credentials', () => {
   });
 
   it('create: notification failure does not propagate — contract is returned successfully', async () => {
-    mockComm.notifyEvent.mockRejectedValue(new Error('Communications unreachable'));
+    mockComm.notifyEvent.mockRejectedValue(new Error('Relay unreachable'));
 
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     const result = await service.create(BIZ, baseCreateDto(), ACTOR);
     expect(result).toBeDefined();
@@ -1608,21 +2162,29 @@ describe('Contract notifications — platform credentials', () => {
 
   it('update: emits contracts.contract_updated', async () => {
     const existing = fakeContract();
-    const updated  = fakeContract({ positionName: 'Updated Dev' });
-    const { service } = await build({
-      findOne:          jest.fn(() => mockChain(existing)),
-      findOneAndUpdate: jest.fn(() => mockChain(updated)),
-    }, {
-      findOne:  jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const updated = fakeContract({ positionName: 'Updated Dev' });
+    const { service } = await build(
+      {
+        findOne: jest.fn(() => mockChain(existing)),
+        findOneAndUpdate: jest.fn(() => mockChain(updated)),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
-    await service.update(VALID_CONTRACT_ID, BIZ, { positionName: 'Updated Dev' }, ACTOR);
+    await service.update(
+      VALID_CONTRACT_ID,
+      BIZ,
+      { positionName: 'Updated Dev' },
+      ACTOR,
+    );
     await new Promise((r) => setImmediate(r));
 
     expect(mockComm.notifyEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        type:  'platform',
+        type: 'platform',
         event: 'contracts.contract_updated',
       }),
     );
@@ -1630,14 +2192,17 @@ describe('Contract notifications — platform credentials', () => {
 
   it('update: uses type="platform"', async () => {
     const existing = fakeContract();
-    const updated  = fakeContract();
-    const { service } = await build({
-      findOne:          jest.fn(() => mockChain(existing)),
-      findOneAndUpdate: jest.fn(() => mockChain(updated)),
-    }, {
-      findOne:  jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const updated = fakeContract();
+    const { service } = await build(
+      {
+        findOne: jest.fn(() => mockChain(existing)),
+        findOneAndUpdate: jest.fn(() => mockChain(updated)),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.update(VALID_CONTRACT_ID, BIZ, { notes: 'changed' }, ACTOR);
     await new Promise((r) => setImmediate(r));
@@ -1650,22 +2215,25 @@ describe('Contract notifications — platform credentials', () => {
   // ── cancel ──────────────────────────────────────────────────────────────────
 
   it('cancel: emits contracts.contract_cancelled with type="platform"', async () => {
-    const existing   = fakeContract({ status: 'active' });
-    const cancelled  = fakeContract({ status: 'cancelled' });
-    const { service } = await build({
-      findOne:          jest.fn(() => mockChain(existing)),
-      findOneAndUpdate: jest.fn(() => mockChain(cancelled)),
-    }, {
-      findOne:  jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const existing = fakeContract({ status: 'active' });
+    const cancelled = fakeContract({ status: 'cancelled' });
+    const { service } = await build(
+      {
+        findOne: jest.fn(() => mockChain(existing)),
+        findOneAndUpdate: jest.fn(() => mockChain(cancelled)),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.cancel(VALID_CONTRACT_ID, BIZ, ACTOR);
     await new Promise((r) => setImmediate(r));
 
     expect(mockComm.notifyEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        type:  'platform',
+        type: 'platform',
         event: 'contracts.contract_cancelled',
       }),
     );
@@ -1676,20 +2244,23 @@ describe('Contract notifications — platform credentials', () => {
   it('finish: emits contracts.contract_finished with type="platform"', async () => {
     const existing = fakeContract({ status: 'active' });
     const finished = fakeContract({ status: 'finished' });
-    const { service } = await build({
-      findOne:          jest.fn(() => mockChain(existing)),
-      findOneAndUpdate: jest.fn(() => mockChain(finished)),
-    }, {
-      findOne:  jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        findOne: jest.fn(() => mockChain(existing)),
+        findOneAndUpdate: jest.fn(() => mockChain(finished)),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.finish(VALID_CONTRACT_ID, BIZ, ACTOR);
     await new Promise((r) => setImmediate(r));
 
     expect(mockComm.notifyEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        type:  'platform',
+        type: 'platform',
         event: 'contracts.contract_finished',
       }),
     );
@@ -1698,22 +2269,25 @@ describe('Contract notifications — platform credentials', () => {
   // ── activate ─────────────────────────────────────────────────────────────────
 
   it('activate: emits contracts.contract_activated with type="platform"', async () => {
-    const existing  = fakeContract({ status: 'inactive' });
+    const existing = fakeContract({ status: 'inactive' });
     const activated = fakeContract({ status: 'active' });
-    const { service } = await build({
-      findOne:          jest.fn(() => mockChain(existing)),
-      findOneAndUpdate: jest.fn(() => mockChain(activated)),
-    }, {
-      findOne:  jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        findOne: jest.fn(() => mockChain(existing)),
+        findOneAndUpdate: jest.fn(() => mockChain(activated)),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.activate(VALID_CONTRACT_ID, BIZ, ACTOR);
     await new Promise((r) => setImmediate(r));
 
     expect(mockComm.notifyEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        type:  'platform',
+        type: 'platform',
         event: 'contracts.contract_activated',
       }),
     );
@@ -1723,12 +2297,15 @@ describe('Contract notifications — platform credentials', () => {
 
   it('skips notification when actor email is empty — does not call notifyEvent', async () => {
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+    );
 
     const actorNoEmail = { ...ACTOR, email: '' };
     await service.create(BIZ, baseCreateDto(), actorNoEmail);
@@ -1739,12 +2316,15 @@ describe('Contract notifications — platform credentials', () => {
 
   it('skips notification when actor email is undefined — does not call notifyEvent', async () => {
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+    );
 
     const actorNoEmail = { ...ACTOR, email: undefined as any };
     await service.create(BIZ, baseCreateDto(), actorNoEmail);
@@ -1757,25 +2337,31 @@ describe('Contract notifications — platform credentials', () => {
     mockComm.notifyEvent.mockResolvedValue(false);
 
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     const result = await service.create(BIZ, baseCreateDto(), ACTOR);
     expect(result).toBeDefined();
   });
 
   it('no notification is emitted when create persistence fails', async () => {
-    const { service } = await build({
-      create: jest.fn().mockRejectedValue(new Error('Mongo write error')),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockRejectedValue(new Error('Mongo write error')),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+    );
 
     await expect(service.create(BIZ, baseCreateDto(), ACTOR)).rejects.toThrow();
     expect(mockComm.notifyEvent).not.toHaveBeenCalled();
@@ -1783,13 +2369,16 @@ describe('Contract notifications — platform credentials', () => {
 
   it('notification recipient is actor.email — not a customer or hardcoded address', async () => {
     const created = fakeContract();
-    const { service } = await build({
-      create: jest.fn().mockResolvedValue(created),
-      findOne: jest.fn(() => mockChain(fakeCustomer())),
-    }, {
-      findOne:  jest.fn(() => mockChain(fakeCustomer())),
-      findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
-    });
+    const { service } = await build(
+      {
+        create: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+      },
+      {
+        findOne: jest.fn(() => mockChain(fakeCustomer())),
+        findById: jest.fn(() => mockChain({ displayName: 'Acme Ltd' })),
+      },
+    );
 
     await service.create(BIZ, baseCreateDto(), ACTOR);
     await new Promise((r) => setImmediate(r));

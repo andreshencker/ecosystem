@@ -7,8 +7,11 @@ import { InvoicesController } from './invoices.controller';
 import { Contract, ContractSchema } from '../contracts/schemas/contract.schema';
 import { Shift, ShiftSchema } from '../shifts/schemas/shift.schema';
 import { BusinessIntelligenceModule } from '../../integrations/business-intelligence/business-intelligence.module';
-import { InvoiceReviewItem, InvoiceReviewItemSchema } from './schemas/invoice-review-item.schema';
-import { CommunicationsModule } from '../../integrations/communications/communications.module';
+import {
+  InvoiceReviewItem,
+  InvoiceReviewItemSchema,
+} from './schemas/invoice-review-item.schema';
+import { RelayModule } from '../../integrations/relay/relay.module';
 
 @Module({
   imports: [
@@ -19,7 +22,7 @@ import { CommunicationsModule } from '../../integrations/communications/communic
       { name: InvoiceReviewItem.name, schema: InvoiceReviewItemSchema },
     ]),
     BusinessIntelligenceModule,
-    CommunicationsModule,
+    RelayModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],

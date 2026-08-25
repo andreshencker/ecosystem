@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Axios instance for communication engine endpoints that require x-api-key.
+ * Axios instance for Relay engine endpoints that require x-api-key.
  *
  * These endpoints use the backend's inline assertApiKey() check in addition to
  * the global JWT guard.  We must send BOTH headers:

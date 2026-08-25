@@ -11,7 +11,7 @@ import { Invitation } from '../schemas/invitation.schema';
 import { Business } from '../../business/schemas/business.schema';
 import { UsersService } from '../../users/users.service';
 import { EventBusService } from '../../../infrastructure/events/event-bus.service';
-import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../../integrations/relay/client/relay-client.service';
 
 // ── Mock factory helpers ──────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ describe('UserInvitationsService', () => {
           useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') },
         },
         { provide: EventBusService, useValue: eventBusMock },
-        { provide: CommunicationsClientService, useValue: commClient },
+        { provide: RelayClientService, useValue: commClient },
       ],
     }).compile();
 

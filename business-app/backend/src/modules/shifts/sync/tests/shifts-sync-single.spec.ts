@@ -13,8 +13,8 @@ import { ShiftSyncService } from '../services/shift-sync.service';
 import { Shift } from '../../schemas/shift.schema';
 import { SyncHistory } from '../schemas/sync-history.schema';
 import { LinkedCalendarsService } from '../../../linked-calendars/linked-calendars.service';
-import { CommunicationsCalendarClient } from '../../../linked-calendars/clients/communications-calendar.client';
-import { CommunicationsClientService } from '../../../../integrations/communications/client/communications-client.service';
+import { RelayCalendarClient } from '../../../linked-calendars/clients/relay-calendar.client';
+import { RelayClientService } from '../../../../integrations/relay/client/relay-client.service';
 import { UsersService } from '../../../users/users.service';
 import { BusinessIntelligenceService } from '../../../../integrations/business-intelligence/business-intelligence.service';
 
@@ -22,23 +22,23 @@ import { BusinessIntelligenceService } from '../../../../integrations/business-i
 
 function makeCalendar(overrides: Record<string, any> = {}) {
   return {
-    id:                  'cal-lasso-1',
-    companyId:           'biz1',
-    connectionId:        'conn1',
-    providerKey:         'icloud',
+    id: 'cal-lasso-1',
+    companyId: 'biz1',
+    connectionId: 'conn1',
+    providerKey: 'icloud',
     providerDisplayName: 'iCloud Calendar',
-    accountIdentifier:   'user@icloud.com',
-    externalCalendarId:  'https://caldav.icloud.com/12345/calendars/ABC/',
-    calendarName:        'LASSO Calendar',
+    accountIdentifier: 'user@icloud.com',
+    externalCalendarId: 'https://caldav.icloud.com/12345/calendars/ABC/',
+    calendarName: 'LASSO Calendar',
     calendarDescription: null,
-    timezone:            null,
-    accessRole:          'read-write',
-    isPrimary:           false,
-    status:              'active',
-    flow:                'shifts',
-    linkedByUserId:      null,
-    createdAt:           new Date().toISOString(),
-    updatedAt:           new Date().toISOString(),
+    timezone: null,
+    accessRole: 'read-write',
+    isPrimary: false,
+    status: 'active',
+    flow: 'shifts',
+    linkedByUserId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     ...overrides,
   };
 }
@@ -48,35 +48,39 @@ const actor = { userId: 'u1', email: 'admin@biz.com', firstName: 'Admin' };
 // ── Mock setup ────────────────────────────────────────────────────────────────
 
 const mockLinkedCalendarsService = {
-  findAll:  jest.fn(),
+  findAll: jest.fn(),
   findById: jest.fn(),
 };
-const mockCalendarClient  = { listCalendarEvents: jest.fn() };
-const mockCommClient      = { notifyEvent: jest.fn().mockResolvedValue(true) };
-const mockUsersService    = { getCompanyDisplayName: jest.fn().mockResolvedValue('Biz') };
-const mockShiftModel      = {
+const mockCalendarClient = { listCalendarEvents: jest.fn() };
+const mockCommClient = { notifyEvent: jest.fn().mockResolvedValue(true) };
+const mockUsersService = {
+  getCompanyDisplayName: jest.fn().mockResolvedValue('Biz'),
+};
+const mockShiftModel = {
   findOne: jest.fn(),
   findOneAndUpdate: jest.fn(),
-  create:  jest.fn(),
+  create: jest.fn(),
   updateMany: jest.fn(),
 };
-const mockHistoryModel    = {
+const mockHistoryModel = {
   create: jest.fn(),
   findOneAndUpdate: jest.fn(),
 };
-const mockBiService       = { syncModel: jest.fn().mockResolvedValue({ inserted: 0, updated: 0 }) };
+const mockBiService = {
+  syncModel: jest.fn().mockResolvedValue({ inserted: 0, updated: 0 }),
+};
 
 async function buildModule(): Promise<TestingModule> {
   return Test.createTestingModule({
     providers: [
       ShiftSyncService,
-      { provide: getModelToken(Shift.name),       useValue: mockShiftModel   },
+      { provide: getModelToken(Shift.name), useValue: mockShiftModel },
       { provide: getModelToken(SyncHistory.name), useValue: mockHistoryModel },
-      { provide: LinkedCalendarsService,          useValue: mockLinkedCalendarsService },
-      { provide: CommunicationsCalendarClient,    useValue: mockCalendarClient         },
-      { provide: CommunicationsClientService,     useValue: mockCommClient             },
-      { provide: UsersService,                    useValue: mockUsersService           },
-      { provide: BusinessIntelligenceService,     useValue: mockBiService              },
+      { provide: LinkedCalendarsService, useValue: mockLinkedCalendarsService },
+      { provide: RelayCalendarClient, useValue: mockCalendarClient },
+      { provide: RelayClientService, useValue: mockCommClient },
+      { provide: UsersService, useValue: mockUsersService },
+      { provide: BusinessIntelligenceService, useValue: mockBiService },
     ],
   }).compile();
 }
@@ -104,7 +108,10 @@ describe('ShiftSyncService.syncSingleCalendar', () => {
   it('calls findById with the correct calendarId and businessId', async () => {
     mockLinkedCalendarsService.findById.mockResolvedValue(makeCalendar());
     await service.syncSingleCalendar('biz1', 'cal-lasso-1', actor);
-    expect(mockLinkedCalendarsService.findById).toHaveBeenCalledWith('cal-lasso-1', 'biz1');
+    expect(mockLinkedCalendarsService.findById).toHaveBeenCalledWith(
+      'cal-lasso-1',
+      'biz1',
+    );
   });
 
   it('throws BadRequestException when calendar status is paused', async () => {
@@ -157,7 +164,11 @@ describe('ShiftSyncService.syncSingleCalendar', () => {
 
   it('returns CalendarSyncStats for the synced calendar', async () => {
     mockLinkedCalendarsService.findById.mockResolvedValue(makeCalendar());
-    const result = await service.syncSingleCalendar('biz1', 'cal-lasso-1', actor);
+    const result = await service.syncSingleCalendar(
+      'biz1',
+      'cal-lasso-1',
+      actor,
+    );
     expect(result).toHaveProperty('linkedCalendarId', 'cal-lasso-1');
     expect(result).toHaveProperty('created');
     expect(result).toHaveProperty('updated');
@@ -169,7 +180,11 @@ describe('ShiftSyncService.syncSingleCalendar', () => {
     await service.syncSingleCalendar('biz1', 'cal-lasso-1', actor);
     // BI is called but not awaited — give microtasks a tick to flush
     await Promise.resolve();
-    expect(mockBiService.syncModel).toHaveBeenCalledWith('biz1', 'shift', false);
+    expect(mockBiService.syncModel).toHaveBeenCalledWith(
+      'biz1',
+      'shift',
+      false,
+    );
   });
 
   it('global syncBusiness is not called by syncSingleCalendar', async () => {
@@ -199,7 +214,7 @@ describe('POST /shifts/sync/:linkedCalendarId — endpoint contract', () => {
   it('linkedCalendarId is taken from the URL param, not the request body', () => {
     // Business App sends POST /shifts/sync/:linkedCalendarId with no body.
     // The controller extracts linkedCalendarId from @Param().
-    const body   = undefined;
+    const body = undefined;
     const paramId = 'cal-lasso-1';
     expect(paramId).toBe('cal-lasso-1');
     expect(body).toBeUndefined();

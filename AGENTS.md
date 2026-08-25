@@ -8,7 +8,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ```
 invoiceApp/
-├── communications-app/          ← SaaS notifications/communications platform
+├── relay/                        ← SaaS notifications/communications platform ("Relay")
 │   ├── backend/                 ← NestJS API  (port 3001)
 │   └── frontend/                ← Next.js 14 App Router (port 3000)
 ├── business-app/                ← ERP / invoicing application
@@ -21,7 +21,7 @@ invoiceApp/
     └── orchestrator/
 ```
 
-The two main apps (Communications, Business) are separate deployments with separate MongoDB databases. They share no code — Business App calls Communications App over HTTP using an Integration Token. The Business Intelligence service is called only by the Business App backend; it never receives direct frontend requests.
+The two main apps (Relay, Business) are separate deployments with separate MongoDB databases. They share no code — Business App calls Relay over HTTP using an Integration Token. The Business Intelligence service is called only by the Business App backend; it never receives direct frontend requests.
 
 ---
 
@@ -29,7 +29,7 @@ The two main apps (Communications, Business) are separate deployments with separ
 
 All commands must be run from their respective sub-directory.
 
-### Communications App — Backend (`communications-app/backend/`)
+### Relay — Backend (`relay/backend/`)
 ```bash
 npm run start:dev      # watch mode (ts-node, hot reload)
 npm run build          # nest build → dist/
@@ -38,7 +38,7 @@ npx jest path/to.spec  # single test file
 npm run lint           # eslint --fix
 ```
 
-### Communications App — Frontend (`communications-app/frontend/`)
+### Relay — Frontend (`relay/frontend/`)
 ```bash
 npm run dev            # next dev -p 3000
 npm run build          # next build
@@ -84,17 +84,17 @@ Jest config for both NestJS backends: `rootDir=src`, pattern `.*\.spec\.ts$`, ru
 
 ## Environment Variables
 
-**Communications App backend** (`.env`):
+**Relay backend** (`.env`):
 - `PORT=3001`, `MONGODB_URI` (db: `communication_platform_db`)
-- `COMMUNICATION_API_KEY` — internal admin key protecting engine endpoints
+- `RELAY_API_KEY` — internal admin key protecting engine endpoints
 - `CREDENTIALS_MASTER_KEY_BASE64` — AES-256-GCM key for credential encryption
 - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - Redis connection, AWS/S3, Platform SMTP
 
 **Business App backend** (`.env`):
 - `PORT=3002`, `MONGODB_URI` (db: `business_app_db`)
-- `COMMUNICATION_API_URL=http://localhost:3001`
-- `COMMUNICATION_API_KEY` — same admin key, used for catalog provisioning calls
+- `RELAY_API_URL=http://localhost:3001`
+- `RELAY_API_KEY` — same admin key, used for catalog provisioning calls
 - `CREDENTIALS_MASTER_KEY_BASE64` — separate key for Business App's own secrets
 - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - `PLATFORM_ADMIN_BOOTSTRAP_EMAIL` / `PLATFORM_ADMIN_BOOTSTRAP_PASSWORD`
@@ -109,14 +109,14 @@ Jest config for both NestJS backends: `rootDir=src`, pattern `.*\.spec\.ts$`, ru
 - `MONGO_DATABASE=business_app_db`
 
 **Frontends** (`.env.local`):
-- `NEXT_PUBLIC_API_URL` — backend base URL (3001 for Comms, 3002 for Business)
+- `NEXT_PUBLIC_API_URL` — backend base URL (3001 for Relay, 3002 for Business)
 - `NEXT_PUBLIC_APP_ENV`
 
 ---
 
 ## Architecture
 
-### Communications App
+### Relay
 
 Full-stack SaaS notification engine. Tenants connect their own SMTP/SMS/calendar providers. Key modules under `src/`:
 - `auth/`, `users/`, `user-invitations/`, `company/` — SaaS platform layer
@@ -131,23 +131,25 @@ Auth: JWT (access + refresh) for browser users; `x-api-key` or `x-integration-to
 
 ### Business App
 
-ERP application. Calls Communications for all notification delivery. Never touches OAuth, CalDAV, or external providers directly. Key areas under `src/`:
+ERP application. Calls Relay for all notification delivery. Never touches OAuth, CalDAV, or external providers directly. Key areas under `src/`:
 - `modules/` — ERP domains: `auth`, `users`, `user-invitations`, `business`, `customer`, `contracts`, `shifts`, `linked-calendars`, `platform-admin`, `provisioning`
-- `integrations/communications/` — single HTTP client to Communications App
+- `integrations/relay/` — single HTTP client to Relay
 - `integrations/business-intelligence/` — HTTP client to BI service, error classification
 - `analytics/` — gateway controller to BI (proxies queries for business-scoped users)
 - `infrastructure/` — database, redis, queue, security, outbox
 
-#### Business App → Communications Integration
+#### Business App → Relay Integration
 
-`CommunicationsModule` (`src/integrations/communications/`) is the single point of contact:
-- `CommunicationConnectionService.getCommunicationConnectionForContext(type, businessId?)` — returns `{ communicationCompanyId, decryptedToken }`
-- `CommunicationsClientService.notifyEvent(params)` — fire-and-forget notification; never throws; returns `boolean`
-- `CommunicationCatalogProvisioningService` — idempotent catalog provisioning, called at startup and at token-save time
+`RelayModule` (`src/integrations/relay/`) is the single point of contact:
+- `RelayConnectionService.getRelayConnectionForContext(type, businessId?)` — returns `{ relayCompanyId, decryptedToken }`
+- `RelayClientService.notifyEvent(params)` — fire-and-forget notification; never throws; returns `boolean`
+- `RelayCatalogProvisioningService` — idempotent catalog provisioning, called at startup and at token-save time
 
 Type routing: `type: 'platform'` uses platform base company credentials; `type: 'business'` uses the specific Business's credentials.
 
-Platform event seeds live in `src/integrations/communications/seed/domains/<module>/<module>.seed.ts`. To add a new platform domain: create the seed file, import it in `platform-seed.ts`. Event canonical key: `domainKey.eventKey` (e.g. `shifts.shift_created`).
+Platform event seeds live in `src/integrations/relay/seed/domains/<module>/<module>.seed.ts`. To add a new platform domain: create the seed file, import it in `platform-seed.ts`. Event canonical key: `domainKey.eventKey` (e.g. `shifts.shift_created`).
+
+The underlying `IntegrationConnection` document's `provider` field is kept at its historical value `'communications'` (and the connection's REST route stays `/settings/communications`) — this is a persisted MongoDB value keyed per business, so renaming it would orphan every existing connection. Only the code identifiers (module/service/class names) were renamed to Relay; the wire-level provider key and its route were deliberately left alone. See the comment on `PROVIDER` in `relay-connection.controller.ts`.
 
 #### Business App → BI Integration
 
@@ -239,7 +241,7 @@ this.commClient.notifyEvent({ type: 'business', businessId, event: 'domain.event
 - Upsert key: `{ businessId, externalOccurrenceId }` (unique sparse index)
 - During update: overwrite only provider-owned fields (date, time, title, location, etc.); never overwrite business-owned fields (contractId, status, notes, breakMinutes)
 - Disappeared events: set `syncStatus: 'deleted'`, never hard-delete
-- `CalendarEventToShiftMapper.map()` converts Communications events to `NormalizedShiftFromEvent` — returns null for invalid events (skipped)
+- `CalendarEventToShiftMapper.map()` converts Relay events to `NormalizedShiftFromEvent` — returns null for invalid events (skipped)
 
 ### Linked Calendars (`flow` field)
 
@@ -300,8 +302,8 @@ Support issue codes are stable machine-readable strings (e.g. `CONTRACT_MISSING_
 
 ## Key Invariants
 
-1. **Business App never stores credentials** — no Apple passwords, OAuth tokens, CalDAV secrets. Only the encrypted integration token pointing to Communications.
-2. **Communications resolves `companyId` from the integration token** — Business App must never send `companyId` in the body to Communications calendar or notification endpoints.
+1. **Business App never stores credentials** — no Apple passwords, OAuth tokens, CalDAV secrets. Only the encrypted integration token pointing to Relay.
+2. **Relay resolves `companyId` from the integration token** — Business App must never send `companyId` in the body to Relay calendar or notification endpoints.
 3. **Notifications use `type: 'platform'` for internal ERP events** — shift created/confirmed/cancelled go through platform credentials. Calendar sync notifications (`calendar_sync.*`) also use platform credentials.
 4. **Event keys must exist in the catalog** — provisioning happens at startup (`provisionPlatformCatalog`) and at token-save time for business events.
 5. **Tenant isolation enforced everywhere** — `businessId` from `AuthContext.companyId` in NestJS; `business_id` filter in every BI SQL query.

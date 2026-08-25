@@ -11,7 +11,7 @@ import { UsersController } from '../users.controller';
 import { UsersService } from '../users.service';
 import { EventBusService } from '../../../infrastructure/events/event-bus.service';
 import { RolesGuard } from '../../../infrastructure/security/guards/roles.guard';
-import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../../integrations/relay/client/relay-client.service';
 import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
 
 function fakeCtx(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -44,7 +44,7 @@ async function buildModule(actorDoc: Record<string, any>) {
         useValue: { emit: jest.fn(), on: jest.fn() },
       },
       {
-        provide: CommunicationsClientService,
+        provide: RelayClientService,
         useValue: { notifyEvent: jest.fn().mockResolvedValue(true) },
       },
       {

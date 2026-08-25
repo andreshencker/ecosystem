@@ -29,6 +29,22 @@ export class AuthController {
     return response.redirect('/auth/google?flow=invitation');
   }
 
+  /** Same "sign in then continue" pattern as continueInvitation(), for the separate ecosystem-admin invitation flow. */
+  @Get('google/admin-invitation/:token')
+  continueAdminInvitation(
+    @Param('token') token: string,
+    @Res() response: Response,
+  ) {
+    response.cookie('grapifly_admin_invitation_token', token, {
+      httpOnly: true,
+      secure: this.config.get<string>('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000,
+      path: '/',
+    });
+    return response.redirect('/auth/google?flow=invitation');
+  }
+
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() request: Request, @Res() response: Response) {
@@ -40,20 +56,31 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
-    if (request.query.state === 'relay') {
+    if (request.query.state && request.query.state !== 'invitation') {
+      const appKey = String(request.query.state);
       const organizationId = request.cookies?.grapifly_sso_organization as string | undefined;
       response.clearCookie('grapifly_sso_organization', { path: '/' });
-      return response.redirect(`/auth/sso/relay${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ''}`);
+      return response.redirect(`/auth/sso/${encodeURIComponent(appKey)}${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ''}`);
     }
 
     if (request.query.state === 'invitation') {
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100';
+
+      const adminInvitationToken = request.cookies
+        ?.grapifly_admin_invitation_token as string | undefined;
+      response.clearCookie('grapifly_admin_invitation_token', { path: '/' });
+      if (adminInvitationToken) {
+        return response.redirect(
+          `${frontendUrl.replace(/\/$/, '')}/admin-invitations/${encodeURIComponent(adminInvitationToken)}`,
+        );
+      }
+
       const invitationToken = request.cookies?.grapifly_invitation_token as
         | string
         | undefined;
       response.clearCookie('grapifly_invitation_token', { path: '/' });
       if (invitationToken) {
-        const frontendUrl =
-          this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100';
         return response.redirect(
           `${frontendUrl.replace(/\/$/, '')}/invitations/${encodeURIComponent(invitationToken)}`,
         );
@@ -82,8 +109,21 @@ export class AuthController {
     return response.redirect(`${frontendUrl.replace(/\/$/, '')}/?signedOut=true`);
   }
 
-  @Get('sso/relay')
-  async relaySso(@Req() request: SessionRequest, @Res() response: Response) {
+  /**
+   * Generic SSO entry point for any app registered in the Applications
+   * catalogue — NestJS routing matches /auth/sso/relay exactly the same as
+   * before, so Relay's existing frontend link needs no changes.
+   */
+  @Get('sso/:appKey')
+  async ssoRedirect(
+    @Param('appKey') appKey: string,
+    @Req() request: SessionRequest,
+    @Res() response: Response,
+  ) {
+    // Fail fast — validated before touching Google, so an unknown/typo'd
+    // appKey never burns a full OAuth round trip to discover.
+    const application = await this.auth.assertActiveApplication(appKey);
+
     const token = request.cookies?.grapifly_session as string | undefined;
     const session = await this.auth.resolveSession(token);
     if (!session) {
@@ -97,12 +137,12 @@ export class AuthController {
           path: '/',
         });
       }
-      return response.redirect('/auth/google?app=relay');
+      return response.redirect(`/auth/google?app=${encodeURIComponent(appKey)}`);
     }
 
     const organizationId = typeof request.query.organizationId === 'string' ? request.query.organizationId : undefined;
-    const code = await this.auth.createRelaySsoCode(session.sub, organizationId);
-    const callback = this.config.get<string>('RELAY_SSO_CALLBACK_URL') ?? 'http://localhost:3000/auth/grapifly/callback';
+    const code = await this.auth.createSsoCode(appKey, session.sub, organizationId);
+    const callback = application.ssoCallbackUrl ?? 'http://localhost:3000/auth/grapifly/callback';
     return response.redirect(`${callback}?code=${encodeURIComponent(code)}`);
   }
 

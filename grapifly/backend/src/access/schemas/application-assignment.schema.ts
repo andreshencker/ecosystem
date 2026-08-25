@@ -14,8 +14,8 @@ export class ApplicationAssignment {
   @Prop({ required: true, enum: ['active', 'suspended', 'revoked'], default: 'active', index: true })
   status!: 'active' | 'suspended' | 'revoked';
 
-  @Prop({ required: true, enum: ['bootstrap', 'admin', 'migration'], default: 'admin' })
-  source!: 'bootstrap' | 'admin' | 'migration';
+  @Prop({ required: true, enum: ['bootstrap', 'admin', 'migration', 'auto'], default: 'admin' })
+  source!: 'bootstrap' | 'admin' | 'migration' | 'auto';
 
   @Prop({ type: Date, default: Date.now })
   grantedAt!: Date;

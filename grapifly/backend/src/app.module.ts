@@ -7,7 +7,9 @@ import { UsersModule } from './users/users.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { PlatformAdminModule } from './admin/platform-admin.module';
 import { ApplicationAssignmentsModule } from './access/application-assignments.module';
+import { RoleCatalogModule } from './roles/role-catalog.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { CommunicationTokensModule } from './communication-tokens/communication-tokens.module';
 
 @Module({
   imports: [
@@ -22,8 +24,10 @@ import { OrganizationsModule } from './organizations/organizations.module';
     AuthModule,
     ApplicationsModule,
     ApplicationAssignmentsModule,
+    RoleCatalogModule,
     OrganizationsModule,
     PlatformAdminModule,
+    CommunicationTokensModule,
   ],
   controllers: [HealthController],
 })

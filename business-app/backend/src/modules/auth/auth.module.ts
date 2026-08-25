@@ -10,7 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
-import { CommunicationsModule } from '../../integrations/communications/communications.module';
+import { RelayModule } from '../../integrations/relay/relay.module';
 import { ProvisioningModule } from '../provisioning/provisioning.module';
 
 @Module({
@@ -33,7 +33,7 @@ import { ProvisioningModule } from '../provisioning/provisioning.module';
     }),
 
     UsersModule,
-    CommunicationsModule,
+    RelayModule,
     ProvisioningModule,
   ],
   controllers: [AuthController],

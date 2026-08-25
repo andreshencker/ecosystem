@@ -26,7 +26,7 @@ import { UsersService } from '../../../modules/users/users.service';
  * Decision order:
  *   1. @Public() decorator → allow without auth
  *   2. Authorization: Bearer <jwt> → verify token, DB lookup, attach AuthContext
- *   3. x-api-key === COMMUNICATION_API_KEY → allow (internal engine endpoints)
+ *   3. x-api-key === RELAY_API_KEY → allow (internal engine endpoints)
  *   4. x-api-key as scoped modules key → TODO Phase 4
  *   5. None of the above → 401 Unauthorized
  */
@@ -96,10 +96,10 @@ export class GlobalAuthGuard implements CanActivate {
       }
     }
 
-    // ── 3. Internal COMMUNICATION_API_KEY (internal engine endpoints) ─────────
+    // ── 3. Internal RELAY_API_KEY (internal engine endpoints) ─────────
     const apiKeyHeader = request.headers['x-api-key'] as string | undefined;
     if (apiKeyHeader) {
-      const internalKey = this.config.get<string>('COMMUNICATION_API_KEY');
+      const internalKey = this.config.get<string>('RELAY_API_KEY');
       if (internalKey && apiKeyHeader === internalKey) {
         (request as any).authContext = {
           actorType: 'apikey',
