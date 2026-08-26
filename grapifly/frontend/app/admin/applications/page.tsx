@@ -236,6 +236,7 @@ export default function ApplicationsPage() {
             <div className="logo-preview-large">{form.theme.logoUrl
               ? <img src={form.theme.logoUrl} alt="" onError={event => { event.currentTarget.style.visibility = 'hidden'; }} onLoad={event => { event.currentTarget.style.visibility = 'visible'; }} />
               : <span>{form.theme.icon || '?'}</span>}</div>
+            {form.theme.logoUrl && <button type="button" className="logo-remove-button" onClick={() => setForm({ ...form, theme: { ...form.theme, logoUrl: null } })}>Remove logo</button>}
 
             <div className="logo-mode-toggle">
               <button type="button" className={logoMode === 'upload' ? 'active' : ''} disabled={drawerMode === 'create'} onClick={() => setLogoMode('upload')}>Upload</button>

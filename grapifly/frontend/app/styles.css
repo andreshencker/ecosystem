@@ -264,6 +264,7 @@ footer { height:110px;border-top:1px solid var(--line);display:flex;align-items:
 .logo-section>.drawer-subsection-title{align-self:flex-start}
 .logo-preview-large{width:88px;height:88px;border-radius:18px;border:1px solid #dcdce4;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:32px;flex-shrink:0}
 .logo-preview-large img{width:100%;height:100%;object-fit:contain}
+.logo-remove-button{border:0;background:transparent;padding:2px 0;font-size:11px;font-weight:650;color:#9b3535;cursor:pointer;text-decoration:underline}
 .logo-mode-toggle{display:inline-flex;border:1px solid #dcdce4;border-radius:999px;padding:3px;background:#fff}
 .logo-mode-toggle button{border:0;background:transparent;padding:7px 18px;border-radius:999px;font-size:12px;font-weight:650;color:#666;cursor:pointer}
 .logo-mode-toggle button.active{background:#111116;color:#fff}
