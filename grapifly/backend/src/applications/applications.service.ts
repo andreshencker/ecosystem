@@ -20,7 +20,7 @@ import { CreateApplicationResponseDto } from './dto/create-application-response.
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { DeleteApplicationResponseDto } from './dto/delete-application-response.dto';
 import type { ApplicationPublicConfigDto } from './dto/application-public-config.dto';
-import { RelayMediaService } from '../relay-media/relay-media.service';
+import { RelayStorageService } from '../relay-storage/relay-storage.service';
 
 const ALL_FLOWS: RoleFlow[] = ['client', 'provider', 'internal'];
 
@@ -77,7 +77,7 @@ export class ApplicationsService implements OnApplicationBootstrap {
   constructor(
     @InjectModel(Application.name) private readonly applications: Model<ApplicationDocument>,
     private readonly config: ConfigService,
-    private readonly relayMedia: RelayMediaService,
+    private readonly relayStorage: RelayStorageService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -237,7 +237,7 @@ export class ApplicationsService implements OnApplicationBootstrap {
   async uploadLogo(key: string, file: Express.Multer.File): Promise<ApplicationResponseDto> {
     const existing = await this.applications.findOne({ key: key.toLowerCase() }).lean();
     if (!existing) throw new NotFoundException('Application not found');
-    const uploaded = await this.relayMedia.uploadApplicationLogo(file, existing.key);
+    const uploaded = await this.relayStorage.uploadApplicationLogo(file, existing.key);
     return this.updateApplication(existing.key, { theme: { logoUrl: uploaded.url } } as UpdateApplicationDto);
   }
 

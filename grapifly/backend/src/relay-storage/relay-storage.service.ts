@@ -9,25 +9,35 @@ import FormData = require('form-data');
 import { firstValueFrom } from 'rxjs';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 
-interface MediaUploadResult {
+interface StorageUploadResult {
   key: string;
   url: string;
   bucket: string;
   region: string;
   contentType: string;
   size: number;
+  fileName: string;
 }
 
+const MIME_EXTENSIONS: Record<string, string> = {
+  'image/svg+xml': 'svg',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/x-icon': 'ico',
+};
+
 /**
- * Grapifly's outbound leg for uploading media (application logos, etc.) to
- * Relay's files/media API — same x-grapifly-service-secret trust mechanism
- * RelayNotificationService already uses, so Relay resolves the right
- * companyId itself from the platform organization; Grapifly never needs to
- * know Relay's internal company id.
+ * Grapifly's outbound leg for uploading files to Relay's files/storage API —
+ * same x-grapifly-service-secret trust mechanism RelayNotificationService
+ * already uses, so Relay resolves the right companyId itself from the
+ * platform organization; Grapifly never needs to know Relay's internal
+ * company id or storage credentials.
  */
 @Injectable()
-export class RelayMediaService {
-  private readonly logger = new Logger(RelayMediaService.name);
+export class RelayStorageService {
+  private readonly logger = new Logger(RelayStorageService.name);
 
   constructor(
     private readonly http: HttpService,
@@ -36,10 +46,16 @@ export class RelayMediaService {
     private readonly organizations: Model<OrganizationDocument>,
   ) {}
 
+  /**
+   * Uploads into the "logos" storage domain — a real StorageDomainCatalogue
+   * entry (tied to a specific credential/bucket), not a free-text field —
+   * so the result shows up in Relay's Files (Storage) browser too, not just
+   * as an opaque theme.logoUrl value.
+   */
   async uploadApplicationLogo(
     file: Express.Multer.File,
     applicationKey: string,
-  ): Promise<MediaUploadResult> {
+  ): Promise<StorageUploadResult> {
     const baseUrl = this.config.get<string>('RELAY_API_URL') ?? 'http://localhost:3001';
     const serviceSecret =
       this.config.get<string>('RELAY_SERVICE_SECRET') ??
@@ -56,22 +72,23 @@ export class RelayMediaService {
       throw new InternalServerErrorException('Platform organization is unavailable');
     }
 
+    const ext = this.extensionFor(file);
+    const fileName = `${applicationKey}${ext ? `.${ext}` : ''}`;
+
     const form = new FormData();
     // Relay's DTO requires a syntactically valid companyId, but GlobalAuthGuard
     // always overrides it with the company resolved from the service secret +
     // x-grapifly-organization-id header — this value is never actually used.
     form.append('companyId', '000000000000000000000000');
-    form.append('domain', 'grapifly');
-    form.append('kind', 'application-logo');
-    form.append('entityId', applicationKey);
-    form.append('folder', 'branding');
-    form.append('public', 'true');
-    form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
+    form.append('domain', 'logos');
+    form.append('fileName', fileName);
+    form.append('isPublic', 'true');
+    form.append('file', file.buffer, { filename: fileName, contentType: file.mimetype });
 
     try {
       const response = await firstValueFrom(
-        this.http.post<MediaUploadResult>(
-          `${baseUrl.replace(/\/$/, '')}/files/media`,
+        this.http.post<StorageUploadResult>(
+          `${baseUrl.replace(/\/$/, '')}/files/storage`,
           form,
           {
             timeout: 15000,
@@ -93,5 +110,11 @@ export class RelayMediaService {
         error?.response?.data?.message ?? 'Failed to upload logo to Relay',
       );
     }
+  }
+
+  private extensionFor(file: Express.Multer.File): string | undefined {
+    const fromName = file.originalname?.split('.').pop()?.toLowerCase();
+    if (fromName && fromName !== file.originalname?.toLowerCase()) return fromName;
+    return MIME_EXTENSIONS[file.mimetype];
   }
 }
