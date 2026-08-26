@@ -1,12 +1,13 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Avatar, Box, useMediaQuery, useTheme } from "@mui/material";
+import { Avatar, Box, Typography } from "@mui/material";
 
-import { getCompanyBrand } from "@/app/lib/storage";
-
+// name/logoUrl always come from the Grapifly Applications catalogue (see
+// AppConfigProvider) — every call site passes them explicitly, no local
+// branding source of any kind.
 type Props = {
     to?: string;
-    name?: string;
+    name: string;
     logoUrl?: string;
     size?: "sm" | "md" | "lg";
     showText?: boolean;
@@ -14,27 +15,11 @@ type Props = {
 
 export default function AppBrand({
                                      to = "/",
-                                     name = "JTrade",
+                                     name,
                                      logoUrl,
                                      size = "md",
+                                     showText = true,
                                  }: Props) {
-    const theme = useTheme();
-    const isSmall = useMediaQuery(theme.breakpoints.down("md"));
-
-    const [storedBrand, setStoredBrand] = React.useState(() => getCompanyBrand());
-
-    React.useEffect(() => {
-        const syncBrand = () => {
-            setStoredBrand(getCompanyBrand());
-        };
-
-        window.addEventListener("app:companyBrand", syncBrand);
-
-        return () => {
-            window.removeEventListener("app:companyBrand", syncBrand);
-        };
-    }, []);
-
     const sizes = {
         sm: 26,
         md: 32,
@@ -43,15 +28,11 @@ export default function AppBrand({
 
     const box = sizes[size];
 
-    const resolvedName = storedBrand?.displayName?.trim() || name;
-    const resolvedIconUrl = storedBrand?.logoIconUrl?.trim() || logoUrl || "";
-    const resolvedFullLogoUrl = storedBrand?.logoFullUrl?.trim() || "";
-
     return (
         <Box
             component={Link}
             to={to}
-            aria-label={resolvedName}
+            aria-label={name}
             sx={{
                 display: "flex",
                 alignItems: "center",
@@ -62,23 +43,10 @@ export default function AppBrand({
                 flex: "0 0 auto",
             }}
         >
-            {!isSmall && resolvedFullLogoUrl ? (
-                <Box
-                    component="img"
-                    src={resolvedFullLogoUrl}
-                    alt={resolvedName}
-                    sx={{
-                        height: box,
-                        maxWidth: 180,
-                        objectFit: "contain",
-                        display: "block",
-                        flex: "0 0 auto",
-                    }}
-                />
-            ) : resolvedIconUrl ? (
+            {logoUrl ? (
                 <Avatar
-                    src={resolvedIconUrl}
-                    alt={resolvedName}
+                    src={logoUrl}
+                    alt={name}
                     variant="rounded"
                     sx={{
                         width: box,
@@ -88,7 +56,7 @@ export default function AppBrand({
                         bgcolor: "background.paper",
                     }}
                 >
-                    {resolvedName?.[0]?.toUpperCase() ?? "J"}
+                    {name?.[0]?.toUpperCase() ?? "J"}
                 </Avatar>
             ) : (
                 <Box
@@ -101,6 +69,11 @@ export default function AppBrand({
                         flex: "0 0 auto",
                     }}
                 />
+            )}
+            {showText && (
+                <Typography sx={{ fontWeight: 900, letterSpacing: "-.035em", whiteSpace: "nowrap" }}>
+                    {name}
+                </Typography>
             )}
         </Box>
     );

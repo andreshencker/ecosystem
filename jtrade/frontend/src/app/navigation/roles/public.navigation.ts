@@ -2,7 +2,7 @@ import type { NavigationConfig } from "../types";
 
 export const publicNavigation: NavigationConfig = {
     role: "public",
-    brand: { name: "JTrade", to: "/" },
+    brand: { to: "/" },
 
     layout: {
         hasNavbar: true,
@@ -12,7 +12,11 @@ export const publicNavigation: NavigationConfig = {
 
     navbar: [
         { type: "link", label: "Home", path: "/" },
-        { type: "link", label: "Sign In", path: "/signin" },
+        { type: "link", label: "Marketplace", path: "/marketplace" },
+        { type: "link", label: "Developers", path: "/developers" },
+        { type: "link", label: "How it works", path: "/how-it-works" },
+        { type: "link", label: "Platforms", path: "/platforms" },
+        { type: "link", label: "Sign in", path: "/signin" },
         // 🔒 Sign Up oculto por ahora
         // { type: "link", label: "Sign Up", path: "/signup" },
     ],

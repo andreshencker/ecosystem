@@ -76,9 +76,10 @@ export type NavigationConfig = {
     /** slots/handlers opcionales por rol */
     slots?: NavigationSlots;
 
-    /** branding */
+    /** Where the logo/brand link navigates to — the name itself always comes
+     * from the Grapifly Applications catalogue (see AppConfigProvider), never
+     * from here. */
     brand?: {
-        name: string;
         to?: string;
     };
 };

@@ -7,39 +7,6 @@
  */
 
 // =========================
-// Company brand
-// =========================
-const APP_COMPANY_BRAND = "app:companyBrand";
-
-function emitCompanyBrandChanged() {
-    try {
-        window.dispatchEvent(new Event("app:companyBrand"));
-    } catch {
-        // ignore
-    }
-}
-
-export type StoredCompanyBrand = {
-    companyKey?: string;
-    displayName?: string;
-    logoIconUrl?: string;
-    logoFullUrl?: string;
-} | null;
-
-export function getCompanyBrand<T extends StoredCompanyBrand = StoredCompanyBrand>(): T {
-    return getItem<T>(APP_COMPANY_BRAND) as T;
-}
-
-export function setCompanyBrand(brand: StoredCompanyBrand): void {
-    setItem(APP_COMPANY_BRAND, brand);
-    emitCompanyBrandChanged();
-}
-
-export function clearCompanyBrand(): void {
-    removeItem(APP_COMPANY_BRAND);
-    emitCompanyBrandChanged();
-}
-// =========================
 // Claves base de AUTH
 // =========================
 const AUTH_TOKEN = "auth:token";
@@ -165,6 +132,10 @@ export type StoredUser =
     lastName?: string;
     email?: string;
     role?: string;
+    flow?: "client" | "provider" | "internal";
+    applicationRole?: string;
+    organizationId?: string;
+    accessTier?: "trial" | "free" | "paid";
     avatarUrl?: string;
 }
     | null;

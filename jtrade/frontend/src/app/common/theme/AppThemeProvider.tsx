@@ -1,8 +1,8 @@
 // src/app/common/theme/AppThemeProvider.tsx
 import * as React from "react";
 import {CssBaseline, GlobalStyles, PaletteMode, ThemeProvider as MUIThemeProvider, useMediaQuery} from "@mui/material";
-import {DARK, LIGHT} from "./tokens";
 import {makeTheme} from "./makeTheme";
+import {useAppConfig} from "@/app/providers/AppConfigProvider";
 
 type Ctx = { mode: PaletteMode; setMode: (m: PaletteMode) => void; toggle: () => void; };
 const ThemeCtx = React.createContext<Ctx | undefined>(undefined);
@@ -10,6 +10,7 @@ const ThemeCtx = React.createContext<Ctx | undefined>(undefined);
 const STORAGE_KEY = "ui:theme"; // "dark" | "light" | "system"
 
 export function AppThemeProvider({children}: { children: React.ReactNode }) {
+    const appConfig = useAppConfig();
     // preferencia del sistema
     const systemPrefersDark = useMediaQuery("(prefers-color-scheme: dark)");
     const [pref, setPref] = React.useState<"dark" | "light" | "system">(() => {
@@ -27,10 +28,8 @@ export function AppThemeProvider({children}: { children: React.ReactNode }) {
     };
     const toggle = () => setMode(mode === "dark" ? "light" : "dark");
 
-    const theme = React.useMemo(
-        () => makeTheme(mode, mode === "dark" ? DARK : LIGHT),
-        [mode]
-    );
+    // The catalogue is the only source of theme data — no local merge/fallback.
+    const theme = React.useMemo(() => makeTheme(appConfig, mode), [appConfig, mode]);
 
     return (
         <ThemeCtx.Provider value={{mode, setMode, toggle}}>
@@ -39,6 +38,11 @@ export function AppThemeProvider({children}: { children: React.ReactNode }) {
                 <CssBaseline/>
                 <GlobalStyles
                     styles={{
+                        ":root": {
+                            "--app-primary": theme.palette.primary.main,
+                            "--app-background": theme.palette.background.default,
+                            "--app-text": theme.palette.text.primary,
+                        },
                         html: {height: "100%"},
                         body: {
                             height: "100%",
