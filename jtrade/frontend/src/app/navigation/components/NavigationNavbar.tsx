@@ -16,6 +16,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import type { NavigationConfig, NavbarItem } from "../types";
 import AppBrand from "./AppBrand";
 import AvatarBlock from "./AvatarBlock";
+import { useAppConfig } from "@/app/providers/AppConfigProvider";
+import { resolveLogoUrl } from "@/app/config/app-config";
 
 type Props = {
     config: NavigationConfig;
@@ -37,9 +39,11 @@ export default function NavigationNavbar({
                                          }: Props) {
     const theme = useTheme();
     const isXs = useMediaQuery(theme.breakpoints.down("sm"));
+    const isCompact = useMediaQuery(theme.breakpoints.down("md"));
     const { pathname } = useLocation();
+    const appConfig = useAppConfig();
 
-    const brandName = config.brand?.name ?? "JTrade";
+    const brandName = appConfig.name;
     const brandTo = config.brand?.to ?? "/";
 
     return (
@@ -81,6 +85,7 @@ export default function NavigationNavbar({
                 <AppBrand
                     to={brandTo}
                     name={brandName}
+                    logoUrl={resolveLogoUrl(appConfig.theme, theme.palette.mode)}
                     size={isXs ? "sm" : "md"}
                     showText={!isXs}
                 />
@@ -101,6 +106,7 @@ export default function NavigationNavbar({
                         const isLink = item.type === "link";
                         const isCategory = item.type === "category";
                         if (!isLink && !isCategory) return null;
+                        if (config.role === "public" && isCompact && isLink && ["/developers", "/how-it-works", "/platforms"].includes(item.path)) return null;
 
                         const active = isLink
                             ? pathname === item.path || pathname.startsWith(item.path + "/")

@@ -7,9 +7,16 @@ export type AppConfig = {
     theme: {
         icon: string;
         logoUrl: string | null;
+        logoUrlDark: string | null;
+        faviconUrl: string | null;
         fontFamily: string;
         light: { primaryColor: string; backgroundColor: string; textColor: string };
         dark: { primaryColor: string; backgroundColor: string; textColor: string };
     };
     allowedFlows: ("client" | "provider" | "internal")[];
 };
+
+/** Picks the mode-correct logo — logoUrlDark in dark mode if set, otherwise the default logoUrl. */
+export function resolveLogoUrl(theme: AppConfig["theme"], mode: "light" | "dark"): string | undefined {
+    return (mode === "dark" ? theme.logoUrlDark : null) ?? theme.logoUrl ?? undefined;
+}

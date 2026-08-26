@@ -24,6 +24,12 @@ export function AppConfigProvider({ children }: { children: React.ReactNode }) {
         if (config) document.title = config.name;
     }, [config]);
 
+    React.useEffect(() => {
+        if (!config?.theme.faviconUrl) return;
+        const link = document.getElementById("app-favicon") as HTMLLinkElement | null;
+        if (link) link.href = config.theme.faviconUrl;
+    }, [config]);
+
     if (!config) return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f5f5f7", color: "#111116", fontFamily: "-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" }}><div style={{ textAlign: "center" }}><strong>{failed ? "Application identity unavailable" : "Loading application…"}</strong>{failed && <p style={{ color: "#66666d" }}>JTrade could not load its configuration from Grapifly.</p>}</div></div>;
 
     return <AppConfigContext.Provider value={config}>{children}</AppConfigContext.Provider>;

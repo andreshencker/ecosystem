@@ -6,7 +6,7 @@ export type ApplicationDocument = HydratedDocument<Application>;
 
 export interface ApplicationDefaultAccess {
   autoGrantOnSignup: boolean;
-  tier: 'free' | 'paid';
+  tier: 'trial' | 'free' | 'paid';
   requiresApproval: boolean;
 }
 
@@ -19,6 +19,9 @@ export interface ApplicationThemePalette {
 export interface ApplicationTheme {
   icon: string;
   logoUrl: string | null;
+  /** Used instead of logoUrl when the app is rendered in dark mode; falls back to logoUrl if null. */
+  logoUrlDark: string | null;
+  faviconUrl: string | null;
   fontFamily: string | null;
   light: ApplicationThemePalette;
   dark: ApplicationThemePalette;
@@ -31,7 +34,7 @@ export interface ApplicationCountryRestriction {
 
 export const DEFAULT_LIGHT_PALETTE: ApplicationThemePalette = { primaryColor: '#5c47ce', backgroundColor: '#efeaff', textColor: '#111116' };
 export const DEFAULT_DARK_PALETTE: ApplicationThemePalette = { primaryColor: '#8f7dff', backgroundColor: '#17151f', textColor: '#f5f4fa' };
-export const DEFAULT_THEME: ApplicationTheme = { icon: '', logoUrl: null, fontFamily: null, light: DEFAULT_LIGHT_PALETTE, dark: DEFAULT_DARK_PALETTE };
+export const DEFAULT_THEME: ApplicationTheme = { icon: '', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null, light: DEFAULT_LIGHT_PALETTE, dark: DEFAULT_DARK_PALETTE };
 export const DEFAULT_ACCESS: ApplicationDefaultAccess = { autoGrantOnSignup: false, tier: 'free', requiresApproval: false };
 export const DEFAULT_COUNTRY_RESTRICTION: ApplicationCountryRestriction = { enabled: false, countries: [] };
 
@@ -85,7 +88,7 @@ export class Application {
   @Prop({
     type: {
       autoGrantOnSignup: { type: Boolean, default: false },
-      tier: { type: String, enum: ['free', 'paid'], default: 'free' },
+      tier: { type: String, enum: ['trial', 'free', 'paid'], default: 'free' },
       requiresApproval: { type: Boolean, default: false },
     },
     _id: false,
@@ -94,15 +97,18 @@ export class Application {
   defaultAccess!: ApplicationDefaultAccess;
 
   /**
-   * Canonical brand identity for this app — icon/logo plus a light and dark
-   * colour palette. Today this only drives how Grapifly itself renders the
-   * app (catalogue cards); syncing it into the app's own live frontend is a
-   * future step, not enforced here.
+   * Canonical brand identity for this app — icon, logo (light/dark
+   * variants), favicon, and a light/dark colour palette. Served live to
+   * every app in the ecosystem via GET /app-config (see
+   * ApplicationsService.getPublicConfig) — jtrade and Relay already render
+   * it in their own frontends, not just in Grapifly's own catalogue cards.
    */
   @Prop({
     type: {
       icon: { type: String, default: '' },
       logoUrl: { type: String, default: null },
+      logoUrlDark: { type: String, default: null },
+      faviconUrl: { type: String, default: null },
       fontFamily: { type: String, default: null },
       light: {
         primaryColor: { type: String, default: DEFAULT_LIGHT_PALETTE.primaryColor },
@@ -116,7 +122,7 @@ export class Application {
       },
     },
     _id: false,
-    default: () => ({ icon: '', logoUrl: null, fontFamily: null, light: DEFAULT_LIGHT_PALETTE, dark: DEFAULT_DARK_PALETTE }),
+    default: () => ({ icon: '', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null, light: DEFAULT_LIGHT_PALETTE, dark: DEFAULT_DARK_PALETTE }),
   })
   theme!: ApplicationTheme;
 
@@ -137,7 +143,7 @@ export class Application {
    * Which of the three ecosystem flows this app is available to. Defaults to
    * all three (unrestricted, matching today's behaviour for every app).
    */
-  @Prop({ type: [String], enum: ['owner', 'provider', 'internal'], default: () => ['owner', 'provider', 'internal'] })
+  @Prop({ type: [String], enum: ['client', 'provider', 'internal'], default: () => ['client', 'provider', 'internal'] })
   allowedFlows!: RoleFlow[];
 }
 

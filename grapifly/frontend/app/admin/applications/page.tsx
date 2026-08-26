@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from '@/components/AdminSidebar';
 
 interface ThemePalette { primaryColor: string; backgroundColor: string; textColor: string }
-interface Theme { icon: string; logoUrl: string | null; fontFamily: string | null; light: ThemePalette; dark: ThemePalette }
+interface Theme { icon: string; logoUrl: string | null; logoUrlDark: string | null; faviconUrl: string | null; fontFamily: string | null; light: ThemePalette; dark: ThemePalette }
 interface DefaultAccess { autoGrantOnSignup: boolean; tier: 'trial' | 'free' | 'paid'; requiresApproval: boolean }
 interface CountryRestriction { enabled: boolean; countries: string[] }
 type Flow = 'client' | 'provider' | 'internal';
@@ -19,7 +19,7 @@ interface AppEntry {
 
 type DrawerMode = 'create' | 'edit' | null;
 
-const DEFAULT_THEME: Theme = { icon: '', logoUrl: null, fontFamily: null, light: { primaryColor: '#5c47ce', backgroundColor: '#efeaff', textColor: '#111116' }, dark: { primaryColor: '#8f7dff', backgroundColor: '#17151f', textColor: '#f5f4fa' } };
+const DEFAULT_THEME: Theme = { icon: '', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null, light: { primaryColor: '#5c47ce', backgroundColor: '#efeaff', textColor: '#111116' }, dark: { primaryColor: '#8f7dff', backgroundColor: '#17151f', textColor: '#f5f4fa' } };
 const DEFAULT_ACCESS: DefaultAccess = { autoGrantOnSignup: false, tier: 'free', requiresApproval: false };
 const DEFAULT_COUNTRY_RESTRICTION: CountryRestriction = { enabled: false, countries: [] };
 const ALL_FLOWS: Flow[] = ['client', 'provider', 'internal'];
@@ -52,6 +52,66 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   </div></label>;
 }
 
+type ThemeAssetField_Kind = 'logoUrl' | 'logoUrlDark' | 'faviconUrl';
+
+function ThemeAssetField({
+  label, hint, themeField, value, fallbackChar, compact, uploadUrl, onChangeUrl, onUploaded,
+}: {
+  label: string;
+  hint?: string;
+  themeField: ThemeAssetField_Kind;
+  value: string | null;
+  fallbackChar?: string;
+  compact?: boolean;
+  /** Full upload endpoint URL, or null before the application has been saved once (create mode). */
+  uploadUrl: string | null;
+  onChangeUrl: (url: string | null) => void;
+  onUploaded: (url: string) => void;
+}) {
+  const [mode, setMode] = useState<'upload' | 'url'>(value ? 'url' : 'upload');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleUpload(file: File) {
+    if (!uploadUrl) return;
+    setUploading(true); setError('');
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch(uploadUrl, { method: 'POST', credentials: 'include', body });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message ?? `Could not upload ${label.toLowerCase()}`);
+      onUploaded(result.theme[themeField]);
+    } catch (err) { setError(err instanceof Error ? err.message : `Could not upload ${label.toLowerCase()}`); }
+    finally { setUploading(false); }
+  }
+
+  return <div className={`theme-asset-section${compact ? ' theme-asset-section--compact' : ''}`}>
+    <span className="drawer-subsection-title">{label}</span>
+    {hint && <small className="drawer-field-hint">{hint}</small>}
+    <div className="theme-asset-preview">{value
+      ? <img src={value} alt="" onError={event => { event.currentTarget.style.visibility = 'hidden'; }} onLoad={event => { event.currentTarget.style.visibility = 'visible'; }} />
+      : <span>{fallbackChar || '?'}</span>}</div>
+    {value && <button type="button" className="theme-asset-remove-button" onClick={() => onChangeUrl(null)}>Remove {label.toLowerCase()}</button>}
+
+    <div className="theme-asset-mode-toggle">
+      <button type="button" className={mode === 'upload' ? 'active' : ''} disabled={!uploadUrl} onClick={() => setMode('upload')}>Upload</button>
+      <button type="button" className={mode === 'url' ? 'active' : ''} onClick={() => setMode('url')}>URL</button>
+    </div>
+
+    {error && <div className="drawer-error">{error}</div>}
+
+    {mode === 'upload' ? (
+      uploadUrl ? <label className="theme-asset-upload-dropzone">
+        {uploading ? 'Uploading…' : 'Choose an image…'}
+        <input type="file" accept="image/*" hidden disabled={uploading} onChange={event => { const file = event.target.files?.[0]; if (file) handleUpload(file); event.target.value = ''; }} />
+      </label> : <small className="drawer-field-hint">Save the application first to enable image upload.</small>
+    ) : (
+      <input value={value ?? ''} onChange={event => onChangeUrl(event.target.value || null)} placeholder="https://" />
+    )}
+  </div>;
+}
+
 function EditIcon() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.474 5.408 18.592 7.53M4 20l.688-3.44a2 2 0 0 1 .551-1.03l9.9-9.9a1.5 1.5 0 0 1 2.122 0l1.61 1.61a1.5 1.5 0 0 1 0 2.122l-9.9 9.9a2 2 0 0 1-1.03.55L4 20Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
@@ -73,8 +133,6 @@ export default function ApplicationsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [logoMode, setLogoMode] = useState<'upload' | 'url'>('url');
 
   const load = useCallback(() => {
     return fetch(`${apiUrl}/admin/applications`, { credentials: 'include' }).then(async response => {
@@ -98,10 +156,10 @@ export default function ApplicationsPage() {
   }, [apps, query, statusFilter, ownershipFilter]);
 
   function openCreate() {
-    setDrawerMode('create'); setDrawerApp(null); setForm(emptyForm()); setFormError(''); setCreatedSecret(null); setLogoMode('url');
+    setDrawerMode('create'); setDrawerApp(null); setForm(emptyForm()); setFormError(''); setCreatedSecret(null);
   }
   function openEdit(app: AppEntry) {
-    setDrawerMode('edit'); setDrawerApp(app); setForm(formFromApp(app)); setFormError(''); setCreatedSecret(null); setLogoMode(app.theme.logoUrl ? 'url' : 'upload');
+    setDrawerMode('edit'); setDrawerApp(app); setForm(formFromApp(app)); setFormError(''); setCreatedSecret(null);
   }
   function closeDrawer() {
     if (saving) return;
@@ -140,20 +198,6 @@ export default function ApplicationsPage() {
       }
     } catch (err) { setFormError(err instanceof Error ? err.message : 'Could not save application'); }
     finally { setSaving(false); }
-  }
-
-  async function handleLogoUpload(file: File) {
-    if (!drawerApp) return;
-    setUploadingLogo(true); setFormError('');
-    try {
-      const body = new FormData();
-      body.append('file', file);
-      const response = await fetch(`${apiUrl}/admin/applications/${drawerApp.key}/logo`, { method: 'POST', credentials: 'include', body });
-      const result = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(result?.message ?? 'Could not upload logo');
-      setForm(current => ({ ...current, theme: { ...current.theme, logoUrl: result.theme.logoUrl } }));
-    } catch (err) { setFormError(err instanceof Error ? err.message : 'Could not upload logo'); }
-    finally { setUploadingLogo(false); }
   }
 
   async function handleDelete(app: AppEntry) {
@@ -211,7 +255,7 @@ export default function ApplicationsPage() {
         <footer className="drawer-footer"><button type="button" onClick={closeDrawer}>Done</button></footer>
       </> : <>
         <header className="drawer-header"><div><h3>{drawerMode === 'create' ? 'Register application' : `Edit ${drawerApp?.name}`}</h3><p>{drawerMode === 'create' ? 'Added to the shared catalogue — becomes available across the ecosystem immediately.' : `Key: ${drawerApp?.key}`}</p></div><button type="button" className="drawer-close" onClick={closeDrawer}>×</button></header>
-        <form className="drawer-body" onSubmit={handleSubmit} id="app-form">
+        <form className="drawer-body" onSubmit={handleSubmit} id="app-form" key={`${drawerMode}-${drawerApp?.key ?? 'new'}`}>
           {formError && <div className="drawer-error">{formError}</div>}
 
           <h4 className="drawer-section-title">Identity</h4>
@@ -227,33 +271,34 @@ export default function ApplicationsPage() {
           <label className="drawer-field"><span>Display order</span><input type="number" min={0} value={form.displayOrder} onChange={event => setForm({ ...form, displayOrder: event.target.value })} placeholder="auto" /></label>
 
           <h4 className="drawer-section-title">Theme</h4>
+
+          <span className="theme-group-title">Identity</span>
           <div className="drawer-field-row">
             <label className="drawer-field"><span>Icon</span><input value={form.theme.icon} onChange={event => setForm({ ...form, theme: { ...form.theme, icon: event.target.value } })} placeholder="🧩" /></label>
             <label className="drawer-field"><span>Font family</span><input value={form.theme.fontFamily ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, fontFamily: event.target.value || null } })} placeholder="Inherit default" /></label>
           </div>
-          <div className="logo-section">
-            <span className="drawer-subsection-title">Logo</span>
-            <div className="logo-preview-large">{form.theme.logoUrl
-              ? <img src={form.theme.logoUrl} alt="" onError={event => { event.currentTarget.style.visibility = 'hidden'; }} onLoad={event => { event.currentTarget.style.visibility = 'visible'; }} />
-              : <span>{form.theme.icon || '?'}</span>}</div>
-            {form.theme.logoUrl && <button type="button" className="logo-remove-button" onClick={() => setForm({ ...form, theme: { ...form.theme, logoUrl: null } })}>Remove logo</button>}
-
-            <div className="logo-mode-toggle">
-              <button type="button" className={logoMode === 'upload' ? 'active' : ''} disabled={drawerMode === 'create'} onClick={() => setLogoMode('upload')}>Upload</button>
-              <button type="button" className={logoMode === 'url' ? 'active' : ''} onClick={() => setLogoMode('url')}>URL</button>
-            </div>
-
-            {logoMode === 'upload' ? (
-              drawerMode === 'edit' ? <>
-                <label className="logo-upload-dropzone">
-                  {uploadingLogo ? 'Uploading…' : 'Choose an image…'}
-                  <input type="file" accept="image/*" hidden disabled={uploadingLogo} onChange={event => { const file = event.target.files?.[0]; if (file) handleLogoUpload(file); event.target.value = ''; }} />
-                </label>
-              </> : <small className="drawer-field-hint">Save the application first to enable image upload.</small>
-            ) : (
-              <input value={form.theme.logoUrl ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, logoUrl: event.target.value || null } })} placeholder="https://" />
-            )}
+          <div className="theme-asset-group">
+            <ThemeAssetField
+              label="Logo" themeField="logoUrl" value={form.theme.logoUrl} fallbackChar={form.theme.icon}
+              uploadUrl={drawerApp ? `${apiUrl}/admin/applications/${drawerApp.key}/logo` : null}
+              onChangeUrl={url => setForm({ ...form, theme: { ...form.theme, logoUrl: url } })}
+              onUploaded={url => setForm(current => ({ ...current, theme: { ...current.theme, logoUrl: url } }))}
+            />
+            <ThemeAssetField
+              label="Logo — Dark Mode" hint="Used in dark mode; falls back to Logo if not set." themeField="logoUrlDark" value={form.theme.logoUrlDark} fallbackChar={form.theme.icon}
+              uploadUrl={drawerApp ? `${apiUrl}/admin/applications/${drawerApp.key}/logo-dark` : null}
+              onChangeUrl={url => setForm({ ...form, theme: { ...form.theme, logoUrlDark: url } })}
+              onUploaded={url => setForm(current => ({ ...current, theme: { ...current.theme, logoUrlDark: url } }))}
+            />
+            <ThemeAssetField
+              label="Favicon" hint="Square image recommended." themeField="faviconUrl" value={form.theme.faviconUrl} compact
+              uploadUrl={drawerApp ? `${apiUrl}/admin/applications/${drawerApp.key}/favicon` : null}
+              onChangeUrl={url => setForm({ ...form, theme: { ...form.theme, faviconUrl: url } })}
+              onUploaded={url => setForm(current => ({ ...current, theme: { ...current.theme, faviconUrl: url } }))}
+            />
           </div>
+
+          <span className="theme-group-title">Colors</span>
           <div className="theme-palette-group">
             <span className="drawer-subsection-title">Light palette</span>
             <div className="drawer-field-row theme-palette-row">

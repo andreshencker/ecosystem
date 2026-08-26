@@ -24,19 +24,25 @@ import { RelayStorageService } from '../relay-storage/relay-storage.service';
 
 const ALL_FLOWS: RoleFlow[] = ['client', 'provider', 'internal'];
 
+const THEME_ASSET_FIELDS: Record<'logo' | 'logo-dark' | 'favicon', 'logoUrl' | 'logoUrlDark' | 'faviconUrl'> = {
+  logo: 'logoUrl',
+  'logo-dark': 'logoUrlDark',
+  favicon: 'faviconUrl',
+};
+
 const CATALOGUE_THEMES: Record<string, ApplicationTheme> = {
   relay: {
-    icon: 'R', logoUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
+    icon: 'R', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
     light: { primaryColor: '#F4733D', backgroundColor: '#F7F7F9', textColor: '#111116' },
     dark: { primaryColor: '#FF8A5B', backgroundColor: '#17151F', textColor: '#F5F4FA' },
   },
   business: {
-    icon: 'B', logoUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
+    icon: 'B', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
     light: { primaryColor: '#5C47CE', backgroundColor: '#F7F7FB', textColor: '#111116' },
     dark: { primaryColor: '#8F7DFF', backgroundColor: '#17151F', textColor: '#F5F4FA' },
   },
   jtrade: {
-    icon: 'J', logoUrl: null, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
+    icon: 'J', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
     light: { primaryColor: '#F0B90B', backgroundColor: '#F5F5F7', textColor: '#111116' },
     dark: { primaryColor: '#FFD84D', backgroundColor: '#17151F', textColor: '#F5F4FA' },
   },
@@ -234,11 +240,16 @@ export class ApplicationsService implements OnApplicationBootstrap {
     return toApplicationResponse(updated);
   }
 
-  async uploadLogo(key: string, file: Express.Multer.File): Promise<ApplicationResponseDto> {
+  async uploadThemeAsset(
+    key: string,
+    file: Express.Multer.File,
+    kind: 'logo' | 'logo-dark' | 'favicon',
+  ): Promise<ApplicationResponseDto> {
     const existing = await this.applications.findOne({ key: key.toLowerCase() }).lean();
     if (!existing) throw new NotFoundException('Application not found');
-    const uploaded = await this.relayStorage.uploadApplicationLogo(file, existing.key);
-    return this.updateApplication(existing.key, { theme: { logoUrl: uploaded.url } } as UpdateApplicationDto);
+    const uploaded = await this.relayStorage.uploadApplicationAsset(file, existing.key, kind);
+    const themeField = THEME_ASSET_FIELDS[kind];
+    return this.updateApplication(existing.key, { theme: { [themeField]: uploaded.url } } as UpdateApplicationDto);
   }
 
   async deleteApplication(key: string): Promise<DeleteApplicationResponseDto> {
@@ -251,11 +262,14 @@ export class ApplicationsService implements OnApplicationBootstrap {
     if (!patch) return current;
     const merged = {
       icon: patch.icon ?? current.icon,
-      // logoUrl/fontFamily are string | null — null is a meaningful "clear it"
-      // value the admin form sends explicitly, distinct from "key omitted"
-      // (undefined). ?? would treat both the same and silently keep the old
-      // value, so a Remove action could never actually clear the field.
+      // logoUrl/logoUrlDark/faviconUrl/fontFamily are string | null — null is
+      // a meaningful "clear it" value the admin form sends explicitly,
+      // distinct from "key omitted" (undefined). ?? would treat both the
+      // same and silently keep the old value, so a Remove action could never
+      // actually clear the field.
       logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : current.logoUrl,
+      logoUrlDark: patch.logoUrlDark !== undefined ? patch.logoUrlDark : current.logoUrlDark,
+      faviconUrl: patch.faviconUrl !== undefined ? patch.faviconUrl : current.faviconUrl,
       fontFamily: patch.fontFamily !== undefined ? patch.fontFamily : current.fontFamily,
       light: { ...current.light, ...patch.light },
       dark: { ...current.dark, ...patch.dark },

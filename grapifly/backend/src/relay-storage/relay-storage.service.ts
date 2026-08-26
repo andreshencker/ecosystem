@@ -50,11 +50,13 @@ export class RelayStorageService {
    * Uploads into the "logos" storage domain — a real StorageDomainCatalogue
    * entry (tied to a specific credential/bucket), not a free-text field —
    * so the result shows up in Relay's Files (Storage) browser too, not just
-   * as an opaque theme.logoUrl value.
+   * as an opaque theme.* URL value. `kind` picks which theme asset this is
+   * (logo / dark-mode logo / favicon) and only affects the stored file name.
    */
-  async uploadApplicationLogo(
+  async uploadApplicationAsset(
     file: Express.Multer.File,
     applicationKey: string,
+    kind: 'logo' | 'logo-dark' | 'favicon',
   ): Promise<StorageUploadResult> {
     const baseUrl = this.config.get<string>('RELAY_API_URL') ?? 'http://localhost:3001';
     const serviceSecret =
@@ -73,7 +75,8 @@ export class RelayStorageService {
     }
 
     const ext = this.extensionFor(file);
-    const fileName = `${applicationKey}${ext ? `.${ext}` : ''}`;
+    const suffix = kind === 'logo-dark' ? '-dark' : kind === 'favicon' ? '-favicon' : '';
+    const fileName = `${applicationKey}${suffix}${ext ? `.${ext}` : ''}`;
 
     const form = new FormData();
     // Relay's DTO requires a syntactically valid companyId, but GlobalAuthGuard
@@ -105,10 +108,10 @@ export class RelayStorageService {
       return response.data;
     } catch (error: any) {
       this.logger.error(
-        `[uploadApplicationLogo] applicationKey=${applicationKey} failed — ${error?.response?.status ?? error?.message ?? 'unknown error'}`,
+        `[uploadApplicationAsset] applicationKey=${applicationKey} kind=${kind} failed — ${error?.response?.status ?? error?.message ?? 'unknown error'}`,
       );
       throw new InternalServerErrorException(
-        error?.response?.data?.message ?? 'Failed to upload logo to Relay',
+        error?.response?.data?.message ?? 'Failed to upload asset to Relay',
       );
     }
   }

@@ -28,13 +28,13 @@ function buildConfig(values: Record<string, string> = {}) {
 describe('ApplicationsService', () => {
   let applications: ReturnType<typeof buildModel>;
   let config: ReturnType<typeof buildConfig>;
-  let relayStorage: { uploadApplicationLogo: jest.Mock };
+  let relayStorage: { uploadApplicationAsset: jest.Mock };
   let service: ApplicationsService;
 
   beforeEach(() => {
     applications = buildModel();
     config = buildConfig();
-    relayStorage = { uploadApplicationLogo: jest.fn() };
+    relayStorage = { uploadApplicationAsset: jest.fn() };
     service = new ApplicationsService(applications as any, config as any, relayStorage as any);
   });
 
@@ -197,41 +197,60 @@ describe('ApplicationsService', () => {
       expect(patch.theme.logoUrl).toBeNull();
     });
 
+    it('clears theme.logoUrlDark and theme.faviconUrl to null when explicitly sent as null', async () => {
+      applications.__findOneChain.lean.mockResolvedValue({
+        key: 'jtrade', name: 'JTrade', description: 'd', launchUrl: 'https://jtrade', ownership: 'first_party', status: 'active', displayOrder: 3,
+        theme: { ...DEFAULT_THEME, logoUrlDark: 'https://cdn.example.com/logo-dark.png', faviconUrl: 'https://cdn.example.com/favicon.png' },
+        defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
+      });
+      applications.__updateChain.lean.mockResolvedValue({});
+
+      await service.updateApplication('jtrade', { theme: { logoUrlDark: null, faviconUrl: null } as any });
+
+      const patch = applications.findOneAndUpdate.mock.calls[0][1].$set;
+      expect(patch.theme.logoUrlDark).toBeNull();
+      expect(patch.theme.faviconUrl).toBeNull();
+    });
+
     it('throws when the application does not exist', async () => {
       applications.__findOneChain.lean.mockResolvedValue(null);
       await expect(service.updateApplication('ghost', { description: 'x' })).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
-  describe('uploadLogo', () => {
+  describe('uploadThemeAsset', () => {
     const file = { originalname: 'logo.png', mimetype: 'image/png', buffer: Buffer.from('x') } as any;
 
-    it('uploads via RelayStorageService and sets theme.logoUrl to the returned url', async () => {
+    it.each([
+      ['logo', 'logoUrl', 'https://cdn.example.com/logo.png'],
+      ['logo-dark', 'logoUrlDark', 'https://cdn.example.com/logo-dark.png'],
+      ['favicon', 'faviconUrl', 'https://cdn.example.com/favicon.png'],
+    ] as const)('uploads a %s via RelayStorageService and sets theme.%s to the returned url', async (kind, themeField, url) => {
       applications.__findOneChain.lean.mockResolvedValueOnce({
         key: 'jtrade', name: 'JTrade', description: 'd', launchUrl: 'https://jtrade', ownership: 'first_party', status: 'active', displayOrder: 3,
         theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
       });
-      relayStorage.uploadApplicationLogo.mockResolvedValue({ url: 'https://cdn.example.com/logo.png' });
+      relayStorage.uploadApplicationAsset.mockResolvedValue({ url });
       applications.__findOneChain.lean.mockResolvedValueOnce({
         key: 'jtrade', name: 'JTrade', description: 'd', launchUrl: 'https://jtrade', ownership: 'first_party', status: 'active', displayOrder: 3,
         theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
       });
       applications.__updateChain.lean.mockResolvedValue({
         key: 'jtrade', name: 'JTrade', description: 'd', launchUrl: 'https://jtrade', ownership: 'first_party', status: 'active', displayOrder: 3,
-        theme: { ...DEFAULT_THEME, logoUrl: 'https://cdn.example.com/logo.png' }, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
+        theme: { ...DEFAULT_THEME, [themeField]: url }, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
       });
 
-      const result = await service.uploadLogo('jtrade', file);
+      const result = await service.uploadThemeAsset('jtrade', file, kind);
 
-      expect(relayStorage.uploadApplicationLogo).toHaveBeenCalledWith(file, 'jtrade');
-      expect(applications.findOneAndUpdate.mock.calls[0][1].$set.theme.logoUrl).toBe('https://cdn.example.com/logo.png');
-      expect(result.theme.logoUrl).toBe('https://cdn.example.com/logo.png');
+      expect(relayStorage.uploadApplicationAsset).toHaveBeenCalledWith(file, 'jtrade', kind);
+      expect(applications.findOneAndUpdate.mock.calls[0][1].$set.theme[themeField]).toBe(url);
+      expect((result.theme as any)[themeField]).toBe(url);
     });
 
     it('throws when the application does not exist, without calling RelayStorageService', async () => {
       applications.__findOneChain.lean.mockResolvedValue(null);
-      await expect(service.uploadLogo('ghost', file)).rejects.toBeInstanceOf(NotFoundException);
-      expect(relayStorage.uploadApplicationLogo).not.toHaveBeenCalled();
+      await expect(service.uploadThemeAsset('ghost', file, 'logo')).rejects.toBeInstanceOf(NotFoundException);
+      expect(relayStorage.uploadApplicationAsset).not.toHaveBeenCalled();
     });
   });
 

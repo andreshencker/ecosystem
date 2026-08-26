@@ -99,7 +99,19 @@ export class PlatformAdminController {
   @Post('applications/:key/logo')
   @UseInterceptors(FileInterceptor('file'))
   uploadApplicationLogo(@Param('key') key: string, @UploadedFile() file: Express.Multer.File) {
-    return this.applications.uploadLogo(key, file);
+    return this.applications.uploadThemeAsset(key, file, 'logo');
+  }
+
+  @Post('applications/:key/logo-dark')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadApplicationLogoDark(@Param('key') key: string, @UploadedFile() file: Express.Multer.File) {
+    return this.applications.uploadThemeAsset(key, file, 'logo-dark');
+  }
+
+  @Post('applications/:key/favicon')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadApplicationFavicon(@Param('key') key: string, @UploadedFile() file: Express.Multer.File) {
+    return this.applications.uploadThemeAsset(key, file, 'favicon');
   }
 
   @Get('access')
