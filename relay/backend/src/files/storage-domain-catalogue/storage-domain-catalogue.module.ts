@@ -7,10 +7,12 @@ import {
 import { StorageDomainCatalogueService } from './storage-domain-catalogue.service';
 import { StorageDomainCatalogueController } from './storage-domain-catalogue.controller';
 import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
+import { ChannelsRuntimeModule } from '../../communication/channels/runtime/channels-runtime.module';
 
 @Module({
   imports: [
     RelayTenantContextModule,
+    ChannelsRuntimeModule,
     MongooseModule.forFeature([
       {
         name: StorageDomainCatalogue.name,

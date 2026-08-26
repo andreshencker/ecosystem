@@ -5,6 +5,7 @@ export class StorageDomainCatalogueMapper {
     return {
       id: String(doc._id),
       companyId: String(doc.companyId),
+      providerCredentialsId: String(doc.providerCredentialsId ?? ''),
       domainKey: String(doc.domainKey ?? ''),
       displayName: String(doc.displayName ?? ''),
       description: String(doc.description ?? ''),

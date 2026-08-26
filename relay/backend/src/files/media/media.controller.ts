@@ -121,6 +121,16 @@ export class MediaController {
     if (ctx.actorType === 'user') {
       return (await this.tenantContext.resolve(ctx, permission)).companyId;
     }
+    // Grapifly's own backend (x-grapifly-service-secret) never sends x-api-key —
+    // GlobalAuthGuard already resolved companyId deterministically from the
+    // organizationId it sent, so trust it directly. Deliberately scoped to
+    // keyId === 'grapifly-service' only: the plain admin-key path (keyId
+    // 'internal') sets ctx.companyId to the platform company unconditionally,
+    // which would silently override a caller-supplied companyId for any
+    // tenant-scoped admin-key caller (e.g. business-app) if trusted here too.
+    if (ctx.actorType === 'apikey' && ctx.keyId === 'grapifly-service' && ctx.companyId) {
+      return ctx.companyId;
+    }
     this.assertApiKey(apiKey);
     return requestedCompanyId;
   }

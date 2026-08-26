@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -20,6 +20,7 @@ import Typography from '@mui/material/Typography';
 import Drawer from '@mui/material/Drawer';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -43,9 +44,16 @@ import {
   useUpdateStorageDomainCatalogueMutation,
   useDeleteStorageDomainCatalogueMutation,
 } from '@/hooks/api/useStorageDomainCatalogue';
+import { useAllCompanyCredentials } from '@/hooks/api/useProviderCredentials';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useListState } from '@/hooks/useListState';
-import type { StorageDomainCatalogue } from '@/types/api';
+import type { StorageDomainCatalogue, ProviderCredentials } from '@/types/api';
+
+// ─── Credential label helper ───────────────────────────────────────────────────
+
+function credentialLabel(c: ProviderCredentials): string {
+  return c.displayIdentifier || c.tag;
+}
 
 // ─── Form schema ──────────────────────────────────────────────────────────────
 
@@ -65,10 +73,12 @@ interface StorageDomainDrawerProps {
   open: boolean;
   domain: StorageDomainCatalogue | null;
   companyId: string;
+  providerCredentialsId: string;
+  credentialDisplayLabel: string;
   onClose: () => void;
 }
 
-function StorageDomainDrawer({ open, domain, companyId, onClose }: StorageDomainDrawerProps) {
+function StorageDomainDrawer({ open, domain, companyId, providerCredentialsId, credentialDisplayLabel, onClose }: StorageDomainDrawerProps) {
   const createMutation = useCreateStorageDomainCatalogueMutation();
   const updateMutation = useUpdateStorageDomainCatalogueMutation();
   const isEditing = Boolean(domain);
@@ -96,6 +106,7 @@ function StorageDomainDrawer({ open, domain, companyId, onClose }: StorageDomain
     } else {
       await createMutation.mutateAsync({
         companyId,
+        providerCredentialsId,
         domainKey:   values.domainKey,
         displayName: values.displayName,
         description: values.description,
@@ -113,6 +124,14 @@ function StorageDomainDrawer({ open, domain, companyId, onClose }: StorageDomain
 
       <Box component="form" onSubmit={form.handleSubmit(onSubmit)} sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
         <Stack spacing={3}>
+          <Box sx={{ px: 2, py: 1.25, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CloudOutlinedIcon fontSize="small" color="action" />
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">Storage credential</Typography>
+              <Typography variant="body2" fontWeight={600}>{credentialDisplayLabel}</Typography>
+            </Box>
+          </Box>
+
           {isSystem && (
             <Box sx={{ px: 2, py: 1.25, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>System domain</Typography>
@@ -283,7 +302,28 @@ export function StorageDomainList({ companyId }: StorageDomainListProps) {
   const { canManageDomains } = usePermissions();
   const list = useListState();
 
-  const { data, isLoading, error } = useStorageDomainCatalogues(companyId, { limit: 200 });
+  // ── Credential gate: pick which storage credential's domains to work with ──
+  const { data: credentialsData, isLoading: credentialsLoading } = useAllCompanyCredentials(companyId, { active: true });
+  const storageCredentials = useMemo(
+    () => (credentialsData?.items ?? []).filter((c) => c.companyChannelProvider?.channel?.channelKey === 'storage'),
+    [credentialsData],
+  );
+
+  const [selectedCredentialId, setSelectedCredentialId] = useState('');
+
+  // If the previously selected credential disappears (deactivated/removed), clear the selection.
+  useEffect(() => {
+    if (selectedCredentialId && !storageCredentials.some((c) => c.id === selectedCredentialId)) {
+      setSelectedCredentialId('');
+    }
+  }, [storageCredentials, selectedCredentialId]);
+
+  const selectedCredential = storageCredentials.find((c) => c.id === selectedCredentialId) ?? null;
+
+  const { data, isLoading, error } = useStorageDomainCatalogues(
+    selectedCredentialId ? companyId : null,
+    { providerCredentialsId: selectedCredentialId, limit: 200 },
+  );
   const deleteMutation = useDeleteStorageDomainCatalogueMutation();
 
   const allDomains = useMemo(() => data?.items ?? [], [data]);
@@ -349,102 +389,160 @@ export function StorageDomainList({ companyId }: StorageDomainListProps) {
     [canManageDomains, openEdit],
   );
 
+  const credentialSelector = (
+    <FormControl size="small" sx={{ minWidth: 240 }} disabled={credentialsLoading || storageCredentials.length === 0}>
+      <InputLabel>Storage credential</InputLabel>
+      <Select
+        value={selectedCredentialId}
+        label="Storage credential"
+        onChange={(e) => setSelectedCredentialId(e.target.value)}
+        renderValue={(value) => {
+          const c = storageCredentials.find((x) => x.id === value);
+          return c ? credentialLabel(c) : '';
+        }}
+      >
+        {storageCredentials.map((c) => (
+          <MenuItem key={c.id} value={c.id}>
+            <Box>
+              <Typography variant="body2">{credentialLabel(c)}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {c.companyChannelProvider?.provider?.displayName ?? c.companyChannelProvider?.provider?.providerKey} · {c.tag}
+              </Typography>
+            </Box>
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
+  if (!credentialsLoading && storageCredentials.length === 0) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <EmptyState
+          icon={CloudOutlinedIcon}
+          title="No storage credentials configured"
+          description="Add a storage credential (S3, Cloudflare R2, …) before creating storage domains — each domain is tied to one credential."
+          action={
+            <PermissionGuard allowed={canManageDomains}>
+              <Button variant="contained" href="/provider-credentials">Go to Credentials</Button>
+            </PermissionGuard>
+          }
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ minWidth: 0 }}>
-      <Box display="flex" justifyContent="flex-end" gap={1} mb={1}>
-        <PermissionGuard allowed={canManageDomains}>
-          <Button variant="contained" size="small" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
-            Add Domain
-          </Button>
-        </PermissionGuard>
+      <Box display="flex" justifyContent="space-between" alignItems="center" gap={1} mb={2} flexWrap="wrap">
+        {credentialSelector}
+        {selectedCredentialId && (
+          <PermissionGuard allowed={canManageDomains}>
+            <Button variant="contained" size="small" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
+              Add Domain
+            </Button>
+          </PermissionGuard>
+        )}
       </Box>
 
-      <SearchToolbar
-        search={list.search}
-        onSearchChange={list.setSearch}
-        placeholder="Search key, name…"
-        hasActiveFilters={list.hasActiveFilters}
-        onClearFilters={list.clearFilters}
-      >
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Type</InputLabel>
-          <Select value={typeFilter} label="Type" onChange={(e) => list.setFilter('type', e.target.value)}>
-            <MenuItem value="">All types</MenuItem>
-            <MenuItem value="system">System</MenuItem>
-            <MenuItem value="company">Company</MenuItem>
-          </Select>
-        </FormControl>
+      {!selectedCredentialId ? (
+        <EmptyState
+          icon={FolderOutlinedIcon}
+          title="Select a storage credential"
+          description="Choose which storage credential above to see and manage its domains."
+        />
+      ) : (
+        <>
+          <SearchToolbar
+            search={list.search}
+            onSearchChange={list.setSearch}
+            placeholder="Search key, name…"
+            hasActiveFilters={list.hasActiveFilters}
+            onClearFilters={list.clearFilters}
+          >
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Type</InputLabel>
+              <Select value={typeFilter} label="Type" onChange={(e) => list.setFilter('type', e.target.value)}>
+                <MenuItem value="">All types</MenuItem>
+                <MenuItem value="system">System</MenuItem>
+                <MenuItem value="company">Company</MenuItem>
+              </Select>
+            </FormControl>
 
-        <FormControl size="small" sx={{ minWidth: 115 }}>
-          <InputLabel>Status</InputLabel>
-          <Select value={statusFilter} label="Status" onChange={(e) => list.setFilter('status', e.target.value)}>
-            <MenuItem value="">All</MenuItem>
-            <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="inactive">Inactive</MenuItem>
-          </Select>
-        </FormControl>
-      </SearchToolbar>
+            <FormControl size="small" sx={{ minWidth: 115 }}>
+              <InputLabel>Status</InputLabel>
+              <Select value={statusFilter} label="Status" onChange={(e) => list.setFilter('status', e.target.value)}>
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
+              </Select>
+            </FormControl>
+          </SearchToolbar>
 
-      <DataTable<StorageDomainCatalogue>
-        rows={filteredDomains}
-        columns={domainColumns}
-        total={filteredDomains.length}
-        page={list.page}
-        pageSize={Math.max(filteredDomains.length, 25)}
-        onPageChange={list.setPage}
-        onPageSizeChange={() => {}}
-        loading={isLoading}
-        error={error instanceof Error ? error : null}
-        onRowClick={canManageDomains ? openEdit : undefined}
-        rowActions={rowActions}
-        mobileCardConfig={domainMobileConfig}
-        getRowId={(row) => row.id}
-        noRowsLabel={list.hasActiveFilters ? 'No domains match your filters.' : 'No storage domains configured.'}
-        emptyState={
-          <EmptyState
-            icon={FolderOutlinedIcon}
-            title={list.hasActiveFilters ? 'No domains match your filters' : 'No storage domains configured'}
-            description={
-              list.hasActiveFilters
-                ? 'Try adjusting your search or clearing the filters.'
-                : 'Create a storage domain — its key becomes the top-level folder name for files uploaded through files/storage.'
-            }
-            action={
-              list.hasActiveFilters ? (
-                <Button variant="outlined" onClick={list.clearFilters}>Clear filters</Button>
-              ) : (
-                <PermissionGuard allowed={canManageDomains}>
-                  <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
-                    Add Domain
-                  </Button>
-                </PermissionGuard>
-              )
+          <DataTable<StorageDomainCatalogue>
+            rows={filteredDomains}
+            columns={domainColumns}
+            total={filteredDomains.length}
+            page={list.page}
+            pageSize={Math.max(filteredDomains.length, 25)}
+            onPageChange={list.setPage}
+            onPageSizeChange={() => {}}
+            loading={isLoading}
+            error={error instanceof Error ? error : null}
+            onRowClick={canManageDomains ? openEdit : undefined}
+            rowActions={rowActions}
+            mobileCardConfig={domainMobileConfig}
+            getRowId={(row) => row.id}
+            noRowsLabel={list.hasActiveFilters ? 'No domains match your filters.' : 'No storage domains configured for this credential.'}
+            emptyState={
+              <EmptyState
+                icon={FolderOutlinedIcon}
+                title={list.hasActiveFilters ? 'No domains match your filters' : 'No storage domains configured'}
+                description={
+                  list.hasActiveFilters
+                    ? 'Try adjusting your search or clearing the filters.'
+                    : 'Create a storage domain — its key becomes the top-level folder name for files uploaded through this credential.'
+                }
+                action={
+                  list.hasActiveFilters ? (
+                    <Button variant="outlined" onClick={list.clearFilters}>Clear filters</Button>
+                  ) : (
+                    <PermissionGuard allowed={canManageDomains}>
+                      <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
+                        Add Domain
+                      </Button>
+                    </PermissionGuard>
+                  )
+                }
+              />
             }
           />
-        }
-      />
 
-      <StorageDomainDrawer
-        open={drawerOpen}
-        domain={editTarget}
-        companyId={companyId}
-        onClose={closeDrawer}
-      />
+          <StorageDomainDrawer
+            open={drawerOpen}
+            domain={editTarget}
+            companyId={companyId}
+            providerCredentialsId={selectedCredentialId}
+            credentialDisplayLabel={selectedCredential ? credentialLabel(selectedCredential) : ''}
+            onClose={closeDrawer}
+          />
 
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Delete storage domain?"
-        description={
-          deleteTarget
-            ? `"${deleteTarget.displayName}" (${deleteTarget.domainKey}) will be permanently deleted. Existing files already uploaded under this folder are not affected.`
-            : ''
-        }
-        confirmLabel="Delete"
-        danger
-        loading={deleteMutation.isPending}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteTarget(null)}
-      />
+          <ConfirmDialog
+            open={Boolean(deleteTarget)}
+            title="Delete storage domain?"
+            description={
+              deleteTarget
+                ? `"${deleteTarget.displayName}" (${deleteTarget.domainKey}) will be permanently deleted. Existing files already uploaded under this folder are not affected.`
+                : ''
+            }
+            confirmLabel="Delete"
+            danger
+            loading={deleteMutation.isPending}
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        </>
+      )}
     </Box>
   );
 }

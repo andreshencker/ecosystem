@@ -196,7 +196,8 @@ export class MediaService {
 
   /**
    * ✅ Construye URL pública si hay publicBaseUrl.
-   * Fallback: AWS url si hay bucket/region.
+   * Fallback: host del endpoint custom (S3-compatible, ej. R2/Minio) si existe;
+   * si no, el patrón AWS clásico (bucket/región).
    */
   private toUrl(runtime: ChannelsRuntimeResolved, key: string): string {
     const cleanKey = key.replace(/^\/+/, '');
@@ -207,6 +208,12 @@ export class MediaService {
     if (publicBaseUrl) return `${publicBaseUrl}/${cleanKey}`;
 
     const bucket = String(runtime.credentials?.bucket ?? '').trim();
+    const endpoint = String(runtime.credentials?.endpoint ?? '').trim();
+    if (bucket && endpoint) {
+      const host = endpoint.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+      return `https://${bucket}.${host}/${cleanKey}`;
+    }
+
     const region = String(runtime.credentials?.region ?? '').trim();
     if (bucket && region) {
       return `https://${bucket}.s3.${region}.amazonaws.com/${cleanKey}`;

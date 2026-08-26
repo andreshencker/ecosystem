@@ -5,9 +5,9 @@ import { AdminSidebar } from '@/components/AdminSidebar';
 
 interface ThemePalette { primaryColor: string; backgroundColor: string; textColor: string }
 interface Theme { icon: string; logoUrl: string | null; fontFamily: string | null; light: ThemePalette; dark: ThemePalette }
-interface DefaultAccess { autoGrantOnSignup: boolean; tier: 'free' | 'paid'; requiresApproval: boolean }
+interface DefaultAccess { autoGrantOnSignup: boolean; tier: 'trial' | 'free' | 'paid'; requiresApproval: boolean }
 interface CountryRestriction { enabled: boolean; countries: string[] }
-type Flow = 'owner' | 'provider' | 'internal';
+type Flow = 'client' | 'provider' | 'internal';
 type Ownership = 'first_party' | 'third_party';
 type Status = 'active' | 'inactive';
 
@@ -22,7 +22,7 @@ type DrawerMode = 'create' | 'edit' | null;
 const DEFAULT_THEME: Theme = { icon: '', logoUrl: null, fontFamily: null, light: { primaryColor: '#5c47ce', backgroundColor: '#efeaff', textColor: '#111116' }, dark: { primaryColor: '#8f7dff', backgroundColor: '#17151f', textColor: '#f5f4fa' } };
 const DEFAULT_ACCESS: DefaultAccess = { autoGrantOnSignup: false, tier: 'free', requiresApproval: false };
 const DEFAULT_COUNTRY_RESTRICTION: CountryRestriction = { enabled: false, countries: [] };
-const ALL_FLOWS: Flow[] = ['owner', 'provider', 'internal'];
+const ALL_FLOWS: Flow[] = ['client', 'provider', 'internal'];
 
 interface FormState {
   key: string; name: string; description: string; launchUrl: string; ssoCallbackUrl: string;
@@ -73,6 +73,7 @@ export default function ApplicationsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const load = useCallback(() => {
     return fetch(`${apiUrl}/admin/applications`, { credentials: 'include' }).then(async response => {
@@ -138,6 +139,20 @@ export default function ApplicationsPage() {
       }
     } catch (err) { setFormError(err instanceof Error ? err.message : 'Could not save application'); }
     finally { setSaving(false); }
+  }
+
+  async function handleLogoUpload(file: File) {
+    if (!drawerApp) return;
+    setUploadingLogo(true); setFormError('');
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch(`${apiUrl}/admin/applications/${drawerApp.key}/logo`, { method: 'POST', credentials: 'include', body });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message ?? 'Could not upload logo');
+      setForm(current => ({ ...current, theme: { ...current.theme, logoUrl: result.theme.logoUrl } }));
+    } catch (err) { setFormError(err instanceof Error ? err.message : 'Could not upload logo'); }
+    finally { setUploadingLogo(false); }
   }
 
   async function handleDelete(app: AppEntry) {
@@ -215,7 +230,16 @@ export default function ApplicationsPage() {
             <label className="drawer-field"><span>Icon</span><input value={form.theme.icon} onChange={event => setForm({ ...form, theme: { ...form.theme, icon: event.target.value } })} placeholder="🧩" /></label>
             <label className="drawer-field"><span>Font family</span><input value={form.theme.fontFamily ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, fontFamily: event.target.value || null } })} placeholder="Inherit default" /></label>
           </div>
-          <label className="drawer-field"><span>Logo URL</span><input value={form.theme.logoUrl ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, logoUrl: event.target.value || null } })} placeholder="https://" /></label>
+          <label className="drawer-field"><span>Logo URL</span>
+            <div className="logo-url-row">
+              <input value={form.theme.logoUrl ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, logoUrl: event.target.value || null } })} placeholder="https://" />
+              {drawerMode === 'edit' && <label className="logo-upload-button">
+                {uploadingLogo ? 'Uploading…' : 'Upload'}
+                <input type="file" accept="image/*" hidden disabled={uploadingLogo} onChange={event => { const file = event.target.files?.[0]; if (file) handleLogoUpload(file); event.target.value = ''; }} />
+              </label>}
+            </div>
+            {drawerMode === 'create' && <small className="drawer-field-hint">Save the application first to enable image upload — paste a URL for now.</small>}
+          </label>
           <div className="theme-palette-group">
             <span className="drawer-subsection-title">Light palette</span>
             <div className="drawer-field-row theme-palette-row">
@@ -236,7 +260,7 @@ export default function ApplicationsPage() {
           <h4 className="drawer-section-title">Default access</h4>
           <label className="drawer-checkbox"><input type="checkbox" checked={form.defaultAccess.autoGrantOnSignup} onChange={event => setForm({ ...form, defaultAccess: { ...form.defaultAccess, autoGrantOnSignup: event.target.checked } })} /><span>Grant automatically when a new organization is created</span></label>
           <label className="drawer-checkbox"><input type="checkbox" checked={form.defaultAccess.requiresApproval} onChange={event => setForm({ ...form, defaultAccess: { ...form.defaultAccess, requiresApproval: event.target.checked } })} /><span>Requires approval before access is granted</span></label>
-          <label className="drawer-field"><span>Tier</span><select value={form.defaultAccess.tier} onChange={event => setForm({ ...form, defaultAccess: { ...form.defaultAccess, tier: event.target.value as 'free' | 'paid' } })}><option value="free">Free</option><option value="paid">Paid</option></select></label>
+          <label className="drawer-field"><span>Tier</span><select value={form.defaultAccess.tier} onChange={event => setForm({ ...form, defaultAccess: { ...form.defaultAccess, tier: event.target.value as 'trial' | 'free' | 'paid' } })}><option value="trial">Trial</option><option value="free">Free</option><option value="paid">Paid</option></select></label>
 
           <h4 className="drawer-section-title">Country restriction</h4>
           <label className="drawer-checkbox"><input type="checkbox" checked={form.countryRestriction.enabled} onChange={event => setForm({ ...form, countryRestriction: { ...form.countryRestriction, enabled: event.target.checked } })} /><span>Only available in specific countries</span></label>

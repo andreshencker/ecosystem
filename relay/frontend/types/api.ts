@@ -390,6 +390,7 @@ export interface DocumentDomainCatalogue {
 export interface StorageDomainCatalogue {
   id: string;
   companyId: string;
+  providerCredentialsId: string;
   domainKey: string;
   displayName: string;
   description: string;

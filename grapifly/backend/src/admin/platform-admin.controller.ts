@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { SessionGuard, SessionRequest } from '../auth/session.guard';
 import { ApplicationsService } from '../applications/applications.service';
 import { ApplicationAssignmentsService } from '../access/application-assignments.service';
@@ -93,6 +94,12 @@ export class PlatformAdminController {
   @Delete('applications/:key')
   deleteApplication(@Param('key') key: string) {
     return this.applications.deleteApplication(key);
+  }
+
+  @Post('applications/:key/logo')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadApplicationLogo(@Param('key') key: string, @UploadedFile() file: Express.Multer.File) {
+    return this.applications.uploadLogo(key, file);
   }
 
   @Get('access')

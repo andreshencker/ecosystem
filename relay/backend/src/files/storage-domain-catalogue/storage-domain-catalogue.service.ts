@@ -11,13 +11,31 @@ import { UpdateStorageDomainCatalogueDto } from './dto/update-storage-domain-cat
 import { StorageDomainCatalogueMapper } from './mappers/storage-domain-catalogue.mapper';
 import { StorageDomainCatalogueResponseDto } from './dto/storage-domain-catalogue-response.dto';
 import type { PaginatedResponse } from '../../communication/common/pagination/pagination.util';
+import { ChannelsRuntimeResolverService } from '../../communication/channels/runtime/channels-runtime-resolver.service';
 
 @Injectable()
 export class StorageDomainCatalogueService {
   constructor(
     @InjectModel(StorageDomainCatalogue.name)
     private readonly model: Model<StorageDomainCatalogueDocument>,
+    private readonly runtime: ChannelsRuntimeResolverService,
   ) {}
+
+  /**
+   * Confirms the credential belongs to this company AND is actually a
+   * storage-channel credential — resolveByProviderCredentialsId() only
+   * checks company ownership, not channel, so a domain could otherwise be
+   * wired to e.g. an email credential by mistake.
+   */
+  private async assertStorageCredential(companyId: string, providerCredentialsId: string): Promise<void> {
+    const resolved = await this.runtime.resolveByProviderCredentialsId({ companyId, providerCredentialsId });
+    if (resolved.channelKey !== 'storage') {
+      throw new HttpException(
+        `Provider credential is for the "${resolved.channelKey}" channel, not storage`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
 
   async create(
     dto: CreateStorageDomainCatalogueDto,
@@ -34,11 +52,16 @@ export class StorageDomainCatalogueService {
         'displayName is required',
         HttpStatus.BAD_REQUEST,
       );
+    if (!dto.providerCredentialsId)
+      throw new HttpException('providerCredentialsId is required', HttpStatus.BAD_REQUEST);
+
+    await this.assertStorageCredential(dto.companyId, dto.providerCredentialsId);
 
     try {
       const docs = await this.model.create([
         {
           companyId,
+          providerCredentialsId: this.toObjectIdOrThrow(dto.providerCredentialsId, 'providerCredentialsId'),
           domainKey,
           displayName,
           description,
@@ -64,12 +87,19 @@ export class StorageDomainCatalogueService {
   async findAll(params: {
     companyId: string;
     active?: boolean;
+    providerCredentialsId?: string;
     limit?: number;
     offset?: number;
   }): Promise<PaginatedResponse<StorageDomainCatalogueResponseDto>> {
     const companyId = this.toObjectIdOrThrow(params.companyId, 'companyId');
     const filter: any = { companyId };
     if (typeof params.active === 'boolean') filter.isActive = params.active;
+    if (params.providerCredentialsId) {
+      filter.providerCredentialsId = this.toObjectIdOrThrow(
+        params.providerCredentialsId,
+        'providerCredentialsId',
+      );
+    }
 
     const limit = Math.min(Number(params?.limit ?? 50), 200);
     const offset = Math.max(0, Number(params?.offset ?? 0));
@@ -166,7 +196,7 @@ export class StorageDomainCatalogueService {
       throw new HttpException('Storage domain not found', HttpStatus.NOT_FOUND);
 
     if ((existing as any).isSystem) {
-      const protected_fields = ['domainKey', 'displayName', 'companyId'] as const;
+      const protected_fields = ['domainKey', 'displayName', 'companyId', 'providerCredentialsId'] as const;
       const attempted = protected_fields.filter(
         (f) => (dto as any)[f] !== undefined,
       );
@@ -201,6 +231,13 @@ export class StorageDomainCatalogueService {
     if (dto.description !== undefined)
       $set.description = String(dto.description ?? '').trim();
     if (dto.isActive !== undefined) $set.isActive = dto.isActive;
+    if (dto.providerCredentialsId !== undefined) {
+      await this.assertStorageCredential(String((existing as any).companyId), dto.providerCredentialsId);
+      $set.providerCredentialsId = this.toObjectIdOrThrow(
+        dto.providerCredentialsId,
+        'providerCredentialsId',
+      );
+    }
 
     try {
       const updated = await this.model.findByIdAndUpdate(

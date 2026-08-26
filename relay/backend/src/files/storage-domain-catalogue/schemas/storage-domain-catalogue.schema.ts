@@ -17,6 +17,10 @@ export class StorageDomainCatalogue {
   @Prop({ type: Types.ObjectId, ref: 'Company', required: true, index: true })
   companyId!: Types.ObjectId;
 
+  /** Which storage credential (bucket/provider) this domain's files are written to. */
+  @Prop({ type: Types.ObjectId, ref: 'ProviderCredentials', required: true, index: true })
+  providerCredentialsId!: Types.ObjectId;
+
   @Prop({ required: true, trim: true, lowercase: true, index: true })
   domainKey!: string;
 

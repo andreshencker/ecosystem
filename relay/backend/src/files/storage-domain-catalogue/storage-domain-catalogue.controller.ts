@@ -51,6 +51,7 @@ export class StorageDomainCatalogueController {
   @ApiOperation({ summary: 'List storage domain catalogue entries' })
   @ApiQuery({ name: 'companyId', required: true, type: String })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
+  @ApiQuery({ name: 'providerCredentialsId', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   async list(
@@ -58,6 +59,7 @@ export class StorageDomainCatalogueController {
     @Headers('x-api-key') apiKey: string,
     @Query('companyId') companyId: string,
     @Query('active') active?: string,
+    @Query('providerCredentialsId') providerCredentialsId?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
@@ -74,6 +76,7 @@ export class StorageDomainCatalogueController {
     return this.service.findAll({
       companyId,
       active: this.toBool(active),
+      providerCredentialsId,
       limit: parsedLimit,
       offset: parsedOffset,
     });

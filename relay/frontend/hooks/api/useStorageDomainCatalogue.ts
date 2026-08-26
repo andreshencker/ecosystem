@@ -10,6 +10,7 @@ import { useUIStore } from '@/stores/ui.store';
 
 export interface StorageDomainCatalogueParams {
   active?: boolean;
+  providerCredentialsId?: string;
   limit?: number;
   offset?: number;
 }
@@ -18,6 +19,7 @@ interface BackendPage<T> { data: T[]; total: number; limit: number; offset: numb
 
 export interface CreateStorageDomainCatalogueDto {
   companyId: string;
+  providerCredentialsId: string;
   domainKey: string;
   displayName: string;
   description?: string;

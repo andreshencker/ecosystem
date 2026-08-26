@@ -1,6 +1,7 @@
 export class StorageDomainCatalogueResponseDto {
   id!: string;
   companyId!: string;
+  providerCredentialsId!: string;
   domainKey!: string;
   displayName!: string;
   description!: string;

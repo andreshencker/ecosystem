@@ -36,9 +36,8 @@ export class StorageService {
 
     this.validator.validateDomain(params.domain);
     this.validator.validateFile(params.file);
-    await this.domains.assertActiveDomain(params.companyId, params.domain);
 
-    const runtime = await this.getDefaultStorage(params.companyId);
+    const runtime = await this.resolveDomainRuntime(params.companyId, params.domain);
     const storage = this.implFactory.getStorageChannel(
       String(runtime.connectionType),
     );
@@ -100,10 +99,11 @@ export class StorageService {
 
     if (!dto.key) {
       this.validator.validateDomain(dto.domain!);
-      await this.domains.assertActiveDomain(dto.companyId, dto.domain!);
     }
 
-    const runtime = await this.getDefaultStorage(dto.companyId);
+    const runtime = dto.key
+      ? await this.getDefaultStorage(dto.companyId)
+      : await this.resolveDomainRuntime(dto.companyId, dto.domain!);
     const storage = this.implFactory.getStorageChannel(
       String(runtime.connectionType),
     );
@@ -243,6 +243,26 @@ export class StorageService {
     });
   }
 
+  /**
+   * Each domain is wired to a specific storage credential (bucket/provider)
+   * at creation time — resolves that credential instead of whatever's
+   * marked default for the company, so different domains can land in
+   * different buckets.
+   */
+  private async resolveDomainRuntime(
+    companyId: string,
+    domainKey: string,
+  ): Promise<ChannelsRuntimeResolved> {
+    const domain = await this.domains.getByCompanyAndDomainKey({ companyId, domainKey });
+    if (!domain.isActive) {
+      throw new BadRequestException(`Unknown or inactive storage domain "${domainKey}"`);
+    }
+    return this.runtime.resolveByProviderCredentialsId({
+      companyId,
+      providerCredentialsId: domain.providerCredentialsId,
+    });
+  }
+
   private toUrl(runtime: ChannelsRuntimeResolved, key: string): string {
     const cleanKey = key.replace(/^\/+/, '');
 
@@ -255,6 +275,12 @@ export class StorageService {
     }
 
     const bucket = String(runtime.credentials?.bucket ?? '').trim();
+    const endpoint = String(runtime.credentials?.endpoint ?? '').trim();
+    if (bucket && endpoint) {
+      const host = endpoint.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+      return `https://${bucket}.${host}/${cleanKey}`;
+    }
+
     const region = String(runtime.credentials?.region ?? '').trim();
 
     if (bucket && region) {

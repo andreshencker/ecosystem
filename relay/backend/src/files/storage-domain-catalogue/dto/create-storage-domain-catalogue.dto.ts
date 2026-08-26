@@ -10,6 +10,9 @@ export class CreateStorageDomainCatalogueDto {
   @IsMongoId()
   companyId!: string;
 
+  @IsMongoId()
+  providerCredentialsId!: string;
+
   @IsString()
   @IsNotEmpty()
   domainKey!: string;
