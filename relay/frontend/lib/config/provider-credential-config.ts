@@ -203,8 +203,8 @@ const CLOUDFLARE_R2: ProviderCredentialConfig = {
       helperText: 'The Account ID is shown on the R2 overview page in the Cloudflare dashboard.', section: 'basic' },
   ],
   advancedFields: [
-    { key: 'region',         label: 'Region',          type: 'text', required: false, placeholder: 'auto',
-      helperText: 'R2 has no regions — leave as "auto".', section: 'advanced' },
+    { key: 'region',         label: 'Region',          type: 'text', required: false, defaultValue: 'auto',
+      helperText: 'R2 has no regions — the backend requires this field, so it defaults to "auto".', section: 'advanced' },
     { key: 'publicBaseUrl',  label: 'Public Base URL', type: 'text', required: false,
       helperText: 'Public URL prefix for serving stored files (e.g. a custom R2 domain). Optional.', section: 'advanced' },
   ],
