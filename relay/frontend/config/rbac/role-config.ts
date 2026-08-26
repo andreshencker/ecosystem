@@ -230,7 +230,6 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
           { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
-          { href: '/storage-domain-catalogue',  label: 'Storage Domains',   icon: CloudOutlinedIcon               },
           { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
@@ -305,6 +304,15 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         requiresChannel: ['identity'],
         items: [
           { href: '/identity/documentation', label: 'Documentation', icon: MenuBookOutlinedIcon                },
+        ],
+      },
+      {
+        key: 'storage',
+        label: 'Storage',
+        icon: CloudOutlinedIcon,
+        requiresChannel: ['storage'],
+        items: [
+          { href: '/storage-domain-catalogue', label: 'Storage Domains', icon: FolderOutlinedIcon },
         ],
       },
     ],
@@ -426,7 +434,6 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
           { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
-          { href: '/storage-domain-catalogue',  label: 'Storage Domains',   icon: CloudOutlinedIcon               },
           { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
@@ -501,6 +508,15 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         requiresChannel: ['identity'],
         items: [
           { href: '/identity/documentation', label: 'Documentation', icon: MenuBookOutlinedIcon                },
+        ],
+      },
+      {
+        key: 'storage',
+        label: 'Storage',
+        icon: CloudOutlinedIcon,
+        requiresChannel: ['storage'],
+        items: [
+          { href: '/storage-domain-catalogue', label: 'Storage Domains', icon: FolderOutlinedIcon },
         ],
       },
     ],
@@ -563,7 +579,6 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
           { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
-          { href: '/storage-domain-catalogue',  label: 'Storage Domains',   icon: CloudOutlinedIcon               },
           { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
@@ -638,6 +653,15 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         requiresChannel: ['identity'],
         items: [
           { href: '/identity/documentation', label: 'Documentation', icon: MenuBookOutlinedIcon                },
+        ],
+      },
+      {
+        key: 'storage',
+        label: 'Storage',
+        icon: CloudOutlinedIcon,
+        requiresChannel: ['storage'],
+        items: [
+          { href: '/storage-domain-catalogue', label: 'Storage Domains', icon: FolderOutlinedIcon },
         ],
       },
     ],
