@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { BrandMark } from './BrandMark';
+import { AccountMenu } from './AccountMenu';
 import { getVisibleNavigation, GrapiflyCapability, NavigationMode } from '@/config/navigation.config';
 
 interface ShellUser { grapiflyUserId: string; displayName: string; email: string; avatarUrl: string | null }
@@ -106,7 +107,7 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
         <button className="shell-signout" onClick={logout} title="Sign out"><i>↪</i><span>Sign out</span></button>
       </aside>
       <section className="grapifly-workspace">
-        <header className="grapifly-topbar"><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation">☰</button><div><span>{selectedOrganization?.name ?? 'Personal'}</span><small>Grapifly ecosystem</small></div><div className="shell-profile">{user?.avatarUrl ? <img src={user.avatarUrl} alt=""/> : <span>{user?.displayName?.[0] ?? 'G'}</span>}<div><strong>{user?.displayName ?? 'Grapifly'}</strong><small>{user?.email ?? 'Loading identity…'}</small></div></div></header>
+        <header className="grapifly-topbar"><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation">☰</button><div><span>{selectedOrganization?.name ?? 'Personal'}</span><small>Grapifly ecosystem</small></div><AccountMenu user={user} onSignOut={logout} /></header>
         <div className="grapifly-page-content">{children}</div>
       </section>
     </main>
