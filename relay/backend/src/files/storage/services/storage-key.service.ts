@@ -47,6 +47,20 @@ export class StorageKeyService {
       .replace(/\/{2,}/g, '/');
   }
 
+  /** The prefix under which every file of a domain (at a given visibility) lives — no fileName. */
+  buildDomainPrefix(params: {
+    visibility: 'public' | 'private';
+    domain: string;
+    prefix?: string;
+  }): string {
+    const parts = [
+      params.prefix ? this.cleanFolder(params.prefix) : '',
+      params.visibility,
+      this.cleanFolder(params.domain),
+    ].filter(Boolean);
+    return `${parts.join('/')}/`;
+  }
+
   buildKey(params: {
     visibility: 'public' | 'private';
     domain: string;

@@ -137,6 +137,23 @@ export class StorageController {
     return this.storage.downloadUrl(companyId, key, expires, fileName);
   }
 
+  @Get('browse')
+  @HttpCode(200)
+  async browse(
+    @CurrentUser() ctx: AuthContext,
+    @Headers('x-api-key') apiKey: string,
+    @Query('companyId') companyId: string,
+    @Query('domain') domain: string,
+  ) {
+    companyId = await this.resolveCompanyId(
+      ctx,
+      apiKey,
+      companyId,
+      'relay.use',
+    );
+    return this.storage.browseDomain(companyId, domain);
+  }
+
   private async resolveCompanyId(
     ctx: AuthContext,
     apiKey: string,

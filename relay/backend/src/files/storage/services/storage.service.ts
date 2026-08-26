@@ -230,6 +230,47 @@ export class StorageService {
     };
   }
 
+  /** Drive-style listing of everything stored under one domain, across both visibilities. */
+  async browseDomain(companyId: string, domainKey: string) {
+    if (!companyId) {
+      throw new BadRequestException('companyId is required');
+    }
+    this.validator.validateDomain(domainKey);
+
+    const runtime = await this.resolveDomainRuntime(companyId, domainKey);
+    const storage = this.implFactory.getStorageChannel(String(runtime.connectionType));
+    const tenantPrefix = String(runtime.credentials?.prefix ?? '').trim() || undefined;
+
+    const [publicList, privateList] = await Promise.all([
+      storage.listObjects({
+        credentials: runtime.credentials,
+        prefix: this.keys.buildDomainPrefix({ prefix: tenantPrefix, visibility: 'public', domain: domainKey }),
+      }),
+      storage.listObjects({
+        credentials: runtime.credentials,
+        prefix: this.keys.buildDomainPrefix({ prefix: tenantPrefix, visibility: 'private', domain: domainKey }),
+      }),
+    ]);
+
+    const toItem = (visibility: 'public' | 'private') => (obj: { key: string; size: number; lastModified?: string; etag?: string }) => ({
+      key: obj.key,
+      fileName: this.keys.extractFileNameFromKey(obj.key),
+      visibility,
+      size: obj.size,
+      lastModified: obj.lastModified,
+      etag: obj.etag,
+      url: visibility === 'public' ? this.toUrl(runtime, obj.key) : null,
+    });
+
+    return {
+      domain: domainKey,
+      items: [
+        ...publicList.items.map(toItem('public')),
+        ...privateList.items.map(toItem('private')),
+      ].sort((a, b) => (a.lastModified ?? '') < (b.lastModified ?? '') ? 1 : -1),
+    };
+  }
+
   private visibilityFromBoolean(isPublic?: boolean): 'public' | 'private' {
     return isPublic ? 'public' : 'private';
   }

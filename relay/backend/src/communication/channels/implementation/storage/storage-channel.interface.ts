@@ -27,6 +27,19 @@ export type StorageSignedDownloadResult = {
   expiresInSeconds: number;
 };
 
+export type StorageListItem = {
+  key: string;
+  size: number;
+  lastModified?: string;
+  etag?: string;
+};
+
+export type StorageListResult = {
+  ok: true;
+  items: StorageListItem[];
+  nextToken?: string;
+};
+
 export interface IStorageChannel {
   verifyCredentials(credentials: Record<string, any>): Promise<VerifyResult>;
 
@@ -54,4 +67,10 @@ export interface IStorageChannel {
     expiresInSeconds?: number;
     fileName?: string;
   }): Promise<StorageSignedDownloadResult>;
+
+  listObjects(params: {
+    credentials: Record<string, any>;
+    prefix: string;
+    continuationToken?: string;
+  }): Promise<StorageListResult>;
 }

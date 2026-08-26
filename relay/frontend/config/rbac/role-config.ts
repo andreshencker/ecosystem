@@ -25,6 +25,7 @@ import SettingsOutlinedIcon            from '@mui/icons-material/SettingsOutline
 import PlayCircleOutlineOutlinedIcon   from '@mui/icons-material/PlayCircleOutlineOutlined';
 import SecurityOutlinedIcon            from '@mui/icons-material/SecurityOutlined';
 import FolderOutlinedIcon              from '@mui/icons-material/FolderOutlined';
+import FolderOpenOutlinedIcon          from '@mui/icons-material/FolderOpenOutlined';
 import CloudOutlinedIcon               from '@mui/icons-material/CloudOutlined';
 import DescriptionOutlinedIcon         from '@mui/icons-material/DescriptionOutlined';
 import AccountBalanceOutlinedIcon        from '@mui/icons-material/AccountBalanceOutlined';
@@ -313,6 +314,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         requiresChannel: ['storage'],
         items: [
           { href: '/storage-domain-catalogue', label: 'Storage Domains', icon: FolderOutlinedIcon },
+          { href: '/storage-browser', label: 'Files', icon: FolderOpenOutlinedIcon },
         ],
       },
     ],
@@ -517,6 +519,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         requiresChannel: ['storage'],
         items: [
           { href: '/storage-domain-catalogue', label: 'Storage Domains', icon: FolderOutlinedIcon },
+          { href: '/storage-browser', label: 'Files', icon: FolderOpenOutlinedIcon },
         ],
       },
     ],
@@ -662,6 +665,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         requiresChannel: ['storage'],
         items: [
           { href: '/storage-domain-catalogue', label: 'Storage Domains', icon: FolderOutlinedIcon },
+          { href: '/storage-browser', label: 'Files', icon: FolderOpenOutlinedIcon },
         ],
       },
     ],

@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -134,6 +135,41 @@ export class S3StorageChannel implements IStorageChannel {
       key,
       url,
       expiresInSeconds,
+    };
+  }
+
+  async listObjects(params: {
+    credentials: Record<string, any>;
+    prefix: string;
+    continuationToken?: string;
+  }) {
+    const creds = this.getCreds(params.credentials);
+    const client = this.createClient(creds);
+
+    const result = await client.send(
+      new ListObjectsV2Command({
+        Bucket: creds.bucket,
+        Prefix: params.prefix,
+        MaxKeys: 1000,
+        ...(params.continuationToken ? { ContinuationToken: params.continuationToken } : {}),
+      }),
+    );
+
+    const items = (result.Contents ?? [])
+      // ListObjectsV2 includes the prefix "folder" itself as a zero-byte key
+      // when it was created explicitly — not a real file, skip it.
+      .filter((obj) => obj.Key && obj.Key !== params.prefix && obj.Size !== undefined)
+      .map((obj) => ({
+        key: obj.Key!,
+        size: obj.Size ?? 0,
+        lastModified: obj.LastModified ? new Date(obj.LastModified).toISOString() : undefined,
+        etag: obj.ETag ? String(obj.ETag).replace(/"/g, '') : undefined,
+      }));
+
+    return {
+      ok: true as const,
+      items,
+      nextToken: result.IsTruncated ? result.NextContinuationToken : undefined,
     };
   }
 
