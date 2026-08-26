@@ -12,6 +12,7 @@ function buildModel() {
     findOneAndUpdate: jest.fn().mockReturnValue(updateChain),
     findOneAndDelete: jest.fn().mockReturnValue(updateChain),
     updateMany: jest.fn().mockResolvedValue({}),
+    updateOne: jest.fn().mockResolvedValue({}),
     exists: jest.fn(),
     create: jest.fn(),
     countDocuments: jest.fn(),
@@ -44,6 +45,15 @@ describe('ApplicationsService', () => {
     const keys = applications.findOneAndUpdate.mock.calls.map((call) => call[0].key);
     expect(keys).toEqual(['relay', 'business', 'jtrade']);
     expect(applications.updateMany).toHaveBeenCalledWith({}, { $unset: { ownerRoles: '', providerRoles: '' } }, { strict: false });
+  });
+
+  it('backfills theme.light/dark.primaryContrastText per app on bootstrap, so pre-existing rows pick up the new field', async () => {
+    await service.onApplicationBootstrap();
+    expect(applications.updateOne).toHaveBeenCalledTimes(3);
+    const calls = applications.updateOne.mock.calls;
+    const jtradeCall = calls.find((call) => call[0].key === 'jtrade');
+    expect(jtradeCall[0]).toEqual({ key: 'jtrade', 'theme.light.primaryContrastText': { $exists: false } });
+    expect(jtradeCall[1].$set['theme.light.primaryContrastText']).toBe('#111116');
   });
 
   describe('listAll', () => {
@@ -119,7 +129,23 @@ describe('ApplicationsService', () => {
       expect(createdDoc.theme.icon).toBe('🚀');
       expect(createdDoc.theme.light.primaryColor).toBe('#000000');
       expect(createdDoc.theme.light.backgroundColor).toBe(DEFAULT_THEME.light.backgroundColor);
+      expect(createdDoc.theme.light.primaryContrastText).toBe(DEFAULT_THEME.light.primaryContrastText);
       expect(createdDoc.theme.dark).toEqual(DEFAULT_THEME.dark);
+    });
+
+    it('lets a partial theme patch override primaryContrastText independently of primaryColor', async () => {
+      applications.exists.mockResolvedValue(false);
+      applications.countDocuments.mockResolvedValue(0);
+      applications.create.mockImplementation((doc: any) => Promise.resolve({ ...doc }));
+
+      await service.createApplication({
+        key: 'contrast_app', name: 'Contrast App', description: 'desc', launchUrl: 'https://contrast.app',
+        theme: { light: { primaryContrastText: '#111116' } },
+      });
+
+      const createdDoc = applications.create.mock.calls[0][0];
+      expect(createdDoc.theme.light.primaryContrastText).toBe('#111116');
+      expect(createdDoc.theme.light.primaryColor).toBe(DEFAULT_THEME.light.primaryColor);
     });
 
     it('rejects a duplicate key', async () => {

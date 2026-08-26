@@ -10,8 +10,8 @@ export interface GrapiflyAppConfig {
     logoUrlDark: string | null;
     faviconUrl: string | null;
     fontFamily: string;
-    light: { primaryColor: string; backgroundColor: string; textColor: string };
-    dark: { primaryColor: string; backgroundColor: string; textColor: string };
+    light: { primaryColor: string; primaryContrastText: string; backgroundColor: string; textColor: string };
+    dark: { primaryColor: string; primaryContrastText: string; backgroundColor: string; textColor: string };
   };
   allowedFlows: ('client' | 'provider' | 'internal')[];
 }

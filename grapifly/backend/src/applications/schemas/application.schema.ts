@@ -12,6 +12,8 @@ export interface ApplicationDefaultAccess {
 
 export interface ApplicationThemePalette {
   primaryColor: string;
+  /** Text/icon color rendered on top of primaryColor (e.g. contained button labels) — explicit so it never has to be guessed via contrast math. */
+  primaryContrastText: string;
   backgroundColor: string;
   textColor: string;
 }
@@ -32,8 +34,8 @@ export interface ApplicationCountryRestriction {
   countries: string[];
 }
 
-export const DEFAULT_LIGHT_PALETTE: ApplicationThemePalette = { primaryColor: '#5c47ce', backgroundColor: '#efeaff', textColor: '#111116' };
-export const DEFAULT_DARK_PALETTE: ApplicationThemePalette = { primaryColor: '#8f7dff', backgroundColor: '#17151f', textColor: '#f5f4fa' };
+export const DEFAULT_LIGHT_PALETTE: ApplicationThemePalette = { primaryColor: '#5c47ce', primaryContrastText: '#ffffff', backgroundColor: '#efeaff', textColor: '#111116' };
+export const DEFAULT_DARK_PALETTE: ApplicationThemePalette = { primaryColor: '#8f7dff', primaryContrastText: '#ffffff', backgroundColor: '#17151f', textColor: '#f5f4fa' };
 export const DEFAULT_THEME: ApplicationTheme = { icon: '', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null, light: DEFAULT_LIGHT_PALETTE, dark: DEFAULT_DARK_PALETTE };
 export const DEFAULT_ACCESS: ApplicationDefaultAccess = { autoGrantOnSignup: false, tier: 'free', requiresApproval: false };
 export const DEFAULT_COUNTRY_RESTRICTION: ApplicationCountryRestriction = { enabled: false, countries: [] };
@@ -112,11 +114,13 @@ export class Application {
       fontFamily: { type: String, default: null },
       light: {
         primaryColor: { type: String, default: DEFAULT_LIGHT_PALETTE.primaryColor },
+        primaryContrastText: { type: String, default: DEFAULT_LIGHT_PALETTE.primaryContrastText },
         backgroundColor: { type: String, default: DEFAULT_LIGHT_PALETTE.backgroundColor },
         textColor: { type: String, default: DEFAULT_LIGHT_PALETTE.textColor },
       },
       dark: {
         primaryColor: { type: String, default: DEFAULT_DARK_PALETTE.primaryColor },
+        primaryContrastText: { type: String, default: DEFAULT_DARK_PALETTE.primaryContrastText },
         backgroundColor: { type: String, default: DEFAULT_DARK_PALETTE.backgroundColor },
         textColor: { type: String, default: DEFAULT_DARK_PALETTE.textColor },
       },

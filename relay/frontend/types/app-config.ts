@@ -1,5 +1,7 @@
 export interface AppPalette {
   primaryColor: string;
+  /** Text/icon color rendered on top of primaryColor (e.g. contained button labels). */
+  primaryContrastText: string;
   backgroundColor: string;
   textColor: string;
 }

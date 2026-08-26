@@ -1,5 +1,6 @@
 export interface GrapiflyAppPalette {
   primaryColor: string;
+  primaryContrastText: string;
   backgroundColor: string;
   textColor: string;
 }

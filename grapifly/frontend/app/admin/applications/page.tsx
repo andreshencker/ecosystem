@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from '@/components/AdminSidebar';
 
-interface ThemePalette { primaryColor: string; backgroundColor: string; textColor: string }
+interface ThemePalette { primaryColor: string; primaryContrastText: string; backgroundColor: string; textColor: string }
 interface Theme { icon: string; logoUrl: string | null; logoUrlDark: string | null; faviconUrl: string | null; fontFamily: string | null; light: ThemePalette; dark: ThemePalette }
 interface DefaultAccess { autoGrantOnSignup: boolean; tier: 'trial' | 'free' | 'paid'; requiresApproval: boolean }
 interface CountryRestriction { enabled: boolean; countries: string[] }
@@ -19,7 +19,7 @@ interface AppEntry {
 
 type DrawerMode = 'create' | 'edit' | null;
 
-const DEFAULT_THEME: Theme = { icon: '', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null, light: { primaryColor: '#5c47ce', backgroundColor: '#efeaff', textColor: '#111116' }, dark: { primaryColor: '#8f7dff', backgroundColor: '#17151f', textColor: '#f5f4fa' } };
+const DEFAULT_THEME: Theme = { icon: '', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null, light: { primaryColor: '#5c47ce', primaryContrastText: '#ffffff', backgroundColor: '#efeaff', textColor: '#111116' }, dark: { primaryColor: '#8f7dff', primaryContrastText: '#ffffff', backgroundColor: '#17151f', textColor: '#f5f4fa' } };
 const DEFAULT_ACCESS: DefaultAccess = { autoGrantOnSignup: false, tier: 'free', requiresApproval: false };
 const DEFAULT_COUNTRY_RESTRICTION: CountryRestriction = { enabled: false, countries: [] };
 const ALL_FLOWS: Flow[] = ['client', 'provider', 'internal'];
@@ -303,6 +303,7 @@ export default function ApplicationsPage() {
             <span className="drawer-subsection-title">Light palette</span>
             <div className="drawer-field-row theme-palette-row">
               <ColorField label="Primary" value={form.theme.light.primaryColor} onChange={value => setForm({ ...form, theme: { ...form.theme, light: { ...form.theme.light, primaryColor: value } } })} />
+              <ColorField label="Text on primary" value={form.theme.light.primaryContrastText} onChange={value => setForm({ ...form, theme: { ...form.theme, light: { ...form.theme.light, primaryContrastText: value } } })} />
               <ColorField label="Background" value={form.theme.light.backgroundColor} onChange={value => setForm({ ...form, theme: { ...form.theme, light: { ...form.theme.light, backgroundColor: value } } })} />
               <ColorField label="Text" value={form.theme.light.textColor} onChange={value => setForm({ ...form, theme: { ...form.theme, light: { ...form.theme.light, textColor: value } } })} />
             </div>
@@ -311,6 +312,7 @@ export default function ApplicationsPage() {
             <span className="drawer-subsection-title">Dark palette</span>
             <div className="drawer-field-row theme-palette-row">
               <ColorField label="Primary" value={form.theme.dark.primaryColor} onChange={value => setForm({ ...form, theme: { ...form.theme, dark: { ...form.theme.dark, primaryColor: value } } })} />
+              <ColorField label="Text on primary" value={form.theme.dark.primaryContrastText} onChange={value => setForm({ ...form, theme: { ...form.theme, dark: { ...form.theme.dark, primaryContrastText: value } } })} />
               <ColorField label="Background" value={form.theme.dark.backgroundColor} onChange={value => setForm({ ...form, theme: { ...form.theme, dark: { ...form.theme.dark, backgroundColor: value } } })} />
               <ColorField label="Text" value={form.theme.dark.textColor} onChange={value => setForm({ ...form, theme: { ...form.theme, dark: { ...form.theme.dark, textColor: value } } })} />
             </div>

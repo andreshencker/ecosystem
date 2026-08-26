@@ -33,18 +33,19 @@ const THEME_ASSET_FIELDS: Record<'logo' | 'logo-dark' | 'favicon', 'logoUrl' | '
 const CATALOGUE_THEMES: Record<string, ApplicationTheme> = {
   relay: {
     icon: 'R', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
-    light: { primaryColor: '#F4733D', backgroundColor: '#F7F7F9', textColor: '#111116' },
-    dark: { primaryColor: '#FF8A5B', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+    light: { primaryColor: '#F4733D', primaryContrastText: '#FFFFFF', backgroundColor: '#F7F7F9', textColor: '#111116' },
+    dark: { primaryColor: '#FF8A5B', primaryContrastText: '#FFFFFF', backgroundColor: '#17151F', textColor: '#F5F4FA' },
   },
   business: {
     icon: 'B', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
-    light: { primaryColor: '#5C47CE', backgroundColor: '#F7F7FB', textColor: '#111116' },
-    dark: { primaryColor: '#8F7DFF', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+    light: { primaryColor: '#5C47CE', primaryContrastText: '#FFFFFF', backgroundColor: '#F7F7FB', textColor: '#111116' },
+    dark: { primaryColor: '#8F7DFF', primaryContrastText: '#FFFFFF', backgroundColor: '#17151F', textColor: '#F5F4FA' },
   },
   jtrade: {
     icon: 'J', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
-    light: { primaryColor: '#F0B90B', backgroundColor: '#F5F5F7', textColor: '#111116' },
-    dark: { primaryColor: '#FFD84D', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+    // Gold/yellow is too light for white button text to read well — dark text here, matching jtrade's own containedWarning precedent.
+    light: { primaryColor: '#F0B90B', primaryContrastText: '#111116', backgroundColor: '#F5F5F7', textColor: '#111116' },
+    dark: { primaryColor: '#FFD84D', primaryContrastText: '#111116', backgroundColor: '#17151F', textColor: '#F5F4FA' },
   },
 };
 
@@ -132,6 +133,18 @@ export class ApplicationsService implements OnApplicationBootstrap {
       this.applications.updateMany({ countryRestriction: { $exists: false } }, { $set: { countryRestriction: DEFAULT_COUNTRY_RESTRICTION } }),
       this.applications.updateMany({ allowedFlows: { $exists: false } }, { $set: { allowedFlows: ALL_FLOWS } }),
     ]);
+    // Backfill theme.{light,dark}.primaryContrastText onto rows saved before this
+    // field existed — a whole-theme $set above only fires when `theme` is missing
+    // entirely, so a row that already had a theme (just without this newer nested
+    // field) needs its own targeted backfill, one app at a time so each app gets
+    // its own catalogue default (e.g. jtrade's gold needs dark text, not white).
+    await Promise.all(APPLICATION_CATALOGUE.map((app) => {
+      const theme = CATALOGUE_THEMES[app.key] ?? DEFAULT_THEME;
+      return this.applications.updateOne(
+        { key: app.key, 'theme.light.primaryContrastText': { $exists: false } },
+        { $set: { 'theme.light.primaryContrastText': theme.light.primaryContrastText, 'theme.dark.primaryContrastText': theme.dark.primaryContrastText } },
+      );
+    }));
     this.logger.log(`Application catalogue ready (${APPLICATION_CATALOGUE.length} applications).`);
   }
 

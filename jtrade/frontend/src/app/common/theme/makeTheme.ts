@@ -1,5 +1,5 @@
 // src/app/common/theme/makeTheme.ts
-import { alpha, createTheme, darken, getContrastRatio, lighten, PaletteMode } from "@mui/material";
+import { alpha, createTheme, darken, lighten, PaletteMode } from "@mui/material";
 import type { AppConfig } from "@/app/config/app-config";
 import { ECOSYSTEM_COLORS } from "./tokens";
 
@@ -23,6 +23,7 @@ export const makeTheme = (appConfig: AppConfig, mode: PaletteMode) => {
 
     // The app's own brand identity — always from the catalogue.
     const BRAND = palette.primaryColor;
+    const BRAND_CONTRAST_TEXT = palette.primaryContrastText;
     const backgroundDefault = palette.backgroundColor;
     const backgroundPaper = isDark ? lighten(backgroundDefault, 0.045) : "#FFFFFF";
     const textPrimary = palette.textColor;
@@ -45,7 +46,7 @@ export const makeTheme = (appConfig: AppConfig, mode: PaletteMode) => {
                 main: BRAND,
                 dark: darken(BRAND, 0.18),
                 light: lighten(BRAND, 0.2),
-                contrastText: getContrastRatio(BRAND, "#FFFFFF") >= 4.5 ? "#FFFFFF" : "#111116",
+                contrastText: palette.primaryContrastText,
             },
             // Secondary + the four semantics are an ecosystem-wide UX convention,
             // not a per-app brand choice — same values in every catalogue app.
@@ -135,7 +136,7 @@ export const makeTheme = (appConfig: AppConfig, mode: PaletteMode) => {
                     // now the shared ecosystem semantic, not this app's brand).
                     containedWarning: {
                         backgroundColor: BRAND,
-                        color: "#111214",
+                        color: BRAND_CONTRAST_TEXT,
                         borderRadius: 14,
                         border: `1px solid ${BRAND}`,
                         boxShadow: `0 6px 20px ${alpha(BRAND, 0.18)}`,
@@ -268,7 +269,7 @@ export const makeTheme = (appConfig: AppConfig, mode: PaletteMode) => {
                             color: textPrimary,
                         },
                         "&.Mui-selected": {
-                            color: "#111214",
+                            color: BRAND_CONTRAST_TEXT,
                             backgroundColor: BRAND,
                             borderColor: BRAND,
                             boxShadow: `0 6px 20px ${alpha(BRAND, 0.18)}`,

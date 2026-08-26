@@ -1,15 +1,23 @@
-import { createTheme } from '@mui/material/styles';
+import { alpha, createTheme, darken, lighten, type PaletteMode } from '@mui/material/styles';
+import { APP_CONFIG_FALLBACK } from '@/config/app-config';
+import type { AppConfig } from '@/types/app-config';
 
 // Design-System.md: §1 Color Palette, §2 Typography, §3 Spacing, §6 Border Radius
 
-export const muiTheme = createTheme({
+export const makeMuiTheme = (appConfig: AppConfig = APP_CONFIG_FALLBACK, mode: PaletteMode = 'light') => {
+  const palette = appConfig.theme[mode];
+  const primary = palette.primaryColor;
+  const isDark = mode === 'dark';
+  const divider = alpha(palette.textColor, isDark ? 0.14 : 0.1);
+  const paper = isDark ? lighten(palette.backgroundColor, 0.045) : '#FFFFFF';
+  return createTheme({
   palette: {
-    mode: 'light',
+    mode,
     primary: {
-      main: '#F4733D',
-      dark: '#D95527',
-      light: '#FFAA52',
-      contrastText: '#FFFFFF',
+      main: primary,
+      dark: darken(primary, 0.18),
+      light: lighten(primary, 0.2),
+      contrastText: palette.primaryContrastText,
     },
     secondary: {
       main: '#7655E8',
@@ -36,24 +44,24 @@ export const muiTheme = createTheme({
       contrastText: '#FFFFFF',
     },
     background: {
-      default: '#F7F7F9',
-      paper: '#FFFFFF',
+      default: palette.backgroundColor,
+      paper,
     },
     text: {
-      primary: '#111116',
-      secondary: '#6B6B73',
-      disabled: '#94A3B8',
+      primary: palette.textColor,
+      secondary: alpha(palette.textColor, 0.65),
+      disabled: alpha(palette.textColor, 0.4),
     },
-    divider: '#E2E8F0',
+    divider,
     action: {
-      hover: 'rgba(244, 115, 61, 0.05)',
-      selected: 'rgba(244, 115, 61, 0.10)',
+      hover: alpha(primary, isDark ? 0.12 : 0.05),
+      selected: alpha(primary, isDark ? 0.2 : 0.1),
     },
   },
 
   typography: {
     // Font family set via CSS variable from next/font
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
+    fontFamily: appConfig.theme.fontFamily ?? APP_CONFIG_FALLBACK.theme.fontFamily!,
     h4: { fontSize: '1.5rem', fontWeight: 600, lineHeight: 1.3 },
     h5: { fontSize: '1.25rem', fontWeight: 600, lineHeight: 1.4 },
     h6: { fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.4 },
@@ -107,7 +115,7 @@ export const muiTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 18,
-          borderColor: '#E2E8F0',
+          borderColor: divider,
         },
       },
     },
@@ -169,10 +177,10 @@ export const muiTheme = createTheme({
         root: {
           borderRadius: 12,
           '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#E2E8F0',
+            borderColor: divider,
           },
           '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#94A3B8',
+            borderColor: alpha(palette.textColor, 0.4),
           },
         },
       },
@@ -192,10 +200,10 @@ export const muiTheme = createTheme({
         tooltip: {
           borderRadius: 6,
           fontSize: '0.75rem',
-          backgroundColor: '#0F172A',
+          backgroundColor: isDark ? lighten(palette.backgroundColor, 0.15) : '#0F172A',
         },
         arrow: {
-          color: '#0F172A',
+          color: isDark ? lighten(palette.backgroundColor, 0.15) : '#0F172A',
         },
       },
     },
@@ -203,14 +211,14 @@ export const muiTheme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderColor: '#E2E8F0',
+          borderColor: divider,
           padding: '12px 16px',
           fontSize: '0.875rem',
         },
         head: {
           fontWeight: 500,
-          color: '#64748B',
-          backgroundColor: '#F8FAFC',
+          color: alpha(palette.textColor, 0.65),
+          backgroundColor: isDark ? lighten(palette.backgroundColor, 0.07) : darken(palette.backgroundColor, 0.015),
         },
       },
     },
@@ -222,14 +230,14 @@ export const muiTheme = createTheme({
           margin: '1px 8px',
           padding: '8px 12px',
           '&.Mui-selected': {
-            backgroundColor: '#FFF0E7',
-            color: '#D95527',
+            backgroundColor: alpha(primary, 0.1),
+            color: isDark ? lighten(primary, 0.15) : darken(primary, 0.18),
             '&:hover': {
-              backgroundColor: '#FFE3D2',
+              backgroundColor: alpha(primary, 0.16),
             },
           },
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            backgroundColor: alpha(palette.textColor, 0.04),
           },
         },
       },
@@ -238,7 +246,7 @@ export const muiTheme = createTheme({
     MuiDivider: {
       styleOverrides: {
         root: {
-          borderColor: '#E2E8F0',
+          borderColor: divider,
         },
       },
     },
@@ -257,4 +265,7 @@ export const muiTheme = createTheme({
       },
     },
   },
-});
+  });
+};
+
+export const muiTheme = makeMuiTheme();
