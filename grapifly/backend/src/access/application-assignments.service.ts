@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { timingSafeEqual } from 'crypto';
 import { Model } from 'mongoose';
@@ -39,9 +39,13 @@ export class ApplicationAssignmentsService {
     const applications = await this.applications.listAll();
     const defaults = applications.filter((app) => app.status === 'active' && app.defaultAccess?.autoGrantOnSignup);
     for (const app of defaults) {
+      const isTrial = app.defaultAccess.tier === 'trial';
       await this.organizationApplications.findOneAndUpdate(
         { organizationId, applicationKey: app.key },
-        { $set: { status: 'active', enabledBy: grapiflyUserId } },
+        {
+          $set: { status: 'active', tier: app.defaultAccess.tier, enabledBy: grapiflyUserId },
+          ...(isTrial ? { $setOnInsert: { trialStartedAt: new Date() } } : {}),
+        },
         { upsert: true, returnDocument: 'after' },
       );
       await this.memberApplications.findOneAndUpdate(
@@ -56,6 +60,46 @@ export class ApplicationAssignmentsService {
       );
     }
     return defaults.map((app) => app.key);
+  }
+
+  /**
+   * Grants the specific app a brand-new provider signed up through — unlike
+   * grantDefaultAccess() (which only covers apps flagged autoGrantOnSignup),
+   * this always targets the one app the person registered as a provider for.
+   * Lands as 'pending' when the app's catalogue entry requires approval, so
+   * resolveApplicationAccess() blocks the SSO exchange until an admin
+   * approves it via updateStatus().
+   */
+  async grantProviderSignup(grapiflyUserId: string, organizationId: string, appKey: string): Promise<void> {
+    const application = await this.applications.findByKey(appKey);
+    if (!application || !application.allowedFlows?.includes('provider')) return;
+    const status = application.defaultAccess.requiresApproval ? 'pending' : 'active';
+    const isTrial = application.defaultAccess.tier === 'trial';
+    await this.organizationApplications.findOneAndUpdate(
+      { organizationId, applicationKey: appKey },
+      {
+        $set: { status: 'active', tier: application.defaultAccess.tier, enabledBy: grapiflyUserId },
+        ...(isTrial ? { $setOnInsert: { trialStartedAt: new Date() } } : {}),
+      },
+      { upsert: true, returnDocument: 'after' },
+    );
+    await this.memberApplications.findOneAndUpdate(
+      { organizationId, grapiflyUserId, applicationKey: appKey },
+      { $set: { role: 'owner', status: 'active' } },
+      { upsert: true, returnDocument: 'after' },
+    );
+    await this.assignments.findOneAndUpdate(
+      { grapiflyUserId, applicationKey: appKey },
+      { $set: { status }, $setOnInsert: { source: 'auto', grantedAt: new Date() } },
+      { upsert: true, returnDocument: 'after' },
+    );
+  }
+
+  /** Admin approve/reject/suspend/revoke of a single provider assignment. */
+  async updateStatus(assignmentId: string, status: 'active' | 'pending' | 'rejected' | 'suspended' | 'revoked') {
+    const assignment = await this.assignments.findByIdAndUpdate(assignmentId, { $set: { status } }, { new: true }).lean();
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    return assignment;
   }
 
   /**

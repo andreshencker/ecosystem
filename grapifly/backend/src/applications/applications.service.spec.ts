@@ -47,7 +47,7 @@ describe('ApplicationsService', () => {
   describe('listAll', () => {
     it('maps entries to response DTOs, never exposing serviceSecretHash', async () => {
       applications.__findChain.lean.mockResolvedValue([
-        { key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay', ownership: 'first_party', status: 'active', displayOrder: 1, theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['owner', 'provider', 'internal'], serviceSecretHash: 'should-not-leak' },
+        { key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay', ownership: 'first_party', status: 'active', displayOrder: 1, theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'], serviceSecretHash: 'should-not-leak' },
       ]);
 
       const result = await service.listAll();
@@ -55,6 +55,20 @@ describe('ApplicationsService', () => {
       expect(result).toHaveLength(1);
       expect(result[0]).not.toHaveProperty('serviceSecretHash');
       expect(result[0].key).toBe('relay');
+    });
+  });
+
+  describe('getPublicConfig', () => {
+    it('returns the public brand contract plus allowedFlows, so any app can derive its own signup UI generically', async () => {
+      applications.__findOneChain.lean.mockResolvedValue({
+        key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay',
+        status: 'active', theme: DEFAULT_THEME, allowedFlows: ['client', 'internal'], serviceSecretHash: 'never-return-this',
+      });
+
+      const result = await service.getPublicConfig('relay');
+
+      expect(result).toEqual(expect.objectContaining({ contractVersion: 1, key: 'relay', theme: DEFAULT_THEME, allowedFlows: ['client', 'internal'] }));
+      expect(result).not.toHaveProperty('serviceSecretHash');
     });
   });
 
@@ -79,7 +93,7 @@ describe('ApplicationsService', () => {
         theme: DEFAULT_THEME,
         defaultAccess: DEFAULT_ACCESS,
         countryRestriction: DEFAULT_COUNTRY_RESTRICTION,
-        allowedFlows: ['owner', 'provider', 'internal'],
+        allowedFlows: ['client', 'provider', 'internal'],
       }));
       expect(result.serviceSecret).toEqual(expect.any(String));
       expect(result.serviceSecret.length).toBeGreaterThan(20);
@@ -120,7 +134,16 @@ describe('ApplicationsService', () => {
       applications.countDocuments.mockResolvedValue(0);
       await expect(service.createApplication({
         key: 'bad_flow_app', name: 'X', description: 'd', launchUrl: 'https://x',
-        allowedFlows: ['owner', 'bogus' as any],
+        allowedFlows: ['client', 'bogus' as any],
+      })).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects an invalid theme color', async () => {
+      applications.exists.mockResolvedValue(false);
+      applications.countDocuments.mockResolvedValue(0);
+      await expect(service.createApplication({
+        key: 'bad_theme', name: 'X', description: 'd', launchUrl: 'https://x',
+        theme: { light: { primaryColor: 'orange' } },
       })).rejects.toBeInstanceOf(BadRequestException);
     });
   });
@@ -129,11 +152,11 @@ describe('ApplicationsService', () => {
     it('merges provided fields onto the existing document', async () => {
       applications.__findOneChain.lean.mockResolvedValue({
         key: 'relay', name: 'Relay', description: 'old', launchUrl: 'https://relay', ownership: 'first_party', status: 'active', displayOrder: 1,
-        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['owner', 'provider', 'internal'],
+        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
       });
       applications.__updateChain.lean.mockResolvedValue({
         key: 'relay', name: 'Relay', description: 'new description', launchUrl: 'https://relay', ownership: 'first_party', status: 'active', displayOrder: 1,
-        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['owner', 'provider', 'internal'],
+        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
       });
 
       const result = await service.updateApplication('relay', { description: 'new description' });
@@ -149,7 +172,7 @@ describe('ApplicationsService', () => {
     it('merges a partial countryRestriction patch onto the existing value', async () => {
       applications.__findOneChain.lean.mockResolvedValue({
         key: 'business', name: 'Business', description: 'd', launchUrl: 'https://business', ownership: 'first_party', status: 'active', displayOrder: 2,
-        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: { enabled: false, countries: [] }, allowedFlows: ['owner', 'provider', 'internal'],
+        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: { enabled: false, countries: [] }, allowedFlows: ['client', 'provider', 'internal'],
       });
       applications.__updateChain.lean.mockResolvedValue({});
 

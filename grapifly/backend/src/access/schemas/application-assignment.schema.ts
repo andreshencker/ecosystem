@@ -11,8 +11,8 @@ export class ApplicationAssignment {
   @Prop({ required: true, lowercase: true, trim: true, index: true })
   applicationKey!: string;
 
-  @Prop({ required: true, enum: ['active', 'suspended', 'revoked'], default: 'active', index: true })
-  status!: 'active' | 'suspended' | 'revoked';
+  @Prop({ required: true, enum: ['active', 'pending', 'rejected', 'suspended', 'revoked'], default: 'active', index: true })
+  status!: 'active' | 'pending' | 'rejected' | 'suspended' | 'revoked';
 
   @Prop({ required: true, enum: ['bootstrap', 'admin', 'migration', 'auto'], default: 'admin' })
   source!: 'bootstrap' | 'admin' | 'migration' | 'auto';

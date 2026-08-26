@@ -27,16 +27,18 @@ export class UsersService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    // Backfill 'tipo' on any account created before that field existed —
-    // every such account came in through the self-serve Google button.
-    await this.users.updateMany({ tipo: { $exists: false } }, { $set: { tipo: 'owner' } });
+    // Compatibility migration for the standardized ecosystem flow names.
+    await this.users.updateMany({ tipo: 'owner' as never }, { $set: { tipo: 'client' } });
+    await this.users.updateMany({ tipo: 'interno' as never }, { $set: { tipo: 'internal' } });
+    // Accounts created before `tipo` existed came through self-service.
+    await this.users.updateMany({ tipo: { $exists: false } }, { $set: { tipo: 'client' } });
     const users = await this.users.find({ isActive: true, email: { $ne: 'grapiflydeveloper@gmail.com' } }).lean();
     await Promise.all(users.map((user) => this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email)));
     this.logger.log(`Default organization provisioning ready (${users.length} user accounts checked).`);
   }
 
-  async upsertGoogleIdentity(identity: GoogleIdentity) {
-    const user = await this.users.findOneAndUpdate(
+  async upsertGoogleIdentity(identity: GoogleIdentity, requestedType: 'client' | 'provider' = 'client') {
+    const result = await this.users.findOneAndUpdate(
       { provider: 'google', providerSubject: identity.subject },
       {
         $set: {
@@ -51,15 +53,17 @@ export class UsersService implements OnApplicationBootstrap {
           provider: 'google',
           providerSubject: identity.subject,
           isActive: true,
-          // Self-serve Google sign-in always creates an 'owner' account —
-          // 'interno' is only set when accepting an admin invitation.
-          tipo: 'owner',
+          // Public self-service may create a client or provider. `internal`
+          // remains exclusively controlled by the platform administrator.
+          tipo: requestedType,
         },
       },
-      { upsert: true, new: true },
-    ).lean();
-    await this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email);
-    return user;
+      { upsert: true, new: true, includeResultMetadata: true },
+    );
+    const user = result.value!.toObject();
+    const wasNew = !result.lastErrorObject?.updatedExisting;
+    const organizationId = await this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email);
+    return { user, wasNew, organizationId };
   }
 
   private async ensureDefaultOrganization(grapiflyUserId: string, displayName: string, email: string) {
@@ -89,6 +93,7 @@ export class UsersService implements OnApplicationBootstrap {
       { upsert: true, returnDocument: 'after' },
     );
     await this.accessAssignments.grantDefaultAccess(grapiflyUserId, organizationId);
+    return organizationId;
   }
 
   findByGrapiflyUserId(grapiflyUserId: string) {
@@ -102,7 +107,7 @@ export class UsersService implements OnApplicationBootstrap {
   listAll() {
     return this.users
       .find()
-      .select('grapiflyUserId email emailVerified displayName avatarUrl isActive provider lastLoginAt createdAt')
+      .select('grapiflyUserId email emailVerified displayName avatarUrl isActive provider tipo lastLoginAt createdAt')
       .sort({ createdAt: -1 })
       .lean();
   }

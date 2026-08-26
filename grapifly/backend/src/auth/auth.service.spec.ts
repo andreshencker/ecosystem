@@ -24,23 +24,25 @@ describe('AuthService — generic SSO exchange', () => {
   let memberships: ReturnType<typeof buildModel>;
   let organizationApps: ReturnType<typeof buildModel>;
   let memberApps: ReturnType<typeof buildModel>;
+  let platformAdmins: ReturnType<typeof buildModel>;
   let applications: { findByKey: jest.Mock };
-  let applicationAssignments: { assertAppClient: jest.Mock };
+  let applicationAssignments: { assertAppClient: jest.Mock; hasActiveAccess: jest.Mock };
   let service: AuthService;
 
   const activeMembership = { organizationId: 'gpf_org_acme', role: 'owner', status: 'active' };
   const activeOrganization = { organizationId: 'gpf_org_acme', name: 'Acme', isPlatform: false, status: 'active' };
 
   beforeEach(() => {
-    users = { findByGrapiflyUserId: jest.fn().mockResolvedValue({ grapiflyUserId: 'gpf_usr_1', email: 'owner@example.com' }) };
+    users = { findByGrapiflyUserId: jest.fn().mockResolvedValue({ grapiflyUserId: 'gpf_usr_1', email: 'owner@example.com', tipo: 'client' }) };
     jwt = { signAsync: jest.fn(), verifyAsync: jest.fn() };
     ssoCodes = buildModel();
     organizations = buildModel();
     memberships = buildModel();
     organizationApps = buildModel();
     memberApps = buildModel();
-    applications = { findByKey: jest.fn() };
-    applicationAssignments = { assertAppClient: jest.fn().mockResolvedValue(undefined) };
+    platformAdmins = buildModel();
+    applications = { findByKey: jest.fn().mockResolvedValue({ key: 'business', allowedFlows: ['client'] }) };
+    applicationAssignments = { assertAppClient: jest.fn().mockResolvedValue(undefined), hasActiveAccess: jest.fn().mockResolvedValue(true) };
     service = new AuthService(
       users as any,
       jwt as any,
@@ -49,8 +51,10 @@ describe('AuthService — generic SSO exchange', () => {
       memberships as any,
       organizationApps as any,
       memberApps as any,
+      platformAdmins as any,
       applications as any,
       applicationAssignments as any,
+      { isValidRole: jest.fn().mockResolvedValue(true) } as any,
     );
   });
 
@@ -86,6 +90,38 @@ describe('AuthService — generic SSO exchange', () => {
 
       await expect(service.createSsoCode('business', 'gpf_usr_1')).rejects.toBeInstanceOf(ForbiddenException);
     });
+
+    it('rejects before issuing a code when the app catalogue does not allow the user flow', async () => {
+      applications.findByKey.mockResolvedValue({ key: 'business', allowedFlows: ['provider'] });
+
+      await expect(service.createSsoCode('business', 'gpf_usr_1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ssoCodes.create).not.toHaveBeenCalled();
+    });
+
+    it('mints a code for a provider whose ApplicationAssignment is active', async () => {
+      users.findByGrapiflyUserId.mockResolvedValue({ grapiflyUserId: 'gpf_usr_1', email: 'owner@example.com', tipo: 'provider' });
+      applications.findByKey.mockResolvedValue({ key: 'jtrade', allowedFlows: ['client', 'provider'] });
+      applicationAssignments.hasActiveAccess.mockResolvedValue(true);
+      memberships.__findChain.lean.mockResolvedValue([activeMembership]);
+      organizations.__findChain.lean.mockResolvedValue([activeOrganization]);
+      organizationApps.__findOneChain.lean.mockResolvedValue({ organizationId: 'gpf_org_acme', applicationKey: 'jtrade', status: 'active' });
+      memberApps.__findOneChain.lean.mockResolvedValue({ organizationId: 'gpf_org_acme', applicationKey: 'jtrade', role: 'owner', status: 'active' });
+      ssoCodes.create.mockResolvedValue({});
+
+      await expect(service.createSsoCode('jtrade', 'gpf_usr_1')).resolves.toEqual(expect.any(String));
+      expect(applicationAssignments.hasActiveAccess).toHaveBeenCalledWith('gpf_usr_1', 'jtrade');
+    });
+
+    it('rejects a provider whose ApplicationAssignment is not active (e.g. pending approval)', async () => {
+      users.findByGrapiflyUserId.mockResolvedValue({ grapiflyUserId: 'gpf_usr_1', email: 'owner@example.com', tipo: 'provider' });
+      applications.findByKey.mockResolvedValue({ key: 'jtrade', allowedFlows: ['client', 'provider'] });
+      applicationAssignments.hasActiveAccess.mockResolvedValue(false);
+      memberships.__findChain.lean.mockResolvedValue([activeMembership]);
+      organizations.__findChain.lean.mockResolvedValue([activeOrganization]);
+
+      await expect(service.createSsoCode('jtrade', 'gpf_usr_1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ssoCodes.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('exchangeSsoCode', () => {
@@ -118,7 +154,7 @@ describe('AuthService — generic SSO exchange', () => {
         expect.anything(),
       );
       expect(contract.audience).toBe('business');
-      expect(contract.access).toEqual({ organizationRole: 'owner', applicationRole: 'owner' });
+      expect(contract.access).toEqual({ flow: 'client', organizationRole: 'owner', applicationRole: 'owner', tier: 'free' });
       expect(contract.access).not.toHaveProperty('permissions');
     });
   });

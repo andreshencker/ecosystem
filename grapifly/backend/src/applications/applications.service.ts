@@ -19,8 +19,27 @@ import { CreateApplicationDto } from './dto/create-application.dto';
 import { CreateApplicationResponseDto } from './dto/create-application-response.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { DeleteApplicationResponseDto } from './dto/delete-application-response.dto';
+import type { ApplicationPublicConfigDto } from './dto/application-public-config.dto';
 
-const ALL_FLOWS: RoleFlow[] = ['owner', 'provider', 'internal'];
+const ALL_FLOWS: RoleFlow[] = ['client', 'provider', 'internal'];
+
+const CATALOGUE_THEMES: Record<string, ApplicationTheme> = {
+  relay: {
+    icon: 'R', logoUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
+    light: { primaryColor: '#F4733D', backgroundColor: '#F7F7F9', textColor: '#111116' },
+    dark: { primaryColor: '#FF8A5B', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+  },
+  business: {
+    icon: 'B', logoUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
+    light: { primaryColor: '#5C47CE', backgroundColor: '#F7F7FB', textColor: '#111116' },
+    dark: { primaryColor: '#8F7DFF', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+  },
+  jtrade: {
+    icon: 'J', logoUrl: null, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif',
+    light: { primaryColor: '#F0B90B', backgroundColor: '#F5F5F7', textColor: '#111116' },
+    dark: { primaryColor: '#FFD84D', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+  },
+};
 
 const APPLICATION_CATALOGUE = [
   {
@@ -32,9 +51,7 @@ const APPLICATION_CATALOGUE = [
     // Falls back to the legacy shared secret so existing Relay deployments
     // keep working unchanged until they're migrated to their own secret.
     secretEnvFallback: 'GRAPIFLY_SSO_CLIENT_SECRET',
-    // Only Relay has an env var to auto-seed ssoCallbackUrl from — business/jtrade
-    // leave it null until an admin sets it via the Applications form, and bootstrap
-    // never touches it for them (see onApplicationBootstrap below).
+    // Callback URLs are owned by the central application catalogue.
     ssoCallbackUrlEnvVar: 'RELAY_SSO_CALLBACK_URL',
   },
   {
@@ -46,10 +63,10 @@ const APPLICATION_CATALOGUE = [
   },
   {
     key: 'jtrade', name: 'JTrade', description: 'Trading, investment and market operations.', launchUrl: 'http://localhost:5173', ownership: 'first_party', status: 'active', displayOrder: 3,
-    defaultAccess: { autoGrantOnSignup: false, tier: 'free', requiresApproval: false },
+    defaultAccess: { autoGrantOnSignup: true, tier: 'trial', requiresApproval: false },
     secretEnvVar: 'JTRADE_SERVICE_SECRET',
     secretEnvFallback: null,
-    ssoCallbackUrlEnvVar: null,
+    ssoCallbackUrlEnvVar: 'JTRADE_SSO_CALLBACK_URL',
   },
 ] as const;
 
@@ -62,6 +79,16 @@ export class ApplicationsService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    // Compatibility migration: applications created before the terminology
+    // change may still list `owner` as a flow. Preserve access as `client`.
+    await this.applications.updateMany(
+      { allowedFlows: 'owner' as never },
+      { $addToSet: { allowedFlows: 'client' } },
+    );
+    await this.applications.updateMany(
+      { allowedFlows: 'owner' as never },
+      { $pull: { allowedFlows: 'owner' as never } },
+    );
     await Promise.all(APPLICATION_CATALOGUE.map((app) => {
       const { secretEnvVar, secretEnvFallback, ssoCallbackUrlEnvVar, ...catalogueEntry } = app;
       const secret =
@@ -75,7 +102,10 @@ export class ApplicationsService implements OnApplicationBootstrap {
         : {};
       return this.applications.findOneAndUpdate(
         { key: app.key },
-        { $set: { ...catalogueEntry, serviceSecretHash: this.hashSecret(secret), ...ssoCallbackUrlPatch } },
+        {
+          $set: { ...catalogueEntry, serviceSecretHash: this.hashSecret(secret), ...ssoCallbackUrlPatch },
+          $setOnInsert: { theme: CATALOGUE_THEMES[app.key] ?? DEFAULT_THEME },
+        },
         { upsert: true, returnDocument: 'after' },
       );
     }));
@@ -104,6 +134,20 @@ export class ApplicationsService implements OnApplicationBootstrap {
 
   findByKey(key: string) {
     return this.applications.findOne({ key: key.toLowerCase(), status: 'active' }).lean();
+  }
+
+  async getPublicConfig(key: string): Promise<ApplicationPublicConfigDto> {
+    const application = await this.findByKey(key);
+    if (!application) throw new NotFoundException('Application not found');
+    return {
+      contractVersion: 1,
+      key: application.key,
+      name: application.name,
+      description: application.description,
+      launchUrl: application.launchUrl,
+      theme: application.theme ?? CATALOGUE_THEMES[application.key] ?? DEFAULT_THEME,
+      allowedFlows: application.allowedFlows,
+    };
   }
 
   /** Includes the normally-excluded serviceSecretHash — only for service-to-service auth checks. */
@@ -196,13 +240,21 @@ export class ApplicationsService implements OnApplicationBootstrap {
 
   private mergeTheme(current: ApplicationTheme, patch?: CreateApplicationDto['theme']): ApplicationTheme {
     if (!patch) return current;
-    return {
+    const merged = {
       icon: patch.icon ?? current.icon,
       logoUrl: patch.logoUrl ?? current.logoUrl,
       fontFamily: patch.fontFamily ?? current.fontFamily,
       light: { ...current.light, ...patch.light },
       dark: { ...current.dark, ...patch.dark },
     };
+    for (const [mode, palette] of Object.entries({ light: merged.light, dark: merged.dark })) {
+      for (const [field, color] of Object.entries(palette)) {
+        if (!/^#[0-9a-f]{6}$/i.test(color)) {
+          throw new BadRequestException(`theme.${mode}.${field} must be a 6-digit hex color`);
+        }
+      }
+    }
+    return merged;
   }
 
   private mergeDefaultAccess(current: ApplicationDefaultAccess, patch?: Partial<ApplicationDefaultAccess>): ApplicationDefaultAccess {

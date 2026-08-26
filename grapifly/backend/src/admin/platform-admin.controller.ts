@@ -44,7 +44,7 @@ export class PlatformAdminController {
   @Get('role-catalog')
   async listRoleCatalog() {
     const roles = await this.roleCatalog.listAll();
-    const flows: Record<string, typeof roles> = { owner: [], provider: [], internal: [] };
+    const flows: Record<string, typeof roles> = { client: [], provider: [], internal: [] };
     for (const role of roles) (flows[role.flow] ??= []).push(role);
     return { flows };
   }
@@ -99,6 +99,14 @@ export class PlatformAdminController {
   async listAccess() {
     const assignments = await this.assignments.listAll();
     return { assignments, total: assignments.length };
+  }
+
+  @Patch('access/:assignmentId')
+  updateAccess(
+    @Param('assignmentId') assignmentId: string,
+    @Body() body: { status: 'active' | 'pending' | 'rejected' | 'suspended' | 'revoked' },
+  ) {
+    return this.assignments.updateStatus(assignmentId, body.status);
   }
 
   @Get('organizations')
