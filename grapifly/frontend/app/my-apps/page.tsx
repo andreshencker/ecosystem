@@ -42,7 +42,7 @@ function MyAppsContent() {
     {selectedOrganization && state === 'ready' && apps.length === 0 && <div className="organization-empty"><h2>No apps enabled yet</h2><p>Ask an organization owner or admin to enable an app.</p></div>}
 
     {selectedOrganization && state === 'ready' && apps.length > 0 && <div className="my-apps-grid">
-      {apps.map(app => <article key={app.key} className="my-apps-card" style={{ background: app.theme.light.backgroundColor }}>
+      {apps.map(app => <article key={app.key} className="my-apps-card" style={{ background: app.theme.light.backgroundColor, color: app.theme.light.textColor }}>
         <div className="my-apps-card-top">
           <span className="my-apps-icon" style={{ color: app.theme.light.primaryColor }}>{app.theme.logoUrl ? <img src={app.theme.logoUrl} alt="" /> : (app.theme.icon || app.name[0])}</span>
           <span className="status-badge active">{app.tier}</span>
