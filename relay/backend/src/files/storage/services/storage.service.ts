@@ -28,7 +28,6 @@ export class StorageService {
     folder?: string;
     fileName: string;
     file: Express.Multer.File;
-    isPublic?: boolean;
   }): Promise<StorageFileInfoDto> {
     if (!params.companyId) {
       throw new BadRequestException('companyId is required');
@@ -37,7 +36,7 @@ export class StorageService {
     this.validator.validateDomain(params.domain);
     this.validator.validateFile(params.file);
 
-    const runtime = await this.resolveDomainRuntime(params.companyId, params.domain);
+    const { runtime, visibility } = await this.resolveDomainRuntime(params.companyId, params.domain);
     const storage = this.implFactory.getStorageChannel(
       String(runtime.connectionType),
     );
@@ -48,7 +47,7 @@ export class StorageService {
     this.validator.validateFileName(finalFileName);
 
     const key = this.keys.buildKey({
-      visibility: this.visibilityFromBoolean(params.isPublic),
+      visibility,
       domain: params.domain,
       folder: params.folder,
       fileName: finalFileName,
@@ -60,7 +59,7 @@ export class StorageService {
       key,
       body: params.file.buffer,
       contentType,
-      aclPublicRead: params.isPublic === true,
+      aclPublicRead: visibility === 'public',
     });
 
     return {
@@ -85,7 +84,6 @@ export class StorageService {
       fileName:
         dto.fileName?.trim() || this.keys.cleanFileName(file.originalname),
       file,
-      isPublic: dto.isPublic,
     });
   }
 
@@ -101,8 +99,8 @@ export class StorageService {
       this.validator.validateDomain(dto.domain!);
     }
 
-    const runtime = dto.key
-      ? await this.getDefaultStorage(dto.companyId)
+    const { runtime, visibility } = dto.key
+      ? { runtime: await this.getDefaultStorage(dto.companyId), visibility: undefined }
       : await this.resolveDomainRuntime(dto.companyId, dto.domain!);
     const storage = this.implFactory.getStorageChannel(
       String(runtime.connectionType),
@@ -113,13 +111,17 @@ export class StorageService {
     const key = dto.key
       ? this.keys.ensureSafeKey(dto.key)
       : this.keys.buildKey({
-          visibility: this.visibilityFromBoolean(dto.isPublic),
+          visibility: visibility!,
           domain: dto.domain!,
           folder: dto.folder,
           fileName:
             dto.fileName?.trim() || this.keys.cleanFileName(file.originalname),
           prefix: String(runtime.credentials?.prefix ?? '').trim() || undefined,
         });
+
+    // Replacing by an already-known key (no domain in this call) — infer
+    // visibility from the key itself, since that's how it was built originally.
+    const aclPublicRead = visibility ? visibility === 'public' : this.visibilityFromKey(key) === 'public';
 
     const contentType = this.validator.detectContentType(file);
 
@@ -128,7 +130,7 @@ export class StorageService {
       key,
       body: file.buffer,
       contentType,
-      aclPublicRead: dto.isPublic === true,
+      aclPublicRead,
     });
 
     return {
@@ -230,49 +232,39 @@ export class StorageService {
     };
   }
 
-  /** Drive-style listing of everything stored under one domain, across both visibilities. */
+  /** Drive-style listing of everything stored under one domain. */
   async browseDomain(companyId: string, domainKey: string) {
     if (!companyId) {
       throw new BadRequestException('companyId is required');
     }
     this.validator.validateDomain(domainKey);
 
-    const runtime = await this.resolveDomainRuntime(companyId, domainKey);
+    const { runtime, visibility } = await this.resolveDomainRuntime(companyId, domainKey);
     const storage = this.implFactory.getStorageChannel(String(runtime.connectionType));
     const tenantPrefix = String(runtime.credentials?.prefix ?? '').trim() || undefined;
 
-    const [publicList, privateList] = await Promise.all([
-      storage.listObjects({
-        credentials: runtime.credentials,
-        prefix: this.keys.buildDomainPrefix({ prefix: tenantPrefix, visibility: 'public', domain: domainKey }),
-      }),
-      storage.listObjects({
-        credentials: runtime.credentials,
-        prefix: this.keys.buildDomainPrefix({ prefix: tenantPrefix, visibility: 'private', domain: domainKey }),
-      }),
-    ]);
-
-    const toItem = (visibility: 'public' | 'private') => (obj: { key: string; size: number; lastModified?: string; etag?: string }) => ({
-      key: obj.key,
-      fileName: this.keys.extractFileNameFromKey(obj.key),
-      visibility,
-      size: obj.size,
-      lastModified: obj.lastModified,
-      etag: obj.etag,
-      url: visibility === 'public' ? this.toUrl(runtime, obj.key) : null,
+    const list = await storage.listObjects({
+      credentials: runtime.credentials,
+      prefix: this.keys.buildDomainPrefix({ prefix: tenantPrefix, visibility, domain: domainKey }),
     });
 
-    return {
-      domain: domainKey,
-      items: [
-        ...publicList.items.map(toItem('public')),
-        ...privateList.items.map(toItem('private')),
-      ].sort((a, b) => (a.lastModified ?? '') < (b.lastModified ?? '') ? 1 : -1),
-    };
+    const items = list.items
+      .map((obj) => ({
+        key: obj.key,
+        fileName: this.keys.extractFileNameFromKey(obj.key),
+        visibility,
+        size: obj.size,
+        lastModified: obj.lastModified,
+        etag: obj.etag,
+        url: visibility === 'public' ? this.toUrl(runtime, obj.key) : null,
+      }))
+      .sort((a, b) => (a.lastModified ?? '') < (b.lastModified ?? '') ? 1 : -1);
+
+    return { domain: domainKey, visibility, items };
   }
 
-  private visibilityFromBoolean(isPublic?: boolean): 'public' | 'private' {
-    return isPublic ? 'public' : 'private';
+  private visibilityFromKey(key: string): 'public' | 'private' {
+    return key.split('/').includes('private') ? 'private' : 'public';
   }
 
   private async getDefaultStorage(
@@ -293,15 +285,16 @@ export class StorageService {
   private async resolveDomainRuntime(
     companyId: string,
     domainKey: string,
-  ): Promise<ChannelsRuntimeResolved> {
+  ): Promise<{ runtime: ChannelsRuntimeResolved; visibility: 'public' | 'private' }> {
     const domain = await this.domains.getByCompanyAndDomainKey({ companyId, domainKey });
     if (!domain.isActive) {
       throw new BadRequestException(`Unknown or inactive storage domain "${domainKey}"`);
     }
-    return this.runtime.resolveByProviderCredentialsId({
+    const runtime = await this.runtime.resolveByProviderCredentialsId({
       companyId,
       providerCredentialsId: domain.providerCredentialsId,
     });
+    return { runtime, visibility: domain.visibility };
   }
 
   private toUrl(runtime: ChannelsRuntimeResolved, key: string): string {

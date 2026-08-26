@@ -21,6 +21,7 @@ export interface CreateStorageDomainCatalogueDto {
   companyId: string;
   providerCredentialsId: string;
   domainKey: string;
+  visibility: 'public' | 'private';
   displayName: string;
   description?: string;
   isActive?: boolean;

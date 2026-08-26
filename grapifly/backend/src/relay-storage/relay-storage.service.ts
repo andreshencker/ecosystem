@@ -80,9 +80,10 @@ export class RelayStorageService {
     // always overrides it with the company resolved from the service secret +
     // x-grapifly-organization-id header — this value is never actually used.
     form.append('companyId', '000000000000000000000000');
+    // Visibility is no longer a per-upload choice — it's decided once on the
+    // "logos" domain itself (must be created with visibility: 'public').
     form.append('domain', 'logos');
     form.append('fileName', fileName);
-    form.append('isPublic', 'true');
     form.append('file', file.buffer, { filename: fileName, contentType: file.mimetype });
 
     try {

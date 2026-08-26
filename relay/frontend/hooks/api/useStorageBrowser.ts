@@ -15,6 +15,7 @@ export interface StorageBrowserFile {
 
 export interface StorageBrowserResult {
   domain: string;
+  visibility: 'public' | 'private';
   items: StorageBrowserFile[];
 }
 

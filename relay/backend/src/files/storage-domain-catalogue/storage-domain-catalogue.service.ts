@@ -54,6 +54,8 @@ export class StorageDomainCatalogueService {
       );
     if (!dto.providerCredentialsId)
       throw new HttpException('providerCredentialsId is required', HttpStatus.BAD_REQUEST);
+    if (dto.visibility !== 'public' && dto.visibility !== 'private')
+      throw new HttpException("visibility must be 'public' or 'private'", HttpStatus.BAD_REQUEST);
 
     await this.assertStorageCredential(dto.companyId, dto.providerCredentialsId);
 
@@ -63,6 +65,7 @@ export class StorageDomainCatalogueService {
           companyId,
           providerCredentialsId: this.toObjectIdOrThrow(dto.providerCredentialsId, 'providerCredentialsId'),
           domainKey,
+          visibility: dto.visibility,
           displayName,
           description,
           isActive: dto.isActive ?? true,
@@ -194,6 +197,16 @@ export class StorageDomainCatalogueService {
     const existing = await this.model.findById(_id).lean();
     if (!existing)
       throw new HttpException('Storage domain not found', HttpStatus.NOT_FOUND);
+
+    // Visibility is baked into every object's key under this domain — changing
+    // it after creation would orphan whatever was already uploaded under the
+    // old public/private prefix, so it's immutable regardless of isSystem.
+    if (dto.visibility !== undefined) {
+      throw new HttpException(
+        'visibility cannot be changed after a domain is created',
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     if ((existing as any).isSystem) {
       const protected_fields = ['domainKey', 'displayName', 'companyId', 'providerCredentialsId'] as const;

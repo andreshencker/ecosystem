@@ -24,6 +24,15 @@ export class StorageDomainCatalogue {
   @Prop({ required: true, trim: true, lowercase: true, index: true })
   domainKey!: string;
 
+  /**
+   * Decided once per domain, not per upload — every file in this domain
+   * lands in the same public/ or private/ prefix. Immutable after creation:
+   * visibility is baked into each object's key, so changing it would orphan
+   * every file already uploaded under the old prefix.
+   */
+  @Prop({ required: true, enum: ['public', 'private'] })
+  visibility!: 'public' | 'private';
+
   @Prop({ required: true, trim: true })
   displayName!: string;
 

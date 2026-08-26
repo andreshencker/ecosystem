@@ -1,6 +1,5 @@
 import { Transform } from 'class-transformer';
 import {
-  IsBoolean,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
@@ -22,11 +21,6 @@ export class UploadStorageFileDto {
   @IsOptional()
   @IsString()
   fileName?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => value === true || value === 'true' || value === '1')
-  @IsBoolean()
-  isPublic?: boolean;
 
   @IsOptional()
   @Transform(({ value }) => {

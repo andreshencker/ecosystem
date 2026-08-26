@@ -7,6 +7,7 @@ export class StorageDomainCatalogueMapper {
       companyId: String(doc.companyId),
       providerCredentialsId: String(doc.providerCredentialsId ?? ''),
       domainKey: String(doc.domainKey ?? ''),
+      visibility: doc.visibility === 'private' ? 'private' : 'public',
       displayName: String(doc.displayName ?? ''),
       description: String(doc.description ?? ''),
       isActive: !!doc.isActive,

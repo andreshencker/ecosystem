@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsIn,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
@@ -16,6 +17,9 @@ export class CreateStorageDomainCatalogueDto {
   @IsString()
   @IsNotEmpty()
   domainKey!: string;
+
+  @IsIn(['public', 'private'])
+  visibility!: 'public' | 'private';
 
   @IsString()
   @IsNotEmpty()

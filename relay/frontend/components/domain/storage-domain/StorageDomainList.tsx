@@ -61,6 +61,7 @@ const slugRegex = /^[a-z0-9_-]+$/;
 
 const domainSchema = z.object({
   domainKey:   z.string().min(1, 'Required').max(100).regex(slugRegex, 'Lowercase, numbers, hyphens only'),
+  visibility:  z.enum(['public', 'private']),
   displayName: z.string().min(1, 'Required').max(200),
   description: z.string().max(1000).optional().default(''),
   isActive:    z.boolean().default(true),
@@ -88,6 +89,7 @@ function StorageDomainDrawer({ open, domain, companyId, providerCredentialsId, c
     resolver: zodResolver(domainSchema),
     values: {
       domainKey:   domain?.domainKey   ?? '',
+      visibility:  domain?.visibility  ?? 'public',
       displayName: domain?.displayName ?? '',
       description: domain?.description ?? '',
       isActive:    domain?.isActive    ?? true,
@@ -108,6 +110,7 @@ function StorageDomainDrawer({ open, domain, companyId, providerCredentialsId, c
         companyId,
         providerCredentialsId,
         domainKey:   values.domainKey,
+        visibility:  values.visibility,
         displayName: values.displayName,
         description: values.description,
       });
@@ -158,6 +161,23 @@ function StorageDomainDrawer({ open, domain, companyId, providerCredentialsId, c
                     error={!!form.formState.errors.domainKey}
                     helperText={form.formState.errors.domainKey?.message ?? 'Unique slug — becomes the top-level bucket folder (e.g. invoices). Cannot be changed.'}
                   />
+                )}
+              />
+              <Controller
+                name="visibility"
+                control={form.control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    select
+                    label="Visibility"
+                    fullWidth size="small" required
+                    disabled={isEditing}
+                    helperText={isEditing ? 'Cannot be changed after creation.' : 'Public: files load directly in a browser. Private: only accessible via signed links.'}
+                  >
+                    <MenuItem value="public">Public</MenuItem>
+                    <MenuItem value="private">Private</MenuItem>
+                  </TextField>
                 )}
               />
               <Controller
@@ -247,6 +267,15 @@ const domainColumns: GridColDef<StorageDomainCatalogue>[] = [
     ),
   },
   {
+    field: 'visibility',
+    headerName: 'Visibility',
+    width: 100,
+    sortable: false,
+    renderCell: (p) => (
+      <Chip label={p.row.visibility} size="small" color={p.row.visibility === 'public' ? 'success' : 'default'} variant="outlined" />
+    ),
+  },
+  {
     field: 'isSystem',
     headerName: 'Type',
     width: 105,
@@ -281,6 +310,11 @@ const domainMobileConfig: MobileCardConfig<StorageDomainCatalogue> = {
   secondaryText: 'domainKey',
   badge: (row) => <StatusBadge active={row.isActive} size="small" />,
   fields: [
+    {
+      field: 'visibility',
+      label: 'Visibility',
+      render: (v) => <Chip label={String(v)} size="small" color={v === 'public' ? 'success' : 'default'} variant="outlined" />,
+    },
     {
       field: 'isSystem',
       label: 'Type',
