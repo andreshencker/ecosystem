@@ -277,13 +277,13 @@ export default function ApplicationsPage() {
             <label className="drawer-field"><span>Icon</span><input value={form.theme.icon} onChange={event => setForm({ ...form, theme: { ...form.theme, icon: event.target.value } })} placeholder="🧩" /></label>
             <label className="drawer-field"><span>Font family</span><input value={form.theme.fontFamily ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, fontFamily: event.target.value || null } })} placeholder="Inherit default" /></label>
           </div>
+          <ThemeAssetField
+            label="Logo" themeField="logoUrl" value={form.theme.logoUrl} fallbackChar={form.theme.icon}
+            uploadUrl={drawerApp ? `${apiUrl}/admin/applications/${drawerApp.key}/logo` : null}
+            onChangeUrl={url => setForm({ ...form, theme: { ...form.theme, logoUrl: url } })}
+            onUploaded={url => setForm(current => ({ ...current, theme: { ...current.theme, logoUrl: url } }))}
+          />
           <div className="theme-asset-group">
-            <ThemeAssetField
-              label="Logo" themeField="logoUrl" value={form.theme.logoUrl} fallbackChar={form.theme.icon}
-              uploadUrl={drawerApp ? `${apiUrl}/admin/applications/${drawerApp.key}/logo` : null}
-              onChangeUrl={url => setForm({ ...form, theme: { ...form.theme, logoUrl: url } })}
-              onUploaded={url => setForm(current => ({ ...current, theme: { ...current.theme, logoUrl: url } }))}
-            />
             <ThemeAssetField
               label="Logo — Dark Mode" hint="Used in dark mode; falls back to Logo if not set." themeField="logoUrlDark" value={form.theme.logoUrlDark} fallbackChar={form.theme.icon}
               uploadUrl={drawerApp ? `${apiUrl}/admin/applications/${drawerApp.key}/logo-dark` : null}
