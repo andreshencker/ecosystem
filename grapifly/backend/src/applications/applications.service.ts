@@ -57,9 +57,9 @@ const CATALOGUE_THEMES: Record<string, ApplicationTheme> = {
 const APPLICATION_CATALOGUE = [
   {
     key: 'grapifly', name: 'Grapifly', description: 'Identity, organizations and access for the whole ecosystem.', launchUrl: 'http://localhost:3100', ownership: 'first_party', status: 'active', displayOrder: 0,
-    // Grapifly isn't an installable product an organization opts into — it's
-    // the identity hub itself, so it never goes through ApplicationAssignmentsService.
-    defaultAccess: { autoGrantOnSignup: false, tier: 'free', requiresApproval: false },
+    // Auto-granted to every organization on signup, same as Relay — shows up
+    // in My Apps like any other enabled app.
+    defaultAccess: { autoGrantOnSignup: true, tier: 'free', requiresApproval: false },
     secretEnvVar: 'GRAPIFLY_SERVICE_SECRET',
     secretEnvFallback: null,
     ssoCallbackUrlEnvVar: null,
