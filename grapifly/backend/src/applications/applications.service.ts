@@ -31,6 +31,11 @@ const THEME_ASSET_FIELDS: Record<'logo' | 'logo-dark' | 'favicon', 'logoUrl' | '
 };
 
 const CATALOGUE_THEMES: Record<string, ApplicationTheme> = {
+  grapifly: {
+    icon: 'G', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: null,
+    light: { primaryColor: '#5C47CE', primaryContrastText: '#FFFFFF', backgroundColor: '#FBFBFD', textColor: '#111116' },
+    dark: { primaryColor: '#8F7DFF', primaryContrastText: '#FFFFFF', backgroundColor: '#17151F', textColor: '#F5F4FA' },
+  },
   relay: {
     icon: 'R', logoUrl: null, logoUrlDark: null, faviconUrl: null, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
     light: { primaryColor: '#F4733D', primaryContrastText: '#FFFFFF', backgroundColor: '#F7F7F9', textColor: '#111116' },
@@ -50,6 +55,15 @@ const CATALOGUE_THEMES: Record<string, ApplicationTheme> = {
 };
 
 const APPLICATION_CATALOGUE = [
+  {
+    key: 'grapifly', name: 'Grapifly', description: 'Identity, organizations and access for the whole ecosystem.', launchUrl: 'http://localhost:3100', ownership: 'first_party', status: 'active', displayOrder: 0,
+    // Grapifly isn't an installable product an organization opts into — it's
+    // the identity hub itself, so it never goes through ApplicationAssignmentsService.
+    defaultAccess: { autoGrantOnSignup: false, tier: 'free', requiresApproval: false },
+    secretEnvVar: 'GRAPIFLY_SERVICE_SECRET',
+    secretEnvFallback: null,
+    ssoCallbackUrlEnvVar: null,
+  },
   {
     key: 'relay', name: 'Relay', description: 'Secure connections and automation across external services.', launchUrl: 'http://localhost:3000', ownership: 'first_party', status: 'active', displayOrder: 1,
     // Relay is the only app auto-granted to every new organization today —
@@ -113,7 +127,9 @@ export class ApplicationsService implements OnApplicationBootstrap {
         { key: app.key },
         {
           $set: { ...catalogueEntry, serviceSecretHash: this.hashSecret(secret), ...ssoCallbackUrlPatch },
-          $setOnInsert: { theme: CATALOGUE_THEMES[app.key] ?? DEFAULT_THEME },
+          // isPrimary only applies on the very first insert — a re-run of this
+          // bootstrap must never silently override an admin's later choice.
+          $setOnInsert: { theme: CATALOGUE_THEMES[app.key] ?? DEFAULT_THEME, isPrimary: app.key === 'grapifly' },
         },
         { upsert: true, returnDocument: 'after' },
       );
@@ -132,6 +148,7 @@ export class ApplicationsService implements OnApplicationBootstrap {
       this.applications.updateMany({ theme: { $exists: false } }, { $set: { theme: DEFAULT_THEME } }),
       this.applications.updateMany({ countryRestriction: { $exists: false } }, { $set: { countryRestriction: DEFAULT_COUNTRY_RESTRICTION } }),
       this.applications.updateMany({ allowedFlows: { $exists: false } }, { $set: { allowedFlows: ALL_FLOWS } }),
+      this.applications.updateMany({ isPrimary: { $exists: false } }, { $set: { isPrimary: false } }),
     ]);
     // Backfill theme.{light,dark}.primaryContrastText onto rows saved before this
     // field existed — a whole-theme $set above only fires when `theme` is missing
@@ -196,6 +213,8 @@ export class ApplicationsService implements OnApplicationBootstrap {
     const displayOrder = dto.displayOrder ?? (await this.applications.countDocuments()) + 1;
     const serviceSecret = randomBytes(32).toString('hex');
 
+    if (dto.isPrimary) await this.demoteCurrentPrimary(key);
+
     const created = await this.applications.create({
       key,
       name,
@@ -205,6 +224,7 @@ export class ApplicationsService implements OnApplicationBootstrap {
       ownership: dto.ownership ?? 'first_party',
       status: dto.status ?? 'active',
       displayOrder,
+      isPrimary: dto.isPrimary ?? false,
       serviceSecretHash: this.hashSecret(serviceSecret),
       theme: this.mergeTheme(DEFAULT_THEME, dto.theme),
       defaultAccess: this.mergeDefaultAccess(DEFAULT_ACCESS, dto.defaultAccess),
@@ -243,6 +263,10 @@ export class ApplicationsService implements OnApplicationBootstrap {
     if (dto.defaultAccess !== undefined) patch.defaultAccess = this.mergeDefaultAccess(existing.defaultAccess, dto.defaultAccess);
     if (dto.countryRestriction !== undefined) patch.countryRestriction = this.mergeCountryRestriction(existing.countryRestriction, dto.countryRestriction);
     if (dto.allowedFlows !== undefined) patch.allowedFlows = this.normalizeAllowedFlows(dto.allowedFlows);
+    if (dto.isPrimary !== undefined) {
+      if (dto.isPrimary) await this.demoteCurrentPrimary(existing.key);
+      patch.isPrimary = dto.isPrimary;
+    }
 
     const updated = await this.applications.findOneAndUpdate(
       { key: existing.key },
@@ -269,6 +293,11 @@ export class ApplicationsService implements OnApplicationBootstrap {
     const deleted = await this.applications.findOneAndDelete({ key: key.toLowerCase() }).lean();
     if (!deleted) throw new NotFoundException('Application not found');
     return { key: deleted.key, deleted: true };
+  }
+
+  /** Demotes whichever app currently holds isPrimary (if any other than `exceptKey`) so the partial unique index never sees two primaries at once. */
+  private async demoteCurrentPrimary(exceptKey: string): Promise<void> {
+    await this.applications.updateMany({ isPrimary: true, key: { $ne: exceptKey } }, { $set: { isPrimary: false } });
   }
 
   private mergeTheme(current: ApplicationTheme, patch?: CreateApplicationDto['theme']): ApplicationTheme {

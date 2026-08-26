@@ -74,6 +74,15 @@ export class Application {
   displayOrder!: number;
 
   /**
+   * Marks the ecosystem's single primary/main application. At most one app
+   * may have this set — enforced by the partial unique index below and by
+   * ApplicationsService demoting any previous primary before setting a new
+   * one. Purely a flag today (no routing/behaviour is driven by it yet).
+   */
+  @Prop({ type: Boolean, default: false })
+  isPrimary!: boolean;
+
+  /**
    * Per-app shared secret used for service-to-service calls into Grapifly
    * (identifying itself, validating internal/team endpoints). Hashed with
    * SHA-256 — never stored or returned in plaintext. Excluded from default
@@ -152,3 +161,4 @@ export class Application {
 }
 
 export const ApplicationSchema = SchemaFactory.createForClass(Application);
+ApplicationSchema.index({ isPrimary: 1 }, { unique: true, partialFilterExpression: { isPrimary: true } });

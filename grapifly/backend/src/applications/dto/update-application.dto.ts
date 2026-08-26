@@ -9,6 +9,7 @@ export interface UpdateApplicationDto {
   ownership?: 'first_party' | 'third_party';
   status?: 'active' | 'inactive';
   displayOrder?: number;
+  isPrimary?: boolean;
   theme?: Partial<Omit<ApplicationTheme, 'light' | 'dark'>> & {
     light?: Partial<ApplicationTheme['light']>;
     dark?: Partial<ApplicationTheme['dark']>;

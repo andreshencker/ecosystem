@@ -13,7 +13,7 @@ type Status = 'active' | 'inactive';
 
 interface AppEntry {
   key: string; name: string; description: string; launchUrl: string; ssoCallbackUrl: string | null;
-  ownership: Ownership; status: Status; displayOrder: number;
+  ownership: Ownership; status: Status; displayOrder: number; isPrimary: boolean;
   theme: Theme; defaultAccess: DefaultAccess; countryRestriction: CountryRestriction; allowedFlows: Flow[];
 }
 
@@ -26,18 +26,18 @@ const ALL_FLOWS: Flow[] = ['client', 'provider', 'internal'];
 
 interface FormState {
   key: string; name: string; description: string; launchUrl: string; ssoCallbackUrl: string;
-  ownership: Ownership; status: Status; displayOrder: string;
+  ownership: Ownership; status: Status; displayOrder: string; isPrimary: boolean;
   theme: Theme; defaultAccess: DefaultAccess; countryRestriction: CountryRestriction; countriesText: string; allowedFlows: Flow[];
 }
 
 function emptyForm(): FormState {
-  return { key: '', name: '', description: '', launchUrl: '', ssoCallbackUrl: '', ownership: 'first_party', status: 'active', displayOrder: '', theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, countriesText: '', allowedFlows: [...ALL_FLOWS] };
+  return { key: '', name: '', description: '', launchUrl: '', ssoCallbackUrl: '', ownership: 'first_party', status: 'active', displayOrder: '', isPrimary: false, theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, countriesText: '', allowedFlows: [...ALL_FLOWS] };
 }
 
 function formFromApp(app: AppEntry): FormState {
   return {
     key: app.key, name: app.name, description: app.description, launchUrl: app.launchUrl, ssoCallbackUrl: app.ssoCallbackUrl ?? '',
-    ownership: app.ownership, status: app.status, displayOrder: String(app.displayOrder),
+    ownership: app.ownership, status: app.status, displayOrder: String(app.displayOrder), isPrimary: app.isPrimary,
     theme: app.theme, defaultAccess: app.defaultAccess, countryRestriction: app.countryRestriction,
     countriesText: app.countryRestriction.countries.join(', '), allowedFlows: app.allowedFlows,
   };
@@ -178,6 +178,7 @@ export default function ApplicationsPage() {
       name: form.name, description: form.description, launchUrl: form.launchUrl, ssoCallbackUrl: form.ssoCallbackUrl.trim() || null,
       ownership: form.ownership, status: form.status,
       displayOrder: form.displayOrder.trim() ? Number(form.displayOrder) : undefined,
+      isPrimary: form.isPrimary,
       theme: form.theme,
       defaultAccess: form.defaultAccess,
       countryRestriction: { enabled: form.countryRestriction.enabled, countries },
@@ -235,7 +236,7 @@ export default function ApplicationsPage() {
 
       <div className="users-table-wrap"><table className="users-table app-table"><thead><tr><th>Application</th><th>Status</th><th>Ownership</th><th></th></tr></thead><tbody>
         {filtered.map(app => <tr key={app.key}>
-          <td><div className="app-row-identity"><span className="app-swatch" style={{ background: app.theme.light.backgroundColor, color: app.theme.light.primaryColor }}>{app.theme.logoUrl ? <img src={app.theme.logoUrl} alt="" /> : (app.theme.icon || app.name[0])}</span><div><strong>{app.name}</strong><small>{app.key}</small></div></div></td>
+          <td><div className="app-row-identity"><span className="app-swatch" style={{ background: app.theme.light.backgroundColor, color: app.theme.light.primaryColor }}>{app.theme.logoUrl ? <img src={app.theme.logoUrl} alt="" /> : (app.theme.icon || app.name[0])}</span><div><span><strong>{app.name}</strong>{app.isPrimary && <span className="primary-badge">Primary</span>}</span><small>{app.key}</small></div></div></td>
           <td><span className={`status-badge ${app.status}`}>{app.status}</span></td>
           <td>{app.ownership === 'first_party' ? 'Grapifly app' : 'Third-party app'}</td>
           <td><div className="role-row-actions"><button type="button" title="Edit application" aria-label="Edit application" onClick={() => openEdit(app)}><EditIcon /></button><button type="button" className="danger" title="Delete application" aria-label="Delete application" onClick={() => handleDelete(app)}><DeleteIcon /></button></div></td>
@@ -269,6 +270,7 @@ export default function ApplicationsPage() {
             <label className="drawer-field"><span>Status</span><select value={form.status} onChange={event => setForm({ ...form, status: event.target.value as Status })}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
           </div>
           <label className="drawer-field"><span>Display order</span><input type="number" min={0} value={form.displayOrder} onChange={event => setForm({ ...form, displayOrder: event.target.value })} placeholder="auto" /></label>
+          <label className="drawer-checkbox"><input type="checkbox" checked={form.isPrimary} onChange={event => setForm({ ...form, isPrimary: event.target.checked })} /><span>Primary app — the ecosystem's main app (only one at a time; setting this un-marks the previous one)</span></label>
 
           <h4 className="drawer-section-title">Theme</h4>
 

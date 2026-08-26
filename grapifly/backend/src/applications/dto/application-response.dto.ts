@@ -14,6 +14,7 @@ export interface ApplicationResponseDto {
   ownership: 'first_party' | 'third_party';
   status: 'active' | 'inactive';
   displayOrder: number;
+  isPrimary: boolean;
   theme: ApplicationTheme;
   defaultAccess: ApplicationDefaultAccess;
   countryRestriction: ApplicationCountryRestriction;
@@ -29,6 +30,7 @@ export function toApplicationResponse(entry: {
   ownership: 'first_party' | 'third_party';
   status: 'active' | 'inactive';
   displayOrder: number;
+  isPrimary?: boolean;
   theme: ApplicationTheme;
   defaultAccess: ApplicationDefaultAccess;
   countryRestriction: ApplicationCountryRestriction;
@@ -43,6 +45,7 @@ export function toApplicationResponse(entry: {
     ownership: entry.ownership,
     status: entry.status,
     displayOrder: entry.displayOrder,
+    isPrimary: entry.isPrimary ?? false,
     theme: entry.theme,
     defaultAccess: entry.defaultAccess,
     countryRestriction: entry.countryRestriction,

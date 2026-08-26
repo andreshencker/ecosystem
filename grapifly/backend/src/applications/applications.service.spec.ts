@@ -39,21 +39,34 @@ describe('ApplicationsService', () => {
     service = new ApplicationsService(applications as any, config as any, relayStorage as any);
   });
 
-  it('seeds the 3 first-party apps on bootstrap', async () => {
+  it('seeds the 4 first-party apps on bootstrap, grapifly included', async () => {
     await service.onApplicationBootstrap();
-    expect(applications.findOneAndUpdate).toHaveBeenCalledTimes(3);
+    expect(applications.findOneAndUpdate).toHaveBeenCalledTimes(4);
     const keys = applications.findOneAndUpdate.mock.calls.map((call) => call[0].key);
-    expect(keys).toEqual(['relay', 'business', 'jtrade']);
+    expect(keys).toEqual(['grapifly', 'relay', 'business', 'jtrade']);
     expect(applications.updateMany).toHaveBeenCalledWith({}, { $unset: { ownerRoles: '', providerRoles: '' } }, { strict: false });
+  });
+
+  it('only seeds grapifly as isPrimary on insert — other apps never claim it on bootstrap', async () => {
+    await service.onApplicationBootstrap();
+    const calls = applications.findOneAndUpdate.mock.calls;
+    for (const call of calls) {
+      expect(call[1].$setOnInsert.isPrimary).toBe(call[0].key === 'grapifly');
+    }
   });
 
   it('backfills theme.light/dark.primaryContrastText per app on bootstrap, so pre-existing rows pick up the new field', async () => {
     await service.onApplicationBootstrap();
-    expect(applications.updateOne).toHaveBeenCalledTimes(3);
+    expect(applications.updateOne).toHaveBeenCalledTimes(4);
     const calls = applications.updateOne.mock.calls;
     const jtradeCall = calls.find((call) => call[0].key === 'jtrade');
     expect(jtradeCall[0]).toEqual({ key: 'jtrade', 'theme.light.primaryContrastText': { $exists: false } });
     expect(jtradeCall[1].$set['theme.light.primaryContrastText']).toBe('#111116');
+  });
+
+  it('backfills isPrimary:false onto rows saved before the field existed', async () => {
+    await service.onApplicationBootstrap();
+    expect(applications.updateMany).toHaveBeenCalledWith({ isPrimary: { $exists: false } }, { $set: { isPrimary: false } });
   });
 
   describe('listAll', () => {
@@ -148,6 +161,19 @@ describe('ApplicationsService', () => {
       expect(createdDoc.theme.light.primaryColor).toBe(DEFAULT_THEME.light.primaryColor);
     });
 
+    it('demotes the current primary before creating a new one with isPrimary:true', async () => {
+      applications.exists.mockResolvedValue(false);
+      applications.countDocuments.mockResolvedValue(0);
+      applications.create.mockImplementation((doc: any) => Promise.resolve({ ...doc }));
+
+      await service.createApplication({
+        key: 'new_primary', name: 'New Primary', description: 'd', launchUrl: 'https://x', isPrimary: true,
+      });
+
+      expect(applications.updateMany).toHaveBeenCalledWith({ isPrimary: true, key: { $ne: 'new_primary' } }, { $set: { isPrimary: false } });
+      expect(applications.create).toHaveBeenCalledWith(expect.objectContaining({ isPrimary: true }));
+    });
+
     it('rejects a duplicate key', async () => {
       applications.exists.mockResolvedValue(true);
       await expect(service.createApplication({ key: 'relay', name: 'Relay', description: 'd', launchUrl: 'https://x' })).rejects.toBeInstanceOf(ConflictException);
@@ -195,6 +221,20 @@ describe('ApplicationsService', () => {
         expect.anything(),
       );
       expect(result.description).toBe('new description');
+    });
+
+    it('demotes the current primary before promoting a different app to isPrimary:true', async () => {
+      applications.__findOneChain.lean.mockResolvedValue({
+        key: 'jtrade', name: 'JTrade', description: 'd', launchUrl: 'https://jtrade', ownership: 'first_party', status: 'active', displayOrder: 3, isPrimary: false,
+        theme: DEFAULT_THEME, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
+      });
+      applications.__updateChain.lean.mockResolvedValue({});
+
+      await service.updateApplication('jtrade', { isPrimary: true });
+
+      expect(applications.updateMany).toHaveBeenCalledWith({ isPrimary: true, key: { $ne: 'jtrade' } }, { $set: { isPrimary: false } });
+      const patch = applications.findOneAndUpdate.mock.calls[0][1].$set;
+      expect(patch.isPrimary).toBe(true);
     });
 
     it('merges a partial countryRestriction patch onto the existing value', async () => {
