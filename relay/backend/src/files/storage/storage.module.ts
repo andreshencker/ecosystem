@@ -11,6 +11,7 @@ import { StorageValidatorService } from './services/storage-validator.service';
 import { ChannelsRuntimeModule } from '../../communication/channels/runtime/channels-runtime.module';
 import { ChannelsImplementationModule } from '../../communication/channels/implementation/implementation.module';
 import { RelayTenantContextModule } from '../../infrastructure/security/relay-tenant-context.module';
+import { StorageDomainCatalogueModule } from '../storage-domain-catalogue/storage-domain-catalogue.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RelayTenantContextModule } from '../../infrastructure/security/relay-te
     ChannelsRuntimeModule,
     ChannelsImplementationModule,
     RelayTenantContextModule,
+    StorageDomainCatalogueModule,
   ],
   controllers: [StorageController],
   providers: [StorageService, StorageKeyService, StorageValidatorService],

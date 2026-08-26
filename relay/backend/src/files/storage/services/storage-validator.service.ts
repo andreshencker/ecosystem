@@ -62,6 +62,13 @@ export class StorageValidatorService {
     }
   }
 
+  validateDomain(domain: string) {
+    const clean = this.keys.cleanFolder(domain);
+    if (!clean) {
+      throw new BadRequestException('domain is required');
+    }
+  }
+
   validateFileName(fileName: string) {
     const clean = this.keys.cleanFileName(fileName);
     if (!clean) {

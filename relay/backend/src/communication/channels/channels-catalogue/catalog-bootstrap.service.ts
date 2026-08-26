@@ -20,7 +20,7 @@ import {
  *   Providers:
  *     email      → gmail (smtp) · gmail_oauth (oauth) · sendgrid (api_key) · mailgun (api_key)
  *     sms        → twilio (api_key)
- *     storage    → aws-s3 (access_keys)
+ *     storage    → aws-s3 (access_keys) · cloudflare-r2 (access_keys)
  *     calendar   → icloud (app_password) · google_calendar (oauth) · outlook_calendar (oauth)
  *     payment    → stripe (api_key) · coingate (token)
  *     accounting → xero (oauth)   ← also assigned to billing
@@ -233,6 +233,15 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         providerKey: 'aws-s3',
         displayName: 'Amazon S3',
         description: 'AWS S3 — object storage for files and reports',
+        channelIds: [storageChannel._id],
+        connectionType: 'access_keys' as const,
+        isActive: true,
+      },
+      {
+        providerKey: 'cloudflare-r2',
+        displayName: 'Cloudflare R2',
+        description:
+          'Cloudflare R2 — S3-compatible object storage, no egress fees',
         channelIds: [storageChannel._id],
         connectionType: 'access_keys' as const,
         isActive: true,

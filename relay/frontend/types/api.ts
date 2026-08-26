@@ -386,6 +386,19 @@ export interface DocumentDomainCatalogue {
   updatedAt?: string;
 }
 
+/** Each domain is the top-level folder name storage uploads (files/storage) land under. */
+export interface StorageDomainCatalogue {
+  id: string;
+  companyId: string;
+  domainKey: string;
+  displayName: string;
+  description: string;
+  isActive: boolean;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // ─── Document Catalogue ───────────────────────────────────────────────────────
 
 export interface PdfSectionConfig {

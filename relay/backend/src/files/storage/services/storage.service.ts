@@ -6,6 +6,7 @@ import type { StorageFileInfoDto } from '../dto/storage-file-info.dto';
 
 import { StorageKeyService } from './storage-key.service';
 import { StorageValidatorService } from './storage-validator.service';
+import { StorageDomainCatalogueService } from '../../storage-domain-catalogue/storage-domain-catalogue.service';
 
 import { ChannelsRuntimeResolverService } from '../../../communication/channels/runtime/channels-runtime-resolver.service';
 import { ChannelsImplementationFactory } from '../../../communication/channels/implementation/channels-implementation.factory';
@@ -18,11 +19,13 @@ export class StorageService {
     private readonly implFactory: ChannelsImplementationFactory,
     private readonly keys: StorageKeyService,
     private readonly validator: StorageValidatorService,
+    private readonly domains: StorageDomainCatalogueService,
   ) {}
 
   async uploadInternal(params: {
     companyId: string;
-    folder: string;
+    domain: string;
+    folder?: string;
     fileName: string;
     file: Express.Multer.File;
     isPublic?: boolean;
@@ -31,8 +34,9 @@ export class StorageService {
       throw new BadRequestException('companyId is required');
     }
 
-    this.validator.validateFolder(params.folder);
+    this.validator.validateDomain(params.domain);
     this.validator.validateFile(params.file);
+    await this.domains.assertActiveDomain(params.companyId, params.domain);
 
     const runtime = await this.getDefaultStorage(params.companyId);
     const storage = this.implFactory.getStorageChannel(
@@ -46,6 +50,7 @@ export class StorageService {
 
     const key = this.keys.buildKey({
       visibility: this.visibilityFromBoolean(params.isPublic),
+      domain: params.domain,
       folder: params.folder,
       fileName: finalFileName,
       prefix: String(runtime.credentials?.prefix ?? '').trim() || undefined,
@@ -76,6 +81,7 @@ export class StorageService {
   ): Promise<StorageFileInfoDto> {
     return this.uploadInternal({
       companyId: dto.companyId,
+      domain: dto.domain,
       folder: dto.folder,
       fileName:
         dto.fileName?.trim() || this.keys.cleanFileName(file.originalname),
@@ -92,6 +98,11 @@ export class StorageService {
       throw new BadRequestException('companyId is required');
     }
 
+    if (!dto.key) {
+      this.validator.validateDomain(dto.domain!);
+      await this.domains.assertActiveDomain(dto.companyId, dto.domain!);
+    }
+
     const runtime = await this.getDefaultStorage(dto.companyId);
     const storage = this.implFactory.getStorageChannel(
       String(runtime.connectionType),
@@ -103,7 +114,8 @@ export class StorageService {
       ? this.keys.ensureSafeKey(dto.key)
       : this.keys.buildKey({
           visibility: this.visibilityFromBoolean(dto.isPublic),
-          folder: dto.folder!,
+          domain: dto.domain!,
+          folder: dto.folder,
           fileName:
             dto.fileName?.trim() || this.keys.cleanFileName(file.originalname),
           prefix: String(runtime.credentials?.prefix ?? '').trim() || undefined,

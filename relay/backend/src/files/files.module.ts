@@ -5,6 +5,7 @@ import { GeneratorModule } from './generator/generator.module';
 import { ReportModule } from './reports/report.module';
 import { MediaModule } from './media/media.module';
 import { StorageModule } from './storage/storage.module';
+import { StorageDomainCatalogueModule } from './storage-domain-catalogue/storage-domain-catalogue.module';
 import { DocumentDomainCatalogueModule } from './document-domain-catalogue/document-domain-catalogue.module';
 import { DocumentCatalogueModule } from './document-catalogue/document-catalogue.module';
 import { DocumentGenerationService } from './document-catalogue/services/document-generation.service';
@@ -21,6 +22,7 @@ import { DocumentGenerationController } from './document-catalogue/controllers/d
     ReportModule,
     MediaModule,
     StorageModule,
+    StorageDomainCatalogueModule,
     DocumentDomainCatalogueModule,
     DocumentCatalogueModule,
   ],

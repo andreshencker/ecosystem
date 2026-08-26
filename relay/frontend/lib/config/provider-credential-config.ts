@@ -191,6 +191,25 @@ const AWS_S3: ProviderCredentialConfig = {
   ],
 };
 
+const CLOUDFLARE_R2: ProviderCredentialConfig = {
+  connectionTypeLabel: 'Access Keys',
+  helperText:
+    'Create an R2 API token in the Cloudflare dashboard (R2 → Manage API Tokens) with Object Read & Write permissions on the target bucket.',
+  basicFields: [
+    { key: 'accessKeyId',     label: 'Access Key ID',     type: 'text',     required: true,  placeholder: 'r2 access key id', section: 'basic' },
+    { key: 'secretAccessKey', label: 'Secret Access Key', type: 'password', required: true,  placeholder: 'r2 secret access key', section: 'basic' },
+    { key: 'bucket',          label: 'Bucket Name',       type: 'text',     required: true,  placeholder: 'my-storage-bucket', section: 'basic' },
+    { key: 'endpoint',        label: 'Endpoint',          type: 'text',     required: true,  placeholder: 'https://<account-id>.r2.cloudflarestorage.com',
+      helperText: 'The Account ID is shown on the R2 overview page in the Cloudflare dashboard.', section: 'basic' },
+  ],
+  advancedFields: [
+    { key: 'region',         label: 'Region',          type: 'text', required: false, placeholder: 'auto',
+      helperText: 'R2 has no regions — leave as "auto".', section: 'advanced' },
+    { key: 'publicBaseUrl',  label: 'Public Base URL', type: 'text', required: false,
+      helperText: 'Public URL prefix for serving stored files (e.g. a custom R2 domain). Optional.', section: 'advanced' },
+  ],
+};
+
 // ─── Calendar provider-specific configs ──────────────────────────────────────
 
 const ICLOUD: ProviderCredentialConfig = {
@@ -415,6 +434,7 @@ const BY_PROVIDER_KEY: Record<string, ProviderCredentialConfig> = {
   twilio:           TWILIO,
   'aws-s3':         AWS_S3,
   s3:               AWS_S3,
+  'cloudflare-r2':  CLOUDFLARE_R2,
   icloud:           ICLOUD,
   google_calendar:  GOOGLE_CALENDAR,
   outlook_calendar: OUTLOOK_CALENDAR,

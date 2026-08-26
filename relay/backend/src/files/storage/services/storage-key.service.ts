@@ -49,14 +49,16 @@ export class StorageKeyService {
 
   buildKey(params: {
     visibility: 'public' | 'private';
-    folder: string;
+    domain: string;
+    folder?: string;
     fileName: string;
     prefix?: string;
   }): string {
     const parts = [
       params.prefix ? this.cleanFolder(params.prefix) : '',
       params.visibility,
-      this.cleanFolder(params.folder),
+      this.cleanFolder(params.domain),
+      params.folder ? this.cleanFolder(params.folder) : '',
       this.cleanFileName(params.fileName),
     ].filter(Boolean);
 

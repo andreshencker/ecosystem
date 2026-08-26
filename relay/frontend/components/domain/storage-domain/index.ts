@@ -1,0 +1,1 @@
+export { StorageDomainList } from './StorageDomainList';

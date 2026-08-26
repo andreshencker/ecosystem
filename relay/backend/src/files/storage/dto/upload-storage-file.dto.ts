@@ -13,7 +13,11 @@ export class UploadStorageFileDto {
 
   @IsString()
   @IsNotEmpty()
-  folder!: string;
+  domain!: string;
+
+  @IsOptional()
+  @IsString()
+  folder?: string;
 
   @IsOptional()
   @IsString()

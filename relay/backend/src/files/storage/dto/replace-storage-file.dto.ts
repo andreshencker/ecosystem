@@ -11,6 +11,10 @@ export class ReplaceStorageFileDto {
 
   @IsOptional()
   @IsString()
+  domain?: string;
+
+  @IsOptional()
+  @IsString()
   folder?: string;
 
   @IsOptional()

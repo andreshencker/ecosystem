@@ -25,6 +25,7 @@ import SettingsOutlinedIcon            from '@mui/icons-material/SettingsOutline
 import PlayCircleOutlineOutlinedIcon   from '@mui/icons-material/PlayCircleOutlineOutlined';
 import SecurityOutlinedIcon            from '@mui/icons-material/SecurityOutlined';
 import FolderOutlinedIcon              from '@mui/icons-material/FolderOutlined';
+import CloudOutlinedIcon               from '@mui/icons-material/CloudOutlined';
 import DescriptionOutlinedIcon         from '@mui/icons-material/DescriptionOutlined';
 import AccountBalanceOutlinedIcon        from '@mui/icons-material/AccountBalanceOutlined';
 import LinkOutlinedIcon                 from '@mui/icons-material/LinkOutlined';
@@ -229,6 +230,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
           { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
+          { href: '/storage-domain-catalogue',  label: 'Storage Domains',   icon: CloudOutlinedIcon               },
           { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
@@ -424,6 +426,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
           { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
+          { href: '/storage-domain-catalogue',  label: 'Storage Domains',   icon: CloudOutlinedIcon               },
           { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
@@ -560,6 +563,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
           { href: '/document-domain-catalogue', label: 'Doc Domains',       icon: FolderOutlinedIcon              },
+          { href: '/storage-domain-catalogue',  label: 'Storage Domains',   icon: CloudOutlinedIcon               },
           { href: '/document-catalogue',        label: 'Documents',         icon: DescriptionOutlinedIcon         },
         ],
       },
