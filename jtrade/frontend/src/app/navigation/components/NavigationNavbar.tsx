@@ -86,6 +86,7 @@ export default function NavigationNavbar({
                     to={brandTo}
                     name={brandName}
                     logoUrl={resolveLogoUrl(appConfig.theme, theme.palette.mode)}
+                    icon={appConfig.theme.icon}
                     size={isXs ? "sm" : "md"}
                     showText={!isXs}
                 />
