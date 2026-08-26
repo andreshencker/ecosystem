@@ -184,6 +184,19 @@ describe('ApplicationsService', () => {
       expect(patch.countryRestriction).toEqual({ enabled: true, countries: ['AU', 'NZ'] });
     });
 
+    it('clears theme.logoUrl to null when explicitly sent as null (not just dropped when omitted)', async () => {
+      applications.__findOneChain.lean.mockResolvedValue({
+        key: 'jtrade', name: 'JTrade', description: 'd', launchUrl: 'https://jtrade', ownership: 'first_party', status: 'active', displayOrder: 3,
+        theme: { ...DEFAULT_THEME, logoUrl: 'https://cdn.example.com/logo.png' }, defaultAccess: DEFAULT_ACCESS, countryRestriction: DEFAULT_COUNTRY_RESTRICTION, allowedFlows: ['client', 'provider', 'internal'],
+      });
+      applications.__updateChain.lean.mockResolvedValue({});
+
+      await service.updateApplication('jtrade', { theme: { logoUrl: null } as any });
+
+      const patch = applications.findOneAndUpdate.mock.calls[0][1].$set;
+      expect(patch.theme.logoUrl).toBeNull();
+    });
+
     it('throws when the application does not exist', async () => {
       applications.__findOneChain.lean.mockResolvedValue(null);
       await expect(service.updateApplication('ghost', { description: 'x' })).rejects.toBeInstanceOf(NotFoundException);

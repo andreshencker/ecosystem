@@ -251,8 +251,12 @@ export class ApplicationsService implements OnApplicationBootstrap {
     if (!patch) return current;
     const merged = {
       icon: patch.icon ?? current.icon,
-      logoUrl: patch.logoUrl ?? current.logoUrl,
-      fontFamily: patch.fontFamily ?? current.fontFamily,
+      // logoUrl/fontFamily are string | null — null is a meaningful "clear it"
+      // value the admin form sends explicitly, distinct from "key omitted"
+      // (undefined). ?? would treat both the same and silently keep the old
+      // value, so a Remove action could never actually clear the field.
+      logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : current.logoUrl,
+      fontFamily: patch.fontFamily !== undefined ? patch.fontFamily : current.fontFamily,
       light: { ...current.light, ...patch.light },
       dark: { ...current.dark, ...patch.dark },
     };
