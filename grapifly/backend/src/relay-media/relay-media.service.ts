@@ -3,7 +3,9 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
-import FormData from 'form-data';
+// form-data is CommonJS-only and this project doesn't have esModuleInterop
+// enabled — a default import compiles to a broken `.default` reference here.
+import FormData = require('form-data');
 import { firstValueFrom } from 'rxjs';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 
@@ -55,6 +57,10 @@ export class RelayMediaService {
     }
 
     const form = new FormData();
+    // Relay's DTO requires a syntactically valid companyId, but GlobalAuthGuard
+    // always overrides it with the company resolved from the service secret +
+    // x-grapifly-organization-id header — this value is never actually used.
+    form.append('companyId', '000000000000000000000000');
     form.append('domain', 'grapifly');
     form.append('kind', 'application-logo');
     form.append('entityId', applicationKey);

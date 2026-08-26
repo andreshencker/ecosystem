@@ -74,6 +74,7 @@ export default function ApplicationsPage() {
   const [formError, setFormError] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoMode, setLogoMode] = useState<'upload' | 'url'>('url');
 
   const load = useCallback(() => {
     return fetch(`${apiUrl}/admin/applications`, { credentials: 'include' }).then(async response => {
@@ -97,10 +98,10 @@ export default function ApplicationsPage() {
   }, [apps, query, statusFilter, ownershipFilter]);
 
   function openCreate() {
-    setDrawerMode('create'); setDrawerApp(null); setForm(emptyForm()); setFormError(''); setCreatedSecret(null);
+    setDrawerMode('create'); setDrawerApp(null); setForm(emptyForm()); setFormError(''); setCreatedSecret(null); setLogoMode('url');
   }
   function openEdit(app: AppEntry) {
-    setDrawerMode('edit'); setDrawerApp(app); setForm(formFromApp(app)); setFormError(''); setCreatedSecret(null);
+    setDrawerMode('edit'); setDrawerApp(app); setForm(formFromApp(app)); setFormError(''); setCreatedSecret(null); setLogoMode(app.theme.logoUrl ? 'url' : 'upload');
   }
   function closeDrawer() {
     if (saving) return;
@@ -230,16 +231,28 @@ export default function ApplicationsPage() {
             <label className="drawer-field"><span>Icon</span><input value={form.theme.icon} onChange={event => setForm({ ...form, theme: { ...form.theme, icon: event.target.value } })} placeholder="🧩" /></label>
             <label className="drawer-field"><span>Font family</span><input value={form.theme.fontFamily ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, fontFamily: event.target.value || null } })} placeholder="Inherit default" /></label>
           </div>
-          <label className="drawer-field"><span>Logo URL</span>
-            <div className="logo-url-row">
-              <input value={form.theme.logoUrl ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, logoUrl: event.target.value || null } })} placeholder="https://" />
-              {drawerMode === 'edit' && <label className="logo-upload-button">
-                {uploadingLogo ? 'Uploading…' : 'Upload'}
-                <input type="file" accept="image/*" hidden disabled={uploadingLogo} onChange={event => { const file = event.target.files?.[0]; if (file) handleLogoUpload(file); event.target.value = ''; }} />
-              </label>}
+          <div className="logo-section">
+            <span className="drawer-subsection-title">Logo</span>
+            <div className="logo-preview-large">{form.theme.logoUrl
+              ? <img src={form.theme.logoUrl} alt="" onError={event => { event.currentTarget.style.visibility = 'hidden'; }} onLoad={event => { event.currentTarget.style.visibility = 'visible'; }} />
+              : <span>{form.theme.icon || '?'}</span>}</div>
+
+            <div className="logo-mode-toggle">
+              <button type="button" className={logoMode === 'upload' ? 'active' : ''} disabled={drawerMode === 'create'} onClick={() => setLogoMode('upload')}>Upload</button>
+              <button type="button" className={logoMode === 'url' ? 'active' : ''} onClick={() => setLogoMode('url')}>URL</button>
             </div>
-            {drawerMode === 'create' && <small className="drawer-field-hint">Save the application first to enable image upload — paste a URL for now.</small>}
-          </label>
+
+            {logoMode === 'upload' ? (
+              drawerMode === 'edit' ? <>
+                <label className="logo-upload-dropzone">
+                  {uploadingLogo ? 'Uploading…' : 'Choose an image…'}
+                  <input type="file" accept="image/*" hidden disabled={uploadingLogo} onChange={event => { const file = event.target.files?.[0]; if (file) handleLogoUpload(file); event.target.value = ''; }} />
+                </label>
+              </> : <small className="drawer-field-hint">Save the application first to enable image upload.</small>
+            ) : (
+              <input value={form.theme.logoUrl ?? ''} onChange={event => setForm({ ...form, theme: { ...form.theme, logoUrl: event.target.value || null } })} placeholder="https://" />
+            )}
+          </div>
           <div className="theme-palette-group">
             <span className="drawer-subsection-title">Light palette</span>
             <div className="drawer-field-row theme-palette-row">

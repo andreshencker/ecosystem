@@ -259,9 +259,16 @@ footer { height:110px;border-top:1px solid var(--line);display:flex;align-items:
 .color-input-group{display:flex;align-items:center;gap:8px;min-width:0}
 .color-input-group input[type=color]{width:38px;height:38px;flex-shrink:0;padding:2px;border:1px solid #dcdce4;border-radius:10px;background:#fff;cursor:pointer}
 .color-input-group input[type=text]{flex:1;min-width:0}
-.logo-url-row{display:flex;align-items:center;gap:8px;min-width:0}
-.logo-url-row input{flex:1;min-width:0}
-.logo-upload-button{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border:1px solid #dcdce4;border-radius:12px;font-size:13px;font-weight:650;color:#333;background:#f1f1f4;cursor:pointer}
+.logo-section{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;border:1px solid var(--line);border-radius:14px;background:#fafafd}
+.logo-section>.drawer-subsection-title{align-self:flex-start}
+.logo-preview-large{width:88px;height:88px;border-radius:18px;border:1px solid #dcdce4;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:32px;flex-shrink:0}
+.logo-preview-large img{width:100%;height:100%;object-fit:contain}
+.logo-mode-toggle{display:inline-flex;border:1px solid #dcdce4;border-radius:999px;padding:3px;background:#fff}
+.logo-mode-toggle button{border:0;background:transparent;padding:7px 18px;border-radius:999px;font-size:12px;font-weight:650;color:#666;cursor:pointer}
+.logo-mode-toggle button.active{background:#111116;color:#fff}
+.logo-mode-toggle button:disabled{opacity:.4;cursor:not-allowed}
+.logo-section input{width:100%;min-width:0;border:1px solid #dcdce4;border-radius:12px;padding:12px 13px;font:inherit;font-size:13px;background:#fff;box-sizing:border-box}
+.logo-upload-dropzone{width:100%;display:flex;align-items:center;justify-content:center;padding:16px;border:1.5px dashed #c8c8d4;border-radius:12px;font-size:13px;font-weight:600;color:#555;background:#fff;cursor:pointer;text-align:center}
 .drawer-field-hint{font-size:11px;color:#777}
 @media(max-width:600px){.drawer{width:100%}.drawer-field-row,.theme-palette-row{grid-template-columns:1fr}}
 
