@@ -7,6 +7,7 @@ interface ThemePalette { primaryColor: string; backgroundColor: string; textColo
 interface Theme { icon: string; logoUrl: string | null; light: ThemePalette; dark: ThemePalette }
 interface EnabledApp {
   key: string; name: string; description: string; launchUrl: string; theme: Theme;
+  tier: 'trial' | 'free' | 'paid';
   memberRole: string | null; memberStatus: 'active' | 'suspended' | 'revoked' | 'inactive';
 }
 
@@ -43,8 +44,8 @@ function MyAppsContent() {
     {selectedOrganization && state === 'ready' && apps.length > 0 && <div className="my-apps-grid">
       {apps.map(app => <article key={app.key} className="my-apps-card" style={{ background: app.theme.light.backgroundColor }}>
         <div className="my-apps-card-top">
-          <span className="my-apps-icon" style={{ color: app.theme.light.primaryColor }}>{app.theme.icon || app.name[0]}</span>
-          {app.memberRole && <span className="status-badge active">{app.memberRole}</span>}
+          <span className="my-apps-icon" style={{ color: app.theme.light.primaryColor }}>{app.theme.logoUrl ? <img src={app.theme.logoUrl} alt="" /> : (app.theme.icon || app.name[0])}</span>
+          <span className="status-badge active">{app.tier}</span>
         </div>
         <div><h3>{app.name}</h3><p>{app.description}</p></div>
         <footer><a href={app.launchUrl} style={{ color: app.theme.light.primaryColor }}>Open ↗</a></footer>

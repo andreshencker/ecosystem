@@ -191,7 +191,7 @@ export default function ApplicationsPage() {
 
       <div className="users-table-wrap"><table className="users-table app-table"><thead><tr><th>Application</th><th>Status</th><th>Ownership</th><th></th></tr></thead><tbody>
         {filtered.map(app => <tr key={app.key}>
-          <td><div className="app-row-identity"><span className="app-swatch" style={{ background: app.theme.light.backgroundColor, color: app.theme.light.primaryColor }}>{app.theme.icon || app.name[0]}</span><div><strong>{app.name}</strong><small>{app.key}</small></div></div></td>
+          <td><div className="app-row-identity"><span className="app-swatch" style={{ background: app.theme.light.backgroundColor, color: app.theme.light.primaryColor }}>{app.theme.logoUrl ? <img src={app.theme.logoUrl} alt="" /> : (app.theme.icon || app.name[0])}</span><div><strong>{app.name}</strong><small>{app.key}</small></div></div></td>
           <td><span className={`status-badge ${app.status}`}>{app.status}</span></td>
           <td>{app.ownership === 'first_party' ? 'Grapifly app' : 'Third-party app'}</td>
           <td><div className="role-row-actions"><button type="button" title="Edit application" aria-label="Edit application" onClick={() => openEdit(app)}><EditIcon /></button><button type="button" className="danger" title="Delete application" aria-label="Delete application" onClick={() => handleDelete(app)}><DeleteIcon /></button></div></td>
