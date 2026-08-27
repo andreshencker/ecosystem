@@ -17,7 +17,7 @@ export default function AppSwitcherPopover() {
 
     const { data, isLoading, isError, error } = useQuery<EnabledApp[]>({
         queryKey: ["app-switcher"],
-        queryFn: () => api.get("/app-switcher").then(r => r.data.applications),
+        queryFn: () => api.get("/app-switcher").then(r => r.data.data.applications),
         enabled: open,
         retry: 1,
     });

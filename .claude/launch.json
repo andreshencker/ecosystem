@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jtrade-frontend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd '/Volumes/mac mini/projects/ecosystem/jtrade/frontend' && exec npm run dev -- --host"],
+      "port": 5173
+    },
+    {
+      "name": "jtrade-backend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd '/Volumes/mac mini/projects/ecosystem/jtrade/backend' && exec npm run start:dev"],
+      "port": 3202
+    }
+  ]
+}

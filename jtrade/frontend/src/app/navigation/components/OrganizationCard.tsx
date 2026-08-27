@@ -40,7 +40,7 @@ export default function OrganizationCard() {
 
     const { data, isLoading, isError, error } = useQuery<JtradeOrganization[]>({
         queryKey: ["grapifly-organizations"],
-        queryFn: () => api.get("/organizations").then(r => r.data.organizations),
+        queryFn: () => api.get("/organizations").then(r => r.data.data.organizations),
         enabled: Boolean(user),
         staleTime: 60_000,
         retry: 1,
