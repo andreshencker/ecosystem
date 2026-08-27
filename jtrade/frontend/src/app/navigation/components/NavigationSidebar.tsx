@@ -53,7 +53,11 @@ function SidebarContent({
                 minHeight: 0,
             }}
         >
-            {!collapsed && <OrganizationCard />}
+            {!collapsed && (
+                <Box pt={1.5}>
+                    <OrganizationCard />
+                </Box>
+            )}
             <List
                 dense
                 subheader={
