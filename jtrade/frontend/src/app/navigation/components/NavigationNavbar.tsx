@@ -19,11 +19,11 @@ import AvatarBlock from "./AvatarBlock";
 import AppSwitcherPopover from "./AppSwitcherPopover";
 import { useAppConfig } from "@/app/providers/AppConfigProvider";
 import { resolveLogoUrl } from "@/app/config/app-config";
+import { useUIStore } from "@/app/stores/ui.store";
 
 type Props = {
     config: NavigationConfig;
     categories: Extract<NavbarItem, { type: "category" }>[];
-    activeCategoryKey: string | null;
     onSelectCategory: (key: string) => void;
     onToggleSidebar: () => void;
     onOpenPopover: (el: HTMLElement) => void;
@@ -32,12 +32,12 @@ type Props = {
 
 export default function NavigationNavbar({
                                              config,
-                                             activeCategoryKey,
                                              onSelectCategory,
                                              onToggleSidebar,
                                              onOpenPopover,
                                              headerHeight,
                                          }: Props) {
+    const activeCategoryKey = useUIStore((s) => s.activeCategoryKey);
     const theme = useTheme();
     const isXs = useMediaQuery(theme.breakpoints.down("sm"));
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));

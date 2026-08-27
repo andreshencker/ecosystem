@@ -15,22 +15,18 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import type { SidebarItem } from "../types";
 import OrganizationCard from "./OrganizationCard";
+import { useUIStore } from "@/app/stores/ui.store";
 
 type Props = {
-    open: boolean;
-    onClose: () => void;
     desktop: boolean;
     headerHeight: number;
     drawerWidth: number;
-    collapsed?: boolean;
     items: SidebarItem[];
-    activeCategoryKey: string | null;
 };
 
 type SidebarContentProps = {
     items: SidebarItem[];
     collapsed?: boolean;
-    activeCategoryKey: string | null;
     pathname: string;
     desktop: boolean;
     onClose: () => void;
@@ -39,11 +35,11 @@ type SidebarContentProps = {
 function SidebarContent({
                             items,
                             collapsed = false,
-                            activeCategoryKey,
                             pathname,
                             desktop,
                             onClose,
                         }: SidebarContentProps) {
+    const activeCategoryKey = useUIStore((s) => s.activeCategoryKey);
     return (
         <Box
             sx={{
@@ -151,18 +147,17 @@ function SidebarContent({
 }
 
 export default function NavigationSidebar({
-                                              open,
-                                              onClose,
                                               desktop,
                                               headerHeight,
                                               drawerWidth,
-                                              collapsed = false,
                                               items,
-                                              activeCategoryKey,
                                           }: Props) {
     const { pathname } = useLocation();
     const theme = useTheme();
     const isXs = useMediaQuery(theme.breakpoints.down("sm"));
+    const collapsed = useUIStore((s) => s.sidebarCollapsed);
+    const mobileOpen = useUIStore((s) => s.sidebarOpen);
+    const setMobileOpen = useUIStore((s) => s.setSidebarOpen);
 
     const mobileDrawerWidth = isXs ? "82vw" : 320;
 
@@ -185,10 +180,9 @@ export default function NavigationSidebar({
                 <SidebarContent
                     items={items}
                     collapsed={collapsed}
-                    activeCategoryKey={activeCategoryKey}
                     pathname={pathname}
                     desktop
-                    onClose={onClose}
+                    onClose={() => {}}
                 />
             </Box>
         );
@@ -197,8 +191,8 @@ export default function NavigationSidebar({
     return (
         <Drawer
             variant="temporary"
-            open={open}
-            onClose={onClose}
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
             ModalProps={{ keepMounted: true }}
             sx={{
                 "& .MuiDrawer-paper": {
@@ -226,10 +220,9 @@ export default function NavigationSidebar({
                 <SidebarContent
                     items={items}
                     collapsed={false}
-                    activeCategoryKey={activeCategoryKey}
                     pathname={pathname}
                     desktop={false}
-                    onClose={onClose}
+                    onClose={() => setMobileOpen(false)}
                 />
             </Box>
         </Drawer>

@@ -1,11 +1,12 @@
 import * as React from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import type { NavigationConfig } from "../types";
 import { useNavigationState } from "../state/navigation.state";
 import NavigationNavbar from "./NavigationNavbar";
 import NavigationSidebar from "./NavigationSidebar";
 import NavigationPopover from "./NavigationPopover";
+import { useUIStore } from "@/app/stores/ui.store";
 
 type Props = {
     config: NavigationConfig;
@@ -21,17 +22,20 @@ export default function NavigationLayout({
                                              drawerCollapsedWidth = 76,
                                          }: Props) {
     const theme = useTheme();
+    const navigate = useNavigate();
     const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
 
     const {
         categories,
-        activeCategoryKey,
         setActiveCategoryKey,
         sidebarItemsMerged,
     } = useNavigationState(config);
 
-    const [collapsed, setCollapsed] = React.useState(false);
-    const [mobileOpen, setMobileOpen] = React.useState(false);
+    const collapsed = useUIStore((s) => s.sidebarCollapsed);
+    const setCollapsed = useUIStore((s) => s.setSidebarCollapsed);
+    const mobileOpen = useUIStore((s) => s.sidebarOpen);
+    const setMobileOpen = useUIStore((s) => s.setSidebarOpen);
+    const toggleSidebar = useUIStore((s) => s.toggleSidebar);
     const [popoverAnchor, setPopoverAnchor] = React.useState<HTMLElement | null>(null);
 
     React.useEffect(() => {
@@ -40,16 +44,18 @@ export default function NavigationLayout({
         } else {
             setCollapsed(false);
         }
-    }, [isDesktop]);
+    }, [isDesktop, setMobileOpen, setCollapsed]);
 
     const effectiveDrawerWidth = collapsed ? drawerCollapsedWidth : drawerWidth;
 
     const handleToggleSidebar = () => {
-        if (isDesktop) {
-            setCollapsed((prev) => !prev);
-        } else {
-            setMobileOpen((prev) => !prev);
-        }
+        toggleSidebar(isDesktop);
+    };
+
+    const handleSelectCategory = (key: string) => {
+        setActiveCategoryKey(key);
+        const firstPage = config.sidebar.sections[key]?.[0];
+        if (firstPage) navigate(firstPage.path);
     };
 
     return (
@@ -65,8 +71,7 @@ export default function NavigationLayout({
                 <NavigationNavbar
                     config={config}
                     categories={categories}
-                    activeCategoryKey={activeCategoryKey}
-                    onSelectCategory={setActiveCategoryKey}
+                    onSelectCategory={handleSelectCategory}
                     onToggleSidebar={handleToggleSidebar}
                     onOpenPopover={(el) => setPopoverAnchor(el)}
                     headerHeight={headerHeight}
@@ -75,14 +80,10 @@ export default function NavigationLayout({
 
             {!isDesktop && config.layout.hasSidebar && (
                 <NavigationSidebar
-                    open={mobileOpen}
-                    onClose={() => setMobileOpen(false)}
                     desktop={false}
                     headerHeight={headerHeight}
                     drawerWidth={drawerWidth}
-                    collapsed={false}
                     items={sidebarItemsMerged}
-                    activeCategoryKey={activeCategoryKey}
                 />
             )}
 
@@ -97,14 +98,10 @@ export default function NavigationLayout({
             >
                 {isDesktop && config.layout.hasSidebar && (
                     <NavigationSidebar
-                        open
-                        onClose={() => {}}
                         desktop
                         headerHeight={headerHeight}
                         drawerWidth={effectiveDrawerWidth}
-                        collapsed={collapsed}
                         items={sidebarItemsMerged}
-                        activeCategoryKey={activeCategoryKey}
                     />
                 )}
 

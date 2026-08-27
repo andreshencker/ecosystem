@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import type { NavigationConfig, NavbarItem } from "../types";
+import { useUIStore } from "@/app/stores/ui.store";
 
 export function useNavigationState(cfg: NavigationConfig) {
+    const { pathname } = useLocation();
     const categories = useMemo(
         () =>
             cfg.navbar.filter(
@@ -10,12 +13,17 @@ export function useNavigationState(cfg: NavigationConfig) {
         [cfg.navbar],
     );
 
-    const [activeCategoryKey, setActiveCategoryKey] = useState<string | null>(null);
+    const activeCategoryKey = useUIStore((s) => s.activeCategoryKey);
+    const setActiveCategoryKey = useUIStore((s) => s.setActiveCategoryKey);
 
     useEffect(() => {
-        // default: primera categoría si existe
-        setActiveCategoryKey(categories[0]?.key ?? null);
-    }, [categories]);
+        const routeCategory = categories.find(category =>
+            (cfg.sidebar.sections[category.key] ?? []).some(item =>
+                pathname === item.path || pathname.startsWith(item.path + "/"),
+            ),
+        );
+        setActiveCategoryKey(routeCategory?.key ?? categories[0]?.key ?? null);
+    }, [categories, cfg.sidebar.sections, pathname, setActiveCategoryKey]);
 
     const sidebarItemsForActiveCategory = useMemo(() => {
         if (!activeCategoryKey) return [];

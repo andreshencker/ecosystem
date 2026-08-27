@@ -28,7 +28,8 @@
     "react-select": "^5.10.2",
     "react-toastify": "^11.0.5",
     "recharts": "^3.6.0",
-    "zod": "^4.0.17"
+    "zod": "^4.0.17",
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
