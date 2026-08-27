@@ -16,6 +16,26 @@ interface OrganizationResponse {
   organization: GrapiflyOrganizationContract;
 }
 
+export interface GrapiflyEnabledApplication {
+  key: string;
+  name: string;
+  description: string;
+  launchUrl: string;
+  theme: {
+    icon: string;
+    logoUrl: string | null;
+    light: { primaryColor: string; primaryContrastText: string; backgroundColor: string; textColor: string };
+    dark: { primaryColor: string; primaryContrastText: string; backgroundColor: string; textColor: string };
+  };
+  tier: 'trial' | 'free' | 'paid';
+}
+
+interface EnabledAppsResponse {
+  contractVersion: 2;
+  applications: GrapiflyEnabledApplication[];
+  total: number;
+}
+
 @Injectable()
 export class GrapiflyOrganizationService {
   constructor(
@@ -34,7 +54,18 @@ export class GrapiflyOrganizationService {
     return this.toRelayCompany(response.organization);
   }
 
-  private async request(ctx: AuthContext, method: 'get' | 'patch', data?: Record<string, unknown>): Promise<OrganizationResponse> {
+  /** Powers Relay's own "switch apps" (Google-waffle-style) menu — apps enabled for the active organization. */
+  async listEnabledApps(ctx: AuthContext): Promise<GrapiflyEnabledApplication[]> {
+    const response = await this.request<EnabledAppsResponse>(ctx, 'get', undefined, '/enabled-apps');
+    return response.applications;
+  }
+
+  private async request<T extends { contractVersion: 2 } = OrganizationResponse>(
+    ctx: AuthContext,
+    method: 'get' | 'patch',
+    data?: Record<string, unknown>,
+    subpath = '',
+  ): Promise<T> {
     const actor = await this.identity.findByIdOrThrow(ctx.userId!);
     if (!actor.grapiflyUserId || !ctx.grapiflyOrganizationId) {
       throw new UnauthorizedException('An active Grapifly organization session is required');
@@ -49,9 +80,9 @@ export class GrapiflyOrganizationService {
     if (!secret) throw new BadGatewayException('Grapifly integration is not configured');
     const base = (this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101').replace(/\/$/, '');
     try {
-      const response = await firstValueFrom(this.http.request<OrganizationResponse>({
+      const response = await firstValueFrom(this.http.request<T>({
         method,
-        url: `${base}/internal/apps/relay/organizations/${encodeURIComponent(ctx.grapiflyOrganizationId)}`,
+        url: `${base}/internal/apps/relay/organizations/${encodeURIComponent(ctx.grapiflyOrganizationId)}${subpath}`,
         data,
         headers: {
           'x-grapifly-sso-secret': secret,

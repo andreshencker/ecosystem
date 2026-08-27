@@ -60,4 +60,22 @@ export class AppOrganizationController {
       ),
     };
   }
+
+  /**
+   * Powers each app's own "switch apps" (Google-waffle-style) menu — the
+   * same enabled-apps list "My Apps" already shows a Grapifly user, just
+   * reachable server-to-server so Relay/jtrade's own backends can fetch it
+   * on behalf of their signed-in user without a Grapifly session cookie.
+   */
+  @Get('enabled-apps')
+  async listEnabledApps(
+    @Headers('x-grapifly-sso-secret') secret: string | undefined,
+    @Headers('x-grapifly-user-id') actorUserId: string,
+    @Param('appKey') appKey: string,
+    @Param('organizationId') organizationId: string,
+  ) {
+    await this.organizations.assertAppClient(appKey, secret);
+    const applications = await this.organizations.listEnabledApplications(actorUserId, organizationId);
+    return { contractVersion: 2, applications, total: applications.length };
+  }
 }

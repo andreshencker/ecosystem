@@ -41,4 +41,17 @@ describe('GrapiflyOrganizationService — secret resolution', () => {
       expect.objectContaining({ headers: expect.objectContaining({ 'x-grapifly-sso-secret': 'legacy-shared-secret' }) }),
     );
   });
+
+  it('listEnabledApps hits the /enabled-apps sub-path and returns the applications array', async () => {
+    config.get.mockImplementation((key: string) => ({ RELAY_SERVICE_SECRET: 'relay-own-secret' })[key]);
+    const applications = [{ key: 'relay', name: 'Relay', description: 'd', launchUrl: 'https://relay', theme: {}, tier: 'free' }];
+    http.request.mockReturnValue(of({ data: { contractVersion: 2, applications, total: 1 } }));
+
+    const result = await service.listEnabledApps(ctx);
+
+    expect(http.request).toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringContaining('/internal/apps/relay/organizations/gpf_org_acme/enabled-apps') }),
+    );
+    expect(result).toEqual(applications);
+  });
 });

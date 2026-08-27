@@ -2,6 +2,7 @@ import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EcosystemTeamController } from './controllers/ecosystem-team.controller';
+import { AppSwitcherController } from './controllers/app-switcher.controller';
 import { GrapiflyOrganizationService } from './services/grapifly-organization.service';
 import { GrapiflyTeamService } from './services/grapifly-team.service';
 import { EcosystemIdentityService } from './identity/ecosystem-identity.service';
@@ -21,7 +22,7 @@ import { CompanyProvisioningModule } from '../communication/company/provisioning
     ]),
     CompanyProvisioningModule,
   ],
-  controllers: [EcosystemTeamController, CommunicationTokenValidatorController],
+  controllers: [EcosystemTeamController, CommunicationTokenValidatorController, AppSwitcherController],
   providers: [
     EcosystemIdentityService,
     EcosystemBootstrapService,

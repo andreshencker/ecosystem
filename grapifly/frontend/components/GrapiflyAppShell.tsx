@@ -4,6 +4,7 @@ import { createContext, ReactNode, useContext, useEffect, useMemo, useState } fr
 import { usePathname } from 'next/navigation';
 import { BrandMark } from './BrandMark';
 import { AccountMenu } from './AccountMenu';
+import { AppSwitcher } from './AppSwitcher';
 import { getVisibleNavigation, GrapiflyCapability, NavigationMode } from '@/config/navigation.config';
 
 interface ShellUser { grapiflyUserId: string; displayName: string; email: string; avatarUrl: string | null }
@@ -107,7 +108,7 @@ export function GrapiflyAppShell({ children }: { children: ReactNode }) {
         <button className="shell-signout" onClick={logout} title="Sign out"><i>↪</i><span>Sign out</span></button>
       </aside>
       <section className="grapifly-workspace">
-        <header className="grapifly-topbar"><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation">☰</button><div><span>{selectedOrganization?.name ?? 'Personal'}</span><small>Grapifly ecosystem</small></div><AccountMenu user={user} onSignOut={logout} /></header>
+        <header className="grapifly-topbar"><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation">☰</button><div><span>{selectedOrganization?.name ?? 'Personal'}</span><small>Grapifly ecosystem</small></div><AppSwitcher organizationId={selectedOrganization?.organizationId ?? null} /><AccountMenu user={user} onSignOut={logout} /></header>
         <div className="grapifly-page-content">{children}</div>
       </section>
     </main>

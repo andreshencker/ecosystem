@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { NavLink, useLocation } from "react-router-dom";
 import type { SidebarItem } from "../types";
+import OrganizationCard from "./OrganizationCard";
 
 type Props = {
     open: boolean;
@@ -52,6 +53,7 @@ function SidebarContent({
                 minHeight: 0,
             }}
         >
+            {!collapsed && <OrganizationCard />}
             <List
                 dense
                 subheader={

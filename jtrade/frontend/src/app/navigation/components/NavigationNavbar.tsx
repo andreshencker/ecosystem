@@ -16,6 +16,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import type { NavigationConfig, NavbarItem } from "../types";
 import AppBrand from "./AppBrand";
 import AvatarBlock from "./AvatarBlock";
+import AppSwitcherPopover from "./AppSwitcherPopover";
 import { useAppConfig } from "@/app/providers/AppConfigProvider";
 import { resolveLogoUrl } from "@/app/config/app-config";
 
@@ -147,6 +148,8 @@ export default function NavigationNavbar({
 
                 {/* POPOVER */}
                 {config.layout.hasPopover && (
+                    <>
+                    <AppSwitcherPopover />
                     <ButtonBase
                         onClick={(e) => onOpenPopover(e.currentTarget)}
                         sx={{
@@ -164,6 +167,7 @@ export default function NavigationNavbar({
                     >
                         <AvatarBlock size={32} showName={false} />
                     </ButtonBase>
+                    </>
                 )}
             </Toolbar>
         </AppBar>

@@ -9,13 +9,18 @@ import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import MenuIcon from '@mui/icons-material/Menu';
-import { useTheme } from '@mui/material/styles';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import { alpha, useTheme } from '@mui/material/styles';
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
 import { TopbarChannelTabs } from './TopbarChannelTabs';
+import { AppSwitcherMenu } from './AppSwitcherMenu';
+import { useAppThemeMode } from '@/providers/ThemeRegistry';
 
 interface TopbarProps {
   onMenuToggle: () => void;
@@ -32,6 +37,7 @@ function getInitials(name: string): string {
 export function Topbar({ onMenuToggle, user }: TopbarProps) {
   const theme = useTheme();
   const { logout } = useAuth();
+  const { mode, toggleMode } = useAppThemeMode();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const menuOpen = Boolean(anchorEl);
 
@@ -60,7 +66,7 @@ export function Topbar({ onMenuToggle, user }: TopbarProps) {
         zIndex: theme.zIndex.drawer + 1,
         ml: { md: `${SIDEBAR_WIDTH}px` },
         width: { md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
-        backgroundColor: 'rgba(255,255,255,.82)',
+        backgroundColor: alpha(theme.palette.background.paper, .86),
         backdropFilter: 'blur(20px) saturate(150%)',
       }}
     >
@@ -87,6 +93,9 @@ export function Topbar({ onMenuToggle, user }: TopbarProps) {
 
         {/* Channel tabs — right-aligned, next to the user's avatar */}
         <TopbarChannelTabs />
+
+        {/* Switch to another ecosystem app */}
+        <AppSwitcherMenu />
 
         {/* Right: user avatar */}
         {user && (
@@ -129,6 +138,13 @@ export function Topbar({ onMenuToggle, user }: TopbarProps) {
                 paper: { sx: { mt: 1, minWidth: 180 } },
               }}
             >
+              <MenuItem onClick={toggleMode}>
+                <ListItemIcon>
+                  {mode === 'light' ? <DarkModeOutlinedIcon fontSize="small" /> : <LightModeOutlinedIcon fontSize="small" />}
+                </ListItemIcon>
+                {mode === 'light' ? 'Dark theme' : 'Light theme'}
+              </MenuItem>
+              <Divider />
               <MenuItem
                 component={Link}
                 href="/settings/profile"
