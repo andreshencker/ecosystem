@@ -15,11 +15,17 @@ export default function AppSwitcherPopover() {
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
 
-    const { data, isLoading } = useQuery<EnabledApp[]>({
+    const { data, isLoading, isError, error } = useQuery<EnabledApp[]>({
         queryKey: ["app-switcher"],
         queryFn: () => api.get("/app-switcher").then(r => r.data.applications),
         enabled: open,
+        retry: 1,
     });
+
+    if (isError) {
+        // eslint-disable-next-line no-console
+        console.error("[AppSwitcherPopover] failed to load enabled apps:", error);
+    }
 
     return (
         <>
@@ -35,8 +41,9 @@ export default function AppSwitcherPopover() {
                 slotProps={{ paper: { sx: { mt: 1, width: 280, p: 1.5 } } }}
             >
                 {isLoading && <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>Loading apps…</Typography>}
-                {!isLoading && (data?.length ?? 0) === 0 && <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>No apps enabled yet.</Typography>}
-                {!isLoading && (data?.length ?? 0) > 0 && (
+                {!isLoading && isError && <Typography variant="body2" color="error" textAlign="center" py={2}>Apps could not be loaded.</Typography>}
+                {!isLoading && !isError && (data?.length ?? 0) === 0 && <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>No apps enabled yet.</Typography>}
+                {!isLoading && !isError && (data?.length ?? 0) > 0 && (
                     <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={0.5}>
                         {data!.map((app) => (
                             <Box
