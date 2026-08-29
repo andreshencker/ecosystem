@@ -1,12 +1,10 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
-import { RelayPlatformsController } from './relay-platforms.controller';
-import { RelayPlatformsService } from './relay-platforms.service';
+import { RelayStorageService } from './relay-storage.service';
 
 @Module({
   imports: [HttpModule],
-  controllers: [RelayPlatformsController],
-  providers: [RelayPlatformsService],
-  exports: [HttpModule, RelayPlatformsService],
+  providers: [RelayStorageService],
+  exports: [HttpModule, RelayStorageService],
 })
 export class RelayIntegrationModule {}

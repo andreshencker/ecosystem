@@ -38,7 +38,6 @@ import { PaymentsModule } from './payments/payments.module';
 import { AccountingModule } from './accounting/accounting.module';
 import { EcosystemModule } from './ecosystem/ecosystem.module';
 import { GrapiflyIntegrationModule } from './integrations/grapifly/grapifly-integration.module';
-import { PlatformsModule } from './platforms/platforms.module';
 
 @Module({
   imports: [
@@ -74,9 +73,6 @@ import { PlatformsModule } from './platforms/platforms.module';
     DomainCatalogueModule,
     FilesModule,
     PreviewModule,
-
-    // ── Reference data
-    PlatformsModule,
 
     // ── Calendar
     CalendarModule,

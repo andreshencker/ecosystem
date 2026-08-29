@@ -5,8 +5,8 @@ import { AuthModule } from './core/auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { TypeProjectsModule } from './core/type-projects/type-projects.module';
 import { GrapiflyIntegrationModule } from './integrations/grapifly/grapifly-integration.module';
-import { RelayIntegrationModule } from './integrations/relay/relay-integration.module';
 import { ProductsModule } from './core/products/products.module';
+import { PlatformsModule } from './core/platforms/platforms.module';
 
 @Module({
   imports: [
@@ -17,9 +17,9 @@ import { ProductsModule } from './core/products/products.module';
     DatabaseModule,
     AuthModule,
     TypeProjectsModule,
+    PlatformsModule,
     ProductsModule,
     GrapiflyIntegrationModule,
-    RelayIntegrationModule,
   ],
   providers: [],
   controllers: [],
