@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import type { Request } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApplicationRole, type AuthContext } from '../auth/types/auth-context';
-import { CreateProductDto, CreateProductVersionDto, UpdateProductDto } from './dto/product.dto';
+import { CreateProductDto, CreateProductVersionDto, ReplaceProductVersionFileDto, UpdateProductDto } from './dto/product.dto';
 import { ProductsService } from './products.service';
 
 type AuthRequest = Request & { user: AuthContext };
+const uploadInterceptor = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 @Controller('products')
 export class ProductsController {
@@ -43,11 +46,46 @@ export class ProductsController {
 
   @Roles(ApplicationRole.PROVIDER)
   @Post(':id/versions')
-  version(@Req() req: AuthRequest, @Param('id') id: string, @Body() dto: Omit<CreateProductVersionDto, 'productId'>) {
-    return this.service.createVersion(req.user, { ...dto, productId: id });
+  @UseInterceptors(uploadInterceptor)
+  createVersion(
+    @Req() req: AuthRequest,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: CreateProductVersionDto,
+  ) {
+    return this.service.createVersion(req.user, id, file, dto);
   }
 
   @Roles(ApplicationRole.PROVIDER)
   @Get(':id/versions')
   versions(@Req() req: AuthRequest, @Param('id') id: string) { return this.service.listVersions(req.user, id); }
+
+  @Roles(ApplicationRole.PROVIDER)
+  @Put(':id/versions/:versionId/file')
+  @UseInterceptors(uploadInterceptor)
+  replaceVersionFile(
+    @Req() req: AuthRequest,
+    @Param('versionId') versionId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: ReplaceProductVersionFileDto,
+  ) {
+    return this.service.replaceVersionFile(req.user, versionId, file, dto);
+  }
+
+  @Roles(ApplicationRole.PROVIDER)
+  @Patch(':id/versions/:versionId/current')
+  markCurrentVersion(@Req() req: AuthRequest, @Param('versionId') versionId: string) {
+    return this.service.markCurrentVersion(req.user, versionId);
+  }
+
+  @Roles(ApplicationRole.PROVIDER)
+  @Get(':id/versions/:versionId/download')
+  downloadVersion(
+    @Req() req: AuthRequest,
+    @Param('versionId') versionId: string,
+    @Query('expiresInSeconds') expiresInSeconds?: string,
+  ) {
+    const parsed = expiresInSeconds ? Number(expiresInSeconds) : undefined;
+    return this.service.downloadVersion(req.user, versionId, Number.isFinite(parsed) ? parsed : undefined);
+  }
 }

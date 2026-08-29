@@ -1,5 +1,7 @@
-import { IsArray, IsIn, IsMongoId, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsIn, IsMongoId, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+
+const toBoolean = ({ value }: { value: unknown }) => value === true || value === 'true' || value === '1';
 
 export class ProductPlatformDto {
   @IsMongoId() platformId!: string;
@@ -27,15 +29,14 @@ export class UpdateProductDto {
 }
 
 export class CreateProductVersionDto {
-  @IsMongoId() productId!: string;
   @IsMongoId() platformId!: string;
   @IsString() @MinLength(1) @MaxLength(50) version!: string;
-  @IsString() fileName!: string;
-  @IsOptional() @IsString() originalFileName?: string;
-  @IsString() extension!: string;
-  @IsString() fileKey!: string;
-  @IsOptional() size?: number;
-  @IsOptional() @IsString() contentType?: string;
   @IsOptional() @IsString() @MaxLength(4000) releaseNotes?: string;
-  @IsOptional() @IsIn(['draft', 'published', 'deprecated']) status?: string;
+  @IsOptional() @Transform(toBoolean) @IsBoolean() isCurrentVersion?: boolean;
+}
+
+export class ReplaceProductVersionFileDto {
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(50) version?: string;
+  @IsOptional() @IsString() @MaxLength(4000) releaseNotes?: string;
+  @IsOptional() @Transform(toBoolean) @IsBoolean() isCurrentVersion?: boolean;
 }

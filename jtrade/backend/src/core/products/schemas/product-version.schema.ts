@@ -19,6 +19,7 @@ export class ProductVersion {
   @Prop({ trim: true, default: 'application/octet-stream' }) contentType!: string;
   @Prop({ trim: true, default: '' }) releaseNotes!: string;
   @Prop({ required: true, enum: ['draft', 'published', 'deprecated'], default: 'draft', index: true }) status!: string;
+  @Prop({ type: Boolean, default: false, index: true }) isCurrentVersion!: boolean;
   @Prop({ required: true, trim: true }) createdByGrapiflyUserId!: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -27,3 +28,7 @@ export class ProductVersion {
 export const ProductVersionSchema = SchemaFactory.createForClass(ProductVersion);
 ProductVersionSchema.index({ productId: 1, platformId: 1, version: 1 }, { unique: true });
 ProductVersionSchema.index({ providerOrganizationId: 1, productId: 1, createdAt: -1 });
+ProductVersionSchema.index(
+  { productId: 1, platformId: 1, isCurrentVersion: 1 },
+  { unique: true, partialFilterExpression: { isCurrentVersion: true } },
+);

@@ -4,7 +4,8 @@ import { Model, Types } from 'mongoose';
 import { TypeProduct, TypeProductDocument } from '../type-products/schemas/type-product.schema';
 import type { AuthContext } from '../auth/types/auth-context';
 import { PlatformsService } from '../platforms/platforms.service';
-import { CreateProductDto, CreateProductVersionDto, UpdateProductDto } from './dto/product.dto';
+import { RelayStorageService } from '../../integrations/relay/relay-storage.service';
+import { CreateProductDto, CreateProductVersionDto, ReplaceProductVersionFileDto, UpdateProductDto } from './dto/product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { ProductVersion, ProductVersionDocument } from './schemas/product-version.schema';
 
@@ -15,6 +16,7 @@ export class ProductsService {
     @InjectModel(ProductVersion.name) private readonly versions: Model<ProductVersionDocument>,
     @InjectModel(TypeProduct.name) private readonly types: Model<TypeProductDocument>,
     private readonly platforms: PlatformsService,
+    private readonly relayStorage: RelayStorageService,
   ) {}
 
   async create(context: AuthContext, dto: CreateProductDto) {
@@ -80,29 +82,103 @@ export class ProductsService {
     return updated;
   }
 
-  async createVersion(context: AuthContext, dto: CreateProductVersionDto) {
-    const product = await this.products.findOne({ _id: this.objectId(dto.productId), providerOrganizationId: context.organizationId }).lean();
-    if (!product) throw new NotFoundException('Product not found');
+  async createVersion(context: AuthContext, productId: string, file: Express.Multer.File | undefined, dto: CreateProductVersionDto) {
+    if (!file) throw new BadRequestException('file is required');
+    const product = await this.findMineForPlatform(context, productId, dto.platformId);
     const platformId = this.objectId(dto.platformId);
-    if (!product.platforms.some((entry) => String(entry.platformId) === String(platformId))) {
-      throw new BadRequestException('Platform is not configured for this product');
-    }
+    const version = dto.version.trim();
+    const extension = this.extensionFromOriginalName(file.originalname);
+    const fileName = `${version}.${extension}`;
+
+    const uploaded = await this.relayStorage.uploadProductVersionFile(file, context.organizationId, dto.platformId, fileName);
+
     try {
-      return await this.versions.create({
+      const created = await this.versions.create({
         providerOrganizationId: context.organizationId, productId: product._id, platformId,
-        version: dto.version.trim(), fileName: dto.fileName.trim(), originalFileName: dto.originalFileName?.trim() ?? '',
-        extension: dto.extension.trim().toLowerCase(), fileKey: dto.fileKey.trim(), size: dto.size ?? 0,
-        contentType: dto.contentType?.trim() ?? 'application/octet-stream', releaseNotes: dto.releaseNotes?.trim() ?? '',
-        status: 'draft', createdByGrapiflyUserId: context.grapiflyUserId,
+        version, fileName: uploaded.fileName, originalFileName: file.originalname,
+        extension, fileKey: uploaded.key, size: uploaded.size, contentType: uploaded.contentType,
+        releaseNotes: dto.releaseNotes?.trim() ?? '', status: 'draft', isCurrentVersion: false,
+        createdByGrapiflyUserId: context.grapiflyUserId,
       });
+      if (!dto.isCurrentVersion) return created;
+      await this.promoteCurrentVersion(product._id, platformId, created._id, version);
+      return this.versions.findById(created._id).lean();
     } catch (error: any) {
       if (error?.code === 11000) throw new ConflictException('This product version already exists for the platform');
       throw error;
     }
   }
 
+  async replaceVersionFile(context: AuthContext, versionId: string, file: Express.Multer.File | undefined, dto: ReplaceProductVersionFileDto) {
+    if (!file) throw new BadRequestException('file is required');
+    const existing = await this.findVersionMine(context, versionId);
+    const version = dto.version?.trim() || existing.version;
+    const extension = this.extensionFromOriginalName(file.originalname);
+    const fileName = `${version}.${extension}`;
+
+    const uploaded = await this.relayStorage.replaceProductVersionFile(
+      file, existing.fileKey, context.organizationId, String(existing.platformId), fileName,
+    );
+
+    const updated = await this.versions.findByIdAndUpdate(existing._id, {
+      $set: {
+        version, fileName: uploaded.fileName, originalFileName: file.originalname, extension,
+        fileKey: uploaded.key, size: uploaded.size, contentType: uploaded.contentType,
+        ...(dto.releaseNotes !== undefined ? { releaseNotes: dto.releaseNotes.trim() } : {}),
+      },
+    }, { new: true, runValidators: true }).lean();
+    if (!updated) throw new NotFoundException('Product version not found');
+    if (!dto.isCurrentVersion) return updated;
+
+    await this.promoteCurrentVersion(existing.productId, existing.platformId, existing._id, version);
+    return this.versions.findById(existing._id).lean();
+  }
+
+  async markCurrentVersion(context: AuthContext, versionId: string) {
+    const existing = await this.findVersionMine(context, versionId);
+    await this.promoteCurrentVersion(existing.productId, existing.platformId, existing._id, existing.version);
+    return this.versions.findById(existing._id).lean();
+  }
+
+  async downloadVersion(context: AuthContext, versionId: string, expiresInSeconds?: number) {
+    const existing = await this.findVersionMine(context, versionId);
+    return this.relayStorage.getProductVersionDownloadUrl(existing.fileKey, expiresInSeconds, existing.fileName);
+  }
+
   listVersions(context: AuthContext, productId: string) {
     return this.versions.find({ providerOrganizationId: context.organizationId, productId: this.objectId(productId) }).sort({ createdAt: -1 }).lean();
+  }
+
+  private async findMineForPlatform(context: AuthContext, productId: string, platformId: string) {
+    const product = await this.products.findOne({ _id: this.objectId(productId), providerOrganizationId: context.organizationId }).lean();
+    if (!product) throw new NotFoundException('Product not found');
+    if (!product.platforms.some((entry) => String(entry.platformId) === platformId)) {
+      throw new BadRequestException('Platform is not configured for this product');
+    }
+    return product;
+  }
+
+  private async findVersionMine(context: AuthContext, versionId: string) {
+    const version = await this.versions.findOne({ _id: this.objectId(versionId), providerOrganizationId: context.organizationId }).lean();
+    if (!version) throw new NotFoundException('Product version not found');
+    return version;
+  }
+
+  private async promoteCurrentVersion(productId: Types.ObjectId, platformId: Types.ObjectId, versionId: Types.ObjectId, version: string) {
+    await this.versions.updateMany(
+      { productId, platformId, isCurrentVersion: true, _id: { $ne: versionId } },
+      { $set: { isCurrentVersion: false } },
+    );
+    await this.versions.findByIdAndUpdate(versionId, { $set: { isCurrentVersion: true } });
+    await this.products.updateOne(
+      { _id: productId, 'platforms.platformId': platformId },
+      { $set: { 'platforms.$.currentVersionId': versionId, 'platforms.$.currentVersion': version } },
+    );
+  }
+
+  private extensionFromOriginalName(originalname: string): string {
+    const match = /\.([a-zA-Z0-9]+)$/.exec(originalname ?? '');
+    return (match?.[1] ?? 'bin').toLowerCase();
   }
 
   private async validateCatalogues(typeProductId: string, platformIds: string[]) {
