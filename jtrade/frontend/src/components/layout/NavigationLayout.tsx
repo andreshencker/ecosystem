@@ -113,8 +113,7 @@ export default function NavigationLayout({
                         height: "100%",
                         overflowY: "auto",
                         overflowX: "hidden",
-                        px: 0,
-                        py: 0,
+                        p: config.layout.hasSidebar ? 3 : 0,
                     }}
                 >
                     <Outlet />
