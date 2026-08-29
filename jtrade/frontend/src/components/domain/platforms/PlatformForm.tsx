@@ -12,7 +12,7 @@ import {
     Typography,
 } from "@mui/material";
 
-import type { Platform } from "@/modules/core/platforms/types/platforms";
+import type { Platform } from "@/types/platforms";
 
 export type PlatformFormValues = {
     key: string;

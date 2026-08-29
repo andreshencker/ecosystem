@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 
 import type { CodeProject } from "@/modules/core/codeProjects/types/codeProjects";
-import type { Platform } from "@/modules/core/platforms/types/platforms";
+import type { Platform } from "@/types/platforms";
 
 import type {
     CreateProjectCodePlatformPayload,

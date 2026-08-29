@@ -1,4 +1,4 @@
-// src/modules/platforms/types/platforms.ts
+// src/types/platforms.ts
 export type Platform = {
     id: string;
     key: string;

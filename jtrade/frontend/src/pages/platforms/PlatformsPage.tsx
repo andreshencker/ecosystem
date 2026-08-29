@@ -13,8 +13,8 @@ import { ConfirmDialog } from "@/app/common/components/shared/ConfirmDialog";
 import { LoadingButton } from "@/app/common/components/shared/LoadingButton";
 import { EmptyState } from "@/app/common/components/shared/EmptyState";
 
-import PlatformForm, { PlatformFormValues } from "../components/PlatformForm";
-import type { Platform } from "../types/platforms";
+import PlatformForm, { PlatformFormValues } from "@/components/domain/platforms/PlatformForm";
+import type { Platform } from "@/types/platforms";
 
 import {
     useCreatePlatform,
@@ -22,7 +22,7 @@ import {
     usePlatforms,
     useUpdatePlatform,
     useUploadPlatformLogo,
-} from "@/modules/core/platforms/hooks/usePlatforms";
+} from "@/hooks/api/usePlatforms";
 
 export default function PlatformsPage() {
     const q = usePlatforms();
