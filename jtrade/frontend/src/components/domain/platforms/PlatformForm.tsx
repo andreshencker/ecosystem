@@ -20,6 +20,7 @@ export type PlatformFormValues = {
     name: string;
     description: string;
     isActive: boolean;
+    isSupported: boolean;
     logoUrl?: string;
 };
 
@@ -35,6 +36,7 @@ const DEFAULT_VALUES: PlatformFormValues = {
     name: "",
     description: "",
     isActive: true,
+    isSupported: false,
 };
 
 type LogoMode = "upload" | "url";
@@ -180,6 +182,7 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
             name: initial?.name ?? "",
             description: initial?.description ?? "",
             isActive: initial?.isActive ?? true,
+            isSupported: initial?.isSupported ?? false,
         });
         setLogoMode(initial?.logoUrl ? "url" : "upload");
         setLogoFile(null);
@@ -196,7 +199,7 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
     const handleChange =
         (field: keyof Omit<PlatformFormValues, "logoUrl">) =>
             (e: React.ChangeEvent<HTMLInputElement>) => {
-                const v = field === "isActive" ? e.target.checked : e.target.value;
+                const v = field === "isActive" || field === "isSupported" ? e.target.checked : e.target.value;
                 setValues((prev) => ({ ...prev, [field]: v }));
             };
 
@@ -221,6 +224,7 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
                 name: values.name.trim(),
                 description: values.description.trim(),
                 isActive: values.isActive,
+                isSupported: values.isSupported,
                 logoUrl: logoFile ? undefined : logoUrlValue.trim(),
             },
             logoMode === "upload" ? logoFile : null,
@@ -267,11 +271,19 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
                             InputLabelProps={{ shrink: true }} />
                     </Grid>
 
-                    <Grid size={{ xs: 12 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <FormControlLabel
                             sx={{ m: 0 }}
                             control={<Switch checked={values.isActive} onChange={handleChange("isActive")} disabled={loading} />}
                             label="Active"
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={<Switch checked={values.isSupported} onChange={handleChange("isSupported")} disabled={loading} />}
+                            label="Supported"
                         />
                     </Grid>
                 </Grid>

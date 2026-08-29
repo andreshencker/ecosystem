@@ -40,6 +40,7 @@ export class PlatformsService {
         description: (dto.description ?? '').trim(),
         logoUrl: dto.logoUrl ?? '',
         isActive: dto.isActive ?? true,
+        isSupported: dto.isSupported ?? false,
       });
       return PlatformMapper.toResponse(created.toObject());
     } catch (err: any) {
@@ -57,6 +58,7 @@ export class PlatformsService {
     if (dto.description !== undefined) $set.description = (dto.description ?? '').trim();
     if (dto.logoUrl !== undefined) $set.logoUrl = dto.logoUrl;
     if (dto.isActive !== undefined) $set.isActive = dto.isActive;
+    if (dto.isSupported !== undefined) $set.isSupported = dto.isSupported;
 
     try {
       const updated = await this.model.findByIdAndUpdate(_id, { $set }, { new: true, runValidators: true });

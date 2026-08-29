@@ -6,6 +6,7 @@ export type Platform = {
     description: string;
     logoUrl: string;
     isActive: boolean;
+    isSupported: boolean;
 };
 
 export type ListPlatformsParams = {
@@ -18,6 +19,7 @@ export type CreatePlatformPayload = {
     description?: string;
     logoUrl?: string;
     isActive?: boolean;
+    isSupported?: boolean;
 };
 
 export type UpdatePlatformPayload = Partial<CreatePlatformPayload>;

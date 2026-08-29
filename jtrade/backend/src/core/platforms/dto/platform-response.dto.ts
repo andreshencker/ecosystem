@@ -5,6 +5,7 @@ export class PlatformResponseDto {
   description!: string;
   logoUrl!: string;
   isActive!: boolean;
+  isSupported!: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

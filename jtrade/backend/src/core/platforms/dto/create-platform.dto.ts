@@ -20,4 +20,8 @@ export class CreatePlatformDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isSupported?: boolean;
 }

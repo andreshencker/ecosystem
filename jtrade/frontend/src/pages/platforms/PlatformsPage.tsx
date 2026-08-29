@@ -115,6 +115,14 @@ export default function PlatformsPage() {
                 <Chip label={params.value ? "Active" : "Inactive"} size="small" color={params.value ? "success" : "default"} variant="outlined" />
             ),
         },
+        {
+            field: "isSupported",
+            headerName: "Supported",
+            width: 130,
+            renderCell: (params) => (
+                <Chip label={params.value ? "Supported" : "Not supported"} size="small" color={params.value ? "success" : "default"} variant={params.value ? "filled" : "outlined"} />
+            ),
+        },
     ];
 
     return (
@@ -188,6 +196,7 @@ export default function PlatformsPage() {
                     badge: (row) => <Chip label={row.isActive ? "Active" : "Inactive"} size="small" color={row.isActive ? "success" : "default"} />,
                     fields: [
                         { field: "description", label: "Description" },
+                        { field: "isSupported", label: "Supported", render: (v) => <Chip label={v ? "Supported" : "Not supported"} size="small" color={v ? "success" : "default"} variant={v ? "filled" : "outlined"} /> },
                     ],
                 }}
             />

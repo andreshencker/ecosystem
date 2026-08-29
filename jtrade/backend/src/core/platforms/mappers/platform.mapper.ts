@@ -9,6 +9,7 @@ export class PlatformMapper {
       description: String(doc.description ?? ''),
       logoUrl: String(doc.logoUrl ?? ''),
       isActive: !!doc.isActive,
+      isSupported: !!doc.isSupported,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };

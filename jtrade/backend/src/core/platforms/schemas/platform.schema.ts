@@ -27,6 +27,10 @@ export class Platform {
 
   @Prop({ default: true, index: true })
   isActive!: boolean;
+
+  /** Whether jtrade actually supports this platform today — shown to users as a readiness flag, independent of catalogue visibility (isActive). */
+  @Prop({ default: false, index: true })
+  isSupported!: boolean;
 }
 
 export const PlatformSchema = SchemaFactory.createForClass(Platform);
