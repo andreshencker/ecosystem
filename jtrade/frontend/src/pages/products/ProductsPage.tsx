@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Tooltip } from "@mui/material";
+import { Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Tooltip, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -85,9 +85,9 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
 
     const columns: GridColDef<Product>[] = [
         { field: "name", headerName: "Product", flex: 1, minWidth: 180, renderCell: (p) => (
-            <Stack>
-                <span style={{ fontWeight: 800 }}>{p.row.name}</span>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>{p.row.key}</span>
+            <Stack justifyContent="center" sx={{ height: "100%", minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={800} lineHeight={1.3} noWrap>{p.row.name}</Typography>
+                <Typography variant="caption" color="text.secondary" lineHeight={1.3} noWrap>{p.row.key}</Typography>
             </Stack>
         ) },
         { field: "typeProductId", headerName: "Type", width: 140, valueGetter: (_v, row) => row.typeProductId?.name ?? "—" },

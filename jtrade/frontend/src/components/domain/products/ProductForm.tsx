@@ -65,7 +65,7 @@ export default function ProductForm({ initial, loading, onSubmit, onCancel }: Pr
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!values.name.trim() || !values.key.trim() || !values.typeProductId) return;
+        if (!values.name.trim() || !values.key.trim() || !values.typeProductId || !values.platformId) return;
         await onSubmit(values);
     };
 
@@ -100,8 +100,7 @@ export default function ProductForm({ initial, loading, onSubmit, onCancel }: Pr
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField select label="Initial platform" value={values.platformId} onChange={handleChange("platformId")} fullWidth InputLabelProps={{ shrink: true }}>
-                            <MenuItem value="">No platform</MenuItem>
+                        <TextField select label="Initial platform" value={values.platformId} onChange={handleChange("platformId")} fullWidth required InputLabelProps={{ shrink: true }}>
                             {platforms.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
                         </TextField>
                     </Grid>
@@ -118,7 +117,7 @@ export default function ProductForm({ initial, loading, onSubmit, onCancel }: Pr
                     <Button variant="outlined" color="inherit" onClick={onCancel} disabled={loading} sx={{ textTransform: "none", fontWeight: 800, minWidth: { xs: 100, sm: 120 } }}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="contained" disabled={loading || !values.name.trim() || !values.key.trim() || !values.typeProductId}
+                    <Button type="submit" variant="contained" disabled={loading || !values.name.trim() || !values.key.trim() || !values.typeProductId || !values.platformId}
                         sx={{ textTransform: "none", fontWeight: 800, minWidth: { xs: 120, sm: 140 } }}>
                         {isEditing ? "Save changes" : "Create draft"}
                     </Button>
