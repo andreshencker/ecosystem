@@ -140,53 +140,15 @@ export class TypeProductsService {
     return TypeProductMapper.toResponse(updated);
   }
 
-  async deactivate(id: string): Promise<{ deactivated: boolean }> {
+  async remove(id: string): Promise<{ deleted: boolean }> {
     const _id = this.toObjectId(id);
 
-    const updated = await this.typeProductModel.findByIdAndUpdate(
-      _id,
-      { isActive: false },
-      { new: true },
-    );
+    const deleted = await this.typeProductModel.findByIdAndDelete(_id);
 
-    if (!updated) {
+    if (!deleted) {
       throw new NotFoundException('Type product not found');
     }
 
-    return { deactivated: true };
-  }
-
-  async seedDefaults(): Promise<{ seeded: boolean; count: number }> {
-    const defaults = [
-      {
-        key: 'bots',
-        name: 'Bots',
-        description: 'Automated trading bots and expert advisors.',
-      },
-      {
-        key: 'signals',
-        name: 'Signals',
-        description: 'Products that provide trading signals or alerts.',
-      },
-    ];
-
-    let count = 0;
-
-    for (const item of defaults) {
-      const result = await this.typeProductModel.updateOne(
-        { key: item.key },
-        {
-          $setOnInsert: {
-            ...item,
-            isActive: true,
-          },
-        },
-        { upsert: true },
-      );
-
-      if (result.upsertedCount > 0) count++;
-    }
-
-    return { seeded: true, count };
+    return { deleted: true };
   }
 }

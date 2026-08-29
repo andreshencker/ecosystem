@@ -44,13 +44,6 @@ export class TypeProductsController {
     return this.typeProductsService.findActive();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(ApplicationRole.ADMIN)
-  @Post('seed')
-  async seedDefaults(): Promise<{ seeded: boolean; count: number }> {
-    return this.typeProductsService.seedDefaults();
-  }
-
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<TypeProductResponseDto> {
@@ -70,7 +63,7 @@ export class TypeProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(ApplicationRole.ADMIN)
   @Delete(':id')
-  async deactivate(@Param('id') id: string): Promise<{ deactivated: boolean }> {
-    return this.typeProductsService.deactivate(id);
+  async remove(@Param('id') id: string): Promise<{ deleted: boolean }> {
+    return this.typeProductsService.remove(id);
   }
 }

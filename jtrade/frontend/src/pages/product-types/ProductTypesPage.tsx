@@ -2,9 +2,8 @@ import * as React from "react";
 import { Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Tooltip } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
-import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchToolbar } from "@/components/shared/SearchToolbar";
@@ -19,9 +18,8 @@ import type { ProductType } from "@/types/productTypes";
 
 import {
     useCreateProductType,
-    useDeactivateProductType,
+    useDeleteProductType,
     useProductTypes,
-    useSeedProductTypes,
     useUpdateProductType,
 } from "@/hooks/api/useProductTypes";
 import { useListState } from "@/hooks/useListState";
@@ -51,12 +49,11 @@ export default function ProductTypesPage() {
 
     const createProductType = useCreateProductType();
     const updateProductType = useUpdateProductType();
-    const deactivateProductType = useDeactivateProductType();
-    const seedProductTypes = useSeedProductTypes();
+    const deleteProductType = useDeleteProductType();
 
     const [editing, setEditing] = React.useState<ProductType | null>(null);
     const [openForm, setOpenForm] = React.useState(false);
-    const [pendingDeactivate, setPendingDeactivate] = React.useState<ProductType | null>(null);
+    const [pendingDelete, setPendingDelete] = React.useState<ProductType | null>(null);
 
     const saving = createProductType.isPending || updateProductType.isPending;
 
@@ -84,10 +81,10 @@ export default function ProductTypesPage() {
         handleCloseForm();
     };
 
-    const handleConfirmDeactivate = async () => {
-        if (!pendingDeactivate) return;
-        await deactivateProductType.mutateAsync(pendingDeactivate.id);
-        setPendingDeactivate(null);
+    const handleConfirmDelete = async () => {
+        if (!pendingDelete) return;
+        await deleteProductType.mutateAsync(pendingDelete.id);
+        setPendingDelete(null);
     };
 
     const columns: GridColDef<ProductType>[] = [
@@ -111,21 +108,9 @@ export default function ProductTypesPage() {
                 count={allProductTypes.length}
                 subtitle="Define the categories providers can classify their products under (Bots, Signals, ...)."
                 actions={
-                    <>
-                        <LoadingButton
-                            variant="outlined"
-                            color="inherit"
-                            startIcon={<AutoFixHighRoundedIcon />}
-                            onClick={() => seedProductTypes.mutate()}
-                            loading={seedProductTypes.isPending}
-                            sx={{ textTransform: "none", fontWeight: 700, mr: 1.5 }}
-                        >
-                            Seed defaults
-                        </LoadingButton>
-                        <LoadingButton variant="contained" startIcon={<AddIcon />} onClick={handleAdd} sx={{ textTransform: "none", fontWeight: 700 }}>
-                            Add type
-                        </LoadingButton>
-                    </>
+                    <LoadingButton variant="contained" startIcon={<AddIcon />} onClick={handleAdd} sx={{ textTransform: "none", fontWeight: 700 }}>
+                        Add type
+                    </LoadingButton>
                 }
             />
 
@@ -163,12 +148,10 @@ export default function ProductTypesPage() {
                                 <EditOutlinedIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title={row.isActive ? "Deactivate" : "Already inactive"}>
-                            <span>
-                                <IconButton size="small" disabled={!row.isActive} onClick={(e) => { e.stopPropagation(); setPendingDeactivate(row); }}>
-                                    <BlockOutlinedIcon fontSize="small" />
-                                </IconButton>
-                            </span>
+                        <Tooltip title="Delete">
+                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPendingDelete(row); }}>
+                                <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
                         </Tooltip>
                     </>
                 )}
@@ -180,7 +163,7 @@ export default function ProductTypesPage() {
                             action={<LoadingButton variant="outlined" onClick={list.clearFilters}>Clear filters</LoadingButton>}
                         />
                     ) : (
-                        <EmptyState title="No product types yet" description="Add a category such as Bots or Signals, or seed the defaults." />
+                        <EmptyState title="No product types yet" description="Add a category such as Bots or Signals to get started." />
                     )
                 }
                 mobileCardConfig={{
@@ -203,14 +186,14 @@ export default function ProductTypesPage() {
             </FormDrawer>
 
             <ConfirmDialog
-                open={!!pendingDeactivate}
-                title="Deactivate product type"
-                description={pendingDeactivate ? `"${pendingDeactivate.name}" will be marked inactive. Existing products keep their assignment but new ones won't be able to select it.` : undefined}
-                confirmLabel="Deactivate"
+                open={!!pendingDelete}
+                title="Delete product type"
+                description={pendingDelete ? `This will remove "${pendingDelete.name}" from the catalogue.` : undefined}
+                confirmLabel="Delete"
                 danger
-                loading={deactivateProductType.isPending}
-                onConfirm={handleConfirmDeactivate}
-                onCancel={() => setPendingDeactivate(null)}
+                loading={deleteProductType.isPending}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setPendingDelete(null)}
             />
         </>
     );

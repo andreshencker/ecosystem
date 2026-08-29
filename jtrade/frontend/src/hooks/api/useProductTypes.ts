@@ -41,18 +41,10 @@ export function useUpdateProductType() {
     });
 }
 
-export function useDeactivateProductType() {
+export function useDeleteProductType() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (id: string) => api.delete<Envelope<{ deactivated: boolean }>>(`${BASE}/${id}`).then((r) => r.data.data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: PRODUCT_TYPES_LIST_KEY }),
-    });
-}
-
-export function useSeedProductTypes() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: () => api.post<Envelope<{ seeded: boolean; count: number }>>(`${BASE}/seed`).then((r) => r.data.data),
+        mutationFn: (id: string) => api.delete<Envelope<{ deleted: boolean }>>(`${BASE}/${id}`).then((r) => r.data.data),
         onSuccess: () => qc.invalidateQueries({ queryKey: PRODUCT_TYPES_LIST_KEY }),
     });
 }
