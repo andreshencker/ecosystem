@@ -1,6 +1,5 @@
 import * as React from "react";
 import {
-    Avatar,
     Box,
     Button,
     Divider,
@@ -9,6 +8,8 @@ import {
     Stack,
     Switch,
     TextField,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography,
 } from "@mui/material";
 
@@ -19,6 +20,7 @@ export type PlatformFormValues = {
     name: string;
     description: string;
     isActive: boolean;
+    logoUrl?: string;
 };
 
 type Props = {
@@ -35,51 +37,179 @@ const DEFAULT_VALUES: PlatformFormValues = {
     isActive: true,
 };
 
+type LogoMode = "upload" | "url";
+
+function LogoField({
+    fallbackChar,
+    logoFilePreview,
+    urlValue,
+    mode,
+    onModeChange,
+    onFileSelect,
+    onUrlChange,
+    onRemove,
+}: {
+    fallbackChar: string;
+    logoFilePreview: string | null;
+    urlValue: string;
+    mode: LogoMode;
+    onModeChange: (mode: LogoMode) => void;
+    onFileSelect: (file: File | null) => void;
+    onUrlChange: (url: string) => void;
+    onRemove: () => void;
+}) {
+    const previewSrc = logoFilePreview || urlValue || "";
+
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1.5,
+                p: 2.5,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 3,
+                bgcolor: "action.hover",
+            }}
+        >
+            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ alignSelf: "flex-start" }}>
+                Logo
+            </Typography>
+
+            <Box
+                sx={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: "20px",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                }}
+            >
+                {previewSrc ? (
+                    <Box component="img" src={previewSrc} alt="" sx={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                ) : (
+                    <Typography variant="h5" color="text.secondary">{fallbackChar}</Typography>
+                )}
+            </Box>
+
+            {previewSrc && (
+                <Button
+                    variant="text"
+                    size="small"
+                    color="error"
+                    onClick={onRemove}
+                    sx={{ textTransform: "none", fontWeight: 700, textDecoration: "underline", minWidth: 0, p: 0 }}
+                >
+                    Remove logo
+                </Button>
+            )}
+
+            <ToggleButtonGroup
+                value={mode}
+                exclusive
+                size="small"
+                onChange={(_, value: LogoMode | null) => value && onModeChange(value)}
+                sx={{
+                    borderRadius: 999,
+                    "& .MuiToggleButton-root": {
+                        textTransform: "none",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        border: 0,
+                        borderRadius: 999,
+                        px: 2.25,
+                        color: "text.secondary",
+                        "&.Mui-selected": {
+                            bgcolor: "text.primary",
+                            color: "background.paper",
+                            "&:hover": { bgcolor: "text.primary" },
+                        },
+                    },
+                }}
+            >
+                <ToggleButton value="upload">Upload</ToggleButton>
+                <ToggleButton value="url">URL</ToggleButton>
+            </ToggleButtonGroup>
+
+            {mode === "upload" ? (
+                <Button component="label" variant="outlined" fullWidth sx={{ textTransform: "none", fontWeight: 600 }}>
+                    Choose an image…
+                    <input
+                        hidden
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                            onFileSelect(e.target.files?.[0] ?? null);
+                            e.target.value = "";
+                        }}
+                    />
+                </Button>
+            ) : (
+                <TextField
+                    value={urlValue}
+                    onChange={(e) => onUrlChange(e.target.value)}
+                    placeholder="https://"
+                    fullWidth
+                    size="small"
+                />
+            )}
+        </Box>
+    );
+}
+
 export default function PlatformForm({ initial, loading, onSubmit, onCancel }: Props) {
     const isEditing = !!initial;
 
     const [values, setValues] = React.useState(DEFAULT_VALUES);
+    const [logoMode, setLogoMode] = React.useState<LogoMode>("upload");
     const [logoFile, setLogoFile] = React.useState<File | null>(null);
-    const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+    const [logoFilePreview, setLogoFilePreview] = React.useState<string | null>(null);
+    const [logoUrlValue, setLogoUrlValue] = React.useState("");
 
     React.useEffect(() => {
-        if (!initial) {
-            setValues(DEFAULT_VALUES);
-            setLogoFile(null);
-            setLogoPreview(null);
-            return;
-        }
-
         setValues({
-            key: initial.key ?? "",
-            name: initial.name ?? "",
-            description: initial.description ?? "",
-            isActive: initial.isActive ?? true,
+            key: initial?.key ?? "",
+            name: initial?.name ?? "",
+            description: initial?.description ?? "",
+            isActive: initial?.isActive ?? true,
         });
+        setLogoMode(initial?.logoUrl ? "url" : "upload");
         setLogoFile(null);
-        setLogoPreview(null);
+        setLogoFilePreview(null);
+        setLogoUrlValue(initial?.logoUrl ?? "");
     }, [initial]);
 
     React.useEffect(() => {
         return () => {
-            if (logoPreview) URL.revokeObjectURL(logoPreview);
+            if (logoFilePreview) URL.revokeObjectURL(logoFilePreview);
         };
-    }, [logoPreview]);
+    }, [logoFilePreview]);
 
     const handleChange =
-        (field: keyof PlatformFormValues) =>
+        (field: keyof Omit<PlatformFormValues, "logoUrl">) =>
             (e: React.ChangeEvent<HTMLInputElement>) => {
                 const v = field === "isActive" ? e.target.checked : e.target.value;
                 setValues((prev) => ({ ...prev, [field]: v }));
             };
 
     const handlePickFile = (file: File | null) => {
-        if (logoPreview) URL.revokeObjectURL(logoPreview);
+        if (logoFilePreview) URL.revokeObjectURL(logoFilePreview);
         setLogoFile(file);
-        setLogoPreview(file ? URL.createObjectURL(file) : null);
+        setLogoFilePreview(file ? URL.createObjectURL(file) : null);
     };
 
-    const logoSrc = logoPreview || initial?.logoUrl || "";
+    const handleRemoveLogo = () => {
+        handlePickFile(null);
+        setLogoUrlValue("");
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -91,8 +221,9 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
                 name: values.name.trim(),
                 description: values.description.trim(),
                 isActive: values.isActive,
+                logoUrl: logoFile ? undefined : logoUrlValue.trim(),
             },
-            logoFile,
+            logoMode === "upload" ? logoFile : null,
         );
     };
 
@@ -110,30 +241,16 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
 
                 <Divider />
 
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }}>
-                    <Avatar src={logoSrc} sx={{ width: 56, height: 56 }}>
-                        {(values.name?.[0] ?? "P").toUpperCase()}
-                    </Avatar>
-
-                    <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Logo image, uploaded and stored in Relay.
-                        </Typography>
-                    </Box>
-
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <Button component="label" variant="outlined" sx={{ textTransform: "none", fontWeight: 700 }}>
-                            Upload image
-                            <input hidden type="file" accept="image/*" onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)} />
-                        </Button>
-
-                        {logoFile && (
-                            <Button variant="text" color="inherit" onClick={() => handlePickFile(null)} sx={{ textTransform: "none", fontWeight: 700 }}>
-                                Remove
-                            </Button>
-                        )}
-                    </Stack>
-                </Stack>
+                <LogoField
+                    fallbackChar={(values.name?.[0] ?? "P").toUpperCase()}
+                    logoFilePreview={logoFilePreview}
+                    urlValue={logoUrlValue}
+                    mode={logoMode}
+                    onModeChange={setLogoMode}
+                    onFileSelect={handlePickFile}
+                    onUrlChange={setLogoUrlValue}
+                    onRemove={handleRemoveLogo}
+                />
 
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6 }}>
