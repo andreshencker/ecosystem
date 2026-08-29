@@ -5,7 +5,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import { alpha } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/http";
-import { useAuth } from "@/modules/core/auth/hooks/useAuth";
+import { useAuth } from "@/old/modules/core/auth/hooks/useAuth";
 
 interface JtradeOrganization {
     organizationId: string;

@@ -1,8 +1,8 @@
 // src/components/layout/AvatarBlock.tsx
 import * as React from "react";
 import { Avatar, Box, Typography } from "@mui/material";
-import type { AuthUser } from "@/modules/core/auth/types/auth";
-import { useAuth } from "@/modules/core/auth/hooks/useAuth";
+import type { AuthUser } from "@/old/modules/core/auth/types/auth";
+import { useAuth } from "@/old/modules/core/auth/hooks/useAuth";
 
 type Props = {
     size?: number;

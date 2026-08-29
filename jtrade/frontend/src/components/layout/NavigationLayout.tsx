@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet, useNavigate } from "react-router-dom";
-import type { NavigationConfig } from "@/app/navigation/types";
-import { useNavigationState } from "@/app/navigation/state/navigation.state";
+import type { NavigationConfig } from "@/old/app/navigation/types";
+import { useNavigationState } from "@/old/app/navigation/state/navigation.state";
 import NavigationNavbar from "./NavigationNavbar";
 import NavigationSidebar from "./NavigationSidebar";
 import NavigationPopover from "./NavigationPopover";

@@ -13,7 +13,7 @@ import {
     useTheme,
 } from "@mui/material";
 import { NavLink, useLocation } from "react-router-dom";
-import type { SidebarItem } from "@/app/navigation/types";
+import type { SidebarItem } from "@/old/app/navigation/types";
 import OrganizationCard from "./OrganizationCard";
 import { useUIStore } from "@/stores/ui.store";
 

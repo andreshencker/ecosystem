@@ -13,12 +13,12 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import { NavLink, useLocation } from "react-router-dom";
 
-import type { NavigationConfig, NavbarItem } from "@/app/navigation/types";
+import type { NavigationConfig, NavbarItem } from "@/old/app/navigation/types";
 import AppBrand from "./AppBrand";
 import AvatarBlock from "./AvatarBlock";
 import AppSwitcherPopover from "./AppSwitcherPopover";
-import { useAppConfig } from "@/app/providers/AppConfigProvider";
-import { resolveLogoUrl } from "@/app/config/app-config";
+import { useAppConfig } from "@/old/app/providers/AppConfigProvider";
+import { resolveLogoUrl } from "@/old/app/config/app-config";
 import { useUIStore } from "@/stores/ui.store";
 
 type Props = {

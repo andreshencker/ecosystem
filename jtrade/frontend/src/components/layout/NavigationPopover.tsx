@@ -3,11 +3,11 @@ import * as React from "react";
 import { Box, Button, Divider, Popover, Stack, Typography } from "@mui/material";
 import { NavLink } from "react-router-dom";
 
-import ThemeSwitcher from "@/app/common/theme/ThemeSwitcher";
-import type { NavigationConfig, PopoverAction } from "@/app/navigation/types";
+import ThemeSwitcher from "@/old/app/common/theme/ThemeSwitcher";
+import type { NavigationConfig, PopoverAction } from "@/old/app/navigation/types";
 import AvatarBlock from "./AvatarBlock";
-import { useAuth } from "@/modules/core/auth/hooks/useAuth";
-import { useThemeMode } from "@/app/common/theme/AppThemeProvider";
+import { useAuth } from "@/old/modules/core/auth/hooks/useAuth";
+import { useThemeMode } from "@/old/app/common/theme/AppThemeProvider";
 
 type Props = {
     config: NavigationConfig;
