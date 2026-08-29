@@ -195,11 +195,25 @@ export class ProductsService {
   }
 
   private mapPlatforms(entries: CreateProductDto['platforms'] | UpdateProductDto['platforms']) {
-    return (entries ?? []).map((entry) => ({
-      platformId: this.objectId(entry.platformId), deliveryMode: entry.deliveryMode ?? 'download',
-      runtimeMode: entry.runtimeMode ?? 'none', status: entry.status ?? 'draft', notes: entry.notes?.trim() ?? '',
-      currentVersionId: null, currentVersion: null,
-    }));
+    return (entries ?? []).map((entry) => {
+      const billingType = entry.billingType ?? 'one_time';
+      if (billingType === 'subscription' && !entry.billingInterval) {
+        throw new BadRequestException('billingInterval is required when billingType is subscription');
+      }
+      return {
+        platformId: this.objectId(entry.platformId), deliveryMode: entry.deliveryMode ?? 'download',
+        runtimeMode: entry.runtimeMode ?? 'none', status: entry.status ?? 'draft', notes: entry.notes?.trim() ?? '',
+        currentVersionId: null, currentVersion: null,
+        billingType, billingInterval: billingType === 'subscription' ? entry.billingInterval : null,
+        priceAmount: entry.priceAmount ?? 0, currency: entry.currency ?? 'USD',
+        discount: entry.discount ? {
+          type: entry.discount.type, value: entry.discount.value,
+          startsAt: entry.discount.startsAt ? new Date(entry.discount.startsAt) : null,
+          endsAt: entry.discount.endsAt ? new Date(entry.discount.endsAt) : null,
+          isActive: entry.discount.isActive ?? true,
+        } : null,
+      };
+    });
   }
 
   private normalizeKey(value: string) { return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }

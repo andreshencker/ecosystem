@@ -16,8 +16,8 @@ import { LoadingButton } from "@/components/shared/LoadingButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 import ProductForm, { ProductFormValues } from "@/components/domain/products/ProductForm";
-import type { Product } from "@/types/products";
-import { refId } from "@/types/products";
+import type { Product, ProductPlatformDiscount } from "@/types/products";
+import { formatPrice, getEffectivePriceAmount, isDiscountActiveNow, refId } from "@/types/products";
 
 import { useCreateProduct, useProducts, useReviewProduct, useUpdateProduct } from "@/hooks/api/useProducts";
 import { useProductTypes } from "@/hooks/api/useProductTypes";
@@ -71,12 +71,27 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
     const handleCloseForm = () => { setEditing(null); setOpenForm(false); };
 
     const handleSubmit = async (values: ProductFormValues) => {
+        const discount: ProductPlatformDiscount | undefined = values.discountEnabled ? {
+            type: values.discountType,
+            value: values.discountType === "percentage" ? Number(values.discountValueInput) : Math.round(parseFloat(values.discountValueInput || "0") * 100),
+            startsAt: values.discountStartsAt || null,
+            endsAt: values.discountEndsAt || null,
+            isActive: values.discountActive,
+        } : undefined;
+
         const payload = {
             typeProductId: values.typeProductId,
             key: values.key.trim(),
             name: values.name.trim(),
             description: values.description.trim(),
-            platforms: values.platformId ? [{ platformId: values.platformId }] : [],
+            platforms: values.platformId ? [{
+                platformId: values.platformId,
+                billingType: values.billingType,
+                billingInterval: values.billingType === "subscription" ? values.billingInterval : undefined,
+                priceAmount: Math.round(parseFloat(values.priceInput || "0") * 100),
+                currency: "USD",
+                discount,
+            }] : [],
         };
         if (editing) await updateProduct.mutateAsync({ id: editing._id, data: payload });
         else await createProduct.mutateAsync(payload);
@@ -98,6 +113,20 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
                     : "—"}
             </Stack>
         ) },
+        { field: "price", headerName: "Price", width: 160, sortable: false, renderCell: (p) => {
+            const platform = p.row.platforms?.[0];
+            if (!platform || typeof platform.priceAmount !== "number") return <Typography variant="body2" color="text.secondary">Not priced</Typography>;
+            const suffix = platform.billingType === "subscription" ? `/${platform.billingInterval === "year" ? "yr" : "mo"}` : "";
+            const active = isDiscountActiveNow(platform.discount);
+            if (!active) return <Typography variant="body2">{formatPrice(platform.priceAmount, platform.currency)}{suffix}</Typography>;
+            const effective = getEffectivePriceAmount(platform);
+            return (
+                <Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ textDecoration: "line-through" }}>{formatPrice(platform.priceAmount, platform.currency)}</Typography>
+                    <Typography variant="body2" color="success.main" fontWeight={700}>{formatPrice(effective, platform.currency)}{suffix}</Typography>
+                </Stack>
+            );
+        } },
         { field: "status", headerName: "Status", width: 140, renderCell: (p) => (
             <Chip size="small" color={statusColor(p.row.status)} label={p.row.status.replace(/_/g, " ")} />
         ) },
@@ -210,6 +239,12 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
                     badge: (row) => <Chip size="small" color={statusColor(row.status)} label={row.status.replace(/_/g, " ")} />,
                     fields: [
                         { field: "typeProductId", label: "Type", render: (_v, row) => row.typeProductId?.name ?? "—" },
+                        { field: "platforms", label: "Price", render: (_v, row) => {
+                            const platform = row.platforms?.[0];
+                            if (!platform || typeof platform.priceAmount !== "number") return "Not priced";
+                            const effective = getEffectivePriceAmount(platform);
+                            return formatPrice(effective, platform.currency);
+                        } },
                     ],
                 }}
             />

@@ -1,7 +1,15 @@
-import { IsArray, IsBoolean, IsIn, IsMongoId, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsIn, IsMongoId, IsNumber, IsOptional, IsString, Min, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 const toBoolean = ({ value }: { value: unknown }) => value === true || value === 'true' || value === '1';
+
+export class ProductPlatformDiscountDto {
+  @IsIn(['percentage', 'fixed']) type!: 'percentage' | 'fixed';
+  @IsNumber() @Min(0) value!: number;
+  @IsOptional() @IsDateString() startsAt?: string;
+  @IsOptional() @IsDateString() endsAt?: string;
+  @IsOptional() @Transform(toBoolean) @IsBoolean() isActive?: boolean;
+}
 
 export class ProductPlatformDto {
   @IsMongoId() platformId!: string;
@@ -9,6 +17,11 @@ export class ProductPlatformDto {
   @IsOptional() @IsIn(['none', 'signal_based', 'bot_execution', 'copy_trading', 'strategy_rules']) runtimeMode?: string;
   @IsOptional() @IsIn(['draft', 'published', 'suspended', 'archived']) status?: string;
   @IsOptional() @IsString() @MaxLength(500) notes?: string;
+  @IsOptional() @IsIn(['one_time', 'subscription']) billingType?: 'one_time' | 'subscription';
+  @IsOptional() @IsIn(['month', 'year']) billingInterval?: 'month' | 'year';
+  @IsOptional() @IsNumber() @Min(0) priceAmount?: number;
+  @IsOptional() @IsIn(['USD']) currency?: string;
+  @IsOptional() @ValidateNested() @Type(() => ProductPlatformDiscountDto) discount?: ProductPlatformDiscountDto;
 }
 
 export class CreateProductDto {
