@@ -3,10 +3,8 @@ export class PlatformResponseDto {
   key!: string;
   name!: string;
   description!: string;
-  websiteUrl!: string;
   logoUrl!: string;
   isActive!: boolean;
-  displayOrder!: number;
   createdAt!: string;
   updatedAt!: string;
 }

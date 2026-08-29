@@ -4,7 +4,6 @@ import type { GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import LaunchIcon from "@mui/icons-material/Launch";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
@@ -86,18 +85,7 @@ export default function PlatformsPage() {
         },
         { field: "key", headerName: "Key", width: 130 },
         { field: "name", headerName: "Name", flex: 1, minWidth: 160 },
-        {
-            field: "websiteUrl",
-            headerName: "Website",
-            flex: 1,
-            minWidth: 200,
-            renderCell: (params) =>
-                params.value ? (
-                    <a href={params.value} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {params.value.replace(/^https?:\/\//, "")} <LaunchIcon sx={{ fontSize: 14 }} />
-                    </a>
-                ) : null,
-        },
+        { field: "description", headerName: "Description", flex: 1.5, minWidth: 220 },
         {
             field: "isActive",
             headerName: "Active",
@@ -106,7 +94,6 @@ export default function PlatformsPage() {
                 <Chip label={params.value ? "Active" : "Inactive"} size="small" color={params.value ? "success" : "default"} variant="outlined" />
             ),
         },
-        { field: "displayOrder", headerName: "Order", width: 90 },
     ];
 
     return (
@@ -152,8 +139,7 @@ export default function PlatformsPage() {
                     secondaryText: "key",
                     badge: (row) => <Chip label={row.isActive ? "Active" : "Inactive"} size="small" color={row.isActive ? "success" : "default"} />,
                     fields: [
-                        { field: "websiteUrl", label: "Website" },
-                        { field: "displayOrder", label: "Order" },
+                        { field: "description", label: "Description" },
                     ],
                 }}
             />

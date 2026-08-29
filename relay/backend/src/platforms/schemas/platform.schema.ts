@@ -22,17 +22,11 @@ export class Platform {
   @Prop({ default: '', trim: true })
   description!: string;
 
-  @Prop({ required: true, trim: true })
-  websiteUrl!: string;
-
   @Prop({ default: '', trim: true })
   logoUrl!: string;
 
   @Prop({ default: true, index: true })
   isActive!: boolean;
-
-  @Prop({ default: 0 })
-  displayOrder!: number;
 }
 
 export const PlatformSchema = SchemaFactory.createForClass(Platform);

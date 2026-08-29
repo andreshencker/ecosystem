@@ -1,10 +1,8 @@
 import {
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
 } from 'class-validator';
 
 export class CreatePlatformDto {
@@ -20,9 +18,6 @@ export class CreatePlatformDto {
   @IsString()
   description?: string;
 
-  @IsUrl({ require_protocol: true })
-  websiteUrl!: string;
-
   @IsOptional()
   @IsString()
   logoUrl?: string;
@@ -30,8 +25,4 @@ export class CreatePlatformDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  displayOrder?: number;
 }

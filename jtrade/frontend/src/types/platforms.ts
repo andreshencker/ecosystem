@@ -4,10 +4,8 @@ export type Platform = {
     key: string;
     name: string;
     description: string;
-    websiteUrl: string;
     logoUrl: string;
     isActive: boolean;
-    displayOrder: number;
 };
 
 export type ListPlatformsParams = {
@@ -18,10 +16,8 @@ export type CreatePlatformPayload = {
     key: string;
     name: string;
     description?: string;
-    websiteUrl: string;
     logoUrl?: string;
     isActive?: boolean;
-    displayOrder?: number;
 };
 
 export type UpdatePlatformPayload = Partial<CreatePlatformPayload>;

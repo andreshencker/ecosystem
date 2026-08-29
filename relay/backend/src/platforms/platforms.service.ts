@@ -21,7 +21,7 @@ export class PlatformsService {
 
     const list = await this.model
       .find(filter)
-      .sort({ displayOrder: 1, name: 1 })
+      .sort({ name: 1 })
       .lean();
     return PlatformMapper.toResponseList(list);
   }
@@ -41,10 +41,8 @@ export class PlatformsService {
         key,
         name: dto.name.trim(),
         description: (dto.description ?? '').trim(),
-        websiteUrl: dto.websiteUrl,
         logoUrl: dto.logoUrl ?? '',
         isActive: dto.isActive ?? true,
-        displayOrder: dto.displayOrder ?? 0,
       });
       return PlatformMapper.toResponse(created.toObject());
     } catch (err: any) {
@@ -65,10 +63,8 @@ export class PlatformsService {
     if (dto.key !== undefined) $set.key = this.normalizeKey(dto.key);
     if (dto.name !== undefined) $set.name = dto.name.trim();
     if (dto.description !== undefined) $set.description = (dto.description ?? '').trim();
-    if (dto.websiteUrl !== undefined) $set.websiteUrl = dto.websiteUrl;
     if (dto.logoUrl !== undefined) $set.logoUrl = dto.logoUrl;
     if (dto.isActive !== undefined) $set.isActive = dto.isActive;
-    if (dto.displayOrder !== undefined) $set.displayOrder = dto.displayOrder;
 
     try {
       const updated = await this.model.findByIdAndUpdate(_id, { $set }, { new: true, runValidators: true });

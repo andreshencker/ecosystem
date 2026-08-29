@@ -18,9 +18,7 @@ export type PlatformFormValues = {
     key: string;
     name: string;
     description: string;
-    websiteUrl: string;
     isActive: boolean;
-    displayOrder: number;
 };
 
 type Props = {
@@ -34,9 +32,7 @@ const DEFAULT_VALUES: PlatformFormValues = {
     key: "",
     name: "",
     description: "",
-    websiteUrl: "",
     isActive: true,
-    displayOrder: 0,
 };
 
 export default function PlatformForm({ initial, loading, onSubmit, onCancel }: Props) {
@@ -58,9 +54,7 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
             key: initial.key ?? "",
             name: initial.name ?? "",
             description: initial.description ?? "",
-            websiteUrl: initial.websiteUrl ?? "",
             isActive: initial.isActive ?? true,
-            displayOrder: initial.displayOrder ?? 0,
         });
         setLogoFile(null);
         setLogoPreview(null);
@@ -75,7 +69,7 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
     const handleChange =
         (field: keyof PlatformFormValues) =>
             (e: React.ChangeEvent<HTMLInputElement>) => {
-                const v = field === "isActive" ? e.target.checked : field === "displayOrder" ? Number(e.target.value) : e.target.value;
+                const v = field === "isActive" ? e.target.checked : e.target.value;
                 setValues((prev) => ({ ...prev, [field]: v }));
             };
 
@@ -89,16 +83,14 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!values.name.trim() || !values.key.trim() || !values.websiteUrl.trim()) return;
+        if (!values.name.trim() || !values.key.trim()) return;
 
         await onSubmit(
             {
                 key: values.key.trim().toLowerCase(),
                 name: values.name.trim(),
                 description: values.description.trim(),
-                websiteUrl: values.websiteUrl.trim(),
                 isActive: values.isActive,
-                displayOrder: values.displayOrder,
             },
             logoFile,
         );
@@ -118,34 +110,32 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
 
                 <Divider />
 
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }}>
+                    <Avatar src={logoSrc} sx={{ width: 56, height: 56 }}>
+                        {(values.name?.[0] ?? "P").toUpperCase()}
+                    </Avatar>
+
+                    <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Logo image, uploaded and stored in Relay.
+                        </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Button component="label" variant="outlined" sx={{ textTransform: "none", fontWeight: 700 }}>
+                            Upload image
+                            <input hidden type="file" accept="image/*" onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)} />
+                        </Button>
+
+                        {logoFile && (
+                            <Button variant="text" color="inherit" onClick={() => handlePickFile(null)} sx={{ textTransform: "none", fontWeight: 700 }}>
+                                Remove
+                            </Button>
+                        )}
+                    </Stack>
+                </Stack>
+
                 <Grid container spacing={2}>
-                    <Grid size={{ xs: 12 }}>
-                        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }}>
-                            <Avatar src={logoSrc} sx={{ width: 56, height: 56 }}>
-                                {(values.name?.[0] ?? "P").toUpperCase()}
-                            </Avatar>
-
-                            <Box sx={{ flex: 1 }}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Logo image, uploaded and stored in Relay.
-                                </Typography>
-                            </Box>
-
-                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                <Button component="label" variant="outlined" sx={{ textTransform: "none", fontWeight: 700 }}>
-                                    Upload image
-                                    <input hidden type="file" accept="image/*" onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)} />
-                                </Button>
-
-                                {logoFile && (
-                                    <Button variant="text" color="inherit" onClick={() => handlePickFile(null)} sx={{ textTransform: "none", fontWeight: 700 }}>
-                                        Remove
-                                    </Button>
-                                )}
-                            </Stack>
-                        </Stack>
-                    </Grid>
-
                     <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField label="Key" value={values.key} onChange={handleChange("key")} fullWidth required
                             InputLabelProps={{ shrink: true }} helperText="e.g. mt4, mt5, ctrader, tradingview" />
@@ -156,28 +146,16 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
                     </Grid>
 
                     <Grid size={{ xs: 12 }}>
-                        <TextField label="Website URL" value={values.websiteUrl} onChange={handleChange("websiteUrl")} fullWidth required
-                            InputLabelProps={{ shrink: true }} placeholder="https://..." />
-                    </Grid>
-
-                    <Grid size={{ xs: 12 }}>
                         <TextField label="Description" value={values.description} onChange={handleChange("description")} fullWidth multiline minRows={2}
                             InputLabelProps={{ shrink: true }} />
                     </Grid>
 
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField label="Display order" type="number" value={values.displayOrder} onChange={handleChange("displayOrder")} fullWidth
-                            InputLabelProps={{ shrink: true }} />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Stack direction="row" alignItems="center" sx={{ minHeight: 56 }}>
-                            <FormControlLabel
-                                sx={{ m: 0 }}
-                                control={<Switch checked={values.isActive} onChange={handleChange("isActive")} disabled={loading} />}
-                                label="Active"
-                            />
-                        </Stack>
+                    <Grid size={{ xs: 12 }}>
+                        <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={<Switch checked={values.isActive} onChange={handleChange("isActive")} disabled={loading} />}
+                            label="Active"
+                        />
                     </Grid>
                 </Grid>
 
@@ -187,7 +165,7 @@ export default function PlatformForm({ initial, loading, onSubmit, onCancel }: P
                     <Button variant="outlined" color="inherit" onClick={onCancel} disabled={loading} sx={{ textTransform: "none", fontWeight: 800, minWidth: { xs: 100, sm: 120 } }}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="contained" disabled={loading || !values.name.trim() || !values.key.trim() || !values.websiteUrl.trim()}
+                    <Button type="submit" variant="contained" disabled={loading || !values.name.trim() || !values.key.trim()}
                         sx={{ textTransform: "none", fontWeight: 800, minWidth: { xs: 120, sm: 140 } }}>
                         {isEditing ? "Save changes" : "Create platform"}
                     </Button>
