@@ -6,6 +6,7 @@ import {
     getPlatformById,
     listPlatforms,
     updatePlatform,
+    uploadPlatformLogo,
 } from "@/modules/core/platforms/api/platforms";
 
 import type {
@@ -68,5 +69,16 @@ export function useDeletePlatform(params?: ListPlatformsParams) {
     return useMutation({
         mutationFn: (id: string) => deletePlatform(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: PLATFORMS_LIST_KEY(params) }),
+    });
+}
+
+export function useUploadPlatformLogo(params?: ListPlatformsParams) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (args: { id: string; file: File }) => uploadPlatformLogo(args.id, args.file),
+        onSuccess: (updated) => {
+            qc.invalidateQueries({ queryKey: PLATFORMS_LIST_KEY(params) });
+            qc.invalidateQueries({ queryKey: PLATFORM_DETAIL_KEY(updated.id) });
+        },
     });
 }

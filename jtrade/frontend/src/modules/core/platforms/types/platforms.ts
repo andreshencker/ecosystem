@@ -1,28 +1,27 @@
 // src/modules/platforms/types/platforms.ts
-export type PlatformCategory = "exchange" | "broker" | "data" | "custody" | "other";
-export type PlatformConnectionType = "apikey" | "oauth" | "none";
-
 export type Platform = {
-    id: string; // el mapper del backend debe exponer "id" (no _id)
+    id: string;
+    key: string;
     name: string;
-    category: PlatformCategory;
-    connectionType: PlatformConnectionType;
-    imageUrl?: string;
+    description: string;
+    websiteUrl: string;
+    logoUrl: string;
     isActive: boolean;
-    isSupported: boolean;
+    displayOrder: number;
 };
 
 export type ListPlatformsParams = {
-    supported?: boolean;
+    active?: boolean;
 };
 
 export type CreatePlatformPayload = {
+    key: string;
     name: string;
-    category: PlatformCategory;
-    connectionType: PlatformConnectionType;
-    imageUrl?: string;
+    description?: string;
+    websiteUrl: string;
+    logoUrl?: string;
     isActive?: boolean;
-    isSupported?: boolean;
+    displayOrder?: number;
 };
 
 export type UpdatePlatformPayload = Partial<CreatePlatformPayload>;

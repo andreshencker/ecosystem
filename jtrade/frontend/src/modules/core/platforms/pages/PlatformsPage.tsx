@@ -1,14 +1,18 @@
 import * as React from "react";
-import {
-    Box,
-    CircularProgress,
-    Drawer,
-    Typography,
-    useMediaQuery,
-    useTheme,
-} from "@mui/material";
+import { Avatar, Chip, IconButton, Tooltip } from "@mui/material";
+import type { GridColDef } from "@mui/x-data-grid";
+import AddIcon from "@mui/icons-material/Add";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import LaunchIcon from "@mui/icons-material/Launch";
 
-import PlatformsTable from "../components/PlatformsTable";
+import { PageHeader } from "@/app/common/components/shared/PageHeader";
+import { DataTable } from "@/app/common/components/shared/DataTable";
+import { FormDrawer } from "@/app/common/components/shared/FormDrawer";
+import { ConfirmDialog } from "@/app/common/components/shared/ConfirmDialog";
+import { LoadingButton } from "@/app/common/components/shared/LoadingButton";
+import { EmptyState } from "@/app/common/components/shared/EmptyState";
+
 import PlatformForm, { PlatformFormValues } from "../components/PlatformForm";
 import type { Platform } from "../types/platforms";
 
@@ -17,33 +21,23 @@ import {
     useDeletePlatform,
     usePlatforms,
     useUpdatePlatform,
+    useUploadPlatformLogo,
 } from "@/modules/core/platforms/hooks/usePlatforms";
 
 export default function PlatformsPage() {
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-    const HEADER_HEIGHT = 56;
-
     const q = usePlatforms();
     const platforms = q.data ?? [];
-    const isLoading = q.isFetching && platforms.length === 0;
 
     const createPlatform = useCreatePlatform();
     const updatePlatform = useUpdatePlatform();
     const deletePlatform = useDeletePlatform();
+    const uploadLogo = useUploadPlatformLogo();
 
     const [editing, setEditing] = React.useState<Platform | null>(null);
     const [openForm, setOpenForm] = React.useState(false);
+    const [pendingDelete, setPendingDelete] = React.useState<Platform | null>(null);
 
-    React.useEffect(() => {
-        Promise.resolve().then(() => q.refetch());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const pending =
-        createPlatform.isPending ||
-        updatePlatform.isPending ||
-        deletePlatform.isPending;
+    const saving = createPlatform.isPending || updatePlatform.isPending || uploadLogo.isPending;
 
     const handleAdd = () => {
         setEditing(null);
@@ -60,112 +54,129 @@ export default function PlatformsPage() {
         setOpenForm(false);
     };
 
-    const handleSubmit = async (values: PlatformFormValues) => {
-        if (editing) {
-            await updatePlatform.mutateAsync({ id: editing.id, data: values });
-            handleCloseForm();
-            await q.refetch();
-            return;
+    const handleSubmit = async (values: PlatformFormValues, logoFile: File | null) => {
+        const saved = editing
+            ? await updatePlatform.mutateAsync({ id: editing.id, data: values })
+            : await createPlatform.mutateAsync(values);
+
+        if (logoFile) {
+            await uploadLogo.mutateAsync({ id: saved.id, file: logoFile });
         }
 
-        await createPlatform.mutateAsync(values);
         handleCloseForm();
-        await q.refetch();
     };
 
-    const handleDelete = async (row: Platform) => {
-        await deletePlatform.mutateAsync(row.id);
-
-        if (editing?.id === row.id) {
-            handleCloseForm();
-        }
-
-        await q.refetch();
+    const handleConfirmDelete = async () => {
+        if (!pendingDelete) return;
+        await deletePlatform.mutateAsync(pendingDelete.id);
+        setPendingDelete(null);
     };
 
-    if (isLoading) {
-        return (
-            <Box
-                sx={{
-                    height: "100%",
-                    minHeight: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                }}
-            >
-                <CircularProgress />
-            </Box>
-        );
-    }
+    const columns: GridColDef<Platform>[] = [
+        {
+            field: "logoUrl",
+            headerName: "",
+            width: 64,
+            sortable: false,
+            renderCell: (params) => (
+                <Avatar src={params.value || undefined} sx={{ width: 32, height: 32 }}>
+                    {params.row.name[0]?.toUpperCase()}
+                </Avatar>
+            ),
+        },
+        { field: "key", headerName: "Key", width: 130 },
+        { field: "name", headerName: "Name", flex: 1, minWidth: 160 },
+        {
+            field: "websiteUrl",
+            headerName: "Website",
+            flex: 1,
+            minWidth: 200,
+            renderCell: (params) =>
+                params.value ? (
+                    <a href={params.value} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {params.value.replace(/^https?:\/\//, "")} <LaunchIcon sx={{ fontSize: 14 }} />
+                    </a>
+                ) : null,
+        },
+        {
+            field: "isActive",
+            headerName: "Active",
+            width: 110,
+            renderCell: (params) => (
+                <Chip label={params.value ? "Active" : "Inactive"} size="small" color={params.value ? "success" : "default"} variant="outlined" />
+            ),
+        },
+        { field: "displayOrder", headerName: "Order", width: 90 },
+    ];
 
     return (
-        <Box
-            sx={{
-                width: "100%",
-                height: "100%",
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-                px: { xs: 1.5, sm: 2, lg: 3 },
-                py: { xs: 2, sm: 3 },
-                boxSizing: "border-box",
-            }}
-        >
-            <Box sx={{ mb: 2.5, flexShrink: 0 }}>
-                <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5 }}>
-                    Platform Management
-                </Typography>
+        <>
+            <PageHeader
+                title="Platforms"
+                count={platforms.length}
+                subtitle="Manage the trading platforms products can target (MT4, MT5, cTrader, TradingView, ...)."
+                actions={
+                    <LoadingButton variant="contained" startIcon={<AddIcon />} onClick={handleAdd} sx={{ textTransform: "none", fontWeight: 700 }}>
+                        Add platform
+                    </LoadingButton>
+                }
+            />
 
-                <Typography variant="body2" color="text.secondary">
-                    Create and manage platform catalog records, connection types and availability.
-                </Typography>
-            </Box>
-
-            <Box
-                sx={{
-                    flex: 1,
-                    minHeight: 0,
-                    overflow: "hidden",
+            <DataTable<Platform>
+                columns={columns}
+                rows={platforms}
+                total={platforms.length}
+                page={0}
+                pageSize={50}
+                onPageChange={() => {}}
+                onPageSizeChange={() => {}}
+                loading={q.isFetching}
+                onRowClick={handleEdit}
+                rowActions={(row) => (
+                    <>
+                        <Tooltip title="Edit">
+                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEdit(row); }}>
+                                <EditOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPendingDelete(row); }}>
+                                <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </>
+                )}
+                emptyState={<EmptyState title="No platforms yet" description="Add MT4, MT5, cTrader or TradingView to get started." />}
+                mobileCardConfig={{
+                    primaryText: "name",
+                    secondaryText: "key",
+                    badge: (row) => <Chip label={row.isActive ? "Active" : "Inactive"} size="small" color={row.isActive ? "success" : "default"} />,
+                    fields: [
+                        { field: "websiteUrl", label: "Website" },
+                        { field: "displayOrder", label: "Order" },
+                    ],
                 }}
-            >
-                <PlatformsTable
-                    rows={platforms}
-                    loading={q.isFetching || pending}
-                    onRefresh={() => q.refetch()}
-                    onAdd={handleAdd}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                />
-            </Box>
+            />
 
-            <Drawer
-                anchor={isMobile ? "bottom" : "right"}
+            <FormDrawer
                 open={openForm}
                 onClose={handleCloseForm}
-                PaperProps={{
-                    sx: {
-                        width: isMobile ? "100%" : { md: 620, lg: 720 },
-                        maxWidth: "100%",
-                        top: isMobile ? "auto" : `${HEADER_HEIGHT}px`,
-                        height: isMobile ? "auto" : `calc(100vh - ${HEADER_HEIGHT}px)`,
-                        minHeight: isMobile ? "70vh" : `calc(100vh - ${HEADER_HEIGHT}px)`,
-                        borderTopLeftRadius: isMobile ? 16 : 0,
-                        borderTopRightRadius: isMobile ? 16 : 0,
-                        p: { xs: 1.5, sm: 2, md: 2.5 },
-                        overflowY: "auto",
-                        overflowX: "hidden",
-                    },
-                }}
+                title={editing ? "Edit platform" : "Add platform"}
+                width={620}
             >
-                <PlatformForm
-                    initial={editing}
-                    loading={createPlatform.isPending || updatePlatform.isPending}
-                    onSubmit={handleSubmit}
-                    onCancel={handleCloseForm}
-                />
-            </Drawer>
-        </Box>
+                <PlatformForm initial={editing} loading={saving} onSubmit={handleSubmit} onCancel={handleCloseForm} />
+            </FormDrawer>
+
+            <ConfirmDialog
+                open={!!pendingDelete}
+                title="Delete platform"
+                description={pendingDelete ? `This will remove "${pendingDelete.name}" from the catalogue.` : undefined}
+                confirmLabel="Delete"
+                danger
+                loading={deletePlatform.isPending}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setPendingDelete(null)}
+            />
+        </>
     );
 }

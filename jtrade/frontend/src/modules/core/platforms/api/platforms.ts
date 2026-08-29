@@ -14,14 +14,9 @@ type Envelope<T> = {
     data: T;
 };
 
-export async function listPlatforms(
-    params?: ListPlatformsParams
-): Promise<Platform[]> {
+export async function listPlatforms(params?: ListPlatformsParams): Promise<Platform[]> {
     const { data } = await api.get<Envelope<Platform[]>>(BASE, {
-        params:
-            typeof params?.supported === "boolean"
-                ? { supported: params.supported }
-                : undefined,
+        params: typeof params?.active === "boolean" ? { active: params.active } : undefined,
     });
 
     return Array.isArray(data?.data) ? data.data : [];
@@ -32,23 +27,26 @@ export async function getPlatformById(id: string): Promise<Platform> {
     return data.data;
 }
 
-export async function createPlatform(
-    payload: CreatePlatformPayload
-): Promise<Platform> {
+export async function createPlatform(payload: CreatePlatformPayload): Promise<Platform> {
     const { data } = await api.post<Envelope<Platform>>(BASE, payload);
     return data.data;
 }
 
-export async function updatePlatform(
-    id: string,
-    payload: UpdatePlatformPayload
-): Promise<Platform> {
+export async function updatePlatform(id: string, payload: UpdatePlatformPayload): Promise<Platform> {
     const { data } = await api.patch<Envelope<Platform>>(`${BASE}/${id}`, payload);
     return data.data;
 }
 
 export async function deletePlatform(id: string): Promise<{ deleted: boolean }> {
-    // este endpoint devuelve { deleted: true } sin envelope (según tu backend)
-    const { data } = await api.delete<{ deleted: boolean }>(`${BASE}/${id}`);
-    return data;
+    const { data } = await api.delete<Envelope<{ deleted: boolean }>>(`${BASE}/${id}`);
+    return data.data;
+}
+
+export async function uploadPlatformLogo(id: string, file: File): Promise<Platform> {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await api.post<Envelope<Platform>>(`${BASE}/${id}/logo`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data.data;
 }
