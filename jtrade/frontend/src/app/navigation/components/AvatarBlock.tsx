@@ -1,7 +1,7 @@
 // src/app/navigation/components/AvatarBlock.tsx
 import * as React from "react";
 import { Avatar, Box, Typography } from "@mui/material";
-import type { User } from "@/modules/core/users/types/user";
+import type { AuthUser } from "@/modules/core/auth/types/auth";
 import { useAuth } from "@/modules/core/auth/hooks/useAuth";
 
 type Props = {
@@ -19,7 +19,7 @@ export default function AvatarBlock({
                                     }: Props) {
     const { user } = useAuth();
 
-    const typedUser = user as User | null;
+    const typedUser = user as AuthUser | null;
 
     const fullName =
         [typedUser?.firstName, typedUser?.lastName].filter(Boolean).join(" ").trim() ||

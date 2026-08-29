@@ -1,6 +1,6 @@
 // src/modules/auth/types/auth.ts
 
-export type UserRole = "admin" | "client"; // lo normalizaremos a minúsculas en el hook
+export type UserRole = "admin" | "client" | "provider";
 
 // Alineado con UserResponseDto del backend
 export interface AuthUser {
@@ -13,6 +13,10 @@ export interface AuthUser {
 
     email: string;
     role: UserRole | string; // por si viene "ADMIN"/"CLIENT"
+    flow: "client" | "provider" | "internal";
+    applicationRole: string;
+    organizationId: string;
+    accessTier?: "trial" | "free" | "paid";
     isActive: boolean;
     avatarUrl?: string;
 
@@ -22,46 +26,8 @@ export interface AuthUser {
     [k: string]: any;
 }
 
-export interface LoginDto {
-    email: string;
-    password: string;
-}
-
-export interface RegisterDto {
-    firstName: string;
-    middleName?: string;
-    lastName: string;
-    secondLastName?: string;
-    email: string;
-    password: string;
-}
-
-export interface ChangePasswordDto {
-    current: string;
-    next: string;
-}
-
-export interface ForgotPasswordDto {
-    email: string;
-}
-
-export interface ResetPasswordDto {
-    token: string;
-    newPassword: string;
-}
-
 export interface RefreshTokenDto {
     refreshToken: string;
-}
-
-export interface CreateUserAdminDto {
-    firstName: string;
-    middleName?: string;
-    lastName: string;
-    secondLastName?: string;
-    email: string;
-    isActive?: boolean;
-    avatarUrl?: string;
 }
 
 // === Tokens y respuesta de auth ===

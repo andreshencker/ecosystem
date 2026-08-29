@@ -25,13 +25,11 @@ import {
 } from "@/app/lib/storage";
 
 import type { AuthUser } from "../types/auth";
+import { routeRoleForUser } from "@/app/routing/resolve/resolveAccessFlow";
 import {
-    login as loginApi,
     logoutWithRefreshToken,
     me as meApi,
     refreshTokensApi,
-    register as registerApi,
-    type RegisterResponse,
 } from "../api/auth";
 
 /** ===== Tipos expuestos por el contexto ===== */
@@ -45,8 +43,6 @@ type AuthContextValue = {
     loading: boolean;
     ready: boolean;
 
-    login: (email: string, password: string) => Promise<void>;
-    register: (payload: Record<string, any>) => Promise<RegisterResponse>;
     logout: () => Promise<void>;
 
     refreshMe: () => Promise<void>;
@@ -58,30 +54,16 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-/** Normaliza el usuario para que role sea "admin" | "client" en minúsculas */
+/** Grapifly's flow is canonical; role remains a UI compatibility alias. */
 function normalizeUser(u: AuthUser | StoredUser | null): StoredUser {
     if (!u) return null;
     const anyU = u as any;
-    const roleRaw = anyU.role;
-    const role = typeof roleRaw === "string" ? roleRaw.toLowerCase() : roleRaw;
-    return { ...anyU, role };
-}
-
-function errorToMessage(err: any, fallback: string) {
-    const msg = err?.response?.data?.message || err?.message || fallback;
-    if (typeof msg === "string") return msg;
-    if (Array.isArray(msg)) return msg.join(", ");
-    return fallback;
-}
-
-function isEmailNotVerifiedError(err: any) {
-    const status = err?.response?.status;
-    const msg = err?.response?.data?.message;
-    return (
-        status === 403 &&
-        (msg === "Email not verified" ||
-            String(msg).toLowerCase().includes("not verified"))
-    );
+    const normalized = {
+        ...anyU,
+        flow: typeof anyU.flow === "string" ? anyU.flow.toLowerCase().trim() : anyU.flow,
+        role: typeof anyU.role === "string" ? anyU.role.toLowerCase().trim() : anyU.role,
+    } as StoredUser;
+    return { ...normalized, role: routeRoleForUser(normalized) ?? normalized?.role };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -155,70 +137,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [applyToken, applyUser, clearSession]);
 
     // --- acciones ---
-    const login = useCallback(
-        async (email: string, password: string) => {
-            setLoading(true);
-            try {
-                const data = await loginApi({ email, password });
-
-                const accessToken = data.tokens.accessToken;
-                const refreshToken = data.tokens.refreshToken;
-                const me = data.user;
-
-                if (!accessToken || !me) {
-                    throw new Error("Invalid login response");
-                }
-
-                applyToken(accessToken);
-                setRefreshToken(refreshToken || null);
-                applyUser(me);
-
-                toast.success("Welcome!");
-            } catch (e: any) {
-                if (isEmailNotVerifiedError(e)) {
-                    toast.error(
-                        "Email not verified. Please check your inbox or resend the verification email."
-                    );
-                    throw e;
-                }
-
-                toast.error(errorToMessage(e, "Could not sign in"));
-                throw e;
-            } finally {
-                setLoading(false);
-                setReady(true);
-            }
-        },
-        [applyToken, applyUser]
-    );
-
-    /**
-     * ✅ Register estricto (backend): NO crea sesión.
-     * Retorna { registered, email } para que la UI redirija a /check-email o similar.
-     */
-    const register = useCallback(
-        async (payload: Record<string, any>) => {
-            setLoading(true);
-            try {
-                const data = await registerApi(payload as any);
-
-                if (!data?.registered) {
-                    throw new Error("Register failed");
-                }
-
-                toast.success("Account created. Please check your email to verify it.");
-                return data;
-            } catch (e: any) {
-                toast.error(errorToMessage(e, "Could not register"));
-                throw e;
-            } finally {
-                setLoading(false);
-                setReady(true);
-            }
-        },
-        []
-    );
-
     const logout = useCallback(async () => {
         setLoading(true);
         try {
@@ -228,6 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             clearSession();
             toast.success("Signed out");
+            const grapiflyUrl = import.meta.env.VITE_GRAPIFLY_ID_URL ?? "http://localhost:3101";
+            window.location.replace(
+                `${grapiflyUrl.replace(/\/$/, "")}/auth/logout/application/jtrade`,
+            );
         } finally {
             setLoading(false);
             setReady(true);
@@ -276,8 +198,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             loading,
             ready,
 
-            login,
-            register,
             logout,
 
             refreshMe,
@@ -292,8 +212,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated,
             loading,
             ready,
-            login,
-            register,
             logout,
             refreshMe,
             refreshTokens,
