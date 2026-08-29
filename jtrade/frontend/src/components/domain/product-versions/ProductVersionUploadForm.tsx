@@ -8,6 +8,7 @@ import {
     Grid,
     Stack,
     TextField,
+    Typography,
 } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export default function ProductVersionUploadForm({ initialVersion, loading, onSubmit, onCancel, submitLabel }: Props) {
+    const isReplacing = !!initialVersion;
     const [values, setValues] = React.useState<ProductVersionFormValues>({
         version: initialVersion ?? "",
         releaseNotes: "",
@@ -46,6 +48,17 @@ export default function ProductVersionUploadForm({ initialVersion, loading, onSu
     return (
         <Box component="form" onSubmit={handleSubmit}>
             <Stack spacing={2.5}>
+                <Box>
+                    <Typography variant="h5" fontWeight={900} sx={{ mb: 0.5 }}>
+                        {isReplacing ? "Replace file" : "Upload version"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        {isReplacing ? `Upload a new file for version ${initialVersion}.` : "Add a new downloadable file for this product's platform."}
+                    </Typography>
+                </Box>
+
+                <Divider />
+
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12 }}>
                         <TextField label="Version" value={values.version} onChange={handleChange("version")} fullWidth required
