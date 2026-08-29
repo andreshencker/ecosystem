@@ -1,14 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type TypeProjectDocument = HydratedDocument<TypeProject>;
+export type TypeProductDocument = HydratedDocument<TypeProduct>;
 
 @Schema({
-  collection: 'type_projects',
+  collection: 'type_products',
   timestamps: true,
   versionKey: false,
 })
-export class TypeProject {
+export class TypeProduct {
   @Prop({
     required: true,
     unique: true,
@@ -41,6 +41,6 @@ export class TypeProject {
   updatedAt?: Date;
 }
 
-export const TypeProjectSchema = SchemaFactory.createForClass(TypeProject);
+export const TypeProductSchema = SchemaFactory.createForClass(TypeProduct);
 
-TypeProjectSchema.index({ isActive: 1, name: 1 });
+TypeProductSchema.index({ isActive: 1, name: 1 });

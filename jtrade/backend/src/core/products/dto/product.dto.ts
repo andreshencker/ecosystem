@@ -10,7 +10,7 @@ export class ProductPlatformDto {
 }
 
 export class CreateProductDto {
-  @IsMongoId() typeProjectId!: string;
+  @IsMongoId() typeProductId!: string;
   @IsString() @MinLength(2) @MaxLength(80) key!: string;
   @IsString() @MinLength(2) @MaxLength(160) name!: string;
   @IsOptional() @IsString() @MaxLength(4000) description?: string;
@@ -18,7 +18,7 @@ export class CreateProductDto {
 }
 
 export class UpdateProductDto {
-  @IsOptional() @IsMongoId() typeProjectId?: string;
+  @IsOptional() @IsMongoId() typeProductId?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(80) key?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(160) name?: string;
   @IsOptional() @IsString() @MaxLength(4000) description?: string;

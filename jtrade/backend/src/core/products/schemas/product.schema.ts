@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
-import { TypeProject } from '../../type-projects/schemas/type-project.schema';
+import { TypeProduct } from '../../type-products/schemas/type-product.schema';
 import { Platform } from '../../platforms/schemas/platform.schema';
 
 export type ProductDocument = HydratedDocument<Product>;
@@ -23,7 +23,7 @@ export class Product {
   @Prop({ required: true, trim: true, index: true }) providerOrganizationId!: string;
   @Prop({ required: true, trim: true }) createdByGrapiflyUserId!: string;
   @Prop({ required: true, trim: true }) updatedByGrapiflyUserId!: string;
-  @Prop({ type: SchemaTypes.ObjectId, ref: TypeProject.name, required: true, index: true }) typeProjectId!: Types.ObjectId;
+  @Prop({ type: SchemaTypes.ObjectId, ref: TypeProduct.name, required: true, index: true }) typeProductId!: Types.ObjectId;
   @Prop({ required: true, lowercase: true, trim: true }) key!: string;
   @Prop({ required: true, trim: true }) name!: string;
   @Prop({ trim: true, default: '' }) description!: string;

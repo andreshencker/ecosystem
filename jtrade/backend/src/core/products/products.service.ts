@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { TypeProject, TypeProjectDocument } from '../type-projects/schemas/type-project.schema';
+import { TypeProduct, TypeProductDocument } from '../type-products/schemas/type-product.schema';
 import type { AuthContext } from '../auth/types/auth-context';
 import { PlatformsService } from '../platforms/platforms.service';
 import { CreateProductDto, CreateProductVersionDto, UpdateProductDto } from './dto/product.dto';
@@ -13,19 +13,19 @@ export class ProductsService {
   constructor(
     @InjectModel(Product.name) private readonly products: Model<ProductDocument>,
     @InjectModel(ProductVersion.name) private readonly versions: Model<ProductVersionDocument>,
-    @InjectModel(TypeProject.name) private readonly types: Model<TypeProjectDocument>,
+    @InjectModel(TypeProduct.name) private readonly types: Model<TypeProductDocument>,
     private readonly platforms: PlatformsService,
   ) {}
 
   async create(context: AuthContext, dto: CreateProductDto) {
-    await this.validateCatalogues(dto.typeProjectId, dto.platforms?.map((item) => item.platformId) ?? []);
+    await this.validateCatalogues(dto.typeProductId, dto.platforms?.map((item) => item.platformId) ?? []);
     const key = this.normalizeKey(dto.key);
     try {
       return await this.products.create({
         providerOrganizationId: context.organizationId,
         createdByGrapiflyUserId: context.grapiflyUserId,
         updatedByGrapiflyUserId: context.grapiflyUserId,
-        typeProjectId: new Types.ObjectId(dto.typeProjectId), key, name: dto.name.trim(),
+        typeProductId: new Types.ObjectId(dto.typeProductId), key, name: dto.name.trim(),
         description: dto.description?.trim() ?? '', platforms: this.mapPlatforms(dto.platforms ?? []), status: 'draft',
       });
     } catch (error: any) {
@@ -35,19 +35,19 @@ export class ProductsService {
   }
 
   listMine(context: AuthContext) {
-    return this.products.find({ providerOrganizationId: context.organizationId }).populate('typeProjectId').populate('platforms.platformId').sort({ updatedAt: -1 }).lean();
+    return this.products.find({ providerOrganizationId: context.organizationId }).populate('typeProductId').populate('platforms.platformId').sort({ updatedAt: -1 }).lean();
   }
 
   listPublished() {
-    return this.products.find({ status: 'published' }).populate('typeProjectId').populate('platforms.platformId').sort({ updatedAt: -1 }).lean();
+    return this.products.find({ status: 'published' }).populate('typeProductId').populate('platforms.platformId').sort({ updatedAt: -1 }).lean();
   }
 
   listAllForInternal() {
-    return this.products.find().populate('typeProjectId').populate('platforms.platformId').sort({ updatedAt: -1 }).lean();
+    return this.products.find().populate('typeProductId').populate('platforms.platformId').sort({ updatedAt: -1 }).lean();
   }
 
   async findMine(context: AuthContext, id: string) {
-    const product = await this.products.findOne({ _id: this.objectId(id), providerOrganizationId: context.organizationId }).populate('typeProjectId').populate('platforms.platformId').lean();
+    const product = await this.products.findOne({ _id: this.objectId(id), providerOrganizationId: context.organizationId }).populate('typeProductId').populate('platforms.platformId').lean();
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
@@ -56,12 +56,12 @@ export class ProductsService {
     if (dto.status && !['draft', 'pending_review', 'archived'].includes(dto.status)) {
       throw new BadRequestException('Providers may only use draft, pending_review or archived status');
     }
-    if (dto.typeProjectId || dto.platforms) {
+    if (dto.typeProductId || dto.platforms) {
       const current = await this.findMine(context, id);
-      await this.validateCatalogues(dto.typeProjectId ?? String((current as any).typeProjectId?._id ?? (current as any).typeProjectId), dto.platforms?.map((item) => item.platformId) ?? []);
+      await this.validateCatalogues(dto.typeProductId ?? String((current as any).typeProductId?._id ?? (current as any).typeProductId), dto.platforms?.map((item) => item.platformId) ?? []);
     }
     const patch: Record<string, unknown> = { updatedByGrapiflyUserId: context.grapiflyUserId };
-    if (dto.typeProjectId) patch.typeProjectId = new Types.ObjectId(dto.typeProjectId);
+    if (dto.typeProductId) patch.typeProductId = new Types.ObjectId(dto.typeProductId);
     if (dto.key) patch.key = this.normalizeKey(dto.key);
     if (dto.name) patch.name = dto.name.trim();
     if (dto.description !== undefined) patch.description = dto.description.trim();
@@ -105,11 +105,11 @@ export class ProductsService {
     return this.versions.find({ providerOrganizationId: context.organizationId, productId: this.objectId(productId) }).sort({ createdAt: -1 }).lean();
   }
 
-  private async validateCatalogues(typeProjectId: string, platformIds: string[]) {
+  private async validateCatalogues(typeProductId: string, platformIds: string[]) {
     const uniquePlatformIds = [...new Set(platformIds)];
     if (uniquePlatformIds.length !== platformIds.length) throw new BadRequestException('A platform cannot be repeated in a product');
     const [typeExists, activePlatforms] = await Promise.all([
-      this.types.exists({ _id: this.objectId(typeProjectId), isActive: true }),
+      this.types.exists({ _id: this.objectId(typeProductId), isActive: true }),
       uniquePlatformIds.length ? this.platforms.findAll({ active: true }) : Promise.resolve([]),
     ]);
     if (!typeExists) throw new BadRequestException('Invalid or inactive product type');

@@ -4,10 +4,10 @@ import type { RouteObject } from "react-router-dom";
 import RequireRole from "../guards/RequireRole";
 import { NavigationLayout, adminNavigation } from "@/old/app/navigation";
 import ProductsPage from "@/old/modules/core/products/pages/ProductsPage";
-import TypeProjectsPage from "@/old/modules/core/typeProjects/pages/TypeProjectsPage";
 
 const AdminDashboard = lazy(() => import("@/old/app/common/pages/admin/admindashboard"));
 const PlatformsPage = lazy(() => import("@/pages/platforms/PlatformsPage"));
+const ProductTypesPage = lazy(() => import("@/pages/product-types/ProductTypesPage"));
 const NotFound = lazy(() => import("@/old/app/common/pages/not-found"));
 
 export const adminRoutes: RouteObject[] = [{
@@ -18,7 +18,7 @@ export const adminRoutes: RouteObject[] = [{
         { path: "dashboard", element: <AdminDashboard/> },
         { path: "products", element: <ProductsPage review/> },
         { path: "platforms", element: <PlatformsPage/> },
-        { path: "type-projects", element: <TypeProjectsPage/> },
+        { path: "product-types", element: <ProductTypesPage/> },
         { path: "*", element: <NotFound/> },
     ],
 }];

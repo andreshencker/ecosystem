@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
-import { TypeProject, TypeProjectSchema } from '../type-projects/schemas/type-project.schema';
+import { TypeProduct, TypeProductSchema } from '../type-products/schemas/type-product.schema';
 import { PlatformsModule } from '../platforms/platforms.module';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
@@ -11,7 +11,7 @@ import { ProductVersion, ProductVersionSchema } from './schemas/product-version.
 @Module({
   imports: [AuthModule, PlatformsModule, MongooseModule.forFeature([
     { name: Product.name, schema: ProductSchema }, { name: ProductVersion.name, schema: ProductVersionSchema },
-    { name: TypeProject.name, schema: TypeProjectSchema },
+    { name: TypeProduct.name, schema: TypeProductSchema },
   ])],
   controllers: [ProductsController], providers: [ProductsService], exports: [ProductsService],
 })

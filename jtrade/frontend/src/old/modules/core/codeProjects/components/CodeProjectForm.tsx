@@ -20,7 +20,7 @@ import type {
     UpdateCodeProjectPayload,
 } from "@/old/modules/core/codeProjects/types/codeProjects";
 
-import type { TypeProject } from "@/old/modules/core/typeProjects/types/typeProject";
+import type { ProductType as TypeProject } from "@/types/productTypes";
 
 type Props = {
     mode: "create" | "edit";

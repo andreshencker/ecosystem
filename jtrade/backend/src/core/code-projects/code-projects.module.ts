@@ -12,9 +12,9 @@ import {
 } from '../company-provider/schemas/company-provider.schema';
 
 import {
-  TypeProject,
-  TypeProjectSchema,
-} from '../type-projects/schemas/type-project.schema';
+  TypeProduct,
+  TypeProductSchema,
+} from '../type-products/schemas/type-product.schema';
 
 @Module({
   imports: [
@@ -28,8 +28,8 @@ import {
         schema: CompanyProviderSchema,
       },
       {
-        name: TypeProject.name,
-        schema: TypeProjectSchema,
+        name: TypeProduct.name,
+        schema: TypeProductSchema,
       },
     ]),
   ],

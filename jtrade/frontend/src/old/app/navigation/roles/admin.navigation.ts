@@ -14,7 +14,7 @@ export const adminNavigation: NavigationConfig = {
     ],
     sidebar: { sections: { catalogue: [
         { label: "Product review", path: "/admin/products", icon: Inventory2RoundedIcon },
-        { label: "Product types", path: "/admin/type-projects", icon: AccountTreeIcon },
+        { label: "Product types", path: "/admin/product-types", icon: AccountTreeIcon },
         { label: "Platforms", path: "/admin/platforms", icon: AccountTreeIcon },
     ] } },
     general: [],

@@ -1,4 +1,4 @@
-export class TypeProjectResponseDto {
+export class TypeProductResponseDto {
   id!: string;
   key!: string;
   name!: string;

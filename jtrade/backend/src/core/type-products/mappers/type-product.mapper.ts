@@ -1,7 +1,7 @@
-import { TypeProjectResponseDto } from '../dto/type-project-response.dto';
+import { TypeProductResponseDto } from '../dto/type-product-response.dto';
 
-export class TypeProjectMapper {
-  static toResponse(doc: any): TypeProjectResponseDto {
+export class TypeProductMapper {
+  static toResponse(doc: any): TypeProductResponseDto {
     const plain = typeof doc?.toObject === 'function' ? doc.toObject() : doc;
 
     return {
@@ -15,7 +15,7 @@ export class TypeProjectMapper {
     };
   }
 
-  static toResponseList(list: any[]): TypeProjectResponseDto[] {
+  static toResponseList(list: any[]): TypeProductResponseDto[] {
     return list.map((item) => this.toResponse(item));
   }
 }

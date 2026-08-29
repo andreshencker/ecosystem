@@ -26,9 +26,9 @@ import {
 } from '../company-provider/schemas/company-provider.schema';
 
 import {
-  TypeProject,
-  TypeProjectDocument,
-} from '../type-projects/schemas/type-project.schema';
+  TypeProduct,
+  TypeProductDocument,
+} from '../type-products/schemas/type-product.schema';
 
 @Injectable()
 export class CodeProjectsService {
@@ -39,8 +39,8 @@ export class CodeProjectsService {
     @InjectModel(CompanyProvider.name)
     private readonly companyProviderModel: Model<CompanyProviderDocument>,
 
-    @InjectModel(TypeProject.name)
-    private readonly typeProjectModel: Model<TypeProjectDocument>,
+    @InjectModel(TypeProduct.name)
+    private readonly typeProjectModel: Model<TypeProductDocument>,
   ) {}
 
   private toObjectId(id: string | Types.ObjectId): Types.ObjectId {

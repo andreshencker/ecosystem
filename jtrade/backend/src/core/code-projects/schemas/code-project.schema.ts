@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 
 import { CompanyProvider } from '../../company-provider/schemas/company-provider.schema';
-import { TypeProject } from '../../type-projects/schemas/type-project.schema';
+import { TypeProduct } from '../../type-products/schemas/type-product.schema';
 
 export type CodeProjectDocument = HydratedDocument<CodeProject> & {
   createdAt: Date;
@@ -34,7 +34,7 @@ export class CodeProject {
 
   @Prop({
     type: SchemaTypes.ObjectId,
-    ref: TypeProject.name,
+    ref: TypeProduct.name,
     required: true,
     index: true,
   })
@@ -97,7 +97,7 @@ CodeProjectSchema.virtual('companyProvider', {
 });
 
 CodeProjectSchema.virtual('typeProject', {
-  ref: TypeProject.name,
+  ref: TypeProduct.name,
   localField: 'typeProjectId',
   foreignField: '_id',
   justOne: true,

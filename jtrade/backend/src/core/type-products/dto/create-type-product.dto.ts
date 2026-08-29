@@ -1,6 +1,6 @@
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
-export class CreateTypeProjectDto {
+export class CreateTypeProductDto {
   @IsString()
   key!: string;
 

@@ -7,9 +7,9 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { api } from "@/lib/http";
 
 type Entry = { _id?: string; id?: string; name: string };
-type Product = { _id: string; key: string; name: string; description: string; status: string; typeProjectId?: Entry; platforms: Array<{ platformId?: Entry }> };
-type Form = { key: string; name: string; description: string; typeProjectId: string; platformId: string };
-const EMPTY: Form = { key: "", name: "", description: "", typeProjectId: "", platformId: "" };
+type Product = { _id: string; key: string; name: string; description: string; status: string; typeProductId?: Entry; platforms: Array<{ platformId?: Entry }> };
+type Form = { key: string; name: string; description: string; typeProductId: string; platformId: string };
+const EMPTY: Form = { key: "", name: "", description: "", typeProductId: "", platformId: "" };
 const STATUSES = ["draft", "pending_review", "published", "suspended", "archived"];
 const list = <T,>(response: any): T[] => { const value = response?.data?.data ?? response?.data; return Array.isArray(value) ? value : []; };
 const id = (entry?: Entry) => String(entry?.id ?? entry?._id ?? "");
@@ -35,7 +35,7 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
 
     const load = () => {
         setLoading(true); setError(null);
-        return Promise.all([api.get(review ? "/products/review" : "/products/mine"), api.get("/type-projects/active"), api.get("/platforms?supported=true")])
+        return Promise.all([api.get(review ? "/products/review" : "/products/mine"), api.get("/type-products/active"), api.get("/platforms?supported=true")])
             .then(([p, t, pl]) => { setProducts(list<Product>(p)); setTypes(list<Entry>(t)); setPlatforms(list<Entry>(pl)); })
             .catch(reason => setError(reason?.response?.data?.message ?? "Products could not be loaded."))
             .finally(() => setLoading(false));
@@ -46,16 +46,16 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
         const term = search.trim().toLowerCase();
         return (!term || [product.name, product.key, product.description].some(value => value?.toLowerCase().includes(term)))
             && (!status || product.status === status)
-            && (!typeId || id(product.typeProjectId) === typeId)
+            && (!typeId || id(product.typeProductId) === typeId)
             && (!platformId || product.platforms?.some(item => id(item.platformId) === platformId));
     }), [products, search, status, typeId, platformId]);
 
     const openCreate = () => { setEditing(null); setForm(EMPTY); setFormError(null); setDrawer(true); };
-    const openEdit = (product: Product) => { setEditing(product); setForm({ key: product.key, name: product.name, description: product.description ?? "", typeProjectId: id(product.typeProjectId), platformId: id(product.platforms?.[0]?.platformId) }); setFormError(null); setDrawer(true); };
+    const openEdit = (product: Product) => { setEditing(product); setForm({ key: product.key, name: product.name, description: product.description ?? "", typeProductId: id(product.typeProductId), platformId: id(product.platforms?.[0]?.platformId) }); setFormError(null); setDrawer(true); };
     const close = () => { if (saving) return; setDrawer(false); setEditing(null); setForm(EMPTY); setFormError(null); };
     const save = async () => {
         setSaving(true); setFormError(null);
-        const payload = { key: form.key.trim(), name: form.name.trim(), description: form.description.trim(), typeProjectId: form.typeProjectId, platforms: form.platformId ? [{ platformId: form.platformId }] : [] };
+        const payload = { key: form.key.trim(), name: form.name.trim(), description: form.description.trim(), typeProductId: form.typeProductId, platforms: form.platformId ? [{ platformId: form.platformId }] : [] };
         try { if (editing) await api.patch(`/products/${editing._id}`, payload); else await api.post("/products", payload); setDrawer(false); setEditing(null); setForm(EMPTY); await load(); }
         catch (reason: any) { setFormError(reason?.response?.data?.message ?? "The product could not be saved."); }
         finally { setSaving(false); }
@@ -92,7 +92,7 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
         {!loading && !error && <TableContainer sx={{ mx: { xs: -2, md: -3 }, width: { xs: "calc(100% + 32px)", md: "calc(100% + 48px)" } }}><Table sx={{ minWidth: 760 }}><TableHead><TableRow sx={{ bgcolor: "action.hover", "& th": { py: 1.75, fontSize: 10, color: "text.secondary", textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 800 } }}><TableCell>Product</TableCell><TableCell>Type</TableCell><TableCell>Platforms</TableCell><TableCell>Status</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
                 <TableBody>{filtered.map(product => <TableRow key={product._id} hover>
                     <TableCell><Typography fontWeight={800}>{product.name}</Typography><Typography variant="caption" color="text.secondary">{product.key}</Typography></TableCell>
-                    <TableCell>{product.typeProjectId?.name ?? "—"}</TableCell>
+                    <TableCell>{product.typeProductId?.name ?? "—"}</TableCell>
                     <TableCell><Stack direction="row" gap={0.75} flexWrap="wrap">{product.platforms?.length ? product.platforms.map((entry, index) => <Chip key={index} size="small" variant="outlined" label={entry.platformId?.name ?? "Platform"} />) : "—"}</Stack></TableCell>
                     <TableCell><Chip size="small" color={statusColor(product.status)} label={product.status.replaceAll("_", " ")} /></TableCell>
                     <TableCell align="right">{review ? <Stack direction="row" gap={1} justifyContent="flex-end"><Button size="small" variant="contained" color="success" onClick={() => void reviewProduct(product._id, "published")}>Publish</Button><Button size="small" color="warning" onClick={() => void reviewProduct(product._id, "suspended")}>Suspend</Button></Stack> : <Tooltip title="Edit product"><IconButton size="small" onClick={() => openEdit(product)}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>}</TableCell>
@@ -103,8 +103,8 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
         <Drawer anchor={mobile ? "bottom" : "right"} open={drawer} onClose={close} PaperProps={{ sx: { width: mobile ? "100%" : 480, maxWidth: "100%", height: mobile ? "90vh" : "100%", border: 0, borderRadius: mobile ? "24px 24px 0 0" : 0, boxShadow: "-20px 0 60px rgba(20,18,45,.18)" } }}>
             <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ p: 3 }}><Box><Typography variant="h5" fontWeight={900}>{editing ? "Edit product" : "New product"}</Typography><Typography variant="body2" color="text.secondary">Define the product and its trading platform.</Typography></Box><IconButton onClick={close}><CloseRoundedIcon /></IconButton></Stack><Divider />
-                <Stack spacing={2} sx={{ p: 3, flex: 1, overflowY: "auto" }}>{formError && <Alert severity="error">{formError}</Alert>}<TextField label="Product name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /><TextField label="Key" required value={form.key} onChange={e => setForm({ ...form, key: e.target.value })} helperText="Stable identifier, for example: trend-bot." /><TextField select label="Product type" required value={form.typeProjectId} onChange={e => setForm({ ...form, typeProjectId: e.target.value })}>{types.map(item => <MenuItem key={id(item)} value={id(item)}>{item.name}</MenuItem>)}</TextField><TextField select label="Initial platform" value={form.platformId} onChange={e => setForm({ ...form, platformId: e.target.value })}><MenuItem value="">No platform</MenuItem>{platforms.map(item => <MenuItem key={id(item)} value={id(item)}>{item.name}</MenuItem>)}</TextField><TextField label="Description" multiline minRows={5} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></Stack>
-                <Divider /><Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ p: 2.5 }}><Button color="inherit" onClick={close} disabled={saving}>Cancel</Button><Button variant="contained" onClick={() => void save()} disabled={saving || !form.name.trim() || !form.key.trim() || !form.typeProjectId}>{saving ? "Saving…" : editing ? "Save changes" : "Create draft"}</Button></Stack>
+                <Stack spacing={2} sx={{ p: 3, flex: 1, overflowY: "auto" }}>{formError && <Alert severity="error">{formError}</Alert>}<TextField label="Product name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /><TextField label="Key" required value={form.key} onChange={e => setForm({ ...form, key: e.target.value })} helperText="Stable identifier, for example: trend-bot." /><TextField select label="Product type" required value={form.typeProductId} onChange={e => setForm({ ...form, typeProductId: e.target.value })}>{types.map(item => <MenuItem key={id(item)} value={id(item)}>{item.name}</MenuItem>)}</TextField><TextField select label="Initial platform" value={form.platformId} onChange={e => setForm({ ...form, platformId: e.target.value })}><MenuItem value="">No platform</MenuItem>{platforms.map(item => <MenuItem key={id(item)} value={id(item)}>{item.name}</MenuItem>)}</TextField><TextField label="Description" multiline minRows={5} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></Stack>
+                <Divider /><Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ p: 2.5 }}><Button color="inherit" onClick={close} disabled={saving}>Cancel</Button><Button variant="contained" onClick={() => void save()} disabled={saving || !form.name.trim() || !form.key.trim() || !form.typeProductId}>{saving ? "Saving…" : editing ? "Save changes" : "Create draft"}</Button></Stack>
             </Box>
         </Drawer>
     </Box>;
