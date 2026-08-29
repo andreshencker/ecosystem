@@ -43,7 +43,7 @@ export default function ProductForm({ initial, loading, onSubmit, onCancel }: Pr
     const typesQuery = useProductTypes();
     const platformsQuery = usePlatforms({ active: true });
     const types = typesQuery.data ?? [];
-    const platforms = platformsQuery.data ?? [];
+    const platforms = (platformsQuery.data ?? []).filter((p) => p.isSupported);
 
     const [values, setValues] = React.useState(DEFAULT_VALUES);
 

@@ -33,7 +33,7 @@ type Props = {
 
 export default function ProductVersionUploadForm({ fixedPlatformId, initialVersion, loading, onSubmit, onCancel, submitLabel }: Props) {
     const platformsQuery = usePlatforms({ active: true });
-    const platforms = platformsQuery.data ?? [];
+    const platforms = (platformsQuery.data ?? []).filter((p) => p.isSupported);
 
     const [values, setValues] = React.useState<ProductVersionFormValues>({
         platformId: fixedPlatformId ?? "",

@@ -17,8 +17,11 @@ import { EmptyState } from "@/components/shared/EmptyState";
 
 import ProductForm, { ProductFormValues } from "@/components/domain/products/ProductForm";
 import type { Product } from "@/types/products";
+import { refId } from "@/types/products";
 
 import { useCreateProduct, useProducts, useReviewProduct, useUpdateProduct } from "@/hooks/api/useProducts";
+import { useProductTypes } from "@/hooks/api/useProductTypes";
+import { usePlatforms } from "@/hooks/api/usePlatforms";
 import { useListState } from "@/hooks/useListState";
 
 const STATUSES = ["draft", "pending_review", "published", "suspended", "archived"];
@@ -30,8 +33,15 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
     const q = useProducts(review ? "review" : "mine");
     const allProducts = q.data ?? [];
 
+    const typesQuery = useProductTypes();
+    const platformsQuery = usePlatforms();
+    const types = typesQuery.data ?? [];
+    const platforms = platformsQuery.data ?? [];
+
     const list = useListState();
     const statusFilter = list.filters["status"] ?? "";
+    const typeFilter = list.filters["type"] ?? "";
+    const platformFilter = list.filters["platform"] ?? "";
 
     const products = React.useMemo(() => {
         let rows = allProducts;
@@ -42,8 +52,10 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
             );
         }
         if (statusFilter) rows = rows.filter((p) => p.status === statusFilter);
+        if (typeFilter) rows = rows.filter((p) => refId(p.typeProductId) === typeFilter);
+        if (platformFilter) rows = rows.filter((p) => p.platforms?.some((entry) => refId(entry.platformId) === platformFilter));
         return rows;
-    }, [allProducts, list.debouncedSearch, statusFilter]);
+    }, [allProducts, list.debouncedSearch, statusFilter, typeFilter, platformFilter]);
 
     const createProduct = useCreateProduct();
     const updateProduct = useUpdateProduct();
@@ -118,6 +130,22 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
                     <Select value={statusFilter} label="Status" onChange={(e) => list.setFilter("status", e.target.value)}>
                         <MenuItem value="">All statuses</MenuItem>
                         {STATUSES.map((value) => <MenuItem key={value} value={value}>{value.replace(/_/g, " ")}</MenuItem>)}
+                    </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                    <InputLabel>Type</InputLabel>
+                    <Select value={typeFilter} label="Type" onChange={(e) => list.setFilter("type", e.target.value)}>
+                        <MenuItem value="">All types</MenuItem>
+                        {types.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+                    </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                    <InputLabel>Platform</InputLabel>
+                    <Select value={platformFilter} label="Platform" onChange={(e) => list.setFilter("platform", e.target.value)}>
+                        <MenuItem value="">All platforms</MenuItem>
+                        {platforms.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
                     </Select>
                 </FormControl>
             </SearchToolbar>
