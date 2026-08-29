@@ -1,0 +1,10 @@
+import { Box, Button, Card, CardContent, Chip, Container, Stack, Typography } from "@mui/material";
+import { Link } from "react-router-dom";
+import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
+import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
+import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
+import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import { useAppConfig } from "@/app/providers/AppConfigProvider";
+import { PublicFooter } from "@/app/common/components/public/PublicFooter";
+
+export default function DevelopersPage() { const app = useAppConfig(); const items = [[<CodeRoundedIcon/>,"Build your product","Package your bot, indicator, strategy or utility for a supported platform."],[<VerifiedUserRoundedIcon/>,"Submit for review","Provide clear documentation, compatibility and product information."],[<StorefrontRoundedIcon/>,"Publish your listing","Create a storefront that helps traders understand your product."],[<InsightsRoundedIcon/>,"Grow your business","Manage products, customers and future performance insights."]]; return <Box><Container maxWidth="lg" sx={{ py: { xs: 8, md: 11 } }}><Chip label="FOR DEVELOPERS"/><Typography variant="h1" sx={{ fontSize: { xs: 46, md: 76 }, letterSpacing: "-.06em", maxWidth: 850, mt: 2 }}>Turn trading expertise into products.</Typography><Typography color="text.secondary" fontSize={19} maxWidth={700} mt={2}>{app.name} gives developers a focused marketplace to publish tools and reach customers who trade with MT4, MT5, cTrader and more.</Typography><Button component={Link} to="/signin" variant="contained" size="large" sx={{ mt: 4 }}>Continue with Grapifly ID</Button><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2,1fr)" }, gap: 2, mt: 8 }}>{items.map(([icon,title,description]) => <Card key={String(title)}><CardContent sx={{ p: 3.5 }}><Box color="primary.main">{icon}</Box><Typography variant="h5" fontWeight={900} mt={2}>{title}</Typography><Typography color="text.secondary" mt={1}>{description}</Typography></CardContent></Card>)}</Box></Container><PublicFooter/></Box>; }

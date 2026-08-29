@@ -8,4 +8,4 @@ export { adminNavigation } from "./roles/admin.navigation";
 export { clientNavigation } from "./roles/client.navigation";
 export { providerNavigation } from "./roles/provider.navigation";
 
-export { default as NavigationLayout } from "./components/NavigationLayout";
+export { default as NavigationLayout } from "@/components/layout/NavigationLayout";

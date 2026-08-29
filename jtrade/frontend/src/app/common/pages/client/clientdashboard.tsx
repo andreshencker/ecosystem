@@ -4,7 +4,7 @@ import { Link as RouterLink } from "react-router-dom";
 export default function ClientDashboard() {
     const theme = useTheme();
     const isDark = theme.palette.mode === "dark";
-    const YELLOW = "#ffd400";
+    const brand = theme.palette.primary.main;
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -28,11 +28,9 @@ export default function ClientDashboard() {
                             sx={{
                                 fontWeight: 900,
                                 borderRadius: 999,
-                                bgcolor: isDark
-                                    ? "rgba(255,212,0,0.14)"
-                                    : "rgba(255,212,0,0.18)",
-                                border: `1px solid rgba(255,212,0,0.35)`,
-                                color: isDark ? "#fff" : "#6b5d00",
+                                bgcolor: `${brand}24`,
+                                border: `1px solid ${brand}59`,
+                                color: "text.primary",
                             }}
                         />
 

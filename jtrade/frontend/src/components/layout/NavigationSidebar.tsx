@@ -13,9 +13,9 @@ import {
     useTheme,
 } from "@mui/material";
 import { NavLink, useLocation } from "react-router-dom";
-import type { SidebarItem } from "../types";
+import type { SidebarItem } from "@/app/navigation/types";
 import OrganizationCard from "./OrganizationCard";
-import { useUIStore } from "@/app/stores/ui.store";
+import { useUIStore } from "@/stores/ui.store";
 
 type Props = {
     desktop: boolean;

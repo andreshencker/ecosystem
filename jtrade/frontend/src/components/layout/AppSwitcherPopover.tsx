@@ -2,7 +2,7 @@ import * as React from "react";
 import { Box, IconButton, Popover, Typography } from "@mui/material";
 import AppsIcon from "@mui/icons-material/Apps";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/app/lib/http";
+import { api } from "@/lib/http";
 
 interface EnabledApp {
     key: string;

@@ -1,5 +1,7 @@
 import type { NavigationConfig, RoleKey } from "./types";
 import { NAVIGATION_BY_ROLE } from "./navigation.registry";
+import type { StoredUser } from "@/lib/storage";
+import { routeRoleForUser } from "@/app/routing/resolve/resolveAccessFlow";
 
 /**
  * Decide config según:
@@ -9,12 +11,13 @@ import { NAVIGATION_BY_ROLE } from "./navigation.registry";
 export function resolveNavigation(params: {
     isAuthenticated: boolean;
     role?: string | null;
+    user?: StoredUser | null;
 }): NavigationConfig {
-    const { isAuthenticated, role } = params;
+    const { isAuthenticated, role, user } = params;
 
     if (!isAuthenticated) return NAVIGATION_BY_ROLE.public;
 
-    const r = (role ?? "").toLowerCase().trim();
+    const r = routeRoleForUser(user ?? ({ role } as StoredUser));
     if (r === "admin") return NAVIGATION_BY_ROLE.admin;
     if (r === "client") return NAVIGATION_BY_ROLE.client;
     if (r === "provider") return NAVIGATION_BY_ROLE.provider;
@@ -25,6 +28,7 @@ export function resolveNavigation(params: {
 export function resolveRoleKey(params: {
     isAuthenticated: boolean;
     role?: string | null;
+    user?: StoredUser | null;
 }): RoleKey {
     return resolveNavigation(params).role;
 }

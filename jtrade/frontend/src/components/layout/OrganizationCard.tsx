@@ -4,7 +4,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CheckIcon from "@mui/icons-material/Check";
 import { alpha } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/app/lib/http";
+import { api } from "@/lib/http";
 import { useAuth } from "@/modules/core/auth/hooks/useAuth";
 
 interface JtradeOrganization {

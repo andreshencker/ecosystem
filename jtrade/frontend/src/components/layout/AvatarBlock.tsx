@@ -1,4 +1,4 @@
-// src/app/navigation/components/AvatarBlock.tsx
+// src/components/layout/AvatarBlock.tsx
 import * as React from "react";
 import { Avatar, Box, Typography } from "@mui/material";
 import type { AuthUser } from "@/modules/core/auth/types/auth";

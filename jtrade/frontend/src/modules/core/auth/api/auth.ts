@@ -1,5 +1,5 @@
 // src/modules/auth/api/auth.ts
-import { api } from "@/app/lib/http";
+import { api } from "@/lib/http";
 import type { AuthResponse, AuthTokens, AuthUser, RefreshTokenDto } from "../types/auth";
 
 /**

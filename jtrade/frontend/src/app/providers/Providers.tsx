@@ -3,15 +3,17 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-import { queryClient } from "@/app/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { AuthProvider } from "@/modules/core/auth/hooks/useAuth";
 import { AppSessionProvider } from "@/app/context/AppSessionContext";
 import { AppThemeProvider } from "@/app/common/theme/AppThemeProvider";
+import { AppConfigProvider } from "@/app/providers/AppConfigProvider";
 
 export default function Providers({ children }: { children: ReactNode }) {
     return (
         <BrowserRouter>
-            <AppThemeProvider>
+            <AppConfigProvider>
+              <AppThemeProvider>
                 <QueryClientProvider client={queryClient}>
                     <AuthProvider>
                         <AppSessionProvider>
@@ -27,7 +29,7 @@ export default function Providers({ children }: { children: ReactNode }) {
                                         boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
                                     },
                                     success: {
-                                        iconTheme: { primary: "#F0B90B", secondary: "#111214" },
+                                        iconTheme: { primary: "var(--app-primary)", secondary: "#111214" },
                                     },
                                     error: {
                                         iconTheme: { primary: "#F03D3D", secondary: "#111214" },
@@ -37,7 +39,8 @@ export default function Providers({ children }: { children: ReactNode }) {
                         </AppSessionProvider>
                     </AuthProvider>
                 </QueryClientProvider>
-            </AppThemeProvider>
+              </AppThemeProvider>
+            </AppConfigProvider>
         </BrowserRouter>
     );
 }

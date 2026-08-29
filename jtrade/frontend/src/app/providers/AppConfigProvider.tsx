@@ -1,5 +1,5 @@
 import * as React from "react";
-import { API_URL } from "@/app/lib/constants";
+import { API_URL } from "@/lib/constants";
 import type { AppConfig } from "@/app/config/app-config";
 
 const AppConfigContext = React.createContext<AppConfig | null>(null);

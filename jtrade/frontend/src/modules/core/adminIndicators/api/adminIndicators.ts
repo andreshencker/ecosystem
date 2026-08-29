@@ -1,4 +1,4 @@
-import { api } from "@/app/lib/http";
+import { api } from "@/lib/http";
 
 import type {
     AdminIndicator,

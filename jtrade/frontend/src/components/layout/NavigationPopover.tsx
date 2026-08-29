@@ -4,7 +4,7 @@ import { Box, Button, Divider, Popover, Stack, Typography } from "@mui/material"
 import { NavLink } from "react-router-dom";
 
 import ThemeSwitcher from "@/app/common/theme/ThemeSwitcher";
-import type { NavigationConfig, PopoverAction } from "../types";
+import type { NavigationConfig, PopoverAction } from "@/app/navigation/types";
 import AvatarBlock from "./AvatarBlock";
 import { useAuth } from "@/modules/core/auth/hooks/useAuth";
 import { useThemeMode } from "@/app/common/theme/AppThemeProvider";

@@ -1,6 +1,6 @@
 // src/hooks/api/usePlatforms.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/app/lib/http";
+import { api } from "@/lib/http";
 import type {
     CreatePlatformPayload,
     ListPlatformsParams,

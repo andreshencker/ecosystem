@@ -31,6 +31,8 @@ export default function AppRouter() {
         const isEntry =
             pathname === "/" ||
             pathname.startsWith("/signin") ||
+            pathname === "/provider/signin" ||
+            pathname.startsWith("/auth/grapifly/callback") ||
             pathname.startsWith("/forgot-password") ||
             pathname.startsWith("/reset-password");
 

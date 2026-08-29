@@ -1,12 +1,12 @@
 import * as React from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet, useNavigate } from "react-router-dom";
-import type { NavigationConfig } from "../types";
-import { useNavigationState } from "../state/navigation.state";
+import type { NavigationConfig } from "@/app/navigation/types";
+import { useNavigationState } from "@/app/navigation/state/navigation.state";
 import NavigationNavbar from "./NavigationNavbar";
 import NavigationSidebar from "./NavigationSidebar";
 import NavigationPopover from "./NavigationPopover";
-import { useUIStore } from "@/app/stores/ui.store";
+import { useUIStore } from "@/stores/ui.store";
 
 type Props = {
     config: NavigationConfig;

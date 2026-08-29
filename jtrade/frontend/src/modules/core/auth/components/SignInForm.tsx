@@ -1,5 +1,5 @@
 import { Box, Button, Card, CardContent, Link, Stack, Typography, useTheme } from "@mui/material";
-import AppBrand from "@/app/navigation/components/AppBrand";
+import AppBrand from "@/components/layout/AppBrand";
 import { useAppConfig } from "@/app/providers/AppConfigProvider";
 import { resolveLogoUrl } from "@/app/config/app-config";
 

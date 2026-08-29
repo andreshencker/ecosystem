@@ -10,8 +10,8 @@ import React, {
 } from "react";
 import toast from "react-hot-toast";
 
-import { clearAuthHeader, setAuthHeader } from "@/app/lib/http";
-import type { StoredUser } from "@/app/lib/storage";
+import { clearAuthHeader, setAuthHeader } from "@/lib/http";
+import type { StoredUser } from "@/lib/storage";
 import {
     clearRefreshToken,
     clearToken,
@@ -22,7 +22,7 @@ import {
     setRefreshToken,
     setToken as saveToken,
     setUser as saveUser,
-} from "@/app/lib/storage";
+} from "@/lib/storage";
 
 import type { AuthUser } from "../types/auth";
 import { routeRoleForUser } from "@/app/routing/resolve/resolveAccessFlow";

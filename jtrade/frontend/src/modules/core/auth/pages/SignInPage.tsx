@@ -1,5 +1,5 @@
 import { alpha, Box, Typography, useTheme } from "@mui/material";
-import AppBrand from "@/app/navigation/components/AppBrand";
+import AppBrand from "@/components/layout/AppBrand";
 import SignInForm from "@/modules/core/auth/components/SignInForm";
 import { useAppConfig } from "@/app/providers/AppConfigProvider";
 import { resolveLogoUrl } from "@/app/config/app-config";

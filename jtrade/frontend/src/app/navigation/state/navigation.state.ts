@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import type { NavigationConfig, NavbarItem } from "../types";
-import { useUIStore } from "@/app/stores/ui.store";
+import { useUIStore } from "@/stores/ui.store";
 
 export function useNavigationState(cfg: NavigationConfig) {
     const { pathname } = useLocation();

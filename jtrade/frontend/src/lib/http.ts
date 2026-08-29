@@ -1,4 +1,4 @@
-// src/app/lib/http.ts
+// src/lib/http.ts
 import axios, {AxiosError} from "axios";
 import {API_URL, HTTP_TIMEOUT} from "./constants";
 import {clearSession, getRefreshToken, getToken, setRefreshToken, setToken,} from "./storage";

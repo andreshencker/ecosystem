@@ -16,6 +16,7 @@ export const STORAGE_PREFIX = "Jtrade";
 export enum UserRole {
     ADMIN = "admin",
     CLIENT = "client",
+    PROVIDER = "provider",
 }
 
 /** Timeout por defecto de las peticiones HTTP (ms) */

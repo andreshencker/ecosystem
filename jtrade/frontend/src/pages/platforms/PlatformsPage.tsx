@@ -6,12 +6,12 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LaunchIcon from "@mui/icons-material/Launch";
 
-import { PageHeader } from "@/app/common/components/shared/PageHeader";
-import { DataTable } from "@/app/common/components/shared/DataTable";
-import { FormDrawer } from "@/app/common/components/shared/FormDrawer";
-import { ConfirmDialog } from "@/app/common/components/shared/ConfirmDialog";
-import { LoadingButton } from "@/app/common/components/shared/LoadingButton";
-import { EmptyState } from "@/app/common/components/shared/EmptyState";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { DataTable } from "@/components/shared/DataTable";
+import { FormDrawer } from "@/components/shared/FormDrawer";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { LoadingButton } from "@/components/shared/LoadingButton";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 import PlatformForm, { PlatformFormValues } from "@/components/domain/platforms/PlatformForm";
 import type { Platform } from "@/types/platforms";

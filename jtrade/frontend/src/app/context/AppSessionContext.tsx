@@ -12,7 +12,7 @@ import React, {
 import toast from "react-hot-toast";
 
 import {useAuth} from "@/modules/core/auth/hooks/useAuth";
-import {clearSession, clearUiPreferences, getTokenExpiresAt} from "@/app/lib/storage";
+import {clearSession, clearUiPreferences, getTokenExpiresAt} from "@/lib/storage";
 
 /**
  * AppSessionContext
