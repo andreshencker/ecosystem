@@ -1,11 +1,12 @@
 import * as React from "react";
-import { Avatar, Chip, IconButton, Tooltip } from "@mui/material";
+import { Avatar, Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Tooltip } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SearchToolbar } from "@/components/shared/SearchToolbar";
 import { DataTable } from "@/components/shared/DataTable";
 import { FormDrawer } from "@/components/shared/FormDrawer";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -22,10 +23,30 @@ import {
     useUpdatePlatform,
     useUploadPlatformLogo,
 } from "@/hooks/api/usePlatforms";
+import { useListState } from "@/hooks/useListState";
 
 export default function PlatformsPage() {
     const q = usePlatforms();
-    const platforms = q.data ?? [];
+    const allPlatforms = q.data ?? [];
+
+    const list = useListState();
+    const statusFilter = list.filters["status"] ?? "";
+
+    const platforms = React.useMemo(() => {
+        let rows = allPlatforms;
+        if (list.debouncedSearch.trim()) {
+            const query = list.debouncedSearch.trim().toLowerCase();
+            rows = rows.filter(
+                (p) =>
+                    p.key.toLowerCase().includes(query) ||
+                    p.name.toLowerCase().includes(query) ||
+                    p.description.toLowerCase().includes(query),
+            );
+        }
+        if (statusFilter === "active") rows = rows.filter((p) => p.isActive);
+        if (statusFilter === "inactive") rows = rows.filter((p) => !p.isActive);
+        return rows;
+    }, [allPlatforms, list.debouncedSearch, statusFilter]);
 
     const createPlatform = useCreatePlatform();
     const updatePlatform = useUpdatePlatform();
@@ -100,7 +121,7 @@ export default function PlatformsPage() {
         <>
             <PageHeader
                 title="Platforms"
-                count={platforms.length}
+                count={allPlatforms.length}
                 subtitle="Manage the trading platforms products can target (MT4, MT5, cTrader, TradingView, ...)."
                 actions={
                     <LoadingButton variant="contained" startIcon={<AddIcon />} onClick={handleAdd} sx={{ textTransform: "none", fontWeight: 700 }}>
@@ -108,6 +129,23 @@ export default function PlatformsPage() {
                     </LoadingButton>
                 }
             />
+
+            <SearchToolbar
+                search={list.search}
+                onSearchChange={list.setSearch}
+                placeholder="Search key, name, description…"
+                hasActiveFilters={list.hasActiveFilters}
+                onClearFilters={list.clearFilters}
+            >
+                <FormControl size="small" sx={{ minWidth: 130 }}>
+                    <InputLabel>Status</InputLabel>
+                    <Select value={statusFilter} label="Status" onChange={(e) => list.setFilter("status", e.target.value)}>
+                        <MenuItem value="">All</MenuItem>
+                        <MenuItem value="active">Active</MenuItem>
+                        <MenuItem value="inactive">Inactive</MenuItem>
+                    </Select>
+                </FormControl>
+            </SearchToolbar>
 
             <DataTable<Platform>
                 columns={columns}
@@ -133,7 +171,17 @@ export default function PlatformsPage() {
                         </Tooltip>
                     </>
                 )}
-                emptyState={<EmptyState title="No platforms yet" description="Add MT4, MT5, cTrader or TradingView to get started." />}
+                emptyState={
+                    list.hasActiveFilters ? (
+                        <EmptyState
+                            title="No platforms match your filters"
+                            description="Try adjusting your search or clearing the filters."
+                            action={<LoadingButton variant="outlined" onClick={list.clearFilters}>Clear filters</LoadingButton>}
+                        />
+                    ) : (
+                        <EmptyState title="No platforms yet" description="Add MT4, MT5, cTrader or TradingView to get started." />
+                    )
+                }
                 mobileCardConfig={{
                     primaryText: "name",
                     secondaryText: "key",
