@@ -104,6 +104,10 @@ export class UsersService implements OnApplicationBootstrap {
     return this.users.findOne({ email: email.toLowerCase().trim(), isActive: true }).lean();
   }
 
+  findByProviderSubject(provider: 'google', providerSubject: string) {
+    return this.users.findOne({ provider, providerSubject }).lean();
+  }
+
   listAll() {
     return this.users
       .find()

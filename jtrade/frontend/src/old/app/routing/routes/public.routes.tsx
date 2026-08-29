@@ -16,7 +16,6 @@ const NotFound = lazy(() => import("@/old/app/common/pages/not-found"));
 
 export const publicRoutes: RouteObject[] = [
     { path: "/signin", element: <LoginPage /> },
-    { path: "/provider/signin", element: <LoginPage flow="provider" /> },
     { path: "/auth/grapifly/callback", element: <GrapiflyCallbackPage /> },
     {
         path: "/",

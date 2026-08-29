@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { createHash, randomBytes } from 'crypto';
 import { GoogleIdentity, UsersService } from '../users/users.service';
 import { SsoCode, SsoCodeDocument } from './schemas/sso-code.schema';
+import { PendingSignup, PendingSignupDocument } from './schemas/pending-signup.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { OrganizationMembership, OrganizationMembershipDocument } from '../organizations/schemas/organization-membership.schema';
 import { OrganizationApplication, OrganizationApplicationDocument } from '../organizations/schemas/organization-application.schema';
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly jwt: JwtService,
     @InjectModel(SsoCode.name) private readonly ssoCodes: Model<SsoCodeDocument>,
+    @InjectModel(PendingSignup.name) private readonly pendingSignups: Model<PendingSignupDocument>,
     @InjectModel(Organization.name) private readonly organizations: Model<OrganizationDocument>,
     @InjectModel(OrganizationMembership.name) private readonly memberships: Model<OrganizationMembershipDocument>,
     @InjectModel(OrganizationApplication.name) private readonly organizationApps: Model<OrganizationApplicationDocument>,
@@ -45,6 +47,10 @@ export class AuthService {
 
   async getUser(grapiflyUserId: string) {
     return this.users.findByGrapiflyUserId(grapiflyUserId);
+  }
+
+  async findByProviderSubject(provider: 'google', providerSubject: string) {
+    return this.users.findByProviderSubject(provider, providerSubject);
   }
 
   async resolveSession(token: string | undefined) {
@@ -108,6 +114,38 @@ export class AuthService {
         tier: access.tier,
       },
     } satisfies EcosystemSsoIdentityContract;
+  }
+
+  /**
+   * A brand-new identity signing into an app that allows more than one
+   * self-service flow (client + provider) can't be upserted yet — we don't
+   * know which `tipo` to give it. Park the pending Google identity here
+   * until the person picks an account type on the chooser screen.
+   */
+  async createPendingSignup(identity: GoogleIdentity, appKey: string, organizationId?: string): Promise<string> {
+    const token = randomBytes(32).toString('base64url');
+    await this.pendingSignups.create({
+      tokenHash: this.hash(token),
+      appKey,
+      provider: 'google',
+      providerSubject: identity.subject,
+      email: identity.email,
+      emailVerified: identity.emailVerified,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl ?? null,
+      organizationId: organizationId ?? null,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
+    return token;
+  }
+
+  async consumePendingSignup(token: string) {
+    const now = new Date();
+    return this.pendingSignups.findOneAndUpdate(
+      { tokenHash: this.hash(token), consumedAt: null, expiresAt: { $gt: now } },
+      { $set: { consumedAt: now } },
+      { new: true },
+    ).lean();
   }
 
   private toRelayOrganization(organization: Organization) {

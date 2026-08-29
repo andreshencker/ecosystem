@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpException, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -48,10 +48,43 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() request: Request, @Res() response: Response) {
-    const requestedType = request.cookies?.grapifly_signup_type === 'provider' ? 'provider' : 'client';
-    response.clearCookie('grapifly_signup_type', { path: '/' });
+    const identity = request.user as GoogleIdentity;
+
+    // Determine what `tipo` a brand-new identity should get. Existing
+    // identities ignore this entirely (loginWithGoogle only consults it via
+    // $setOnInsert), so 'client' is just an inert default for that case.
+    let requestedType: 'client' | 'provider' = 'client';
+
+    if (request.query.state && request.query.state !== 'invitation') {
+      const appKey = String(request.query.state);
+      const organizationId = request.cookies?.grapifly_sso_organization as string | undefined;
+
+      const existingUser = await this.auth.findByProviderSubject('google', identity.subject);
+      if (!existingUser) {
+        const application = await this.auth.assertActiveApplication(appKey);
+        const selectableFlows = (application.allowedFlows ?? []).filter((flow) => flow !== 'internal');
+        if (selectableFlows.length > 1) {
+          // New identity, and this app offers more than one self-service
+          // flow — park the Google identity and let the person choose on
+          // Grapifly's own account-type screen instead of guessing.
+          response.clearCookie('grapifly_sso_organization', { path: '/' });
+          const pendingToken = await this.auth.createPendingSignup(identity, appKey, organizationId);
+          response.cookie('grapifly_pending_signup', pendingToken, {
+            httpOnly: true,
+            secure: this.config.get<string>('NODE_ENV') === 'production',
+            sameSite: 'lax',
+            maxAge: 10 * 60 * 1000,
+            path: '/',
+          });
+          const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100';
+          return response.redirect(`${frontendUrl.replace(/\/$/, '')}/choose-account-type?app=${encodeURIComponent(appKey)}`);
+        }
+        requestedType = (selectableFlows[0] as 'client' | 'provider' | undefined) ?? 'client';
+      }
+    }
+
     const { user, sessionToken, wasNew, organizationId: defaultOrganizationId } = await this.auth.loginWithGoogle(
-      request.user as GoogleIdentity,
+      identity,
       requestedType,
     );
     response.cookie('grapifly_session', sessionToken, {
@@ -151,24 +184,9 @@ export class AuthController {
     // appKey never burns a full OAuth round trip to discover.
     const application = await this.auth.assertActiveApplication(appKey);
 
-    if (request.query.flow && !['client', 'provider'].includes(String(request.query.flow))) {
-      throw new HttpException('Public sign-in only supports client or provider', 400);
-    }
-    const requestedType = request.query.flow === 'provider' ? 'provider' : 'client';
-    if (requestedType === 'provider' && !application.allowedFlows?.includes('provider')) {
-      throw new HttpException(`${appKey} does not support the provider flow`, 400);
-    }
-
     const token = request.cookies?.grapifly_session as string | undefined;
     const session = await this.auth.resolveSession(token);
     if (!session) {
-      response.cookie('grapifly_signup_type', requestedType, {
-        httpOnly: true,
-        secure: this.config.get<string>('NODE_ENV') === 'production',
-        sameSite: 'lax',
-        maxAge: 5 * 60 * 1000,
-        path: '/',
-      });
       const organizationId = typeof request.query.organizationId === 'string' ? request.query.organizationId : undefined;
       if (organizationId) {
         response.cookie('grapifly_sso_organization', organizationId, {
@@ -194,6 +212,57 @@ export class AuthController {
       }
       throw error;
     }
+  }
+
+  /**
+   * Finishes a signup that was parked by googleCallback() because the app
+   * offers more than one self-service flow — the person just picked one on
+   * Grapifly's /choose-account-type screen.
+   */
+  @Get('complete-signup')
+  async completeSignup(
+    @Query('type') type: string | undefined,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3100';
+    const token = request.cookies?.grapifly_pending_signup as string | undefined;
+    response.clearCookie('grapifly_pending_signup', { path: '/' });
+
+    const pending = token ? await this.auth.consumePendingSignup(token) : null;
+    if (!pending) {
+      const appFallback = typeof request.query.app === 'string' ? request.query.app : '';
+      return response.redirect(`${frontendUrl.replace(/\/$/, '')}/choose-account-type?app=${encodeURIComponent(appFallback)}&error=expired`);
+    }
+
+    const application = await this.auth.assertActiveApplication(pending.appKey);
+    const selectableFlows = (application.allowedFlows ?? []).filter((flow) => flow !== 'internal');
+    const requestedType = type === 'provider' ? 'provider' : 'client';
+    if (!selectableFlows.includes(requestedType)) {
+      return response.redirect(`${frontendUrl.replace(/\/$/, '')}/choose-account-type?app=${encodeURIComponent(pending.appKey)}&error=invalid_type`);
+    }
+
+    const { user, sessionToken, wasNew, organizationId: defaultOrganizationId } = await this.auth.loginWithGoogle(
+      {
+        subject: pending.providerSubject,
+        email: pending.email,
+        emailVerified: pending.emailVerified,
+        displayName: pending.displayName,
+        avatarUrl: pending.avatarUrl,
+      },
+      requestedType,
+    );
+    if (wasNew && requestedType === 'provider') {
+      await this.auth.grantProviderSignup(user.grapiflyUserId, defaultOrganizationId, pending.appKey).catch(() => {});
+    }
+    response.cookie('grapifly_session', sessionToken, {
+      httpOnly: true,
+      secure: this.config.get<string>('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+    return response.redirect(`/auth/sso/${encodeURIComponent(pending.appKey)}${pending.organizationId ? `?organizationId=${encodeURIComponent(pending.organizationId)}` : ''}`);
   }
 
   @Post('sso/exchange')

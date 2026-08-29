@@ -20,6 +20,7 @@ describe('AuthService — generic SSO exchange', () => {
   let users: { findByGrapiflyUserId: jest.Mock };
   let jwt: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let ssoCodes: ReturnType<typeof buildModel>;
+  let pendingSignups: ReturnType<typeof buildModel>;
   let organizations: ReturnType<typeof buildModel>;
   let memberships: ReturnType<typeof buildModel>;
   let organizationApps: ReturnType<typeof buildModel>;
@@ -36,6 +37,7 @@ describe('AuthService — generic SSO exchange', () => {
     users = { findByGrapiflyUserId: jest.fn().mockResolvedValue({ grapiflyUserId: 'gpf_usr_1', email: 'owner@example.com', tipo: 'client' }) };
     jwt = { signAsync: jest.fn(), verifyAsync: jest.fn() };
     ssoCodes = buildModel();
+    pendingSignups = buildModel();
     organizations = buildModel();
     memberships = buildModel();
     organizationApps = buildModel();
@@ -47,6 +49,7 @@ describe('AuthService — generic SSO exchange', () => {
       users as any,
       jwt as any,
       ssoCodes as any,
+      pendingSignups as any,
       organizations as any,
       memberships as any,
       organizationApps as any,
@@ -156,6 +159,52 @@ describe('AuthService — generic SSO exchange', () => {
       expect(contract.audience).toBe('business');
       expect(contract.access).toEqual({ flow: 'client', organizationRole: 'owner', applicationRole: 'owner', tier: 'free' });
       expect(contract.access).not.toHaveProperty('permissions');
+    });
+  });
+
+  describe('createPendingSignup / consumePendingSignup', () => {
+    const identity = {
+      subject: 'google-sub-1',
+      email: 'new-user@example.com',
+      emailVerified: true,
+      displayName: 'New User',
+      avatarUrl: null,
+    };
+
+    it('creates a pending signup and returns a token', async () => {
+      pendingSignups.create.mockResolvedValue({});
+
+      const token = await service.createPendingSignup(identity, 'jtrade', 'gpf_org_acme');
+
+      expect(token).toEqual(expect.any(String));
+      expect(pendingSignups.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appKey: 'jtrade',
+          provider: 'google',
+          providerSubject: 'google-sub-1',
+          email: 'new-user@example.com',
+          organizationId: 'gpf_org_acme',
+        }),
+      );
+    });
+
+    it('consumes a valid token and returns the pending record', async () => {
+      pendingSignups.__updateChain.lean.mockResolvedValue({ appKey: 'jtrade', providerSubject: 'google-sub-1' });
+
+      const pending = await service.consumePendingSignup('some-token');
+
+      expect(pending).toEqual({ appKey: 'jtrade', providerSubject: 'google-sub-1' });
+      expect(pendingSignups.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ consumedAt: null }),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('returns null for an expired or already-consumed token', async () => {
+      pendingSignups.__updateChain.lean.mockResolvedValue(null);
+
+      await expect(service.consumePendingSignup('stale-token')).resolves.toBeNull();
     });
   });
 });
