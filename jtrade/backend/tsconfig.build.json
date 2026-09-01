@@ -4,6 +4,14 @@
     "node_modules",
     "test",
     "dist",
-    "**/*spec.ts"
+    "**/*spec.ts",
+    "_comment_unmigrated: legacy jtrade modules not yet ported to the layer-based src/ structure and not wired into app.module.ts. They still import the removed src/core/users + code-project-* schemas. Excluded so the dev server compiles; port or delete them, then drop these entries.",
+    "src/core/alerts",
+    "src/core/company-provider",
+    "src/core/signals",
+    "src/core/symbol-executions",
+    "src/core/user-account-info",
+    "src/core/user-project-platform",
+    "src/microservices"
   ]
 }

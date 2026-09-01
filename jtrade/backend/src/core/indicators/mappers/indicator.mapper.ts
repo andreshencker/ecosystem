@@ -1,61 +1,37 @@
 import { IndicatorResponseDto } from '../dto/indicator-response.dto';
 
-type IndicatorLike = {
-  _id?: any;
-  id?: any;
-
-  companyProviderId?: any;
-
-  name?: string;
-  key?: string;
-  description?: string;
-  isActive?: boolean;
-
-  createdAt?: Date;
-  updatedAt?: Date;
-};
-
 export class IndicatorMapper {
-  static toResponse(doc: IndicatorLike): IndicatorResponseDto {
-    if (!doc) {
-      throw new Error('IndicatorMapper.toResponse called with null/undefined');
-    }
-
-    const companyProvider =
-      doc.companyProviderId && typeof doc.companyProviderId === 'object'
-        ? doc.companyProviderId
-        : null;
-
+  static toResponse(doc: any, symbolNameById: Map<string, string>): IndicatorResponseDto {
+    const plain = typeof doc?.toObject === 'function' ? doc.toObject() : doc;
+    const pairs = Array.isArray(plain.pairs) ? plain.pairs : [];
     return {
-      id: String(doc._id ?? doc.id),
-
-      companyProviderId: String(
-        companyProvider?._id ?? doc.companyProviderId ?? '',
-      ),
-
-      name: doc.name ?? '',
-      key: doc.key ?? '',
-      description: doc.description ?? '',
-
-      isActive: !!doc.isActive,
-
-      companyProvider: companyProvider
-        ? {
-            id: String(companyProvider._id),
-            companyName: String(companyProvider.companyName ?? ''),
-            email: companyProvider.email,
-            status: companyProvider.status,
-            isVerified: companyProvider.isVerified,
-            isActive: companyProvider.isActive,
-          }
-        : undefined,
-
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
+      id: plain._id?.toString?.() ?? String(plain._id),
+      providerOrganizationId: plain.providerOrganizationId,
+      name: plain.name,
+      key: plain.key,
+      description: plain.description ?? '',
+      webhookSlug: plain.webhookSlug ?? '',
+      webhookLastReceivedAt: plain.webhookLastReceivedAt ?? null,
+      pairs: pairs.map((pair: any) => {
+        const symbolId = pair.symbolId?.toString?.() ?? String(pair.symbolId);
+        return {
+          id: pair._id?.toString?.() ?? String(pair._id),
+          symbolId,
+          symbol: symbolNameById.get(symbolId) ?? '',
+          timeframe: pair.timeframe,
+          buyKey: pair.buyKey ?? '',
+          sellKey: pair.sellKey ?? '',
+          enabled: pair.enabled !== false,
+          lastSignalAt: pair.lastSignalAt ?? null,
+        };
+      }),
+      isActive: plain.isActive,
+      createdAt: plain.createdAt,
+      updatedAt: plain.updatedAt,
     };
   }
 
-  static toResponseList(docs: IndicatorLike[]): IndicatorResponseDto[] {
-    return (docs ?? []).map((d) => this.toResponse(d));
+  static toResponseList(list: any[], symbolNameById: Map<string, string>): IndicatorResponseDto[] {
+    return list.map((item) => this.toResponse(item, symbolNameById));
   }
 }

@@ -1,109 +1,58 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
-
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
-
-import { UserRole } from '../users/schemas/user.schema';
-
-import { SymbolsService } from './symbols.service';
-
+import { ApplicationRole, type AuthContext } from '../auth/types/auth-context';
+import { BulkCreateSymbolDto } from './dto/bulk-create-symbol.dto';
 import { CreateSymbolDto } from './dto/create-symbol.dto';
 import { UpdateSymbolDto } from './dto/update-symbol.dto';
 import { UpdateSymbolStatusDto } from './dto/update-symbol-status.dto';
-import { BulkCreateSymbolDto } from './dto/bulk-create-symbol.dto';
+import { SymbolsService } from './symbols.service';
+
+type AuthRequest = Request & { user: AuthContext };
 
 @Controller('symbols')
 export class SymbolsController {
   constructor(private readonly service: SymbolsService) {}
 
-  // =========================================================
-  // CREATE
-  // POST /symbols
-  // =========================================================
-  @Roles(UserRole.PROVIDER)
-  @Post()
-  create(@Body() dto: CreateSymbolDto) {
-    return this.service.create(dto);
-  }
-
-  // =========================================================
-  // BULK CREATE
-  // POST /symbols/bulk
-  // =========================================================
-  @Roles(UserRole.PROVIDER)
-  @Post('bulk')
-  bulkCreate(@Body() dto: BulkCreateSymbolDto) {
-    return this.service.bulkCreate(dto);
-  }
-
-  // =========================================================
-  // LIST ALL
-  // GET /symbols
-  // =========================================================
-  @Roles(UserRole.PROVIDER, UserRole.CLIENT)
+  @Roles(ApplicationRole.PROVIDER)
   @Get()
-  findAll(@Query('companyProviderId') companyProviderId?: string) {
-    return this.service.findAll(companyProviderId);
+  list(@Req() req: AuthRequest) {
+    return this.service.listMine(req.user);
   }
 
-  // =========================================================
-  // LIST ACTIVE
-  // GET /symbols/active
-  // =========================================================
-  @Roles(UserRole.PROVIDER, UserRole.CLIENT)
-  @Get('active')
-  findActive(@Query('companyProviderId') companyProviderId?: string) {
-    return this.service.findActive(companyProviderId);
+  @Roles(ApplicationRole.PROVIDER)
+  @Post()
+  create(@Req() req: AuthRequest, @Body() dto: CreateSymbolDto) {
+    return this.service.create(req.user, dto);
   }
 
-  // =========================================================
-  // FIND BY SYMBOL
-  // GET /symbols/by-symbol/:companyProviderId/:symbol
-  // =========================================================
-  @Roles(UserRole.PROVIDER, UserRole.CLIENT)
-  @Get('by-symbol/:companyProviderId/:symbol')
-  findOneBySymbol(
-    @Param('companyProviderId') companyProviderId: string,
-    @Param('symbol') symbol: string,
-  ) {
-    return this.service.findOneBySymbol(companyProviderId, symbol);
+  @Roles(ApplicationRole.PROVIDER)
+  @Post('bulk')
+  bulkCreate(@Req() req: AuthRequest, @Body() dto: BulkCreateSymbolDto) {
+    return this.service.bulkCreate(req.user, dto.symbols);
   }
 
-  // =========================================================
-  // UPDATE
-  // PATCH /symbols/:id
-  // =========================================================
-  @Roles(UserRole.PROVIDER)
+  @Roles(ApplicationRole.PROVIDER)
+  @Get(':id')
+  one(@Req() req: AuthRequest, @Param('id') id: string) {
+    return this.service.findMine(req.user, id);
+  }
+
+  @Roles(ApplicationRole.PROVIDER)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSymbolDto) {
-    return this.service.update(id, dto);
+  update(@Req() req: AuthRequest, @Param('id') id: string, @Body() dto: UpdateSymbolDto) {
+    return this.service.update(req.user, id, dto);
   }
 
-  // =========================================================
-  // UPDATE STATUS
-  // PATCH /symbols/:id/status
-  // =========================================================
-  @Roles(UserRole.PROVIDER)
+  @Roles(ApplicationRole.PROVIDER)
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateSymbolStatusDto) {
-    return this.service.updateStatus(id, dto.isActive);
+  setStatus(@Req() req: AuthRequest, @Param('id') id: string, @Body() dto: UpdateSymbolStatusDto) {
+    return this.service.setStatus(req.user, id, dto.isActive);
   }
 
-  // =========================================================
-  // DELETE
-  // DELETE /symbols/:id
-  // =========================================================
-  @Roles(UserRole.PROVIDER)
+  @Roles(ApplicationRole.PROVIDER)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Req() req: AuthRequest, @Param('id') id: string) {
+    return this.service.remove(req.user, id);
   }
 }

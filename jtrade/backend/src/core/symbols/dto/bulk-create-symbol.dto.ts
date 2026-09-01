@@ -1,31 +1,10 @@
-import {
-  ArrayMinSize,
-  IsArray,
-  IsBoolean,
-  IsMongoId,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
-
-import { Type } from 'class-transformer';
-
-class BulkCreateSymbolItemDto {
-  @IsString()
-  symbol!: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsString } from 'class-validator';
 
 export class BulkCreateSymbolDto {
-  @IsMongoId()
-  companyProviderId!: string;
-
+  /** Raw symbol strings — normalized (trim + uppercase) and de-duplicated server-side. */
   @IsArray()
   @ArrayMinSize(1)
-  @ValidateNested({ each: true })
-  @Type(() => BulkCreateSymbolItemDto)
-  items!: BulkCreateSymbolItemDto[];
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  symbols!: string[];
 }

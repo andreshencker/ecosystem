@@ -51,18 +51,47 @@ export class GrapiflyOrganizationService {
     return response.applications;
   }
 
-  private async request<T extends { contractVersion: 2 }>(grapiflyUserId: string, subpath: string): Promise<T> {
+  /** Full profile of one organization the signed-in user belongs to. */
+  async getOrganization(grapiflyUserId: string, organizationId: string): Promise<Record<string, unknown>> {
+    const response = await this.request<{ contractVersion: 2; organization: Record<string, unknown> }>(
+      grapiflyUserId,
+      `/${encodeURIComponent(organizationId)}`,
+    );
+    return response.organization;
+  }
+
+  /** Update the organization profile (owner/admin only — enforced by Grapifly). */
+  async updateOrganization(
+    grapiflyUserId: string,
+    organizationId: string,
+    body: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const response = await this.request<{ contractVersion: 2; organization: Record<string, unknown> }>(
+      grapiflyUserId,
+      `/${encodeURIComponent(organizationId)}`,
+      'patch',
+      body,
+    );
+    return response.organization;
+  }
+
+  private async request<T extends { contractVersion: 2 }>(
+    grapiflyUserId: string,
+    subpath: string,
+    method: 'get' | 'patch' = 'get',
+    data?: unknown,
+  ): Promise<T> {
     const secret = this.config.get<string>('JTRADE_SERVICE_SECRET');
     if (!secret) throw new BadGatewayException('Grapifly integration is not configured');
     const base = (this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101').replace(/\/$/, '');
     try {
-      const response = await firstValueFrom(this.http.get<T>(
-        `${base}/internal/apps/jtrade/organizations${subpath}`,
-        {
-          headers: { 'x-grapifly-sso-secret': secret, 'x-grapifly-user-id': grapiflyUserId },
-          timeout: 5000,
-        },
-      ));
+      const response = await firstValueFrom(this.http.request<T>({
+        method,
+        url: `${base}/internal/apps/jtrade/organizations${subpath}`,
+        data,
+        headers: { 'x-grapifly-sso-secret': secret, 'x-grapifly-user-id': grapiflyUserId },
+        timeout: 5000,
+      }));
       if (response.data.contractVersion !== 2) throw new BadGatewayException('Unsupported Grapifly organization contract');
       return response.data;
     } catch (error: any) {

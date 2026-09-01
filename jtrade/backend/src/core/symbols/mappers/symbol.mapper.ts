@@ -1,36 +1,20 @@
-import { SymbolDocument } from '../schemas/symbol.schema';
+import { SymbolResponseDto } from '../dto/symbol-response.dto';
 
 export class SymbolMapper {
-  static toResponse(entity: any) {
-    const companyProvider = entity.companyProviderId;
-
+  static toResponse(doc: any): SymbolResponseDto {
+    const plain = typeof doc?.toObject === 'function' ? doc.toObject() : doc;
     return {
-      id: String(entity._id ?? entity.id),
-
-      companyProviderId: String(
-        companyProvider?._id ?? companyProvider?.id ?? entity.companyProviderId,
-      ),
-
-      symbol: entity.symbol,
-      isActive: entity.isActive,
-
-      companyProvider:
-        companyProvider && typeof companyProvider === 'object'
-          ? {
-              id: String(companyProvider._id ?? companyProvider.id),
-              companyName: companyProvider.companyName,
-              status: companyProvider.status,
-              isVerified: companyProvider.isVerified,
-              isActive: companyProvider.isActive,
-            }
-          : undefined,
-
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      id: plain._id?.toString?.() ?? String(plain._id),
+      providerOrganizationId: plain.providerOrganizationId,
+      symbol: plain.symbol,
+      aliases: Array.isArray(plain.aliases) ? plain.aliases : [],
+      isActive: plain.isActive,
+      createdAt: plain.createdAt,
+      updatedAt: plain.updatedAt,
     };
   }
 
-  static toResponseList(items: SymbolDocument[] | any[]) {
-    return (items ?? []).map((item) => this.toResponse(item));
+  static toResponseList(list: any[]): SymbolResponseDto[] {
+    return (list ?? []).map((item) => this.toResponse(item));
   }
 }

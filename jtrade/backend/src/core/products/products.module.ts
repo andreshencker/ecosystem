@@ -8,11 +8,13 @@ import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
 import { Product, ProductSchema } from './schemas/product.schema';
 import { ProductVersion, ProductVersionSchema } from './schemas/product-version.schema';
+import { Indicator, IndicatorSchema } from '../indicators/schemas/indicator.schema';
 
 @Module({
   imports: [AuthModule, PlatformsModule, RelayIntegrationModule, MongooseModule.forFeature([
     { name: Product.name, schema: ProductSchema }, { name: ProductVersion.name, schema: ProductVersionSchema },
     { name: TypeProduct.name, schema: TypeProductSchema },
+    { name: Indicator.name, schema: IndicatorSchema },
   ])],
   controllers: [ProductsController], providers: [ProductsService], exports: [ProductsService],
 })

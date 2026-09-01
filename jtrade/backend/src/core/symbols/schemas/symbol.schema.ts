@@ -1,41 +1,28 @@
-import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
-import { CompanyProvider } from '../../company-provider/schemas/company-provider.schema';
+import { HydratedDocument } from 'mongoose';
 
 export type SymbolDocument = HydratedDocument<Symbol>;
 
-@Schema({
-  timestamps: true,
-  collection: 'symbols',
-  versionKey: false,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true },
-})
+/**
+ * A tradable symbol in a provider organization's catalogue (e.g. EURUSD, BTCUSD).
+ * Ownership is the Grapifly organization id, taken from the caller's JWT
+ * (`AuthContext.organizationId`) — never from the request body.
+ */
+@Schema({ collection: 'symbols', timestamps: true, versionKey: false })
 export class Symbol {
-  @Prop({
-    type: SchemaTypes.ObjectId,
-    ref: CompanyProvider.name,
-    required: true,
-    index: true,
-  })
-  companyProviderId!: Types.ObjectId;
+  @Prop({ required: true, trim: true, index: true })
+  providerOrganizationId!: string;
 
-  @Prop({
-    required: true,
-    uppercase: true,
-    trim: true,
-    index: true,
-  })
+  @Prop({ required: true, trim: true })
+  createdByGrapiflyUserId!: string;
+
+  @Prop({ required: true, uppercase: true, trim: true })
   symbol!: string;
 
   @Prop({ type: [String], default: [] })
   aliases!: string[];
 
-  @Prop({
-    default: true,
-    index: true,
-  })
+  @Prop({ type: Boolean, default: true, index: true })
   isActive!: boolean;
 
   createdAt?: Date;
@@ -44,20 +31,5 @@ export class Symbol {
 
 export const SymbolSchema = SchemaFactory.createForClass(Symbol);
 
-SymbolSchema.index(
-  {
-    companyProviderId: 1,
-    symbol: 1,
-  },
-  {
-    unique: true,
-    name: 'uniq_company_provider_symbol',
-  },
-);
-
-SymbolSchema.virtual('companyProvider', {
-  ref: CompanyProvider.name,
-  localField: 'companyProviderId',
-  foreignField: '_id',
-  justOne: true,
-});
+SymbolSchema.index({ providerOrganizationId: 1, symbol: 1 }, { unique: true });
+SymbolSchema.index({ providerOrganizationId: 1, isActive: 1, symbol: 1 });

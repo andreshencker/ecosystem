@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import type { AuthContext } from '../../core/auth/types/auth-context';
@@ -15,6 +15,17 @@ export class GrapiflyOrganizationController {
   async listOrganizations(@Req() req: AuthRequest) {
     const organizations = await this.grapiflyOrganization.listOrganizations(req.user.grapiflyUserId);
     return { organizations, total: organizations.length };
+  }
+
+  /** Full profile of the organization the current session is scoped to. */
+  @Get('current')
+  async getCurrent(@Req() req: AuthRequest) {
+    return { organization: await this.grapiflyOrganization.getOrganization(req.user.grapiflyUserId, req.user.organizationId) };
+  }
+
+  @Patch('current')
+  async updateCurrent(@Req() req: AuthRequest, @Body() body: Record<string, unknown>) {
+    return { organization: await this.grapiflyOrganization.updateOrganization(req.user.grapiflyUserId, req.user.organizationId, body) };
   }
 }
 

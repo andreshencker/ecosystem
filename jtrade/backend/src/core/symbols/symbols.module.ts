@@ -1,28 +1,14 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-
-import { SymbolsService } from './symbols.service';
+import { AuthModule } from '../auth/auth.module';
 import { SymbolsController } from './symbols.controller';
-
+import { SymbolsService } from './symbols.service';
 import { Symbol, SymbolSchema } from './schemas/symbol.schema';
-
-import {
-  CompanyProvider,
-  CompanyProviderSchema,
-} from '../company-provider/schemas/company-provider.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      {
-        name: Symbol.name,
-        schema: SymbolSchema,
-      },
-      {
-        name: CompanyProvider.name,
-        schema: CompanyProviderSchema,
-      },
-    ]),
+    AuthModule,
+    MongooseModule.forFeature([{ name: Symbol.name, schema: SymbolSchema }]),
   ],
   controllers: [SymbolsController],
   providers: [SymbolsService],
