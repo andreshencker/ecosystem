@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   IsUrl,
@@ -179,4 +180,39 @@ export class UpdateCompanyPortalDto {
   @IsString()
   @MaxLength(500)
   logoFullUrl?: string;
+
+  // ── Payout ──────────────────────────────────────────────────────────────────
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bankAccountHolder?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  bankSwiftBic?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  bankCountry?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  usdtWalletAddress?: string;
+
+  @IsOptional()
+  @IsIn(['', 'TRC20', 'ERC20', 'BEP20'])
+  usdtNetwork?: '' | 'TRC20' | 'ERC20' | 'BEP20';
 }

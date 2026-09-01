@@ -86,6 +86,14 @@ export interface Company {
   // Logos
   logoIconUrl?: string;
   logoFullUrl?: string;
+  // Payout
+  bankAccountHolder?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankSwiftBic?: string;
+  bankCountry?: string;
+  usdtWalletAddress?: string;
+  usdtNetwork?: '' | 'TRC20' | 'ERC20' | 'BEP20';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

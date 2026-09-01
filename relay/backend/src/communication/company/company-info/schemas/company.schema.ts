@@ -142,6 +142,31 @@ export class Company {
   @Prop({ type: String, default: '' })
   logoFullUrl!: string; // ej: https://.../logo-full.png
 
+  // =========================
+  // PAYOUT — where this company receives money for what it sells
+  // =========================
+  @Prop({ type: String, default: '' })
+  bankAccountHolder!: string;
+
+  @Prop({ type: String, default: '' })
+  bankName!: string;
+
+  @Prop({ type: String, default: '' })
+  bankAccountNumber!: string;
+
+  @Prop({ type: String, default: '' })
+  bankSwiftBic!: string;
+
+  @Prop({ type: String, default: '' })
+  bankCountry!: string;
+
+  /** USDT payout wallet — paired with usdtNetwork (both set together or not at all). */
+  @Prop({ type: String, default: '' })
+  usdtWalletAddress!: string;
+
+  @Prop({ type: String, enum: ['', 'TRC20', 'ERC20', 'BEP20'], default: '' })
+  usdtNetwork!: '' | 'TRC20' | 'ERC20' | 'BEP20';
+
   @Prop({ type: Boolean, default: true, index: true })
   isActive!: boolean;
 

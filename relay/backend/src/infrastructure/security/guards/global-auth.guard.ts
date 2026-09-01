@@ -77,6 +77,7 @@ export class GlobalAuthGuard implements CanActivate {
           role?: any;
           scope?: any;
           permissions?: string[];
+          flow?: 'client' | 'provider' | 'internal';
         }>(token, { secret });
 
         if (payload.type !== 'access') {
@@ -92,6 +93,7 @@ export class GlobalAuthGuard implements CanActivate {
           role: payload.role,
           scope: payload.scope,
           permissions: payload.permissions ?? [],
+          flow: payload.flow,
         };
 
         (request as any).authContext = authContext;

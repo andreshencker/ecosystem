@@ -69,6 +69,13 @@ export class CompanyPortalService {
       'disclaimerLong',
       'logoIconUrl',
       'logoFullUrl',
+      'bankAccountHolder',
+      'bankName',
+      'bankAccountNumber',
+      'bankSwiftBic',
+      'bankCountry',
+      'usdtWalletAddress',
+      'usdtNetwork',
     ];
     for (const field of allFields) {
       if (dto[field] !== undefined) update[field] = dto[field];

@@ -23,25 +23,25 @@ export function SidebarItem({ href, icon: Icon, label, active }: SidebarItemProp
       component={Link}
       href={href}
       selected={isActive}
-      sx={{
+      sx={(theme) => ({
         ...(isActive && {
-          backgroundColor: '#EEF2FF',
-          color: '#4263EB',
-          borderLeft: '3px solid #4263EB',
+          backgroundColor: theme.palette.action.selected,
+          color: theme.palette.primary.main,
+          borderLeft: `3px solid ${theme.palette.primary.main}`,
           borderRadius: 0,
           '&:hover': {
-            backgroundColor: '#E0E7FF',
+            backgroundColor: theme.palette.action.hover,
           },
         }),
         ...(!isActive && {
           borderLeft: '3px solid transparent',
         }),
-      }}
+      })}
     >
       <ListItemIcon
         sx={{
           minWidth: 36,
-          color: isActive ? '#4263EB' : 'text.secondary',
+          color: isActive ? 'primary.main' : 'text.secondary',
         }}
       >
         <Icon fontSize="small" />

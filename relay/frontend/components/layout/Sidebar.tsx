@@ -31,7 +31,7 @@ const drawerSx = {
     boxSizing: 'border-box',
     borderRight: '1px solid',
     borderColor: 'divider',
-    backgroundColor: '#FBFBFD',
+    backgroundColor: 'background.paper',
   },
 };
 

@@ -33,6 +33,7 @@ export interface SwitchableOrganization {
   isDefault: boolean;
   membership?: { role: 'owner' | 'admin' | 'member' };
   applicationRole?: 'owner' | 'admin' | 'operator' | 'viewer';
+  flow?: 'client' | 'provider' | 'internal';
 }
 
 interface RelaySessionContext {
@@ -42,6 +43,7 @@ interface RelaySessionContext {
   role: UserRole;
   scope: UserScope;
   permissions?: string[];
+  flow: 'client' | 'provider' | 'internal';
 }
 
 /**
@@ -103,7 +105,8 @@ export class AuthService {
       grapiflyOrganizationId: contract.organization.organizationId,
       role,
       scope,
-      permissions: this.relayPermissions(contract.access.applicationRole),
+      permissions: this.relayPermissions(contract.access.flow, contract.access.applicationRole),
+      flow: contract.access.flow,
     };
 
     const user = await this.identity.linkGrapiflyIdentity(
@@ -188,6 +191,7 @@ export class AuthService {
       !stored.grapiflyOrganizationId ||
       !stored.role ||
       !stored.scope
+      || !stored.flow
     ) {
       throw new UnauthorizedException(
         'Legacy Relay session is no longer supported. Sign in with Grapifly ID.',
@@ -201,6 +205,7 @@ export class AuthService {
       role: stored.role as UserRole,
       scope: stored.scope as UserScope,
       permissions: stored.permissions ?? [],
+      flow: stored.flow as RelaySessionContext['flow'],
     });
 
     await this.tokenModel.findByIdAndUpdate(stored._id, {
@@ -222,7 +227,7 @@ export class AuthService {
 
   private assertContract(contract: GrapiflyRelaySsoContract): void {
     if (
-      contract.contractVersion !== 2 ||
+      contract.contractVersion !== 3 ||
       contract.issuer !== 'grapifly' ||
       contract.audience !== 'relay'
     ) {
@@ -236,10 +241,15 @@ export class AuthService {
    * Moved here verbatim from Grapifly's auth.service.ts (same strings, same
    * behaviour) as part of generalizing the SSO exchange beyond Relay-only.
    */
-  private relayPermissions(role: string): string[] {
+  private relayPermissions(flow: RelaySessionContext['flow'], role: string): string[] {
     const base = ['relay.use'];
+    if (flow === 'internal') {
+      return role === 'ecosystem_super_admin'
+        ? [...base, 'relay.execute', 'relay.connections.manage', 'relay.credentials.manage', 'relay.automations.manage', 'relay.theme.manage', 'relay.members.manage', 'relay.organization.manage']
+        : base;
+    }
     if (role === 'viewer') return base;
-    if (role === 'operator') return [...base, 'relay.execute'];
+    if (role === 'operator' || role === 'member') return [...base, 'relay.execute'];
     const management = [
       'relay.connections.manage',
       'relay.credentials.manage',
@@ -253,7 +263,7 @@ export class AuthService {
 
   private toRelayRole(contract: GrapiflyRelaySsoContract): UserRole {
     const role = contract.access.applicationRole;
-    if (contract.organization.isPlatform && role === 'owner') {
+    if (contract.access.flow === 'internal') {
       return 'platform_admin';
     }
     if (role === 'owner') return 'company_owner';
@@ -276,6 +286,7 @@ export class AuthService {
       role: context.role,
       scope: context.scope,
       permissions: context.permissions ?? [],
+      flow: context.flow,
     });
 
     const rawRefreshToken = randomBytes(32).toString('hex');
@@ -290,6 +301,7 @@ export class AuthService {
       role: context.role,
       scope: context.scope,
       permissions: context.permissions ?? [],
+      flow: context.flow,
     });
 
     return { accessToken, refreshToken: rawRefreshToken, expiresIn };

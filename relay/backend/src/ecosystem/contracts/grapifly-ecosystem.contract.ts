@@ -38,13 +38,20 @@ export interface GrapiflyOrganizationContract {
   disclaimerLong: string;
   logoIconUrl: string;
   logoFullUrl: string;
+  bankAccountHolder: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankSwiftBic: string;
+  bankCountry: string;
+  usdtWalletAddress: string;
+  usdtNetwork: '' | 'TRC20' | 'ERC20' | 'BEP20';
   isPlatform: boolean;
   isDefault: boolean;
   status: 'active' | 'suspended' | 'archived';
 }
 
 export interface GrapiflyRelaySsoContract {
-  contractVersion: 2;
+  contractVersion: 3;
   issuer: 'grapifly';
   audience: 'relay';
   grapiflyUserId: string;
@@ -54,8 +61,9 @@ export interface GrapiflyRelaySsoContract {
   avatarUrl: string | null;
   organization: GrapiflyOrganizationContract;
   access: {
+    flow: 'client' | 'provider' | 'internal';
     organizationRole: 'owner' | 'admin' | 'member';
-    applicationRole: 'owner' | 'admin' | 'operator' | 'viewer';
+    applicationRole: string;
     // No permissions field — Grapifly only returns the raw role. Relay derives
     // its own permission vocabulary locally, see AuthService.relayPermissions().
   };

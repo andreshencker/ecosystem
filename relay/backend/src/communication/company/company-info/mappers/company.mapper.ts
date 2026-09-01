@@ -47,6 +47,14 @@ export class CompanyMapper {
       logoIconUrl: doc.logoIconUrl ?? '',
       logoFullUrl: doc.logoFullUrl ?? '',
 
+      bankAccountHolder: doc.bankAccountHolder ?? '',
+      bankName: doc.bankName ?? '',
+      bankAccountNumber: doc.bankAccountNumber ?? '',
+      bankSwiftBic: doc.bankSwiftBic ?? '',
+      bankCountry: doc.bankCountry ?? '',
+      usdtWalletAddress: doc.usdtWalletAddress ?? '',
+      usdtNetwork: doc.usdtNetwork ?? '',
+
       isActive: doc.isActive ?? true,
 
       createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : '',

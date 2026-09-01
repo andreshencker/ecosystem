@@ -2,6 +2,7 @@
 import {
   IsBoolean,
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -146,6 +147,35 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsUrl({ require_tld: false })
   logoFullUrl?: string;
+
+  // Payout
+  @IsOptional()
+  @IsString()
+  bankAccountHolder?: string;
+
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankSwiftBic?: string;
+
+  @IsOptional()
+  @IsString()
+  bankCountry?: string;
+
+  @IsOptional()
+  @IsString()
+  usdtWalletAddress?: string;
+
+  @IsOptional()
+  @IsIn(['', 'TRC20', 'ERC20', 'BEP20'])
+  usdtNetwork?: '' | 'TRC20' | 'ERC20' | 'BEP20';
 
   @IsOptional()
   @IsBoolean()

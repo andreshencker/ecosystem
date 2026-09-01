@@ -11,6 +11,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
 import { useSwitchableOrganizations } from '@/hooks/api/useOrganizations';
 
 function getInitials(name: string): string {
@@ -64,24 +65,29 @@ export function SidebarOrgCard({ fallbackName }: SidebarOrgCardProps) {
         aria-controls={menuOpen ? 'sidebar-org-switcher-menu' : undefined}
         aria-haspopup={canSwitch ? 'true' : undefined}
         aria-expanded={menuOpen ? 'true' : undefined}
-        sx={{
+        sx={(theme) => ({
           width: '100%',
           display: 'block',
           textAlign: 'left',
-          borderRadius: 2,
-          bgcolor: 'grey.100',
+          borderRadius: 2.5,
+          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.14 : 0.07),
+          border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.28 : 0.12)}`,
           px: 1.5,
-          py: 1,
+          py: 1.15,
           cursor: canSwitch ? 'pointer' : 'default',
-          '&:hover': canSwitch ? { bgcolor: 'grey.200' } : undefined,
-        }}
+          transition: 'background-color .2s ease, border-color .2s ease',
+          '&:hover': canSwitch ? {
+            bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.11),
+            borderColor: alpha(theme.palette.primary.main, 0.35),
+          } : undefined,
+        })}
       >
         <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 0.4, fontSize: '0.65rem', textTransform: 'uppercase' }}>
           Organization
         </Typography>
         <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} mt={0.25}>
           <Box minWidth={0}>
-            <Typography variant="body2" fontWeight={600} noWrap>
+            <Typography variant="body2" color="text.primary" fontWeight={650} noWrap>
               {displayName}
             </Typography>
             {role && (

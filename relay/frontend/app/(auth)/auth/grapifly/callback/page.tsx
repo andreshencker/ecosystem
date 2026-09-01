@@ -23,7 +23,14 @@ function GrapiflyCallbackContent() {
   useEffect(() => {
     const code = params.get('code');
     if (!code) {
-      setError('The Grapifly sign-in code is missing.');
+      // Grapifly redirects here with ?error=access_required (no code) when the
+      // signed-in Grapifly account isn't allowed into Relay — most often a
+      // provider-type account (Relay only accepts client and internal accounts).
+      setError(
+        params.get('error') === 'access_required'
+          ? 'This Grapifly account does not have access to Relay. Relay is available to client and platform accounts — sign in to Grapifly with an account that has Relay access.'
+          : 'The Grapifly sign-in code is missing. Start again from Grapifly.',
+      );
       return;
     }
     apiClient.post<AuthResponse>('/auth/grapifly', { code })

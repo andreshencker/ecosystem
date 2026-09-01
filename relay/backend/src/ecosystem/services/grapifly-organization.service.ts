@@ -144,6 +144,13 @@ export class GrapiflyOrganizationService {
       disclaimerLong: organization.disclaimerLong,
       logoIconUrl: organization.logoIconUrl,
       logoFullUrl: organization.logoFullUrl,
+      bankAccountHolder: organization.bankAccountHolder,
+      bankName: organization.bankName,
+      bankAccountNumber: organization.bankAccountNumber,
+      bankSwiftBic: organization.bankSwiftBic,
+      bankCountry: organization.bankCountry,
+      usdtWalletAddress: organization.usdtWalletAddress,
+      usdtNetwork: organization.usdtNetwork,
       isActive: organization.status === 'active',
     };
   }

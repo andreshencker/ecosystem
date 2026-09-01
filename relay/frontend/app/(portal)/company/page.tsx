@@ -10,28 +10,19 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
-import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DomainOutlinedIcon from '@mui/icons-material/DomainOutlined';
-import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
-import ContactPhoneOutlinedIcon from '@mui/icons-material/ContactPhoneOutlined';
-import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
-import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
-import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import { PageHeader } from '@/components/layout';
 import { PermissionGuard } from '@/components/shared';
 import { useOwnCompany, useUpdateCompanyMutation } from '@/hooks/api/useCompany';
@@ -47,6 +38,12 @@ const schema = z.object({
   legalName: optStr(200),
   tagline: optStr(300),
   timezone: optStr(100),
+  copyrightText: optStr(500),
+  disclaimerShort: optStr(500),
+  disclaimerLong: optStr(2000),
+  logoIconUrl: optStr(500),
+  logoFullUrl: optStr(500),
+
   supportEmail: z.string().email('Invalid email').optional().or(z.literal('')),
   supportPhone: optStr(40),
   supportHours: optStr(200),
@@ -56,6 +53,15 @@ const schema = z.object({
   addressState: optStr(100),
   addressPostalCode: optStr(20),
   addressCountry: optStr(100),
+
+  bankAccountHolder: optStr(200),
+  bankName: optStr(200),
+  bankAccountNumber: optStr(60),
+  bankSwiftBic: optStr(20),
+  bankCountry: optStr(100),
+  usdtWalletAddress: optStr(120),
+  usdtNetwork: z.enum(['', 'TRC20', 'ERC20', 'BEP20']).optional(),
+
   webBaseUrl: optStr(300),
   apiBaseUrl: optStr(300),
   helpCenterUrl: optStr(300),
@@ -70,51 +76,28 @@ const schema = z.object({
   tiktok: optStr(300),
   whatsapp: optStr(300),
   telegram: optStr(300),
-  copyrightText: optStr(500),
-  disclaimerShort: optStr(500),
-  disclaimerLong: optStr(2000),
-  logoIconUrl: optStr(500),
-  logoFullUrl: optStr(500),
 });
 
 type FormValues = z.infer<typeof schema>;
 
+const FIELD_KEYS: (keyof FormValues)[] = [
+  'displayName', 'legalName', 'tagline', 'timezone', 'copyrightText', 'disclaimerShort', 'disclaimerLong', 'logoIconUrl', 'logoFullUrl',
+  'supportEmail', 'supportPhone', 'supportHours',
+  'addressLine1', 'addressLine2', 'addressCity', 'addressState', 'addressPostalCode', 'addressCountry',
+  'bankAccountHolder', 'bankName', 'bankAccountNumber', 'bankSwiftBic', 'bankCountry', 'usdtWalletAddress', 'usdtNetwork',
+  'webBaseUrl', 'apiBaseUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'unsubscribeUrl',
+  'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram',
+];
+
 function toFormValues(c: Company): FormValues {
-  return {
-    displayName: c.displayName ?? '',
-    legalName: c.legalName ?? '',
-    tagline: c.tagline ?? '',
-    timezone: c.timezone ?? '',
-    supportEmail: c.supportEmail ?? '',
-    supportPhone: c.supportPhone ?? '',
-    supportHours: c.supportHours ?? '',
-    addressLine1: c.addressLine1 ?? '',
-    addressLine2: c.addressLine2 ?? '',
-    addressCity: c.addressCity ?? '',
-    addressState: c.addressState ?? '',
-    addressPostalCode: c.addressPostalCode ?? '',
-    addressCountry: c.addressCountry ?? '',
-    webBaseUrl: c.webBaseUrl ?? '',
-    apiBaseUrl: c.apiBaseUrl ?? '',
-    helpCenterUrl: c.helpCenterUrl ?? '',
-    privacyPolicyUrl: c.privacyPolicyUrl ?? '',
-    termsUrl: c.termsUrl ?? '',
-    unsubscribeUrl: c.unsubscribeUrl ?? '',
-    facebook: c.facebook ?? '',
-    instagram: c.instagram ?? '',
-    linkedin: c.linkedin ?? '',
-    x: c.x ?? '',
-    youtube: c.youtube ?? '',
-    tiktok: c.tiktok ?? '',
-    whatsapp: c.whatsapp ?? '',
-    telegram: c.telegram ?? '',
-    copyrightText: c.copyrightText ?? '',
-    disclaimerShort: c.disclaimerShort ?? '',
-    disclaimerLong: c.disclaimerLong ?? '',
-    logoIconUrl: c.logoIconUrl ?? '',
-    logoFullUrl: c.logoFullUrl ?? '',
-  };
+  const out = {} as Record<string, unknown>;
+  for (const key of FIELD_KEYS) out[key] = (c as unknown as Record<string, unknown>)[key] ?? '';
+  out.displayName = c.displayName ?? '';
+  return out as FormValues;
 }
+
+const USDT_NETWORKS = ['TRC20', 'ERC20', 'BEP20'] as const;
+const TABS = ['General', 'Contact & Address', 'Payment', 'Web & Social'] as const;
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -131,24 +114,6 @@ function ViewField({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <Card variant="outlined">
-      <CardHeader
-        avatar={<Box color="text.secondary">{icon}</Box>}
-        title={<Typography variant="subtitle1" fontWeight={600}>{title}</Typography>}
-        sx={{ pb: 1 }}
-      />
-      <Divider />
-      <CardContent>
-        <Grid container spacing={2.5}>
-          {children}
-        </Grid>
-      </CardContent>
-    </Card>
-  );
-}
-
 interface FieldProps {
   name: keyof FormValues;
   label: string;
@@ -158,11 +123,13 @@ interface FieldProps {
   viewValue?: string | null;
   multiline?: boolean;
   rows?: number;
+  select?: boolean;
+  options?: readonly string[];
   xs?: number;
   sm?: number;
 }
 
-function F({ name, label, control, editing, errors, viewValue, multiline, rows, xs = 12, sm = 6 }: FieldProps) {
+function F({ name, label, control, editing, errors, viewValue, multiline, rows, select, options, xs = 12, sm = 6 }: FieldProps) {
   return (
     <Grid item xs={xs} sm={sm}>
       {editing ? (
@@ -175,11 +142,17 @@ function F({ name, label, control, editing, errors, viewValue, multiline, rows, 
               label={label}
               fullWidth
               size="small"
+              select={select}
               multiline={multiline}
               rows={rows}
               error={!!errors[name]}
               helperText={errors[name]?.message as string | undefined}
-            />
+            >
+              {select && [
+                <MenuItem key="" value="">—</MenuItem>,
+                ...(options ?? []).map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>),
+              ]}
+            </TextField>
           )}
         />
       ) : (
@@ -197,15 +170,13 @@ export default function CompanyPage() {
   const updateMutation = useUpdateCompanyMutation();
   const [editing, setEditing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [logoIconMode, setLogoIconMode] = useState<'url' | 'file'>('url');
-  const [logoFullMode, setLogoFullMode] = useState<'url' | 'file'>('url');
+  const [tab, setTab] = useState(0);
 
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: company ? toFormValues(company) : undefined,
   });
 
-  // Track form values reactively so view fields stay current when not editing.
   const watched = useWatch({ control });
 
   const v = (key: keyof FormValues): string | null =>
@@ -216,16 +187,12 @@ export default function CompanyPage() {
   function startEditing() {
     if (company) reset(toFormValues(company));
     setSaveError(null);
-    setLogoIconMode('url');
-    setLogoFullMode('url');
     setEditing(true);
   }
 
   function cancelEditing() {
     if (company) reset(toFormValues(company));
     setSaveError(null);
-    setLogoIconMode('url');
-    setLogoFullMode('url');
     setEditing(false);
   }
 
@@ -233,8 +200,6 @@ export default function CompanyPage() {
     setSaveError(null);
     try {
       await updateMutation.mutateAsync(values as Partial<Company>);
-      setLogoIconMode('url');
-      setLogoFullMode('url');
       setEditing(false);
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save company settings');
@@ -244,7 +209,7 @@ export default function CompanyPage() {
   if (isLoading) {
     return (
       <Box>
-        <PageHeader title="My Company" />
+        <PageHeader title="My Organization" />
         <Box display="flex" justifyContent="center" py={8}><CircularProgress /></Box>
       </Box>
     );
@@ -253,8 +218,8 @@ export default function CompanyPage() {
   if (error || !company) {
     return (
       <Box>
-        <PageHeader title="My Company" />
-        <Alert severity="error">Failed to load company data. Please refresh the page.</Alert>
+        <PageHeader title="My Organization" />
+        <Alert severity="error">Failed to load organization data. Please refresh the page.</Alert>
       </Box>
     );
   }
@@ -264,7 +229,7 @@ export default function CompanyPage() {
   return (
     <Box>
       <PageHeader
-        title="My Company"
+        title="My Organization"
         actions={
           editing ? (
             <Stack direction="row" spacing={1}>
@@ -283,7 +248,7 @@ export default function CompanyPage() {
           ) : (
             <PermissionGuard allowed={canEditCompany}>
               <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={startEditing}>
-                Edit Company
+                Edit
               </Button>
             </PermissionGuard>
           )
@@ -292,15 +257,12 @@ export default function CompanyPage() {
 
       {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
 
-      <Stack spacing={3} sx={{ width: '100%', maxWidth: 1280, mx: 'auto' }}>
+      <Stack spacing={3} sx={{ width: '100%', maxWidth: 1100, mx: 'auto' }}>
         {/* Identity banner */}
         <Card variant="outlined">
           <CardContent>
             <Stack direction="row" spacing={2} alignItems="center">
-              <Avatar
-                src={company.logoIconUrl || undefined}
-                sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 24 }}
-              >
+              <Avatar src={company.logoIconUrl || undefined} sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 24 }}>
                 {!company.logoIconUrl && <DomainOutlinedIcon />}
               </Avatar>
               <Box flex={1}>
@@ -315,185 +277,94 @@ export default function CompanyPage() {
           </CardContent>
         </Card>
 
-        {/* ── Basic Information */}
-        <Section title="Basic Information" icon={<BusinessOutlinedIcon />}>
-          <Grid item xs={12} sm={6}>
-            <ViewField label="Company Key (read-only)" value={company.companyKey} />
-          </Grid>
-          <F name="displayName" label="Display Name"   control={control} editing={editing} errors={errors} viewValue={v('displayName')} sm={6} />
-          <F name="legalName"   label="Legal Name"      control={control} editing={editing} errors={errors} viewValue={v('legalName')}   sm={6} />
-          <F name="tagline"     label="Tagline"          control={control} editing={editing} errors={errors} viewValue={v('tagline')}     sm={6} />
-          <F name="timezone"    label="Timezone"         control={control} editing={editing} errors={errors} viewValue={v('timezone')}    sm={6} />
-        </Section>
+        <Card variant="outlined">
+          <Tabs
+            value={tab}
+            onChange={(_e, val) => setTab(val)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}
+          >
+            {TABS.map((label) => <Tab key={label} label={label} sx={{ textTransform: 'none', fontWeight: 600 }} />)}
+          </Tabs>
 
-        {/* ── Contact */}
-        <Section title="Contact" icon={<ContactPhoneOutlinedIcon />}>
-          <F name="supportEmail" label="Support Email" control={control} editing={editing} errors={errors} viewValue={v('supportEmail')} sm={6} />
-          <F name="supportPhone" label="Support Phone" control={control} editing={editing} errors={errors} viewValue={v('supportPhone')} sm={6} />
-          <F name="supportHours" label="Support Hours" control={control} editing={editing} errors={errors} viewValue={v('supportHours')} xs={12} sm={12} />
-        </Section>
-
-        {/* ── Address */}
-        <Section title="Address" icon={<LocationOnOutlinedIcon />}>
-          <F name="addressLine1"      label="Address Line 1"  control={control} editing={editing} errors={errors} viewValue={v('addressLine1')}      xs={12} sm={12} />
-          <F name="addressLine2"      label="Address Line 2"  control={control} editing={editing} errors={errors} viewValue={v('addressLine2')}      xs={12} sm={12} />
-          <F name="addressCity"       label="City"             control={control} editing={editing} errors={errors} viewValue={v('addressCity')}       sm={6} />
-          <F name="addressState"      label="State / Region"   control={control} editing={editing} errors={errors} viewValue={v('addressState')}      sm={6} />
-          <F name="addressPostalCode" label="Postal Code"      control={control} editing={editing} errors={errors} viewValue={v('addressPostalCode')} sm={6} />
-          <F name="addressCountry"    label="Country"          control={control} editing={editing} errors={errors} viewValue={v('addressCountry')}    sm={6} />
-        </Section>
-
-        {/* ── URLs */}
-        <Section title="URLs" icon={<LinkOutlinedIcon />}>
-          <F name="webBaseUrl"       label="Website"           control={control} editing={editing} errors={errors} viewValue={v('webBaseUrl')}       sm={6} />
-          <F name="apiBaseUrl"       label="API Base URL"      control={control} editing={editing} errors={errors} viewValue={v('apiBaseUrl')}       sm={6} />
-          <F name="helpCenterUrl"    label="Help Center"       control={control} editing={editing} errors={errors} viewValue={v('helpCenterUrl')}    sm={6} />
-          <F name="privacyPolicyUrl" label="Privacy Policy"    control={control} editing={editing} errors={errors} viewValue={v('privacyPolicyUrl')} sm={6} />
-          <F name="termsUrl"         label="Terms of Service"  control={control} editing={editing} errors={errors} viewValue={v('termsUrl')}         sm={6} />
-          <F name="unsubscribeUrl"   label="Unsubscribe URL"   control={control} editing={editing} errors={errors} viewValue={v('unsubscribeUrl')}   sm={6} />
-        </Section>
-
-        {/* ── Social Media */}
-        <Section title="Social Media" icon={<ShareOutlinedIcon />}>
-          <F name="facebook"  label="Facebook"     control={control} editing={editing} errors={errors} viewValue={v('facebook')}  sm={6} />
-          <F name="instagram" label="Instagram"    control={control} editing={editing} errors={errors} viewValue={v('instagram')} sm={6} />
-          <F name="linkedin"  label="LinkedIn"     control={control} editing={editing} errors={errors} viewValue={v('linkedin')}  sm={6} />
-          <F name="x"         label="X (Twitter)"  control={control} editing={editing} errors={errors} viewValue={v('x')}         sm={6} />
-          <F name="youtube"   label="YouTube"      control={control} editing={editing} errors={errors} viewValue={v('youtube')}   sm={6} />
-          <F name="tiktok"    label="TikTok"       control={control} editing={editing} errors={errors} viewValue={v('tiktok')}    sm={6} />
-          <F name="whatsapp"  label="WhatsApp"     control={control} editing={editing} errors={errors} viewValue={v('whatsapp')}  sm={6} />
-          <F name="telegram"  label="Telegram"     control={control} editing={editing} errors={errors} viewValue={v('telegram')}  sm={6} />
-        </Section>
-
-        {/* ── Legal */}
-        <Section title="Legal" icon={<GavelOutlinedIcon />}>
-          <F name="copyrightText"   label="Copyright Text"     control={control} editing={editing} errors={errors} viewValue={v('copyrightText')}   xs={12} sm={12} />
-          <F name="disclaimerShort" label="Disclaimer (short)" control={control} editing={editing} errors={errors} viewValue={v('disclaimerShort')} xs={12} sm={12} multiline rows={2} />
-          <F name="disclaimerLong"  label="Disclaimer (long)"  control={control} editing={editing} errors={errors} viewValue={v('disclaimerLong')}  xs={12} sm={12} multiline rows={4} />
-        </Section>
-
-        {/* ── Logos */}
-        <Section title="Logos" icon={<ImageOutlinedIcon />}>
-
-          {/* Logo Icon */}
-          <Grid item xs={12} sm={6}>
-            {editing ? (
-              <Stack spacing={1.5}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={0.5}>
-                    Logo Icon
-                  </Typography>
-                  <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={logoIconMode}
-                    onChange={(_e, val) => val && setLogoIconMode(val)}
-                    sx={{ height: 28 }}
-                  >
-                    <ToggleButton value="url" sx={{ px: 1.5, fontSize: '0.7rem', textTransform: 'none' }}>URL</ToggleButton>
-                    <ToggleButton value="file" sx={{ px: 1.5, fontSize: '0.7rem', textTransform: 'none' }}>File</ToggleButton>
-                  </ToggleButtonGroup>
-                </Stack>
-                {logoIconMode === 'url' ? (
-                  <Controller
-                    name="logoIconUrl"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="Logo Icon URL" fullWidth size="small" helperText="Square icon (e.g. 64×64 px)" error={!!errors.logoIconUrl} />
-                    )}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      border: '2px dashed',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 1,
-                      bgcolor: 'background.default',
-                    }}
-                  >
-                    <UploadFileOutlinedIcon fontSize="large" color="disabled" />
-                    <input type="file" accept="image/*" />
-                    <Typography variant="caption" color="text.secondary" textAlign="center">
-                      File upload will be implemented later.
-                    </Typography>
-                  </Box>
+          <CardContent>
+            {/* ── General */}
+            {tab === 0 && (
+              <Grid container spacing={2.5}>
+                <Grid item xs={12} sm={6}><ViewField label="Organization Key (read-only)" value={company.companyKey} /></Grid>
+                <F name="displayName" label="Display Name" control={control} editing={editing} errors={errors} viewValue={v('displayName')} />
+                <F name="legalName" label="Legal Name" control={control} editing={editing} errors={errors} viewValue={v('legalName')} />
+                <F name="tagline" label="Tagline" control={control} editing={editing} errors={errors} viewValue={v('tagline')} />
+                <F name="timezone" label="Timezone" control={control} editing={editing} errors={errors} viewValue={v('timezone')} />
+                <F name="logoIconUrl" label="Logo Icon URL" control={control} editing={editing} errors={errors} viewValue={v('logoIconUrl')} />
+                <F name="logoFullUrl" label="Logo Full URL" control={control} editing={editing} errors={errors} viewValue={v('logoFullUrl')} />
+                {!editing && company.logoFullUrl && (
+                  <Grid item xs={12}>
+                    <Box component="img" src={company.logoFullUrl} alt="Logo" sx={{ maxWidth: 220, height: 44, objectFit: 'contain', borderRadius: 1, border: '1px solid', borderColor: 'divider' }} />
+                  </Grid>
                 )}
-              </Stack>
-            ) : (
-              <Stack spacing={1}>
-                <ViewField label="Logo Icon URL" value={company.logoIconUrl} />
-                {company.logoIconUrl && (
-                  <Box component="img" src={company.logoIconUrl} alt="Logo icon" sx={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 1, border: '1px solid', borderColor: 'divider' }} />
-                )}
-              </Stack>
+                <F name="copyrightText" label="Copyright Text" control={control} editing={editing} errors={errors} viewValue={v('copyrightText')} xs={12} sm={12} />
+                <F name="disclaimerShort" label="Disclaimer (short)" control={control} editing={editing} errors={errors} viewValue={v('disclaimerShort')} xs={12} sm={12} multiline rows={2} />
+                <F name="disclaimerLong" label="Disclaimer (long)" control={control} editing={editing} errors={errors} viewValue={v('disclaimerLong')} xs={12} sm={12} multiline rows={4} />
+              </Grid>
             )}
-          </Grid>
 
-          {/* Logo Full */}
-          <Grid item xs={12} sm={6}>
-            {editing ? (
-              <Stack spacing={1.5}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={0.5}>
-                    Logo Full
-                  </Typography>
-                  <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={logoFullMode}
-                    onChange={(_e, val) => val && setLogoFullMode(val)}
-                    sx={{ height: 28 }}
-                  >
-                    <ToggleButton value="url" sx={{ px: 1.5, fontSize: '0.7rem', textTransform: 'none' }}>URL</ToggleButton>
-                    <ToggleButton value="file" sx={{ px: 1.5, fontSize: '0.7rem', textTransform: 'none' }}>File</ToggleButton>
-                  </ToggleButtonGroup>
-                </Stack>
-                {logoFullMode === 'url' ? (
-                  <Controller
-                    name="logoFullUrl"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="Logo Full URL" fullWidth size="small" helperText="Full horizontal logo" error={!!errors.logoFullUrl} />
-                    )}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      border: '2px dashed',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 1,
-                      bgcolor: 'background.default',
-                    }}
-                  >
-                    <UploadFileOutlinedIcon fontSize="large" color="disabled" />
-                    <input type="file" accept="image/*" />
-                    <Typography variant="caption" color="text.secondary" textAlign="center">
-                      File upload will be implemented later.
-                    </Typography>
-                  </Box>
-                )}
-              </Stack>
-            ) : (
-              <Stack spacing={1}>
-                <ViewField label="Logo Full URL" value={company.logoFullUrl} />
-                {company.logoFullUrl && (
-                  <Box component="img" src={company.logoFullUrl} alt="Logo full" sx={{ maxWidth: 200, height: 40, objectFit: 'contain', borderRadius: 1, border: '1px solid', borderColor: 'divider' }} />
-                )}
-              </Stack>
+            {/* ── Contact & Address */}
+            {tab === 1 && (
+              <Grid container spacing={2.5}>
+                <F name="supportEmail" label="Support Email" control={control} editing={editing} errors={errors} viewValue={v('supportEmail')} />
+                <F name="supportPhone" label="Support Phone" control={control} editing={editing} errors={errors} viewValue={v('supportPhone')} />
+                <F name="supportHours" label="Support Hours" control={control} editing={editing} errors={errors} viewValue={v('supportHours')} xs={12} sm={12} />
+                <F name="addressLine1" label="Address Line 1" control={control} editing={editing} errors={errors} viewValue={v('addressLine1')} xs={12} sm={12} />
+                <F name="addressLine2" label="Address Line 2" control={control} editing={editing} errors={errors} viewValue={v('addressLine2')} xs={12} sm={12} />
+                <F name="addressCity" label="City" control={control} editing={editing} errors={errors} viewValue={v('addressCity')} />
+                <F name="addressState" label="State / Region" control={control} editing={editing} errors={errors} viewValue={v('addressState')} />
+                <F name="addressPostalCode" label="Postal Code" control={control} editing={editing} errors={errors} viewValue={v('addressPostalCode')} />
+                <F name="addressCountry" label="Country" control={control} editing={editing} errors={errors} viewValue={v('addressCountry')} />
+              </Grid>
             )}
-          </Grid>
 
-        </Section>
+            {/* ── Payment */}
+            {tab === 2 && (
+              <Grid container spacing={2.5}>
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    Where this organization receives money for what it sells. Leave blank if not applicable — a USDT wallet and its network must be set together.
+                  </Typography>
+                </Grid>
+                <F name="bankAccountHolder" label="Bank Account Holder" control={control} editing={editing} errors={errors} viewValue={v('bankAccountHolder')} />
+                <F name="bankName" label="Bank Name" control={control} editing={editing} errors={errors} viewValue={v('bankName')} />
+                <F name="bankAccountNumber" label="Account Number / IBAN" control={control} editing={editing} errors={errors} viewValue={v('bankAccountNumber')} />
+                <F name="bankSwiftBic" label="SWIFT / BIC" control={control} editing={editing} errors={errors} viewValue={v('bankSwiftBic')} />
+                <F name="bankCountry" label="Bank Country" control={control} editing={editing} errors={errors} viewValue={v('bankCountry')} />
+                <Grid item xs={12} sm={6} />
+                <F name="usdtWalletAddress" label="USDT Wallet Address" control={control} editing={editing} errors={errors} viewValue={v('usdtWalletAddress')} />
+                <F name="usdtNetwork" label="USDT Network" control={control} editing={editing} errors={errors} viewValue={v('usdtNetwork')} select options={USDT_NETWORKS} />
+              </Grid>
+            )}
+
+            {/* ── Web & Social */}
+            {tab === 3 && (
+              <Grid container spacing={2.5}>
+                <F name="webBaseUrl" label="Website" control={control} editing={editing} errors={errors} viewValue={v('webBaseUrl')} />
+                <F name="apiBaseUrl" label="API Base URL" control={control} editing={editing} errors={errors} viewValue={v('apiBaseUrl')} />
+                <F name="helpCenterUrl" label="Help Center" control={control} editing={editing} errors={errors} viewValue={v('helpCenterUrl')} />
+                <F name="privacyPolicyUrl" label="Privacy Policy" control={control} editing={editing} errors={errors} viewValue={v('privacyPolicyUrl')} />
+                <F name="termsUrl" label="Terms of Service" control={control} editing={editing} errors={errors} viewValue={v('termsUrl')} />
+                <F name="unsubscribeUrl" label="Unsubscribe URL" control={control} editing={editing} errors={errors} viewValue={v('unsubscribeUrl')} />
+                <F name="facebook" label="Facebook" control={control} editing={editing} errors={errors} viewValue={v('facebook')} />
+                <F name="instagram" label="Instagram" control={control} editing={editing} errors={errors} viewValue={v('instagram')} />
+                <F name="linkedin" label="LinkedIn" control={control} editing={editing} errors={errors} viewValue={v('linkedin')} />
+                <F name="x" label="X (Twitter)" control={control} editing={editing} errors={errors} viewValue={v('x')} />
+                <F name="youtube" label="YouTube" control={control} editing={editing} errors={errors} viewValue={v('youtube')} />
+                <F name="tiktok" label="TikTok" control={control} editing={editing} errors={errors} viewValue={v('tiktok')} />
+                <F name="whatsapp" label="WhatsApp" control={control} editing={editing} errors={errors} viewValue={v('whatsapp')} />
+                <F name="telegram" label="Telegram" control={control} editing={editing} errors={errors} viewValue={v('telegram')} />
+              </Grid>
+            )}
+          </CardContent>
+        </Card>
       </Stack>
     </Box>
   );

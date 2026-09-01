@@ -46,6 +46,9 @@ export class RefreshToken {
 
   @Prop({ type: [String], default: [] })
   permissions!: string[];
+
+  @Prop({ type: String, enum: ['client', 'provider', 'internal'], default: null })
+  flow!: string | null;
 }
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);

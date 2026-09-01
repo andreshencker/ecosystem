@@ -49,9 +49,9 @@ export function TopbarChannelTabs() {
                 borderRadius: 1.5,
                 px: { xs: 1, sm: 1.25 },
                 py: 0.75,
-                bgcolor: isActive ? '#EEF2FF' : 'transparent',
-                color: isActive ? '#4263EB' : 'text.secondary',
-                '&:hover': { bgcolor: isActive ? '#EEF2FF' : 'action.hover' },
+                bgcolor: isActive ? 'action.selected' : 'transparent',
+                color: isActive ? 'primary.main' : 'text.secondary',
+                '&:hover': { bgcolor: 'action.hover' },
               }}
             >
               <Icon sx={{ fontSize: 16 }} />

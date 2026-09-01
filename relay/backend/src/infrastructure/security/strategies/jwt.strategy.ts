@@ -31,6 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     organizationId?: string;
     companyId?: string;
     type?: string;
+    flow?: 'client' | 'provider' | 'internal';
   }): Promise<AuthContext> {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');
@@ -40,6 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       actorType: 'user',
       userId: payload.sub,
       companyId: payload.companyId ?? payload.organizationId,
+      flow: payload.flow,
     };
   }
 }

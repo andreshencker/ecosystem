@@ -52,7 +52,7 @@ describe('AuthService — Grapifly-only session boundary', () => {
 
   it('exchanges a Grapifly contract and creates a context-bound Relay session', async () => {
     const contract = {
-      contractVersion: 2,
+      contractVersion: 3,
       issuer: 'grapifly',
       audience: 'relay',
       grapiflyUserId: 'gpf_usr_1',
@@ -67,6 +67,7 @@ describe('AuthService — Grapifly-only session boundary', () => {
         isPlatform: false,
       },
       access: {
+        flow: 'client',
         applicationRole: 'owner',
       },
     };
@@ -131,7 +132,7 @@ describe('AuthService — Grapifly-only session boundary', () => {
     http.post.mockReturnValue(
       of({
         data: {
-          contractVersion: 2,
+          contractVersion: 3,
           issuer: 'grapifly',
           audience: 'relay',
           grapiflyUserId: 'gpf_usr_1',
@@ -140,7 +141,7 @@ describe('AuthService — Grapifly-only session boundary', () => {
           displayName: 'Relay Owner',
           avatarUrl: null,
           organization: { organizationId: 'gpf_org_1', slug: 'acme', name: 'Acme', isPlatform: false },
-          access: { applicationRole: 'owner' },
+          access: { flow: 'client', applicationRole: 'owner' },
         },
       }),
     );

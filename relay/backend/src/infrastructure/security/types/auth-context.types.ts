@@ -35,6 +35,9 @@ export interface AuthContext {
   /** Capabilities granted by Grapifly for the selected app and organization. */
   permissions?: string[];
 
+  /** Ecosystem access flow asserted by Grapifly for this app session. */
+  flow?: 'client' | 'provider' | 'internal';
+
   /** Present when actorType === 'apikey'. The ApiKey document ObjectId. */
   keyId?: string;
 }

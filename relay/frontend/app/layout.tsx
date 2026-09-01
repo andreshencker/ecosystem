@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ThemeRegistry } from '@/providers/ThemeRegistry';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { GlobalSnackbar } from '@/components/shared';
+import { AppConfigProvider } from '@/providers/AppConfigProvider';
 
 export const metadata: Metadata = {
   title: 'Relay by Grapifly',
@@ -12,12 +13,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <ThemeRegistry>
-          <QueryProvider>
-            {children}
-            <GlobalSnackbar />
-          </QueryProvider>
-        </ThemeRegistry>
+        <AppConfigProvider>
+          <ThemeRegistry>
+            <QueryProvider>
+              {children}
+              <GlobalSnackbar />
+            </QueryProvider>
+          </ThemeRegistry>
+        </AppConfigProvider>
       </body>
     </html>
   );

@@ -43,6 +43,14 @@ export class CompanyResponseDto {
   logoIconUrl!: string;
   logoFullUrl!: string;
 
+  bankAccountHolder!: string;
+  bankName!: string;
+  bankAccountNumber!: string;
+  bankSwiftBic!: string;
+  bankCountry!: string;
+  usdtWalletAddress!: string;
+  usdtNetwork!: '' | 'TRC20' | 'ERC20' | 'BEP20';
+
   isActive!: boolean;
 
   createdAt!: string;

@@ -226,7 +226,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         label: 'Setup',
         icon: SettingsOutlinedIcon,
         items: [
-          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
+          { href: '/company',                   label: 'My Organization', icon: DomainOutlinedIcon              },
           { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
@@ -431,7 +431,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         label: 'Setup',
         icon: SettingsOutlinedIcon,
         items: [
-          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
+          { href: '/company',                   label: 'My Organization', icon: DomainOutlinedIcon              },
           { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },
@@ -577,7 +577,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         label: 'Setup',
         icon: SettingsOutlinedIcon,
         items: [
-          { href: '/company',                   label: 'My Company',        icon: DomainOutlinedIcon              },
+          { href: '/company',                   label: 'My Organization', icon: DomainOutlinedIcon              },
           { href: '/company/themes',            label: 'Theme',             icon: PaletteOutlinedIcon             },
           { href: '/provider-credentials',      label: 'Credentials',       icon: VpnKeyOutlinedIcon              },
           { href: '/layout-templates',          label: 'Templates',         icon: ArticleOutlinedIcon             },

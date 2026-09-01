@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ApiKeyAuthGuard } from './guards/api-key-auth.guard';
 import { GlobalAuthGuard } from './guards/global-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { FlowsGuard } from './guards/flows.guard';
 import { EcosystemModule } from '../../ecosystem/ecosystem.module';
 
 @Module({
@@ -41,6 +43,8 @@ import { EcosystemModule } from '../../ecosystem/ecosystem.module';
       provide: APP_GUARD,
       useClass: GlobalAuthGuard,
     },
+    { provide: APP_GUARD, useClass: FlowsGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
   // Export JwtModule so AuthModule can inject JwtService in Phase 1B.
   exports: [JwtModule, ApiKeyAuthGuard],

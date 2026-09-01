@@ -7,8 +7,10 @@ import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { RelayBrand } from '@/components/brand/RelayBrand';
+import { useAppConfig } from '@/providers/AppConfigProvider';
 
 export default function LoginPage() {
+  const appConfig = useAppConfig();
   const grapiflyIdUrl = process.env.NEXT_PUBLIC_GRAPIFLY_ID_URL ?? 'http://localhost:3101';
   return (
     <Stack spacing={2}>
@@ -18,7 +20,7 @@ export default function LoginPage() {
           <Stack spacing={2.5}>
             <Typography sx={{ fontSize: 32, fontWeight: 720, letterSpacing: '-.045em' }}>Welcome back.</Typography>
             <Typography color="text.secondary" variant="body2">
-              Grapifly ID is the only account you need to access Relay.
+              Grapifly ID is the only account you need to access {appConfig.name}.
             </Typography>
             <Button
               component="a"
