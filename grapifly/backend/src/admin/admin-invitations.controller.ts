@@ -3,7 +3,7 @@ import { SessionGuard, SessionRequest } from '../auth/session.guard';
 import { PlatformAdminService } from './platform-admin.service';
 
 /**
- * The one entry point into the ecosystem's "interno" (admin) world besides
+ * The one entry point into the ecosystem's internal (admin) world besides
  * the bootstrap-seeded super admin. Deliberately NOT behind PlatformAdminGuard
  * at the class level — accept() must be reachable by a signed-in Grapifly
  * user who is not yet an admin. invite/list/cancel enforce the real "must be

@@ -14,7 +14,7 @@ import { OrganizationMembership, OrganizationMembershipDocument } from './schema
 import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } from './schemas/organization-member-application.schema';
 import type { ApplicationMemberRole } from './schemas/organization-member-application.schema';
 import { Organization, OrganizationDocument } from './schemas/organization.schema';
-import { OrganizationResponseDto, toOrganizationResponse } from './dto/organization-response.dto';
+import { AdminOrganizationResponseDto, OrganizationResponseDto, toOrganizationResponse } from './dto/organization-response.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { ArchiveOrganizationResponseDto } from './dto/archive-organization-response.dto';
@@ -206,6 +206,8 @@ export class OrganizationsService implements OnApplicationBootstrap {
       websiteUrl: 500, apiBaseUrl: 500, helpCenterUrl: 500, privacyPolicyUrl: 500, termsUrl: 500, unsubscribeUrl: 500,
       facebook: 500, instagram: 500, linkedin: 500, x: 500, youtube: 500, tiktok: 500, whatsapp: 500, telegram: 500,
       copyrightText: 500, disclaimerShort: 500, disclaimerLong: 2000, logoIconUrl: 500, logoFullUrl: 500,
+      bankAccountHolder: 200, bankName: 200, bankAccountNumber: 60, bankSwiftBic: 20, bankCountry: 100,
+      usdtWalletAddress: 120, usdtNetwork: 10,
     };
     const updates: Record<string, string> = {};
     if (entityType) updates.entityType = entityType;
@@ -234,12 +236,63 @@ export class OrganizationsService implements OnApplicationBootstrap {
       if (!updates[field]) continue;
       try { new URL(updates[field]); } catch { throw new BadRequestException(`${field} must be a valid URL`); }
     }
+
+    // --- Payout details ---
+    if (updates.bankSwiftBic) {
+      updates.bankSwiftBic = updates.bankSwiftBic.toUpperCase();
+      if (!/^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$/.test(updates.bankSwiftBic)) {
+        throw new BadRequestException('bankSwiftBic must be a valid 8 or 11 character SWIFT/BIC code');
+      }
+    }
+    if ('usdtNetwork' in updates) {
+      updates.usdtNetwork = updates.usdtNetwork.toUpperCase();
+      if (!['', 'TRC20', 'ERC20', 'BEP20'].includes(updates.usdtNetwork)) {
+        throw new BadRequestException('usdtNetwork must be one of TRC20, ERC20 or BEP20');
+      }
+    }
+    if (updates.usdtWalletAddress && !/^[A-Za-z0-9]{20,120}$/.test(updates.usdtWalletAddress)) {
+      throw new BadRequestException('usdtWalletAddress contains invalid characters');
+    }
+    // A USDT wallet is only usable together with its network — enforce both-or-neither
+    // whenever either side is part of this update, using the update value if present
+    // and otherwise falling back to what is already stored (passed in via `input`).
+    if ('usdtWalletAddress' in updates || 'usdtNetwork' in updates) {
+      const wallet = 'usdtWalletAddress' in updates ? updates.usdtWalletAddress : String(input.usdtWalletAddress ?? '').trim();
+      const network = 'usdtNetwork' in updates ? updates.usdtNetwork : String(input.usdtNetwork ?? '').trim().toUpperCase();
+      if (Boolean(wallet) !== Boolean(network)) {
+        throw new BadRequestException('A USDT wallet address and its network must be provided together');
+      }
+    }
+
     return updates;
   }
 
-  async listAllForAdmin(): Promise<OrganizationResponseDto[]> {
-    const organizations = await this.organizations.find().sort({ name: 1 }).lean();
-    return organizations.map(toOrganizationResponse);
+  async listAllForAdmin(): Promise<AdminOrganizationResponseDto[]> {
+    const [organizations, memberships, users] = await Promise.all([
+      this.organizations.find().sort({ name: 1 }).lean(),
+      this.memberships.find({ status: 'active' }).lean(),
+      this.users.listAll(),
+    ]);
+    const usersById = new Map(users.map((user) => [user.grapiflyUserId, user]));
+    const membersByOrganization = new Map<string, AdminOrganizationResponseDto['members']>();
+    for (const membership of memberships) {
+      const user = usersById.get(membership.grapiflyUserId);
+      if (!user) continue;
+      const members = membersByOrganization.get(membership.organizationId) ?? [];
+      members.push({
+        grapiflyUserId: membership.grapiflyUserId,
+        displayName: user.displayName,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        role: membership.role,
+      });
+      membersByOrganization.set(membership.organizationId, members);
+    }
+    return organizations.map((organization) => ({
+      ...toOrganizationResponse(organization),
+      members: (membersByOrganization.get(organization.organizationId) ?? [])
+        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    }));
   }
 
   /**
@@ -372,6 +425,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
           description: catalogEntry.description,
           launchUrl: catalogEntry.launchUrl,
           theme: catalogEntry.theme,
+          tier: orgApp.tier ?? catalogEntry.defaultAccess.tier,
           memberRole: memberAccess?.role ?? null,
           memberStatus: memberAccess?.status ?? 'inactive',
         });
@@ -628,18 +682,18 @@ export class OrganizationsService implements OnApplicationBootstrap {
   }
 
   /**
-   * The 'owner' role catalogue is global (same 4 roles for every app),
+   * The 'client' role catalogue is global (same 4 roles for every app),
    * not per-app — see RoleCatalogService. applicationKey is kept as a
    * parameter for the error message only.
    */
   private async normalizeApplicationRole(applicationKey: string, role: string): Promise<ApplicationMemberRole> {
-    const validRoles = await this.roleCatalog.rolesForFlow('owner');
+    const validRoles = await this.roleCatalog.rolesForFlow('client');
     if (!validRoles.includes(role)) throw new BadRequestException(`Invalid role for ${applicationKey}`);
     return role;
   }
 
   private async normalizeInvitableApplicationRole(applicationKey: string, role: string): Promise<ApplicationMemberRole> {
-    const validRoles = (await this.roleCatalog.rolesForFlow('owner')).filter((candidate) => candidate !== 'owner');
+    const validRoles = (await this.roleCatalog.rolesForFlow('client')).filter((candidate) => candidate !== 'owner');
     if (!validRoles.includes(role)) throw new BadRequestException(`Invitations cannot grant the ${role} role for ${applicationKey}`);
     return role;
   }

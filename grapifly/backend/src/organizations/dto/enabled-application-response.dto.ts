@@ -11,6 +11,7 @@ export interface EnabledApplicationResponseDto {
   description: string;
   launchUrl: string;
   theme: ApplicationTheme;
+  tier: 'trial' | 'free' | 'paid';
   memberRole: string | null;
   memberStatus: 'active' | 'suspended' | 'revoked' | 'inactive';
 }
@@ -21,6 +22,7 @@ export function toEnabledApplicationResponse(entry: {
   description: string;
   launchUrl: string;
   theme: ApplicationTheme;
+  tier: 'trial' | 'free' | 'paid';
   memberRole: string | null;
   memberStatus: 'active' | 'suspended' | 'revoked' | 'inactive';
 }): EnabledApplicationResponseDto {
@@ -30,6 +32,7 @@ export function toEnabledApplicationResponse(entry: {
     description: entry.description,
     launchUrl: entry.launchUrl,
     theme: entry.theme,
+    tier: entry.tier,
     memberRole: entry.memberRole,
     memberStatus: entry.memberStatus,
   };

@@ -35,4 +35,11 @@ export interface UpdateOrganizationDto {
   disclaimerLong?: string;
   logoIconUrl?: string;
   logoFullUrl?: string;
+  bankAccountHolder?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankSwiftBic?: string;
+  bankCountry?: string;
+  usdtWalletAddress?: string;
+  usdtNetwork?: '' | 'TRC20' | 'ERC20' | 'BEP20';
 }

@@ -40,9 +40,9 @@ export class PlatformAdminService implements OnApplicationBootstrap {
       { $set: { grapiflyUserId: user.grapiflyUserId, role: 'ecosystem_super_admin', status: 'active' }, $setOnInsert: { email } },
       { upsert: true, returnDocument: 'after' },
     );
-    // This person's real nature is 'interno', even though the account was
+    // This person's real nature is 'internal', even though the account was
     // first created via a normal Google sign-in before being flagged here.
-    await this.users.updateOne({ grapiflyUserId: user.grapiflyUserId }, { $set: { tipo: 'interno' } });
+    await this.users.updateOne({ grapiflyUserId: user.grapiflyUserId }, { $set: { tipo: 'internal' } });
     this.logger.log(`Platform admin ready: ${email} (ecosystem_super_admin).`);
   }
 
@@ -70,7 +70,7 @@ export class PlatformAdminService implements OnApplicationBootstrap {
 
   /**
    * Only an active super admin can invite new admins — the one entry point
-   * into the ecosystem's "interno" world besides the bootstrap seed above.
+   * into the ecosystem's internal world besides the bootstrap seed above.
    */
   async invite(actorUserId: string, email: string, level: string) {
     await this.requireSuperAdmin(actorUserId);
@@ -136,7 +136,7 @@ export class PlatformAdminService implements OnApplicationBootstrap {
       { $set: { grapiflyUserId, role: invitation.level, status: 'active' } },
       { upsert: true, returnDocument: 'after' },
     );
-    await this.users.updateOne({ grapiflyUserId }, { $set: { tipo: 'interno' } });
+    await this.users.updateOne({ grapiflyUserId }, { $set: { tipo: 'internal' } });
     invitation.status = 'accepted';
     invitation.acceptedAt = new Date();
     await invitation.save();

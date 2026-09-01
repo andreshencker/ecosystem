@@ -14,7 +14,10 @@ interface OrgEntry {
   websiteUrl: string; apiBaseUrl: string; helpCenterUrl: string; privacyPolicyUrl: string; termsUrl: string; unsubscribeUrl: string;
   facebook: string; instagram: string; linkedin: string; x: string; youtube: string; tiktok: string; whatsapp: string; telegram: string;
   copyrightText: string; disclaimerShort: string; disclaimerLong: string; logoIconUrl: string; logoFullUrl: string;
+  bankAccountHolder: string; bankName: string; bankAccountNumber: string; bankSwiftBic: string; bankCountry: string;
+  usdtWalletAddress: string; usdtNetwork: '' | 'TRC20' | 'ERC20' | 'BEP20';
   isPlatform: boolean; isDefault: boolean; status: Status;
+  members: Array<{ grapiflyUserId:string;displayName:string;email:string;avatarUrl:string|null;role:'owner'|'admin'|'member' }>;
 }
 
 type DrawerMode = 'create' | 'edit' | null;
@@ -26,8 +29,12 @@ const TEXT_FIELDS = [
   'websiteUrl', 'apiBaseUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'unsubscribeUrl',
   'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram',
   'copyrightText', 'disclaimerShort', 'disclaimerLong', 'logoIconUrl', 'logoFullUrl',
+  'bankAccountHolder', 'bankName', 'bankAccountNumber', 'bankSwiftBic', 'bankCountry',
+  'usdtWalletAddress', 'usdtNetwork',
 ] as const;
 type TextField = typeof TEXT_FIELDS[number];
+
+const USDT_NETWORKS = ['TRC20', 'ERC20', 'BEP20'] as const;
 
 interface FormState {
   name: string; entityType: EntityType; status: Status; ownerEmail: string;
@@ -64,6 +71,7 @@ export default function OrganizationsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | EntityType>('all');
+  const [userFilter, setUserFilter] = useState('all');
 
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
   const [drawerOrg, setDrawerOrg] = useState<OrgEntry | null>(null);
@@ -82,15 +90,23 @@ export default function OrganizationsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const users = useMemo(() => {
+    const entries = new Map<string, { displayName:string;email:string }>();
+    orgs.forEach(org => org.members.forEach(member => entries.set(member.grapiflyUserId, member)));
+    return Array.from(entries.entries()).sort((a,b) => a[1].displayName.localeCompare(b[1].displayName));
+  }, [orgs]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
     return orgs.filter(org => {
       if (statusFilter !== 'all' && org.status !== statusFilter) return false;
       if (typeFilter !== 'all' && org.entityType !== typeFilter) return false;
-      if (q && !`${org.name} ${org.slug} ${org.organizationId}`.toLowerCase().includes(q)) return false;
+      if (userFilter !== 'all' && !org.members.some(member => member.grapiflyUserId === userFilter)) return false;
+      const memberSearch = org.members.map(member => `${member.displayName} ${member.email}`).join(' ');
+      if (q && !`${org.name} ${org.slug} ${org.organizationId} ${memberSearch}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [orgs, query, statusFilter, typeFilter]);
+  }, [orgs, query, statusFilter, typeFilter, userFilter]);
 
   function openCreate() {
     setDrawerMode('create'); setDrawerOrg(null); setForm(emptyForm()); setFormError('');
@@ -150,12 +166,16 @@ export default function OrganizationsPage() {
         <label className="role-filter-field"><span>Type</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value as any)}>
           <option value="all">All</option><option value="company">Company</option><option value="individual">Individual</option>
         </select></label>
+        <label className="role-filter-field"><span>User</span><select value={userFilter} onChange={event => setUserFilter(event.target.value)}>
+          <option value="all">All users</option>{users.map(([id,user]) => <option key={id} value={id}>{user.displayName} · {user.email}</option>)}
+        </select></label>
         <label className="role-filter-field role-filter-search"><span>Search</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search organization" /></label>
       </div>
 
-      <div className="users-table-wrap"><table className="users-table app-table"><thead><tr><th>Organization</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody>
+      <div className="users-table-wrap"><table className="users-table app-table"><thead><tr><th>Organization</th><th>Users</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody>
         {filtered.map(org => <tr key={org.organizationId}>
           <td><div className="app-row-identity"><span className="app-swatch" style={{ background: '#efeaff', color: '#5c47ce' }}>{org.name[0]}</span><div><strong>{org.name}</strong><small>{org.slug}{org.isPlatform ? ' · platform' : ''}{org.isDefault ? ' · default' : ''}</small></div></div></td>
+          <td><div className="organization-members">{org.members.slice(0,3).map(member => <span className="organization-member" key={member.grapiflyUserId} title={`${member.displayName} · ${member.role}`}>{member.avatarUrl ? <img src={member.avatarUrl} alt=""/> : <i>{member.displayName[0]}</i>}<span><strong>{member.displayName}</strong><small>{member.role}</small></span></span>)}{org.members.length === 0 && <small>No active users</small>}{org.members.length > 3 && <b>+{org.members.length-3}</b>}</div></td>
           <td style={{ textTransform: 'capitalize' }}>{org.entityType}</td>
           <td><span className={`status-badge ${org.status === 'active' ? 'active' : 'inactive'}`}>{org.status}</span></td>
           <td><div className="role-row-actions"><button type="button" title="Edit organization" aria-label="Edit organization" onClick={() => openEdit(org)}><EditIcon /></button>{!org.isPlatform && !org.isDefault && org.status !== 'archived' && <button type="button" className="danger" title="Archive organization" aria-label="Archive organization" onClick={() => handleArchive(org)}><DeleteIcon /></button>}</div></td>
@@ -202,6 +222,26 @@ export default function OrganizationsPage() {
           <div className="drawer-field-row">
             <TextField label="Postal code" field="addressPostalCode" form={form} setForm={setForm} />
             <TextField label="Country" field="addressCountry" form={form} setForm={setForm} />
+          </div>
+
+          <h4 className="drawer-section-title">Payment</h4>
+          <p className="drawer-field-hint">Where this organization receives money for what it sells. Leave blank if not applicable.</p>
+          <TextField label="Bank account holder" field="bankAccountHolder" form={form} setForm={setForm} />
+          <TextField label="Bank name" field="bankName" form={form} setForm={setForm} />
+          <div className="drawer-field-row">
+            <TextField label="Account number / IBAN" field="bankAccountNumber" form={form} setForm={setForm} />
+            <TextField label="SWIFT / BIC" field="bankSwiftBic" form={form} setForm={setForm} />
+          </div>
+          <TextField label="Bank country" field="bankCountry" form={form} setForm={setForm} />
+          <div className="drawer-field-row">
+            <TextField label="USDT wallet address" field="usdtWalletAddress" form={form} setForm={setForm} />
+            <label className="drawer-field"><span>USDT network</span><select
+              value={form.fields.usdtNetwork}
+              onChange={event => setForm({ ...form, fields: { ...form.fields, usdtNetwork: event.target.value } })}
+            >
+              <option value="">Select network…</option>
+              {USDT_NETWORKS.map(network => <option key={network} value={network}>{network}</option>)}
+            </select></label>
           </div>
 
           <h4 className="drawer-section-title">Digital</h4>

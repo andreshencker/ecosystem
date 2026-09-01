@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from '@/components/AdminSidebar';
 
-interface RoleEntry { flow:'owner'|'provider'|'internal';roleKey:string;description:string;displayOrder:number }
-type Flow = 'owner'|'provider'|'internal';
+interface RoleEntry { flow:'client'|'provider'|'internal';roleKey:string;description:string;displayOrder:number }
+type Flow = 'client'|'provider'|'internal';
 type DrawerMode = 'create'|'edit'|null;
 
-const flowLabels:Record<Flow,string>={owner:'Owner',provider:'Provider',internal:'Internal'};
-const flowSubtitles:Record<Flow,string>={owner:'People who use an app as customers of their own organization.',provider:'Team that manages an app registered in the catalogue.',internal:'Global ecosystem level — the same across every app.'};
+const flowLabels:Record<Flow,string>={client:'Client',provider:'Provider',internal:'Internal'};
+const flowSubtitles:Record<Flow,string>={client:'People who use an app as customers of their own organization.',provider:'Team that manages an app registered in the catalogue.',internal:'Global ecosystem level — the same across every app.'};
 
 function EditIcon(){
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.474 5.408 18.592 7.53M4 20l.688-3.44a2 2 0 0 1 .551-1.03l9.9-9.9a1.5 1.5 0 0 1 2.122 0l1.61 1.61a1.5 1.5 0 0 1 0 2.122l-9.9 9.9a2 2 0 0 1-1.03.55L4 20Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
@@ -19,9 +19,9 @@ function DeleteIcon(){
 
 export default function RolesPage(){
   const apiUrl=process.env.NEXT_PUBLIC_ID_API_URL??'http://localhost:3101';
-  const[flows,setFlows]=useState<Record<Flow,RoleEntry[]>>({owner:[],provider:[],internal:[]});
+  const[flows,setFlows]=useState<Record<Flow,RoleEntry[]>>({client:[],provider:[],internal:[]});
   const[state,setState]=useState<'loading'|'ready'|'forbidden'|'error'>('loading');
-  const[selectedFlow,setSelectedFlow]=useState<Flow>('owner');
+  const[selectedFlow,setSelectedFlow]=useState<Flow>('client');
   const[query,setQuery]=useState('');
 
   const[drawerMode,setDrawerMode]=useState<DrawerMode>(null);
@@ -88,7 +88,7 @@ export default function RolesPage(){
 
   return <main className="employee-page"><AdminSidebar active="roles"/><section className="employee-content">
     <header className="employee-topbar"><div><span className="section-kicker">Grapifly Administration</span><h1>Roles</h1></div><div className="admin-pill"><span>G</span><div><strong>Super Admin</strong><small>grapiflydeveloper@gmail.com</small></div></div></header>
-    <section className="catalogue-hero"><span>ROLE CATALOGUE</span><h2>One list of roles.<br/>Every flow, every app.</h2><p>This is the single source of truth for roles — owner and provider share the same four roles across every organization; internal levels are global, the same across every app.</p></section>
+    <section className="catalogue-hero"><span>ROLE CATALOGUE</span><h2>One list of roles.<br/>Every flow, every app.</h2><p>This is the single source of truth for roles — client and provider share the same four roles across every organization; internal levels are global, the same across every app.</p></section>
 
     {state==='loading'&&<div className="employee-message">Loading role catalogue…</div>}
     {state==='forbidden'&&<div className="employee-message"><strong>Administration access required.</strong></div>}

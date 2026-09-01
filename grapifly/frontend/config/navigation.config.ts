@@ -37,7 +37,7 @@ export const GRAPIFLY_NAVIGATION: NavigationSection[] = [
     mode: 'app',
     items: [
       { label: 'Home', href: '/home', icon: '⌂', requiredCapability: 'account.view' },
-      { label: 'Organization', href: '/organizations', icon: '◉', requiredCapability: 'organizations.view' },
+      { label: 'My organization', href: '/organizations', icon: '◉', requiredCapability: 'organizations.view' },
       { label: 'Teams', href: '/teams', icon: '☺', requiredCapability: 'organizations.view' },
       { label: 'My apps', href: '/my-apps', icon: '▤', requiredCapability: 'organizations.view' },
       { label: 'Integrations', href: '/integrations', icon: '⌁', requiredCapability: 'organizations.view' },

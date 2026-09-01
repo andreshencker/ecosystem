@@ -5,14 +5,14 @@ import { RoleCatalogEntry, RoleCatalogEntryDocument } from './schemas/role-catal
 import { RoleResponseDto, toRoleResponse } from './dto/role-response.dto';
 import { DeleteRoleResponseDto } from './dto/delete-role-response.dto';
 
-export type RoleFlow = 'owner' | 'provider' | 'internal';
-const FLOWS: RoleFlow[] = ['owner', 'provider', 'internal'];
+export type RoleFlow = 'client' | 'provider' | 'internal';
+const FLOWS: RoleFlow[] = ['client', 'provider', 'internal'];
 
 const SEED: { flow: RoleFlow; roleKey: string; description: string; displayOrder: number }[] = [
-  { flow: 'owner', roleKey: 'owner', description: 'Full control of the organization', displayOrder: 1 },
-  { flow: 'owner', roleKey: 'admin', description: 'Can administer, without being the owner', displayOrder: 2 },
-  { flow: 'owner', roleKey: 'member', description: 'Regular use, no administration capabilities', displayOrder: 3 },
-  { flow: 'owner', roleKey: 'viewer', description: 'View-only, cannot modify anything', displayOrder: 4 },
+  { flow: 'client', roleKey: 'owner', description: 'Full control of the organization', displayOrder: 1 },
+  { flow: 'client', roleKey: 'admin', description: 'Can administer, without being the owner', displayOrder: 2 },
+  { flow: 'client', roleKey: 'member', description: 'Regular use, no administration capabilities', displayOrder: 3 },
+  { flow: 'client', roleKey: 'viewer', description: 'View-only, cannot modify anything', displayOrder: 4 },
 
   { flow: 'provider', roleKey: 'owner', description: 'Full control over the registered app', displayOrder: 1 },
   { flow: 'provider', roleKey: 'admin', description: 'Can administer the registered app, without being the owner', displayOrder: 2 },
@@ -32,6 +32,12 @@ export class RoleCatalogService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    // Compatibility migration: `owner` used to be the client flow name.
+    // The `owner` role itself remains unchanged.
+    await this.entries.updateMany(
+      { flow: 'owner' as never },
+      { $set: { flow: 'client' } },
+    );
     await Promise.all(SEED.map((entry) => this.entries.findOneAndUpdate(
       { flow: entry.flow, roleKey: entry.roleKey },
       { $set: entry },

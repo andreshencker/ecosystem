@@ -17,12 +17,15 @@ import { Organization, OrganizationSchema } from '../organizations/schemas/organ
 import { OrganizationMembership, OrganizationMembershipSchema } from '../organizations/schemas/organization-membership.schema';
 import { OrganizationApplication, OrganizationApplicationSchema } from '../organizations/schemas/organization-application.schema';
 import { OrganizationMemberApplication, OrganizationMemberApplicationSchema } from '../organizations/schemas/organization-member-application.schema';
+import { RoleCatalogModule } from '../roles/role-catalog.module';
+import { PlatformAdmin, PlatformAdminSchema } from '../admin/schemas/platform-admin.schema';
 
 @Module({
   imports: [
     UsersModule,
     ApplicationsModule,
     ApplicationAssignmentsModule,
+    RoleCatalogModule,
     MongooseModule.forFeature([
       { name: SsoCode.name, schema: SsoCodeSchema },
       { name: PendingSignup.name, schema: PendingSignupSchema },
@@ -30,6 +33,7 @@ import { OrganizationMemberApplication, OrganizationMemberApplicationSchema } fr
       { name: OrganizationMembership.name, schema: OrganizationMembershipSchema },
       { name: OrganizationApplication.name, schema: OrganizationApplicationSchema },
       { name: OrganizationMemberApplication.name, schema: OrganizationMemberApplicationSchema },
+      { name: PlatformAdmin.name, schema: PlatformAdminSchema },
     ]),
     PassportModule,
     JwtModule.registerAsync({

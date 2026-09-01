@@ -42,9 +42,28 @@ export interface OrganizationResponseDto {
   disclaimerLong: string;
   logoIconUrl: string;
   logoFullUrl: string;
+  bankAccountHolder: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankSwiftBic: string;
+  bankCountry: string;
+  usdtWalletAddress: string;
+  usdtNetwork: '' | 'TRC20' | 'ERC20' | 'BEP20';
   isPlatform: boolean;
   isDefault: boolean;
   status: 'active' | 'suspended' | 'archived';
+}
+
+export interface OrganizationMemberSummaryDto {
+  grapiflyUserId: string;
+  displayName: string;
+  email: string;
+  avatarUrl: string | null;
+  role: 'owner' | 'admin' | 'member';
+}
+
+export interface AdminOrganizationResponseDto extends OrganizationResponseDto {
+  members: OrganizationMemberSummaryDto[];
 }
 
 const FIELDS: (keyof OrganizationResponseDto)[] = [
@@ -54,6 +73,8 @@ const FIELDS: (keyof OrganizationResponseDto)[] = [
   'websiteUrl', 'apiBaseUrl', 'helpCenterUrl', 'privacyPolicyUrl', 'termsUrl', 'unsubscribeUrl',
   'facebook', 'instagram', 'linkedin', 'x', 'youtube', 'tiktok', 'whatsapp', 'telegram',
   'copyrightText', 'disclaimerShort', 'disclaimerLong', 'logoIconUrl', 'logoFullUrl',
+  'bankAccountHolder', 'bankName', 'bankAccountNumber', 'bankSwiftBic', 'bankCountry',
+  'usdtWalletAddress', 'usdtNetwork',
   'isPlatform', 'isDefault', 'status',
 ];
 

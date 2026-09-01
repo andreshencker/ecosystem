@@ -48,7 +48,7 @@ export interface RelayOrganizationContract {
  * requested and was granted access for.
  */
 export interface EcosystemSsoIdentityContract {
-  contractVersion: 2;
+  contractVersion: 3;
   issuer: 'grapifly';
   audience: string;
   grapiflyUserId: string;
@@ -58,9 +58,11 @@ export interface EcosystemSsoIdentityContract {
   avatarUrl: string | null;
   organization: RelayOrganizationContract;
   access: {
+    flow: 'client' | 'provider' | 'internal';
     organizationRole: 'owner' | 'admin' | 'member';
     // App-defined (RoleCatalogService), not a fixed shared union.
     applicationRole: string;
+    tier: 'trial' | 'free' | 'paid';
     // No permissions here by design — Grapifly only knows the raw role.
     // Each consuming app owns its own role→permission vocabulary locally.
   };

@@ -12,6 +12,7 @@ import {
   OrganizationMemberApplicationSchema,
 } from '../organizations/schemas/organization-member-application.schema';
 import { GrapiflyUser, GrapiflyUserSchema } from '../users/schemas/user.schema';
+import { AppCatalogueController } from './app-catalogue.controller';
 
 // Depends on Applications + raw schemas only (never UsersModule/OrganizationsModule)
 // so that both of those modules can safely depend on this one without a cycle.
@@ -26,6 +27,7 @@ import { GrapiflyUser, GrapiflyUserSchema } from '../users/schemas/user.schema';
     ]),
   ],
   providers: [ApplicationAssignmentsService],
+  controllers: [AppCatalogueController],
   exports: [ApplicationAssignmentsService],
 })
 export class ApplicationAssignmentsModule {}

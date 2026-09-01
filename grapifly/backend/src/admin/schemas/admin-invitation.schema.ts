@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 export type AdminInvitationDocument = HydratedDocument<AdminInvitation>;
 
 /**
- * Invitation into the ecosystem's "interno" (admin/staff) world — same shape
+ * Invitation into the ecosystem's internal (admin/staff) world — same shape
  * and token mechanics as OrganizationInvitation, but scoped to the whole
  * ecosystem instead of one organization (an admin doesn't belong to anyone's
  * organization). Only an active 'ecosystem_super_admin' can create these

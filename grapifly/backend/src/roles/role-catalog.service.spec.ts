@@ -8,6 +8,7 @@ function buildModel() {
     find: jest.fn().mockReturnValue(chain),
     findOneAndUpdate: jest.fn().mockReturnValue(updateChain),
     findOneAndDelete: jest.fn().mockReturnValue(updateChain),
+    updateMany: jest.fn().mockResolvedValue({}),
     exists: jest.fn(),
     create: jest.fn(),
     countDocuments: jest.fn(),
@@ -25,11 +26,11 @@ describe('RoleCatalogService', () => {
     service = new RoleCatalogService(entries as any);
   });
 
-  it('seeds exactly 4 roles for owner, 4 for provider, 2 for internal', async () => {
+  it('seeds exactly 4 roles for client, 4 for provider, 2 for internal', async () => {
     await service.onApplicationBootstrap();
     expect(entries.findOneAndUpdate).toHaveBeenCalledTimes(10);
     const flows = entries.findOneAndUpdate.mock.calls.map((call) => call[0].flow);
-    expect(flows.filter((f) => f === 'owner')).toHaveLength(4);
+    expect(flows.filter((f) => f === 'client')).toHaveLength(4);
     expect(flows.filter((f) => f === 'provider')).toHaveLength(4);
     expect(flows.filter((f) => f === 'internal')).toHaveLength(2);
   });
@@ -50,14 +51,14 @@ describe('RoleCatalogService', () => {
     it('accepts a role that exists for that flow', async () => {
       entries.exists.mockResolvedValue(true);
 
-      await expect(service.isValidRole('owner', 'admin')).resolves.toBe(true);
-      expect(entries.exists).toHaveBeenCalledWith({ flow: 'owner', roleKey: 'admin' });
+      await expect(service.isValidRole('client', 'admin')).resolves.toBe(true);
+      expect(entries.exists).toHaveBeenCalledWith({ flow: 'client', roleKey: 'admin' });
     });
 
     it('rejects a role that does not exist for that flow', async () => {
       entries.exists.mockResolvedValue(null);
 
-      await expect(service.isValidRole('internal', 'owner')).resolves.toBe(false);
+      await expect(service.isValidRole('internal', 'client')).resolves.toBe(false);
     });
   });
 
@@ -65,21 +66,21 @@ describe('RoleCatalogService', () => {
     it('creates a new role, normalizing the key and assigning the next displayOrder', async () => {
       entries.exists.mockResolvedValue(false);
       entries.countDocuments.mockResolvedValue(2);
-      entries.create.mockResolvedValue({ flow: 'owner', roleKey: 'billing_manager', description: 'Maneja facturación', displayOrder: 3 });
+      entries.create.mockResolvedValue({ flow: 'client', roleKey: 'billing_manager', description: 'Maneja facturación', displayOrder: 3 });
 
-      await service.createRole('owner', '  Billing Manager  ', 'Maneja facturación');
+      await service.createRole('client', '  Billing Manager  ', 'Maneja facturación');
 
-      expect(entries.create).toHaveBeenCalledWith({ flow: 'owner', roleKey: 'billing_manager', description: 'Maneja facturación', displayOrder: 3 });
+      expect(entries.create).toHaveBeenCalledWith({ flow: 'client', roleKey: 'billing_manager', description: 'Maneja facturación', displayOrder: 3 });
     });
 
     it('rejects a duplicate role for the same flow', async () => {
       entries.exists.mockResolvedValue(true);
 
-      await expect(service.createRole('owner', 'admin', 'ya existe')).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.createRole('client', 'admin', 'ya existe')).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('rejects an empty roleKey', async () => {
-      await expect(service.createRole('owner', '   ', 'algo')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.createRole('client', '   ', 'algo')).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejects an invalid flow', async () => {
@@ -89,12 +90,12 @@ describe('RoleCatalogService', () => {
 
   describe('updateRole', () => {
     it('updates the description of an existing role', async () => {
-      entries.__updateChain.lean.mockResolvedValue({ flow: 'owner', roleKey: 'admin', description: 'Nueva descripción' });
+      entries.__updateChain.lean.mockResolvedValue({ flow: 'client', roleKey: 'admin', description: 'Nueva descripción' });
 
-      const result = await service.updateRole('owner', 'admin', 'Nueva descripción');
+      const result = await service.updateRole('client', 'admin', 'Nueva descripción');
 
       expect(entries.findOneAndUpdate).toHaveBeenCalledWith(
-        { flow: 'owner', roleKey: 'admin' },
+        { flow: 'client', roleKey: 'admin' },
         { $set: { description: 'Nueva descripción' } },
         expect.anything(),
       );
@@ -104,24 +105,24 @@ describe('RoleCatalogService', () => {
     it('throws when the role does not exist', async () => {
       entries.__updateChain.lean.mockResolvedValue(null);
 
-      await expect(service.updateRole('owner', 'ghost', 'algo')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.updateRole('client', 'ghost', 'algo')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   describe('deleteRole', () => {
     it('deletes an existing role', async () => {
-      entries.__updateChain.lean.mockResolvedValue({ flow: 'owner', roleKey: 'viewer' });
+      entries.__updateChain.lean.mockResolvedValue({ flow: 'client', roleKey: 'viewer' });
 
-      const result = await service.deleteRole('owner', 'viewer');
+      const result = await service.deleteRole('client', 'viewer');
 
-      expect(entries.findOneAndDelete).toHaveBeenCalledWith({ flow: 'owner', roleKey: 'viewer' });
-      expect(result).toEqual({ flow: 'owner', roleKey: 'viewer', deleted: true });
+      expect(entries.findOneAndDelete).toHaveBeenCalledWith({ flow: 'client', roleKey: 'viewer' });
+      expect(result).toEqual({ flow: 'client', roleKey: 'viewer', deleted: true });
     });
 
     it('throws when the role does not exist', async () => {
       entries.__updateChain.lean.mockResolvedValue(null);
 
-      await expect(service.deleteRole('owner', 'ghost')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteRole('client', 'ghost')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

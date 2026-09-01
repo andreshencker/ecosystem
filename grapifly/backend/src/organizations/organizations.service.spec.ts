@@ -172,13 +172,13 @@ describe('OrganizationsService — admin CRUD', () => {
   describe('listEnabledApplications', () => {
     it('joins enabled org apps with catalogue theme/branding and the caller\'s own access', async () => {
       memberships.__findOneChain.lean.mockResolvedValue({ organizationId: 'gpf_org_1', grapiflyUserId: 'gpf_usr_1', role: 'member', status: 'active' });
-      organizationApplications.__findChain.lean.mockResolvedValue([{ organizationId: 'gpf_org_1', applicationKey: 'relay', status: 'active' }]);
+      organizationApplications.__findChain.lean.mockResolvedValue([{ organizationId: 'gpf_org_1', applicationKey: 'relay', status: 'active', tier: 'free' }]);
       memberApplications.__findChain.lean.mockResolvedValue([{ organizationId: 'gpf_org_1', grapiflyUserId: 'gpf_usr_1', applicationKey: 'relay', role: 'operator', status: 'active' }]);
-      applications.listAll.mockResolvedValue([{ key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay', theme: { icon: '✦' } }]);
+      applications.listAll.mockResolvedValue([{ key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay', theme: { icon: '✦' }, defaultAccess: { tier: 'free' } }]);
 
       const result = await service.listEnabledApplications('gpf_usr_1', 'gpf_org_1');
 
-      expect(result).toEqual([{ key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay', theme: { icon: '✦' }, memberRole: 'operator', memberStatus: 'active' }]);
+      expect(result).toEqual([{ key: 'relay', name: 'Relay', description: 'desc', launchUrl: 'https://relay', theme: { icon: '✦' }, tier: 'free', memberRole: 'operator', memberStatus: 'active' }]);
     });
 
     it('skips org apps that no longer exist in the catalogue', async () => {

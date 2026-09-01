@@ -14,6 +14,12 @@ export class OrganizationApplication {
   @Prop({ required: true, enum: ['active', 'suspended'], default: 'active' })
   status!: 'active' | 'suspended';
 
+  @Prop({ required: true, enum: ['trial', 'free', 'paid'], default: 'free' })
+  tier!: 'trial' | 'free' | 'paid';
+
+  @Prop({ type: Date, default: null })
+  trialStartedAt!: Date | null;
+
   @Prop({ required: true })
   enabledBy!: string;
 }

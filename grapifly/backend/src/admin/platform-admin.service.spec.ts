@@ -123,7 +123,7 @@ describe('PlatformAdminService — invitation flow', () => {
   });
 
   describe('acceptInvitation', () => {
-    it('grants the invited level and marks the user as interno', async () => {
+    it('grants the invited level and marks the user as internal', async () => {
       usersService.findByGrapiflyUserId.mockResolvedValue({ grapiflyUserId: 'gpf_usr_9', email: 'invitee@example.com' });
       const invitationDoc = {
         email: 'invitee@example.com',
@@ -143,7 +143,7 @@ describe('PlatformAdminService — invitation flow', () => {
         { $set: { grapiflyUserId: 'gpf_usr_9', role: 'ecosystem_admin', status: 'active' } },
         expect.anything(),
       );
-      expect(users.updateOne).toHaveBeenCalledWith({ grapiflyUserId: 'gpf_usr_9' }, { $set: { tipo: 'interno' } });
+      expect(users.updateOne).toHaveBeenCalledWith({ grapiflyUserId: 'gpf_usr_9' }, { $set: { tipo: 'internal' } });
       expect(invitationDoc.status).toBe('accepted');
     });
 
