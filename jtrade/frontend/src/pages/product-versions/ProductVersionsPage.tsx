@@ -55,11 +55,8 @@ export default function ProductVersionsPage() {
 
     const handleSelectProduct = (id: string) => setSearchParams(id ? { productId: id } : {});
 
-    const selectedPlatformId = refId(selectedProduct?.platforms?.[0]?.platformId);
-
     const handleUpload = async (values: ProductVersionFormValues, file: File) => {
-        if (!selectedPlatformId) return;
-        await uploadVersion.mutateAsync({ ...values, platformId: selectedPlatformId, file });
+        await uploadVersion.mutateAsync({ ...values, file });
         setOpenUpload(false);
     };
 
@@ -103,7 +100,7 @@ export default function ProductVersionsPage() {
                 <InputLabel>Product</InputLabel>
                 <Select value={productId} label="Product" onChange={(e) => handleSelectProduct(e.target.value)}>
                     <MenuItem value="">Select a product…</MenuItem>
-                    {products.map((p) => <MenuItem key={p._id} value={p._id}>{p.name} ({p.key}) — {p.platforms?.[0]?.platformId?.name ?? "no platform"}</MenuItem>)}
+                    {products.map((p) => <MenuItem key={p._id} value={p._id}>{p.name} ({p.key}) — {p.platformId?.name ?? "no platform"}</MenuItem>)}
                 </Select>
             </FormControl>
 

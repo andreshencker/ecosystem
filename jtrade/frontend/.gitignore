@@ -72,9 +72,7 @@ Thumbs.db
 # Claude Code
 # =====================================================
 
-.claude/worktrees/
-.claude/tmp/
-.claude/cache/
+.claude/
 
 # =====================================================
 # Temporary files

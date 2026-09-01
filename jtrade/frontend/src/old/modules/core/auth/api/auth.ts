@@ -1,6 +1,15 @@
 // src/modules/auth/api/auth.ts
+import axios from "axios";
 import { api } from "@/lib/http";
+import { API_URL, HTTP_TIMEOUT } from "@/lib/constants";
 import type { AuthResponse, AuthTokens, AuthUser, RefreshTokenDto } from "../types/auth";
+
+/**
+ * Bare client with NO interceptors — used for the SSO code exchange. A failed
+ * exchange (e.g. a re-used single-use code) must just reject, never trigger the
+ * refresh-token retry / redirect cascade that the shared `api` instance runs on 401.
+ */
+const bare = axios.create({ baseURL: API_URL, timeout: HTTP_TIMEOUT });
 
 /**
  * Unwrap genérico para backend que a veces responde:
@@ -61,7 +70,7 @@ function normalizeAuthResponse(raw: any): AuthResponse {
 // ====== Auth endpoints ======
 
 export async function loginWithGrapifly(code: string): Promise<AuthResponse> {
-    const { data } = await api.post("/auth/grapifly", { code });
+    const { data } = await bare.post("/auth/grapifly", { code });
     return normalizeAuthResponse(data);
 }
 

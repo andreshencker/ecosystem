@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Button, Card, CardContent, Chip, CircularProgress, Container, Stack, Typography } from "@mui/material";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -24,11 +24,17 @@ export default function GrapiflyCallbackPage() {
     const grapiflyHome = import.meta.env.VITE_GRAPIFLY_WEB_URL ?? "http://localhost:3100/home";
     const grapiflyApps = new URL("/my-apps", grapiflyHome).toString();
     const accessRequired = params.get("error") === "access_required";
+    // Grapifly SSO codes are single-use. Guard against React StrictMode's
+    // double effect invocation (and any re-render) firing a second exchange
+    // with an already-consumed code, which would 401 and tear down the session.
+    const exchangeStarted = useRef(false);
 
     useEffect(() => {
         if (accessRequired) return;
         const code = params.get("code");
         if (!code) { setError("The Grapifly sign-in code is missing."); return; }
+        if (exchangeStarted.current) return;
+        exchangeStarted.current = true;
         loginWithGrapifly(code)
             .then(({ user, tokens }) => {
                 saveSession({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user });

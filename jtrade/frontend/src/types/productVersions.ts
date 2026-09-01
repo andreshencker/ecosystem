@@ -3,7 +3,6 @@ export type ProductVersion = {
     id?: string;
     _id: string;
     productId: string;
-    platformId: string;
     version: string;
     fileName: string;
     originalFileName: string;
@@ -19,7 +18,6 @@ export type ProductVersion = {
 };
 
 export type UploadProductVersionPayload = {
-    platformId: string;
     version: string;
     releaseNotes?: string;
     isCurrentVersion?: boolean;

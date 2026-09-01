@@ -110,6 +110,14 @@ http.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        // Endpoints de autenticación: un 401 aquí es un fallo de credenciales
+        // (código SSO inválido, refresh expirado…), NO una sesión caducada.
+        // Nunca disparamos el ciclo refresh→retry→redirect por ellos.
+        const reqUrl = String(originalRequest?.url ?? "");
+        if (/\/auth\/(grapifly|refresh|logout)/.test(reqUrl)) {
+            return Promise.reject(error);
+        }
+
         // Ya reintentamos una vez este request y volvió a fallar → logout
         if (originalRequest._retry) {
             (error as any).isAuthUnauthorized = true;

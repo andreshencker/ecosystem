@@ -8,6 +8,14 @@ import ProviderModuleStatusPage from "@/old/app/common/pages/provider/ProviderMo
 const ProviderDashboard = lazy(() => import("@/old/app/common/pages/provider/providerdashboard"));
 const ProductsPage = lazy(() => import("@/pages/products/ProductsPage"));
 const ProductVersionsPage = lazy(() => import("@/pages/product-versions/ProductVersionsPage"));
+const TeamPage = lazy(() => import("@/pages/team/TeamPage"));
+const MyOrganizationPage = lazy(() => import("@/pages/organization/MyOrganizationPage"));
+const ProviderIndicatorsPage = lazy(() => import("@/pages/indicators/ProviderIndicatorsPage"));
+const ProviderSymbolsPage = lazy(() => import("@/pages/symbols/ProviderSymbolsPage"));
+const ProviderAlertsPage = lazy(() => import("@/pages/alerts/ProviderAlertsPage"));
+const ProviderSalesPage = lazy(() => import("@/pages/sales/ProviderSalesPage"));
+const ProviderPricingPage = lazy(() => import("@/pages/pricing/ProviderPricingPage"));
+const ProviderProductParamsPage = lazy(() => import("@/pages/product-params/ProviderProductParamsPage"));
 const NotFound = lazy(() => import("@/old/app/common/pages/not-found"));
 
 export const providerRoutes: RouteObject[] = [{
@@ -16,11 +24,16 @@ export const providerRoutes: RouteObject[] = [{
     children: [
         { index: true, element: <Navigate to="dashboard" replace/> },
         { path: "dashboard", element: <ProviderDashboard/> },
+        { path: "organization", element: <MyOrganizationPage/> },
+        { path: "team", element: <TeamPage/> },
         { path: "products", element: <ProductsPage/> },
         { path: "product-versions", element: <ProductVersionsPage/> },
-        { path: "indicators", element: <ProviderModuleStatusPage title="Indicators" description="The indicator module exists in the legacy project and is pending organization-based migration." nextStep="Relate indicators directly to providerOrganizationId and productId."/> },
-        { path: "symbols", element: <ProviderModuleStatusPage title="Symbols" description="Provider symbol configuration is preserved for the trading-tools migration." nextStep="Remove the old company-provider dependency and scope symbols by Grapifly organization."/> },
-        { path: "alerts", element: <ProviderModuleStatusPage title="Alerts" description="Alert management is preserved but still depends on the previous indicator-project model." nextStep="Connect alerts to products, indicators and symbols under the provider organization."/> },
+        { path: "product-params", element: <ProviderProductParamsPage/> },
+        { path: "pricing", element: <ProviderPricingPage/> },
+        { path: "sales", element: <ProviderSalesPage/> },
+        { path: "indicators", element: <ProviderIndicatorsPage/> },
+        { path: "symbols", element: <ProviderSymbolsPage/> },
+        { path: "alerts", element: <ProviderAlertsPage/> },
         { path: "webhooks", element: <ProviderModuleStatusPage title="Webhooks" description="Webhook configuration is part of the trading runtime and remains pending migration." nextStep="Define the new product event contract and organization-scoped webhook endpoints."/> },
         { path: "*", element: <NotFound/> },
     ],

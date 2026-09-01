@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Tooltip, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -16,8 +16,10 @@ import { LoadingButton } from "@/components/shared/LoadingButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 import ProductForm, { ProductFormValues } from "@/components/domain/products/ProductForm";
-import type { Product, ProductPlatformDiscount } from "@/types/products";
-import { formatPrice, getEffectivePriceAmount, isDiscountActiveNow, refId } from "@/types/products";
+import ProductParamsPanel from "@/components/domain/products/ProductParamsPanel";
+import ProductPricingPanel from "@/components/domain/products/ProductPricingPanel";
+import type { Product } from "@/types/products";
+import { refId } from "@/types/products";
 
 import { useCreateProduct, useProducts, useReviewProduct, useUpdateProduct } from "@/hooks/api/useProducts";
 import { useProductTypes } from "@/hooks/api/useProductTypes";
@@ -53,7 +55,7 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
         }
         if (statusFilter) rows = rows.filter((p) => p.status === statusFilter);
         if (typeFilter) rows = rows.filter((p) => refId(p.typeProductId) === typeFilter);
-        if (platformFilter) rows = rows.filter((p) => p.platforms?.some((entry) => refId(entry.platformId) === platformFilter));
+        if (platformFilter) rows = rows.filter((p) => refId(p.platformId) === platformFilter);
         return rows;
     }, [allProducts, list.debouncedSearch, statusFilter, typeFilter, platformFilter]);
 
@@ -71,62 +73,32 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
     const handleCloseForm = () => { setEditing(null); setOpenForm(false); };
 
     const handleSubmit = async (values: ProductFormValues) => {
-        const discount: ProductPlatformDiscount | undefined = values.discountEnabled ? {
-            type: values.discountType,
-            value: values.discountType === "percentage" ? Number(values.discountValueInput) : Math.round(parseFloat(values.discountValueInput || "0") * 100),
-            startsAt: values.discountStartsAt || null,
-            endsAt: values.discountEndsAt || null,
-            isActive: values.discountActive,
-        } : undefined;
-
-        const payload = {
-            typeProductId: values.typeProductId,
-            key: values.key.trim(),
-            name: values.name.trim(),
-            description: values.description.trim(),
-            platforms: values.platformId ? [{
-                platformId: values.platformId,
-                billingType: values.billingType,
-                billingInterval: values.billingType === "subscription" ? values.billingInterval : undefined,
-                priceAmount: Math.round(parseFloat(values.priceInput || "0") * 100),
-                currency: "USD",
-                discount,
-            }] : [],
-        };
-        if (editing) await updateProduct.mutateAsync({ id: editing._id, data: payload });
-        else await createProduct.mutateAsync(payload);
+        if (editing) {
+            await updateProduct.mutateAsync({
+                id: editing._id,
+                data: {
+                    key: values.key,
+                    name: values.name,
+                    description: values.description,
+                    indicatorIds: values.indicatorIds,
+                },
+            });
+        } else {
+            await createProduct.mutateAsync(values);
+        }
         handleCloseForm();
     };
 
     const columns: GridColDef<Product>[] = [
-        { field: "name", headerName: "Product", flex: 1, minWidth: 180, renderCell: (p) => (
+        { field: "name", headerName: "Product", flex: 1, minWidth: 200, renderCell: (p) => (
             <Stack justifyContent="center" sx={{ height: "100%", minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={800} lineHeight={1.3} noWrap>{p.row.name}</Typography>
                 <Typography variant="caption" color="text.secondary" lineHeight={1.3} noWrap>{p.row.key}</Typography>
             </Stack>
         ) },
-        { field: "typeProductId", headerName: "Type", width: 140, valueGetter: (_v, row) => row.typeProductId?.name ?? "—" },
-        { field: "platforms", headerName: "Platforms", flex: 1, minWidth: 180, renderCell: (p) => (
-            <Stack direction="row" gap={0.75} flexWrap="wrap">
-                {p.row.platforms?.length
-                    ? p.row.platforms.map((entry, index) => <Chip key={index} size="small" variant="outlined" label={entry.platformId?.name ?? "Platform"} />)
-                    : "—"}
-            </Stack>
-        ) },
-        { field: "price", headerName: "Price", width: 160, sortable: false, renderCell: (p) => {
-            const platform = p.row.platforms?.[0];
-            if (!platform || typeof platform.priceAmount !== "number") return <Typography variant="body2" color="text.secondary">Not priced</Typography>;
-            const suffix = platform.billingType === "subscription" ? `/${platform.billingInterval === "year" ? "yr" : "mo"}` : "";
-            const active = isDiscountActiveNow(platform.discount);
-            if (!active) return <Typography variant="body2">{formatPrice(platform.priceAmount, platform.currency)}{suffix}</Typography>;
-            const effective = getEffectivePriceAmount(platform);
-            return (
-                <Stack>
-                    <Typography variant="caption" color="text.secondary" sx={{ textDecoration: "line-through" }}>{formatPrice(platform.priceAmount, platform.currency)}</Typography>
-                    <Typography variant="body2" color="success.main" fontWeight={700}>{formatPrice(effective, platform.currency)}{suffix}</Typography>
-                </Stack>
-            );
-        } },
+        { field: "typeProductId", headerName: "Type", width: 130, valueGetter: (_v, row) => row.typeProductId?.name ?? "—" },
+        { field: "platformId", headerName: "Platform", width: 140, valueGetter: (_v, row) => row.platformId?.name ?? "—" },
+        { field: "indicatorIds", headerName: "Indicators", width: 110, sortable: false, valueGetter: (_v, row) => row.indicatorIds?.length || "—" },
         { field: "status", headerName: "Status", width: 140, renderCell: (p) => (
             <Chip size="small" color={statusColor(p.row.status)} label={p.row.status.replace(/_/g, " ")} />
         ) },
@@ -239,12 +211,7 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
                     badge: (row) => <Chip size="small" color={statusColor(row.status)} label={row.status.replace(/_/g, " ")} />,
                     fields: [
                         { field: "typeProductId", label: "Type", render: (_v, row) => row.typeProductId?.name ?? "—" },
-                        { field: "platforms", label: "Price", render: (_v, row) => {
-                            const platform = row.platforms?.[0];
-                            if (!platform || typeof platform.priceAmount !== "number") return "Not priced";
-                            const effective = getEffectivePriceAmount(platform);
-                            return formatPrice(effective, platform.currency);
-                        } },
+                        { field: "platformId", label: "Platform", render: (_v, row) => row.platformId?.name ?? "—" },
                     ],
                 }}
             />
@@ -253,9 +220,19 @@ export default function ProductsPage({ review = false }: { review?: boolean }) {
                 open={openForm}
                 onClose={handleCloseForm}
                 title={editing ? "Edit product" : "New product"}
-                width={620}
+                width={640}
             >
                 <ProductForm initial={editing} loading={saving} onSubmit={handleSubmit} onCancel={handleCloseForm} />
+                {editing && (
+                    <>
+                        <Box sx={{ mt: 3 }}>
+                            <ProductParamsPanel product={editing} />
+                        </Box>
+                        <Box sx={{ mt: 3 }}>
+                            <ProductPricingPanel productId={editing._id} />
+                        </Box>
+                    </>
+                )}
             </FormDrawer>
         </>
     );

@@ -35,7 +35,7 @@ export function useUploadProductVersion(productId: string | null) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: UploadProductVersionPayload) => {
-            const fd = toFormData({ platformId: payload.platformId, version: payload.version, releaseNotes: payload.releaseNotes, isCurrentVersion: payload.isCurrentVersion }, payload.file);
+            const fd = toFormData({ version: payload.version, releaseNotes: payload.releaseNotes, isCurrentVersion: payload.isCurrentVersion }, payload.file);
             return api.post<Envelope<ProductVersion>>(`${BASE}/${productId}/versions`, fd).then((r) => r.data.data);
         },
         onSuccess: () => qc.invalidateQueries({ queryKey: KEY(productId ?? "") }),

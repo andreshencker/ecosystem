@@ -21,6 +21,17 @@ export function useProducts(scope: "mine" | "review" = "mine") {
     });
 }
 
+export function useMarketplaceProducts() {
+    return useQuery<Product[]>({
+        queryKey: ["products", "marketplace"],
+        queryFn: () => api.get<Envelope<Product[]>>(`${BASE}/marketplace`).then((r) => (Array.isArray(r.data?.data) ? r.data.data : [])),
+        placeholderData: [],
+        refetchOnWindowFocus: false,
+        retry: 1,
+        staleTime: 0,
+    });
+}
+
 export function useCreateProduct() {
     const qc = useQueryClient();
     return useMutation({
@@ -46,3 +57,4 @@ export function useReviewProduct() {
         onSuccess: () => qc.invalidateQueries({ queryKey: KEY("review") }),
     });
 }
+
