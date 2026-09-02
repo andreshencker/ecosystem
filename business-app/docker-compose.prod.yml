@@ -1,0 +1,27 @@
+# Prod overrides for businessapp.grapifly.com deployment.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  redis:
+    ports: !reset []
+
+  bi:
+    # Internal only — reached by the backend over the compose network.
+    ports: !reset []
+
+  backend:
+    environment:
+      FRONTEND_BASE_URL: https://businessapp.grapifly.com
+      APP_BASE_URL: https://businessapp.grapifly.com
+      ALLOWED_ORIGINS: https://businessapp.grapifly.com
+      RELAY_API_URL: https://api.relay.grapifly.com
+    ports:
+      - "127.0.0.1:3004:3004"
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://api.businessapp.grapifly.com
+        NEXT_PUBLIC_APP_ENV: production
+    ports:
+      - "127.0.0.1:3005:3005"

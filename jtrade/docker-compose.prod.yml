@@ -1,0 +1,82 @@
+# jtrade — production stack for jtrade.grapifly.com
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The repo had no compose for jtrade; this is the reference stack. If you already
+# run jtrade with your own compose on the server, just port the env values below.
+#
+# The frontend image is nginx serving the SPA and reverse-proxying /backend to
+# the backend container (see frontend/nginx/nginx.prod.conf). Put this stack on
+# the same Docker network as the Caddy proxy so jtrade_frontend:80 is reachable.
+
+name: jtrade
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: jtrade_mongodb
+    restart: unless-stopped
+    volumes:
+      - jtrade_mongo_data:/data/db
+    networks: [jtrade_internal]
+    # No host port in prod.
+
+  backend:
+    build:
+      context: ./backend
+    image: jtrade-backend:local
+    container_name: jtrade_backend
+    restart: unless-stopped
+    depends_on: [mongo]
+    env_file:
+      - ./backend/.env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      CONTEXT_PATH: /backend
+      MONGODB_URI: mongodb://mongo:27017/jtrade
+      ALLOWED_ORIGINS: https://jtrade.grapifly.com
+      GRAPIFLY_ID_API_URL: https://id.grapifly.com
+      GRAPIFLY_FRONTEND_URL: https://grapifly.com
+      FRONTEND_BASE_URL: https://jtrade.grapifly.com
+      JTRADE_PUBLIC_API_URL: https://jtrade.grapifly.com/backend
+      RELAY_API_URL: https://api.relay.grapifly.com
+    networks: [jtrade_internal]
+    ports:
+      - "127.0.0.1:3202:3002"
+
+  orchestrator:
+    build:
+      context: ./orchestrator
+    image: jtrade-orchestrator:local
+    container_name: jtrade_orchestrator
+    restart: unless-stopped
+    depends_on: [backend]
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+    networks: [jtrade_internal]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NODE_ENV: prod
+        VITE_API_BASE: https://jtrade.grapifly.com/backend
+        VITE_GRAPIFLY_ID_URL: https://id.grapifly.com
+        VITE_GRAPIFLY_WEB_URL: https://grapifly.com
+    image: jtrade-frontend:local
+    container_name: jtrade_frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    networks: [jtrade_internal]
+    ports:
+      - "127.0.0.1:8173:80"
+
+networks:
+  jtrade_internal:
+    name: jtrade_internal
+
+volumes:
+  jtrade_mongo_data:
+    name: jtrade_mongo_data

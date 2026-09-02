@@ -1,0 +1,46 @@
+# Grapifly ecosystem — reverse proxy (auto-HTTPS via Let's Encrypt)
+#
+#   docker run -d --name caddy --restart unless-stopped \
+#     -p 80:80 -p 443:443 \
+#     -v $PWD/deploy/Caddyfile:/etc/caddy/Caddyfile \
+#     -v caddy_data:/data -v caddy_config:/config \
+#     --network <shared-net> caddy:2
+#
+# Every container below must be reachable on the same Docker network as Caddy
+# (join them with `networks:` or `docker network connect`). Container names are
+# from each app's docker-compose.
+
+{
+	email admin@grapifly.com
+}
+
+# ── Home + Grapifly app ────────────────────────────────────────────────
+grapifly.com, www.grapifly.com {
+	reverse_proxy grapifly_frontend:3100
+}
+
+# ── Grapifly ID API (SSO, OAuth, org/team endpoints) ───────────────────
+id.grapifly.com {
+	reverse_proxy grapifly_backend:3101
+}
+
+# ── Relay ─────────────────────────────────────────────────────────────
+relay.grapifly.com {
+	reverse_proxy relay_frontend:3000
+}
+api.relay.grapifly.com {
+	reverse_proxy relay_backend:3001
+}
+
+# ── Business ──────────────────────────────────────────────────────────
+businessapp.grapifly.com {
+	reverse_proxy business_frontend:3005
+}
+api.businessapp.grapifly.com {
+	reverse_proxy business_backend:3004
+}
+
+# ── jtrade (nginx image already proxies /backend internally) ───────────
+jtrade.grapifly.com {
+	reverse_proxy jtrade_frontend:80
+}

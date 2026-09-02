@@ -14,11 +14,17 @@ RUN npm install --legacy-peer-deps
 
 COPY . .
 
-# Copiar archivo de variables del ambiente → .env.local
-# Debes tener archivos con este formato:
-#   .env.local
-#   .env.prod
+# Optional per-environment file (env/.env.local | env/.env.prod). Any value
+# passed as a build ARG below overrides it (Vite: real env vars beat .env files).
 COPY env/.env.$NODE_ENV .env
+
+# Public config — pass from docker-compose.prod.yml. Defaults keep local builds working.
+ARG VITE_API_BASE=http://localhost:3202/backend
+ARG VITE_GRAPIFLY_ID_URL=http://localhost:3101
+ARG VITE_GRAPIFLY_WEB_URL=http://localhost:3100
+ENV VITE_API_BASE=$VITE_API_BASE
+ENV VITE_GRAPIFLY_ID_URL=$VITE_GRAPIFLY_ID_URL
+ENV VITE_GRAPIFLY_WEB_URL=$VITE_GRAPIFLY_WEB_URL
 
 # Construcción final del frontend
 RUN npm run build:docker

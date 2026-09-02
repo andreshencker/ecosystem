@@ -11,6 +11,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
+  // Behind a reverse proxy in prod — trust X-Forwarded-* headers.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   const allowedOrigins = config
     .get<string>('ALLOWED_ORIGINS', 'http://localhost:3005')
     .split(',')

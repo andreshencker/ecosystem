@@ -63,6 +63,9 @@ const APPLICATION_CATALOGUE = [
     secretEnvVar: 'GRAPIFLY_SERVICE_SECRET',
     secretEnvFallback: null,
     ssoCallbackUrlEnvVar: null,
+    // Public URL of the app's storefront/home — set per environment so the
+    // "My Apps" launcher and post-logout redirects point at the real domain.
+    launchUrlEnvVar: 'GRAPIFLY_APP_URL',
   },
   {
     key: 'relay', name: 'Relay', description: 'Secure connections and automation across external services.', launchUrl: 'http://localhost:3000', ownership: 'first_party', status: 'active', displayOrder: 1,
@@ -75,13 +78,16 @@ const APPLICATION_CATALOGUE = [
     secretEnvFallback: 'GRAPIFLY_SSO_CLIENT_SECRET',
     // Callback URLs are owned by the central application catalogue.
     ssoCallbackUrlEnvVar: 'RELAY_SSO_CALLBACK_URL',
+    launchUrlEnvVar: 'RELAY_APP_URL',
   },
   {
-    key: 'business', name: 'Business', description: 'Business operations, invoicing and administration.', launchUrl: 'http://localhost:3003', ownership: 'first_party', status: 'active', displayOrder: 2,
+    key: 'business', name: 'Business', description: 'Business operations, invoicing and administration.', launchUrl: 'http://localhost:3005', ownership: 'first_party', status: 'active', displayOrder: 2,
     defaultAccess: { autoGrantOnSignup: false, tier: 'free', requiresApproval: false },
     secretEnvVar: 'BUSINESS_SERVICE_SECRET',
     secretEnvFallback: null,
+    // Business does not use Grapifly SSO yet — admin sets this if/when it does.
     ssoCallbackUrlEnvVar: null,
+    launchUrlEnvVar: 'BUSINESS_APP_URL',
   },
   {
     key: 'jtrade', name: 'JTrade', description: 'Trading, investment and market operations.', launchUrl: 'http://localhost:5173', ownership: 'first_party', status: 'active', displayOrder: 3,
@@ -89,6 +95,7 @@ const APPLICATION_CATALOGUE = [
     secretEnvVar: 'JTRADE_SERVICE_SECRET',
     secretEnvFallback: null,
     ssoCallbackUrlEnvVar: 'JTRADE_SSO_CALLBACK_URL',
+    launchUrlEnvVar: 'JTRADE_APP_URL',
   },
 ] as const;
 
@@ -113,7 +120,7 @@ export class ApplicationsService implements OnApplicationBootstrap {
       { $pull: { allowedFlows: 'owner' as never } },
     );
     await Promise.all(APPLICATION_CATALOGUE.map((app) => {
-      const { secretEnvVar, secretEnvFallback, ssoCallbackUrlEnvVar, ...catalogueEntry } = app;
+      const { secretEnvVar, secretEnvFallback, ssoCallbackUrlEnvVar, launchUrlEnvVar, ...catalogueEntry } = app;
       const secret =
         this.config.get<string>(secretEnvVar) ??
         (secretEnvFallback ? this.config.get<string>(secretEnvFallback) : undefined) ??
@@ -123,10 +130,13 @@ export class ApplicationsService implements OnApplicationBootstrap {
       const ssoCallbackUrlPatch = ssoCallbackUrlEnvVar
         ? { ssoCallbackUrl: this.config.get<string>(ssoCallbackUrlEnvVar) ?? null }
         : {};
+      // Per-environment public URL: env override wins, hardcoded localhost is the
+      // dev fallback. Always written so the catalogue stays the single source.
+      const launchUrl = this.config.get<string>(launchUrlEnvVar)?.trim() || catalogueEntry.launchUrl;
       return this.applications.findOneAndUpdate(
         { key: app.key },
         {
-          $set: { ...catalogueEntry, serviceSecretHash: this.hashSecret(secret), ...ssoCallbackUrlPatch },
+          $set: { ...catalogueEntry, launchUrl, serviceSecretHash: this.hashSecret(secret), ...ssoCallbackUrlPatch },
           // isPrimary only applies on the very first insert — a re-run of this
           // bootstrap must never silently override an admin's later choice.
           $setOnInsert: { theme: CATALOGUE_THEMES[app.key] ?? DEFAULT_THEME, isPrimary: app.key === 'grapifly' },

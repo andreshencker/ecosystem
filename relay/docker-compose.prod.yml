@@ -1,0 +1,26 @@
+# Prod overrides for relay.grapifly.com deployment.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  redis:
+    ports: !reset []
+
+  backend:
+    environment:
+      APP_BASE_URL: https://relay.grapifly.com
+      API_BASE_URL: https://api.relay.grapifly.com
+      ALLOWED_ORIGINS: https://relay.grapifly.com
+      GRAPIFLY_ID_API_URL: https://id.grapifly.com
+      XERO_OAUTH_FRONTEND_RETURN_URL: https://relay.grapifly.com/provider-credentials
+      GOOGLE_EMAIL_OAUTH_FRONTEND_RETURN_URL: https://relay.grapifly.com/provider-credentials
+    ports:
+      - "127.0.0.1:3001:3001"
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://api.relay.grapifly.com
+        NEXT_PUBLIC_GRAPIFLY_ID_URL: https://id.grapifly.com
+        NEXT_PUBLIC_APP_ENV: production
+    ports:
+      - "127.0.0.1:3000:3000"

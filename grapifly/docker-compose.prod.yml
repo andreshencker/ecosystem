@@ -1,0 +1,38 @@
+# Prod overrides for grapifly.com deployment.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Requires Docker Compose v2.24+ for `!reset`. On older versions, delete the
+# `ports:` blocks from docker-compose.yml instead of overriding them here.
+
+services:
+  mongo:
+    # Do NOT expose the database on the host in prod.
+    ports: !reset []
+
+  backend:
+    environment:
+      # CORS + redirect targets (comma list allowed)
+      FRONTEND_URL: https://grapifly.com
+      # Per-app public URLs written into the applications catalogue on boot
+      GRAPIFLY_APP_URL: https://grapifly.com
+      RELAY_APP_URL: https://relay.grapifly.com
+      BUSINESS_APP_URL: https://businessapp.grapifly.com
+      JTRADE_APP_URL: https://jtrade.grapifly.com
+      # SSO callback URLs (owned by the central catalogue)
+      RELAY_SSO_CALLBACK_URL: https://relay.grapifly.com/auth/grapifly/callback
+      JTRADE_SSO_CALLBACK_URL: https://jtrade.grapifly.com/auth/grapifly/callback
+      # Google OAuth (must match the Authorized redirect URI in Google Cloud Console)
+      GOOGLE_CALLBACK_URL: https://id.grapifly.com/auth/google/callback
+      RELAY_API_URL: https://api.relay.grapifly.com
+    ports:
+      - "127.0.0.1:3101:3101"
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_ID_API_URL: https://id.grapifly.com
+        NEXT_PUBLIC_JTRADE_URL: https://jtrade.grapifly.com
+        NEXT_PUBLIC_BUSINESS_URL: https://businessapp.grapifly.com
+        NEXT_PUBLIC_COMMUNICATIONS_URL: https://relay.grapifly.com
+    ports:
+      - "127.0.0.1:3100:3100"

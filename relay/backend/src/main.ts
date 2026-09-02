@@ -12,6 +12,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
+  // Behind a reverse proxy in prod — trust X-Forwarded-* headers so OAuth
+  // callback URLs are built with https and the real host.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // CORS — restrict to known origins via ALLOWED_ORIGINS env variable
   const allowedOrigins = config
     .get<string>('ALLOWED_ORIGINS', '')

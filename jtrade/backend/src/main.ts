@@ -21,15 +21,22 @@ async function bootstrap() {
   // ✅ IMPORTANTE: que en dev tu ENV ponga CONTEXT_PATH=/backend
   const CONTEXT_PATH = process.env.CONTEXT_PATH || '/backend';
 
+  // Behind a reverse proxy in prod — trust X-Forwarded-* headers.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // ✅ CORS (DEV + PROD)
+  // Dev defaults + any extra origins from ALLOWED_ORIGINS (comma-separated,
+  // e.g. "https://jtrade.grapifly.com").
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:8080',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:8080',
-    'http://54.166.195.143',
-    'http://54.166.195.143:8080',
+    ...(config.get<string>('ALLOWED_ORIGINS') ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
   ];
 
   app.enableCors({
