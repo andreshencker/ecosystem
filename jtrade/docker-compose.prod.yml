@@ -2,23 +2,13 @@
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # Reverse proxy: Traefik on the external `grapifly_proxy` network.
-# The frontend image is nginx serving the SPA and proxying /backend and
-# /orchestrator internally, so jtrade needs a single Traefik router.
+# The frontend image is nginx serving the SPA and proxying /backend internally,
+# so jtrade needs a single Traefik router.
 # MongoDB is NOT in this stack — jtrade uses an external / managed Mongo
 # (set MONGODB_URI in backend/.env.prod).
-# Secrets: jtrade/backend/.env.prod, jtrade/orchestrator/.env.prod (gitignored).
+# Secrets: jtrade/backend/.env.prod (gitignored).
 
 services:
-
-  orchestrator:
-    build:
-      context: ./orchestrator
-      args:
-        NODE_ENV: prod
-    container_name: orchestrator
-    env_file: ./orchestrator/.env.prod
-    restart: unless-stopped
-    networks: [default]
 
   backend:
     build:
@@ -40,15 +30,6 @@ services:
     restart: unless-stopped
     networks: [default]
 
-#  communication:
-#    build:
-#      context: ./communication
-#      args:
-#        NODE_ENV: prod
-#    container_name: jtrade_communication
-#    env_file: ./communication/.env.prod
-#    restart: unless-stopped
-
   frontend:
     build:
       context: ./frontend
@@ -60,8 +41,6 @@ services:
     container_name: frontend
     depends_on:
       - backend
-      - orchestrator
-#      - communication
     restart: unless-stopped
     networks:
       - default

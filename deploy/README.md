@@ -34,7 +34,7 @@ The wildcard covers every subdomain below.
 | `api.relay.grapifly.com` | `relay` backend → 3001 |
 | `businessapp.grapifly.com` | `business` frontend → 3005 |
 | `api.businessapp.grapifly.com` | `business` backend → 3004 |
-| `jtrade.grapifly.com` | `jtrade` frontend (nginx, proxies `/backend` + `/orchestrator`) → 80 |
+| `jtrade.grapifly.com` | `jtrade` frontend (nginx, proxies `/backend`) → 80 |
 
 Routers are declared as `traefik.*` labels in each `docker-compose.prod.yml`.
 Traefik must expose the `websecure` entrypoint and a cert resolver named `le`.
@@ -50,7 +50,6 @@ Traefik must expose the `websecure` entrypoint and a cert resolver named `le`.
 | `business-app/backend/.env.prod` | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CREDENTIALS_MASTER_KEY_BASE64`, `PLATFORM_ADMIN_BOOTSTRAP_EMAIL/PASSWORD`, `BI_INTERNAL_SERVICE_TOKEN`, `RELAY_API_KEY`, `REDIS_HOST=redis` |
 | `business-app/business-intelligence/.env.prod` | `BI_DATABASE_URL`, `BI_INTERNAL_SERVICE_TOKEN` (matches backend), `MONGO_URI`, `MONGO_DATABASE=business_app_db` |
 | `jtrade/backend/.env.prod` | `MONGODB_URI` (**external Mongo**), `JWT_ACCESS_SECRET`, `JWT_REFRESH_DAYS`, `JTRADE_SERVICE_SECRET` (matches grapifly), `RELAY_API_KEY`, `RELAY_GRAPIFLY_COMPANY_ID` |
-| `jtrade/orchestrator/.env.prod` | `PORT=3003`, plus whatever the orchestrator needs |
 
 **Public URLs are already set** in each `docker-compose.prod.yml` `environment:` /
 `build.args` (they override the env files), so `.env.prod` only needs secrets +

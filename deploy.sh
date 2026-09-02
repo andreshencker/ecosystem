@@ -34,7 +34,7 @@ declare -A ENV_FILES=(
   [grapifly]="grapifly/backend/.env.prod"
   [relay]="relay/backend/.env.prod"
   [business-app]="business-app/backend/.env.prod business-app/business-intelligence/.env.prod"
-  [jtrade]="jtrade/backend/.env.prod jtrade/orchestrator/.env.prod"
+  [jtrade]="jtrade/backend/.env.prod"
 )
 
 check_env() {

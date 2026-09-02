@@ -1,17 +1,4 @@
-version: "3.9"
-
 services:
-  orchestrator:
-    build:
-      context: ./orchestrator
-      args:
-        NODE_ENV: local
-    container_name: orchestrator
-    env_file: ./orchestrator/.env.local
-    ports:
-      - "3003:3003"
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
@@ -22,17 +9,6 @@ services:
     ports:
       - "3002:3002"
     restart: unless-stopped
-
-#  communication:
-#    build:
-#      context: ./communication
-#      args:
-#        NODE_ENV: local
-#    container_name: communication
-#    env_file: ./communication/.env.local
-#    ports:
-#      - "3001:3001"
-#    restart: unless-stopped
 
   frontend:
     build:
@@ -55,6 +31,4 @@ services:
     depends_on:
       - frontend
       - backend
-      - orchestrator
-#      - communication
     restart: unless-stopped
