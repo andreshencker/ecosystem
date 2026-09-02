@@ -1,14 +1,14 @@
 # Grapifly ecosystem — reverse proxy (auto-HTTPS via Let's Encrypt)
 #
+#   docker network create grapifly_net          # shared by every app + Caddy
 #   docker run -d --name caddy --restart unless-stopped \
 #     -p 80:80 -p 443:443 \
 #     -v $PWD/deploy/Caddyfile:/etc/caddy/Caddyfile \
 #     -v caddy_data:/data -v caddy_config:/config \
-#     --network <shared-net> caddy:2
+#     --network grapifly_net caddy:2
 #
-# Every container below must be reachable on the same Docker network as Caddy
-# (join them with `networks:` or `docker network connect`). Container names are
-# from each app's docker-compose.
+# Every app's docker-compose.prod.yml already joins `grapifly_net`, so the
+# container names below resolve. DB/Redis stay on each app's private network.
 
 {
 	email admin@grapifly.com

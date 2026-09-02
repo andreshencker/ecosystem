@@ -30,9 +30,17 @@ Verify: `dig +short jtrade.grapifly.com` → `38.225.55.123`
 | `jtrade.grapifly.com` | `jtrade_frontend:80` (proxies `/backend` itself) |
 
 Reverse proxy: [`deploy/Caddyfile`](./Caddyfile) — auto-HTTPS for all of the
-above. Every app container must share a Docker network with the proxy.
+above.
 
-## 3. Bring up each app
+## 3. Shared network + bring up each app
+
+One external Docker network links every app + Caddy, so Caddy reaches each
+frontend/backend and the backends reach each other by container name. Each
+app's DB/Redis stays on its own private network.
+
+```bash
+docker network create grapifly_net
+```
 
 Each app has a `docker-compose.prod.yml` overlay with the prod env + build args
 and no exposed DB/Redis ports.
@@ -88,17 +96,33 @@ files are excluded from the image (`.dockerignore`).
 `grapifly_backend` rewrites the `applications` catalogue (`launchUrl`,
 `ssoCallbackUrl`) from these env vars **on every boot**.
 
-## 6. Notes / gotchas
+## 6. Internal vs public URLs
 
-- All four Nest backends now call `set('trust proxy', 1)` so OAuth/SSO redirects
-  are built with `https` behind the proxy.
+Server-to-server calls use **internal container names** (`http://relay_backend:3001`,
+`http://grapifly_backend:3101`) — set in the prod overlays. Browser-facing values
+(CORS, redirects, links, `NEXT_PUBLIC_*` / `VITE_*`) use the **public** domains.
+
+| Var | Kind | prod value |
+|-----|------|------------|
+| `RELAY_API_URL` (grapifly/business/jtrade) | internal | `http://relay_backend:3001` |
+| `GRAPIFLY_ID_API_URL` (relay/jtrade) | internal | `http://grapifly_backend:3101` |
+| `GRAPIFLY_FRONTEND_URL` (jtrade) | public | `https://grapifly.com` |
+| `FRONTEND_URL` (grapifly) | public | `https://grapifly.com` |
+
+## 7. Notes / gotchas
+
+- All four Nest backends call `set('trust proxy', 1)` so OAuth/SSO redirects are
+  built with `https` behind the proxy.
 - DB/Redis are **not** exposed to the host in the prod overlays. If you keep the
   base `ports:` anyway, firewall 27017/27019/6379/6380.
 - Cookies: everything under `*.grapifly.com` → Grapifly session cookies can use
   `SameSite=Lax; Domain=.grapifly.com; Secure`.
-- `jtrade/frontend/nginx/nginx.prod.conf` proxies `/backend`→`backend:3002`,
-  `/orchestrator`→`orchestrator:3003`, `/communication`→`communication:3001`.
-  The `communication` upstream is Relay's backend — either put jtrade on the
-  same network as relay, or drop that `location` block (jtrade's backend already
-  talks to Relay server-side via `RELAY_API_URL`).
+- `jtrade/frontend/nginx/nginx.prod.conf` now only proxies `/backend`→`backend:3002`.
+  The stale `/orchestrator` and `/communication` blocks were removed (jtrade's
+  backend talks to Relay server-side via `RELAY_API_URL`).
+- `jtrade/backend/src/microservices/` (old communications/orchestrator clients,
+  with a hardcoded `54.166.195.143`) is **excluded from the build** and not run.
+- The legacy `jtrade/orchestrator/` is kept in the repo but not deployed.
 - `business` app has no Grapifly SSO yet — its `ssoCallbackUrl` stays admin-set.
+- jtrade backend `.env.prod` (secrets: `JWT_ACCESS_SECRET`, `JTRADE_SERVICE_SECRET`,
+  `RELAY_API_KEY`, …) must exist on the server — it is gitignored.

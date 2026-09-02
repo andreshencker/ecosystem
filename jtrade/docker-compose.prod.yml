@@ -1,15 +1,25 @@
 # jtrade — production stack for jtrade.grapifly.com
 #
+#   docker network create grapifly_net      # once, shared by every app + Caddy
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # The repo had no compose for jtrade; this is the reference stack. If you already
-# run jtrade with your own compose on the server, just port the env values below.
+# run jtrade with your own compose on the server, port the env values below.
 #
 # The frontend image is nginx serving the SPA and reverse-proxying /backend to
-# the backend container (see frontend/nginx/nginx.prod.conf). Put this stack on
-# the same Docker network as the Caddy proxy so jtrade_frontend:80 is reachable.
+# the backend container (frontend/nginx/nginx.prod.conf).
 
 name: jtrade
+
+networks:
+  jtrade_internal:
+    name: jtrade_internal
+  grapifly_net:
+    external: true
+
+volumes:
+  jtrade_mongo_data:
+    name: jtrade_mongo_data
 
 services:
   mongo:
@@ -35,27 +45,21 @@ services:
       PORT: 3002
       CONTEXT_PATH: /backend
       MONGODB_URI: mongodb://mongo:27017/jtrade
+      # Browser-facing.
       ALLOWED_ORIGINS: https://jtrade.grapifly.com
-      GRAPIFLY_ID_API_URL: https://id.grapifly.com
       GRAPIFLY_FRONTEND_URL: https://grapifly.com
       FRONTEND_BASE_URL: https://jtrade.grapifly.com
       JTRADE_PUBLIC_API_URL: https://jtrade.grapifly.com/backend
-      RELAY_API_URL: https://api.relay.grapifly.com
-    networks: [jtrade_internal]
+      # Server-to-server — internal container names on the shared network.
+      GRAPIFLY_ID_API_URL: http://grapifly_backend:3101
+      RELAY_API_URL: http://relay_backend:3001
+    networks: [jtrade_internal, grapifly_net]
     ports:
       - "127.0.0.1:3202:3002"
 
-  orchestrator:
-    build:
-      context: ./orchestrator
-    image: jtrade-orchestrator:local
-    container_name: jtrade_orchestrator
-    restart: unless-stopped
-    depends_on: [backend]
-    environment:
-      NODE_ENV: production
-      PORT: 3003
-    networks: [jtrade_internal]
+  # NOTE: the legacy orchestrator (jtrade/orchestrator/) is kept in the repo for
+  # reference but is not deployed — its logic now lives in the signalbots module
+  # and nothing calls it. Add it back here only if you re-enable that path.
 
   frontend:
     build:
@@ -69,14 +73,6 @@ services:
     container_name: jtrade_frontend
     restart: unless-stopped
     depends_on: [backend]
-    networks: [jtrade_internal]
+    networks: [jtrade_internal, grapifly_net]
     ports:
       - "127.0.0.1:8173:80"
-
-networks:
-  jtrade_internal:
-    name: jtrade_internal
-
-volumes:
-  jtrade_mongo_data:
-    name: jtrade_mongo_data
