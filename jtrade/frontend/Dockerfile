@@ -14,12 +14,9 @@ RUN npm install --legacy-peer-deps
 
 COPY . .
 
-# Optional per-environment file (env/.env.local | env/.env.prod). Any value
-# passed as a build ARG below overrides it (Vite: real env vars beat .env files).
-COPY env/.env.$NODE_ENV .env
-
-# Public config — pass from docker-compose.prod.yml. Defaults keep local builds working.
-ARG VITE_API_BASE=http://localhost:3202/backend
+# Public config — passed as build args from the compose file. Vite bakes these
+# into the bundle at build time.
+ARG VITE_API_BASE=http://localhost:8080/backend
 ARG VITE_GRAPIFLY_ID_URL=http://localhost:3101
 ARG VITE_GRAPIFLY_WEB_URL=http://localhost:3100
 ENV VITE_API_BASE=$VITE_API_BASE

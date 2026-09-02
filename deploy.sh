@@ -33,10 +33,10 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ---- env files each app needs on the server (gitignored) -------------------
 declare -A ENV_FILES=(
-  [grapifly]="grapifly/.env.prod"
-  [relay]="relay/backend/.env.prod"
-  [business-app]="business-app/backend/.env.prod business-app/business-intelligence/.env.prod"
-  [jtrade]="jtrade/backend/.env.prod"
+  [grapifly]="grapifly/env/.env.prod"
+  [relay]="relay/env/.env.prod"
+  [business-app]="business-app/env/.env.prod"
+  [jtrade]="jtrade/env/.env.prod"
 )
 
 check_env() {
@@ -44,7 +44,7 @@ check_env() {
   for f in ${ENV_FILES[$app]}; do
     [ -f "$ROOT/$f" ] || { echo "  missing: $f"; missing=1; }
   done
-  [ "$missing" -eq 0 ] || die "$app is missing prod env file(s) — copy from deploy/env-templates/ and fill them in."
+  [ "$missing" -eq 0 ] || die "$app is missing prod env file(s) — cp $app/env/.env.prod.example $app/env/.env.prod and fill it in."
 }
 
 # ---- 1. update source ----------------------------------------------------

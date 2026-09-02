@@ -61,3 +61,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Per-project env folders — real values live only on each machine / the server
+**/env/.env.local
+**/env/.env.prod

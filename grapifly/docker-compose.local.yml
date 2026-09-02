@@ -15,7 +15,7 @@ services:
     depends_on:
       - mongo
     env_file:
-      - .env
+      - ./env/.env.local
     environment:
       PORT: 3101
       MONGODB_URI: mongodb://mongo:27017/grapifly_identity

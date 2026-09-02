@@ -41,28 +41,28 @@ Traefik must expose the `websecure` entrypoint and a cert resolver named `le`.
 
 ## 3. Prod env files (on the server, gitignored)
 
-`deploy.sh` refuses to run if any is missing. Copy-paste templates live in
-`deploy/env-templates/` — e.g.:
+Each project has an `env/` folder with `.env.local` + `.env.prod` (gitignored,
+one per machine / server) and committed `.env.{local,prod}.example` templates.
+`deploy.sh` refuses to run if a prod file is missing:
 
 ```bash
-cp deploy/env-templates/grapifly.env.prod          grapifly/.env.prod
-cp deploy/env-templates/relay-backend.env.prod     relay/backend/.env.prod
-cp deploy/env-templates/business-backend.env.prod  business-app/backend/.env.prod
-cp deploy/env-templates/business-bi.env.prod       business-app/business-intelligence/.env.prod
-cp deploy/env-templates/jtrade-backend.env.prod    jtrade/backend/.env.prod
-# then fill in the blanks
+cp grapifly/env/.env.prod.example      grapifly/env/.env.prod
+cp relay/env/.env.prod.example         relay/env/.env.prod
+cp business-app/env/.env.prod.example  business-app/env/.env.prod
+cp jtrade/env/.env.prod.example        jtrade/env/.env.prod
+# then replace every CHANGE_ME
 ```
 
-Note the paths: `grapifly` reads its env from the **app root** (`grapifly/.env.prod`,
-matching the existing `grapifly/.env`); the others use `<app>/backend/.env.prod`.
+| File | Fill in |
+|------|---------|
+| `grapifly/env/.env.prod` | `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_SECRET`, `*_SERVICE_SECRET` (must match each app), `GRAPIFLY_SSO_CLIENT_SECRET` (= `RELAY_SERVICE_SECRET`) |
+| `relay/env/.env.prod` | `MONGODB_URI`, AWS/S3, SMTP (`CHANGE_ME_*`) — secrets + keys are pre-generated |
+| `business-app/env/.env.prod` | `MONGODB_URI`, `MONGO_URI`, `BI_DATABASE_URL` (Neon), `PLATFORM_ADMIN_BOOTSTRAP_PASSWORD` — one file, backend + BI |
+| `jtrade/env/.env.prod` | `MONGODB_URI` (**external Mongo**) — the rest is pre-filled |
 
-| File | Key vars |
-|------|----------|
-| `grapifly/.env.prod` | `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GRAPIFLY_SERVICE_SECRET`, `RELAY_SERVICE_SECRET`, `JTRADE_SERVICE_SECRET`, `BUSINESS_SERVICE_SECRET`, `MONGODB_URI` (or leave the compose default) |
-| `relay/backend/.env.prod` | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `RELAY_API_KEY`, `CREDENTIALS_MASTER_KEY_BASE64`, `GRAPIFLY_SSO_CLIENT_SECRET` (or `RELAY_SERVICE_SECRET`), AWS/S3, SMTP, `REDIS_HOST=redis` |
-| `business-app/backend/.env.prod` | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CREDENTIALS_MASTER_KEY_BASE64`, `PLATFORM_ADMIN_BOOTSTRAP_EMAIL/PASSWORD`, `BI_INTERNAL_SERVICE_TOKEN`, `RELAY_API_KEY`, `REDIS_HOST=redis` |
-| `business-app/business-intelligence/.env.prod` | `BI_DATABASE_URL`, `BI_INTERNAL_SERVICE_TOKEN` (matches backend), `MONGO_URI`, `MONGO_DATABASE=business_app_db` |
-| `jtrade/backend/.env.prod` | `MONGODB_URI` (**external Mongo**), `JWT_ACCESS_SECRET`, `JWT_REFRESH_DAYS`, `JTRADE_SERVICE_SECRET` (matches grapifly), `RELAY_API_KEY`, `RELAY_GRAPIFLY_COMPANY_ID` |
+The pre-generated secrets in the `.example` files are consistent across apps
+(same `RELAY_SERVICE_SECRET` value in grapifly and relay, etc.). Keep them or
+regenerate all matching pairs together.
 
 **Public URLs are already set** in each `docker-compose.prod.yml` `environment:` /
 `build.args` (they override the env files), so `.env.prod` only needs secrets +

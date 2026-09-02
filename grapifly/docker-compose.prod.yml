@@ -23,7 +23,7 @@ services:
     depends_on:
       - mongo
     env_file:
-      - ./.env.prod
+      - ./env/.env.prod
     environment:
       NODE_ENV: production
       PORT: 3101

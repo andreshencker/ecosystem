@@ -31,7 +31,7 @@ services:
     container_name: business_bi
     restart: unless-stopped
     env_file:
-      - ./business-intelligence/.env.prod
+      - ./env/.env.prod
     environment:
       PORT: 8000
       MONGO_DATABASE: business_app_db
@@ -47,7 +47,7 @@ services:
     container_name: business_backend
     restart: unless-stopped
     env_file:
-      - ./backend/.env.prod
+      - ./env/.env.prod
     environment:
       NODE_ENV: production
       PORT: 3004

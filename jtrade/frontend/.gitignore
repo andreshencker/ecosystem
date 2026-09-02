@@ -41,11 +41,6 @@ coverage/
 
 *.local
 
-# Committed Docker build env files (public URLs only, no secrets) — the
-# Dockerfile COPYs env/.env.<NODE_ENV>; real values come from build ARGs.
-!env/.env.prod
-!env/.env.local
-
 # =====================================================
 # IDE
 # =====================================================

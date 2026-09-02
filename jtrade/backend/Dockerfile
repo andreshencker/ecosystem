@@ -14,14 +14,9 @@ RUN npm install -g @nestjs/cli
 
 COPY . .
 
-# -------------------------------
-#  2) Copiar .env.local correspondiente
-# -------------------------------
-COPY .env.$NODE_ENV .env
+# Env comes from the compose `env_file: ./env/.env.<env>` at runtime — not baked
+# into the image.
 
-# -------------------------------
-#  3) Compilar
-# -------------------------------
 RUN npm run build
 
 # -------------------------------

@@ -30,7 +30,7 @@ services:
     container_name: relay_backend
     restart: unless-stopped
     env_file:
-      - ./backend/.env.prod
+      - ./env/.env.prod
     environment:
       NODE_ENV: production
       PORT: 3001
