@@ -33,7 +33,7 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ---- env files each app needs on the server (gitignored) -------------------
 declare -A ENV_FILES=(
-  [grapifly]="grapifly/backend/.env.prod"
+  [grapifly]="grapifly/.env.prod"
   [relay]="relay/backend/.env.prod"
   [business-app]="business-app/backend/.env.prod business-app/business-intelligence/.env.prod"
   [jtrade]="jtrade/backend/.env.prod"

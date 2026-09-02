@@ -45,7 +45,7 @@ Traefik must expose the `websecure` entrypoint and a cert resolver named `le`.
 `deploy/env-templates/` — e.g.:
 
 ```bash
-cp deploy/env-templates/grapifly-backend.env.prod  grapifly/backend/.env.prod
+cp deploy/env-templates/grapifly.env.prod          grapifly/.env.prod
 cp deploy/env-templates/relay-backend.env.prod     relay/backend/.env.prod
 cp deploy/env-templates/business-backend.env.prod  business-app/backend/.env.prod
 cp deploy/env-templates/business-bi.env.prod       business-app/business-intelligence/.env.prod
@@ -53,9 +53,12 @@ cp deploy/env-templates/jtrade-backend.env.prod    jtrade/backend/.env.prod
 # then fill in the blanks
 ```
 
+Note the paths: `grapifly` reads its env from the **app root** (`grapifly/.env.prod`,
+matching the existing `grapifly/.env`); the others use `<app>/backend/.env.prod`.
+
 | File | Key vars |
 |------|----------|
-| `grapifly/backend/.env.prod` | `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GRAPIFLY_SERVICE_SECRET`, `RELAY_SERVICE_SECRET`, `JTRADE_SERVICE_SECRET`, `BUSINESS_SERVICE_SECRET`, `MONGODB_URI` (or leave the compose default) |
+| `grapifly/.env.prod` | `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GRAPIFLY_SERVICE_SECRET`, `RELAY_SERVICE_SECRET`, `JTRADE_SERVICE_SECRET`, `BUSINESS_SERVICE_SECRET`, `MONGODB_URI` (or leave the compose default) |
 | `relay/backend/.env.prod` | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `RELAY_API_KEY`, `CREDENTIALS_MASTER_KEY_BASE64`, `GRAPIFLY_SSO_CLIENT_SECRET` (or `RELAY_SERVICE_SECRET`), AWS/S3, SMTP, `REDIS_HOST=redis` |
 | `business-app/backend/.env.prod` | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CREDENTIALS_MASTER_KEY_BASE64`, `PLATFORM_ADMIN_BOOTSTRAP_EMAIL/PASSWORD`, `BI_INTERNAL_SERVICE_TOKEN`, `RELAY_API_KEY`, `REDIS_HOST=redis` |
 | `business-app/business-intelligence/.env.prod` | `BI_DATABASE_URL`, `BI_INTERNAL_SERVICE_TOKEN` (matches backend), `MONGO_URI`, `MONGO_DATABASE=business_app_db` |
