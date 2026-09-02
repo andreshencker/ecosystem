@@ -16,6 +16,8 @@ services:
 
   backend:
     environment:
+      # Enables Secure cookies (grapifly_session etc.) — required in prod.
+      NODE_ENV: production
       # Browser-facing (CORS + redirects). Comma list allowed.
       FRONTEND_URL: https://grapifly.com
       # Per-app public URLs written into the applications catalogue on boot.
