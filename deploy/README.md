@@ -41,7 +41,17 @@ Traefik must expose the `websecure` entrypoint and a cert resolver named `le`.
 
 ## 3. Prod env files (on the server, gitignored)
 
-`deploy.sh` refuses to run if any is missing.
+`deploy.sh` refuses to run if any is missing. Copy-paste templates live in
+`deploy/env-templates/` — e.g.:
+
+```bash
+cp deploy/env-templates/grapifly-backend.env.prod  grapifly/backend/.env.prod
+cp deploy/env-templates/relay-backend.env.prod     relay/backend/.env.prod
+cp deploy/env-templates/business-backend.env.prod  business-app/backend/.env.prod
+cp deploy/env-templates/business-bi.env.prod       business-app/business-intelligence/.env.prod
+cp deploy/env-templates/jtrade-backend.env.prod    jtrade/backend/.env.prod
+# then fill in the blanks
+```
 
 | File | Key vars |
 |------|----------|

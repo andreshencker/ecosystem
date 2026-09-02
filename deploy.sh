@@ -44,7 +44,7 @@ check_env() {
   for f in ${ENV_FILES[$app]}; do
     [ -f "$ROOT/$f" ] || { echo "  missing: $f"; missing=1; }
   done
-  [ "$missing" -eq 0 ] || die "$app is missing prod env file(s) — create them on the server first."
+  [ "$missing" -eq 0 ] || die "$app is missing prod env file(s) — copy from deploy/env-templates/ and fill them in."
 }
 
 # ---- 1. update source ----------------------------------------------------
