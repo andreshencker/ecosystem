@@ -12,7 +12,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { LinkedCalendarsService } from './linked-calendars.service';
 import { LinkCalendarsDto } from './dto/link-calendars.dto';
@@ -42,8 +47,8 @@ export class LinkedCalendarsController {
     return {
       companyId: ctx.companyId,
       actor: {
-        userId:    ctx.userId    ?? '',
-        email:     ctx.email     ?? '',
+        userId: ctx.userId ?? '',
+        email: ctx.email ?? '',
         firstName: (ctx as any).firstName ?? '',
         companyId: ctx.companyId,
       },
@@ -54,7 +59,7 @@ export class LinkedCalendarsController {
 
   @Get('accounts')
   @HttpCode(200)
-  @ApiOperation({ summary: 'List available calendar accounts from Communications' })
+  @ApiOperation({ summary: 'List available calendar accounts from Relay' })
   async listAccounts(@CurrentUser() ctx: AuthContext) {
     const { companyId } = this.resolveContext(ctx);
     const accounts = await this.service.listAvailableAccounts(companyId);
@@ -65,13 +70,18 @@ export class LinkedCalendarsController {
 
   @Get('accounts/:connectionId/calendars')
   @HttpCode(200)
-  @ApiOperation({ summary: 'List calendars for an account with linked status overlay' })
+  @ApiOperation({
+    summary: 'List calendars for an account with linked status overlay',
+  })
   async listAccountCalendars(
     @CurrentUser() ctx: AuthContext,
     @Param('connectionId') connectionId: string,
   ) {
     const { companyId } = this.resolveContext(ctx);
-    const calendars = await this.service.listAvailableCalendars(companyId, connectionId);
+    const calendars = await this.service.listAvailableCalendars(
+      companyId,
+      connectionId,
+    );
     return { data: calendars };
   }
 
@@ -79,7 +89,9 @@ export class LinkedCalendarsController {
 
   @Get('options')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Return active calendars for a given flow (safe — no credentials)' })
+  @ApiOperation({
+    summary: 'Return active calendars for a given flow (safe — no credentials)',
+  })
   @ApiQuery({ name: 'flow', enum: CALENDAR_FLOWS, required: true })
   async getOptions(
     @CurrentUser() ctx: AuthContext,
@@ -99,7 +111,9 @@ export class LinkedCalendarsController {
 
   @Get()
   @HttpCode(200)
-  @ApiOperation({ summary: 'List linked calendars for the authenticated Business' })
+  @ApiOperation({
+    summary: 'List linked calendars for the authenticated Business',
+  })
   async findAll(
     @CurrentUser() ctx: AuthContext,
     @Query() query: LinkedCalendarQueryDto,
@@ -121,7 +135,9 @@ export class LinkedCalendarsController {
 
   @Post('link')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Link one or more existing provider calendars to this Business' })
+  @ApiOperation({
+    summary: 'Link one or more existing provider calendars to this Business',
+  })
   async linkCalendars(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: LinkCalendarsDto,
@@ -133,19 +149,27 @@ export class LinkedCalendarsController {
 
   @Post('create')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Create a new calendar in the provider and immediately link it' })
+  @ApiOperation({
+    summary: 'Create a new calendar in the provider and immediately link it',
+  })
   async createCalendar(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: CreateCalendarDto,
   ) {
     const { companyId, actor } = this.resolveContext(ctx);
-    const item = await this.service.createAndLinkCalendar(companyId, dto, actor);
+    const item = await this.service.createAndLinkCalendar(
+      companyId,
+      dto,
+      actor,
+    );
     return item;
   }
 
   @Post('subscribe-url')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Subscribe provider account to an external iCal URL and link it' })
+  @ApiOperation({
+    summary: 'Subscribe provider account to an external iCal URL and link it',
+  })
   async subscribeByUrl(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: SubscribeByUrlDto,
@@ -157,20 +181,32 @@ export class LinkedCalendarsController {
 
   @Post('subscribe-catalogue')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Subscribe to a Business App catalogue calendar and link it' })
+  @ApiOperation({
+    summary: 'Subscribe to a Business App catalogue calendar and link it',
+  })
   async subscribeFromCatalogue(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: SubscribeFromCatalogueDto,
   ) {
     const { companyId, actor } = this.resolveContext(ctx);
-    const item = await this.service.subscribeFromCatalogue(companyId, dto, actor);
+    const item = await this.service.subscribeFromCatalogue(
+      companyId,
+      dto,
+      actor,
+    );
     return item;
   }
 
   @Get('catalogue')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Return safe public calendar catalogue entries for a country' })
-  @ApiQuery({ name: 'country', required: false, description: 'ISO 2-letter country code (e.g. AU)' })
+  @ApiOperation({
+    summary: 'Return safe public calendar catalogue entries for a country',
+  })
+  @ApiQuery({
+    name: 'country',
+    required: false,
+    description: 'ISO 2-letter country code (e.g. AU)',
+  })
   async getCatalogue(
     @CurrentUser() ctx: AuthContext,
     @Query('country') country: string = 'AU',
@@ -198,7 +234,8 @@ export class LinkedCalendarsController {
   @Post('setup/australian-holidays')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'One-click: subscribe to Australian public holidays and link it. Idempotent.',
+    summary:
+      'One-click: subscribe to Australian public holidays and link it. Idempotent.',
   })
   async setupAustralianHolidays(
     @CurrentUser() ctx: AuthContext,
@@ -210,7 +247,10 @@ export class LinkedCalendarsController {
 
   @Post('setup/australian-holidays/discover')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Discover unlinked Australian holiday calendars from provider after manual setup.' })
+  @ApiOperation({
+    summary:
+      'Discover unlinked Australian holiday calendars from provider after manual setup.',
+  })
   async discoverAustralianHolidays(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: DiscoverHolidaysDto,
@@ -221,7 +261,10 @@ export class LinkedCalendarsController {
 
   @Post('setup/australian-holidays/link-selected')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Link a selected provider calendar as the Australian holiday calendar.' })
+  @ApiOperation({
+    summary:
+      'Link a selected provider calendar as the Australian holiday calendar.',
+  })
   async linkHolidayCalendar(
     @CurrentUser() ctx: AuthContext,
     @Body() dto: LinkHolidayCalendarDto,
@@ -232,7 +275,9 @@ export class LinkedCalendarsController {
 
   @Patch(':id')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Update status of a linked calendar (active | paused)' })
+  @ApiOperation({
+    summary: 'Update status of a linked calendar (active | paused)',
+  })
   async updateStatus(
     @CurrentUser() ctx: AuthContext,
     @Param('id') id: string,
@@ -260,7 +305,9 @@ export class LinkedCalendarsController {
 
   @Delete(':id')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Unlink a calendar from this Business (local only)' })
+  @ApiOperation({
+    summary: 'Unlink a calendar from this Business (local only)',
+  })
   async unlink(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
     const { companyId, actor } = this.resolveContext(ctx);
     return this.service.unlink(id, companyId, actor);

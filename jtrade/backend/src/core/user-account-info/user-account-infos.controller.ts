@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 
 import { Types } from 'mongoose';
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { UserAccountInfoService } from './user-account-infos.service';
 import { CreateUserAccountInfoDto } from './dto/create-user-account-info.dto';
@@ -21,6 +24,7 @@ import { UpdateUserAccountInfoDto } from './dto/update-user-account-info.dto';
 import { UserAccountInfoResponseDto } from './dto/user-account-info-response.dto';
 import { UserAccountInfoMapper } from './mappers/user-account-info.mapper';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('user-account-info')
 export class UserAccountInfoController {
   constructor(private readonly service: UserAccountInfoService) {}

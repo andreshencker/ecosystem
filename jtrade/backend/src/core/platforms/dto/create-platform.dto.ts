@@ -1,33 +1,21 @@
-import {
-  IsBoolean,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUrl,
-} from 'class-validator';
-import { ConnectionType, PlatformCategory } from '../schemas/platform.schema';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreatePlatformDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  key!: string;
 
-  @IsEnum(PlatformCategory)
-  category: PlatformCategory;
-
-  @IsEnum(ConnectionType, {
-    message: 'connectionType must be either apikey or oauth',
-  })
-  connectionType: ConnectionType;
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
 
   @IsOptional()
   @IsString()
-  @IsUrl(
-    { require_protocol: true },
-    { message: 'imageUrl must be a valid URL with protocol' },
-  )
-  imageUrl?: string;
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  logoUrl?: string;
 
   @IsOptional()
   @IsBoolean()

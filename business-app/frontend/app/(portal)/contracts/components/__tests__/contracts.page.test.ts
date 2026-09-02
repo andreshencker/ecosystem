@@ -2054,7 +2054,7 @@ describe('Payment calendar — one-click "Create Payment Calendar"', () => {
   });
 
   it('paymentCalendarEnabled remains true after successful setup', () => {
-    let paymentCalendarEnabled = true;
+    const paymentCalendarEnabled = true;
     // executePaymentSetup never modifies paymentCalendarEnabled
     expect(paymentCalendarEnabled).toBe(true);
   });
@@ -2179,7 +2179,7 @@ describe('Holiday Calendar — provider unsupported error', () => {
   });
 });
 
-describe('Provider subscription — Communications App endpoint', () => {
+describe('Provider subscription — Relay App endpoint', () => {
   it('subscribe endpoint is POST /calendar/connections/:credId/calendars/subscribe', () => {
     const ENDPOINT = '/calendar/connections/:credId/calendars/subscribe';
     expect(ENDPOINT).toContain('/calendars/subscribe');

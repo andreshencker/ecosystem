@@ -17,7 +17,7 @@ import {
   RefreshToken,
   RefreshTokenDocument,
 } from './schemas/refresh-token.schema';
-import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../integrations/relay/client/relay-client.service';
 import { ProvisioningService } from '../provisioning/provisioning.service';
 
 import { RegisterDto } from './dto/register.dto';
@@ -35,7 +35,7 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-    private readonly commClient: CommunicationsClientService,
+    private readonly commClient: RelayClientService,
     private readonly provisioning: ProvisioningService,
     @InjectModel(RefreshToken.name)
     private readonly tokenModel: Model<RefreshTokenDocument>,
@@ -77,7 +77,9 @@ export class AuthService {
         `tokenGenerated=true expiresAt=${expiresAt.toISOString()}`,
     );
 
-    const verificationUrl = this.buildUrl(`/auth/verify-email?token=${rawToken}`);
+    const verificationUrl = this.buildUrl(
+      `/auth/verify-email?token=${rawToken}`,
+    );
     const loginUrl = this.buildUrl('/auth/login');
 
     // Fire-and-forget — never blocks registration.
@@ -102,7 +104,9 @@ export class AuthService {
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error(`[register] security.company_verify_email threw unexpectedly: ${msg}`);
+        this.logger.error(
+          `[register] security.company_verify_email threw unexpectedly: ${msg}`,
+        );
       });
 
     return {
@@ -275,7 +279,9 @@ export class AuthService {
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error(`[forgotPassword] security.company_forgot_password threw unexpectedly: ${msg}`);
+        this.logger.error(
+          `[forgotPassword] security.company_forgot_password threw unexpectedly: ${msg}`,
+        );
         return false;
       });
 
@@ -338,7 +344,9 @@ export class AuthService {
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error(`[resetPassword] security.company_password_changed threw unexpectedly: ${msg}`);
+        this.logger.error(
+          `[resetPassword] security.company_password_changed threw unexpectedly: ${msg}`,
+        );
       });
 
     return { message: 'Password reset successfully. You can now log in.' };

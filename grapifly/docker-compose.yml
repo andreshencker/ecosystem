@@ -21,6 +21,9 @@ services:
       MONGODB_URI: mongodb://mongo:27017/grapifly_identity
       GRAPIFLY_SSO_CLIENT_SECRET: ${GRAPIFLY_SSO_CLIENT_SECRET:-development-grapifly-relay-sso-change-me}
       RELAY_SSO_CALLBACK_URL: http://localhost:3000/auth/grapifly/callback
+      JTRADE_SSO_CALLBACK_URL: http://localhost:5173/auth/grapifly/callback
+      JTRADE_SERVICE_SECRET: ${JTRADE_SERVICE_SECRET:-development-jtrade-service-secret-change-me}
+      RELAY_API_URL: http://host.docker.internal:3001
     ports:
       - "3101:3101"
 

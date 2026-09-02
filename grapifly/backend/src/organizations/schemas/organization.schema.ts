@@ -122,6 +122,31 @@ export class Organization {
   @Prop({ type: String, default: '' })
   logoFullUrl!: string;
 
+  // --- Payout details: where this organization receives money for what it sells ---
+
+  @Prop({ type: String, default: '' })
+  bankAccountHolder!: string;
+
+  @Prop({ type: String, default: '' })
+  bankName!: string;
+
+  /** Account number or IBAN — kept as a single free-form field to stay country-agnostic. */
+  @Prop({ type: String, default: '' })
+  bankAccountNumber!: string;
+
+  @Prop({ type: String, default: '' })
+  bankSwiftBic!: string;
+
+  @Prop({ type: String, default: '' })
+  bankCountry!: string;
+
+  /** USDT payout wallet. Paired with usdtNetwork — both are set together or not at all. */
+  @Prop({ type: String, default: '' })
+  usdtWalletAddress!: string;
+
+  @Prop({ type: String, enum: ['', 'TRC20', 'ERC20', 'BEP20'], default: '' })
+  usdtNetwork!: '' | 'TRC20' | 'ERC20' | 'BEP20';
+
   @Prop({ type: Boolean, default: false })
   isPlatform!: boolean;
 

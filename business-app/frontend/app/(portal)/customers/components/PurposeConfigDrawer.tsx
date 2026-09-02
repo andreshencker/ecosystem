@@ -17,7 +17,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import SmsOutlinedIcon   from '@mui/icons-material/SmsOutlined';
 
 import { FormDrawer, LoadingButton } from '@/components/shared';
-import { usePurposes } from '@/hooks/api/useCommunicationPurposes';
+import { usePurposes } from '@/hooks/api/useRelayPurposes';
 import type { Purpose } from '@/types/communication-purposes';
 import type {
   CommPurposeFormEntry,

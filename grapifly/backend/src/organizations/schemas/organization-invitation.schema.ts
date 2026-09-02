@@ -20,8 +20,11 @@ export class OrganizationInvitation {
   @Prop({ type: [String], default: [] })
   applicationKeys!: string[];
 
+  // Each app declares its own valid roles (Application.ownerRoles) — not a
+  // fixed union — so this stays a plain string map, validated at write time
+  // in OrganizationsService against that app's catalogue entry.
   @Prop({ type: Object, default: {} })
-  applicationRoles!: Record<string, 'admin' | 'operator' | 'viewer'>;
+  applicationRoles!: Record<string, string>;
 
   @Prop({ required: true, unique: true, select: false })
   tokenHash!: string;

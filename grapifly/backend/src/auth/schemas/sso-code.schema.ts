@@ -11,8 +11,8 @@ export class SsoCode {
   @Prop({ required: true, index: true })
   grapiflyUserId!: string;
 
-  @Prop({ required: true, enum: ['relay'], index: true })
-  appKey!: 'relay';
+  @Prop({ required: true, index: true })
+  appKey!: string;
 
   @Prop({ required: true, index: true })
   organizationId!: string;

@@ -37,6 +37,12 @@ export class OrganizationsController {
     return this.organizations.enableApplication(request.grapiflySession!.sub, organizationId, body.applicationKey);
   }
 
+  @Get('organizations/:organizationId/my-apps')
+  async listEnabledApplications(@Req() request: SessionRequest, @Param('organizationId') organizationId: string) {
+    const applications = await this.organizations.listEnabledApplications(request.grapiflySession!.sub, organizationId);
+    return { applications, total: applications.length };
+  }
+
   @Post('organizations/:organizationId/invitations')
   invite(@Req() request: SessionRequest, @Param('organizationId') organizationId: string, @Body() body: { email: string; role?: string; applicationKeys?: string[]; applicationRoles?: Record<string, string> }) {
     return this.organizations.invite(request.grapiflySession!.sub, organizationId, body);

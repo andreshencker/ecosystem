@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { CreateMetatraderSignalDto } from './dto/create-metatrader-signal.dto';
 import { SignalsService } from './services/signals.service';
 
@@ -7,6 +7,8 @@ import { UserRole } from '../users/schemas/user.schema';
 import { GetSignalInformationDto } from './dto/get-signal-information.dto';
 import { ClientSignalListQueryDto } from './dto/client-signal-list-query.dto';
 import { AdminSignalListQueryDto } from './dto/admin-signal-list-query.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('/signals')
 export class SignalsController {
@@ -25,6 +27,7 @@ export class SignalsController {
   }
 
   @Roles(UserRole.CLIENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('client/mine')
   async clientSignals(@Query() q: ClientSignalListQueryDto) {
     return this.service.getClientSignals(q);
@@ -36,6 +39,7 @@ export class SignalsController {
   }
 
   @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('admin/history')
   async adminHistory(@Query() q: AdminSignalListQueryDto) {
     return this.service.getAdminSignals(q);

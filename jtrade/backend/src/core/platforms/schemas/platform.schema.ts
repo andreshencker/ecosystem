@@ -1,46 +1,36 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
-export type PlatformDocument = Platform & Document;
+export type PlatformDocument = HydratedDocument<Platform> & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export enum PlatformCategory {
-  EXCHANGE = 'exchange',
-  BROKER = 'broker',
-  DATA = 'data',
-  CUSTODY = 'custody',
-  OTHER = 'other',
-}
-
-export enum ConnectionType {
-  APIKEY = 'apikey',
-  OAUTH = 'oauth',
-  NONE = 'none',
-}
-
-@Schema({ timestamps: true })
+/** Trading platform catalogue (MT4, MT5, cTrader, TradingView, ...). */
+@Schema({
+  collection: 'platforms',
+  versionKey: false,
+  timestamps: true,
+})
 export class Platform {
-  @Prop({ required: true, trim: true, unique: true })
-  name: string;
+  @Prop({ required: true, trim: true, lowercase: true, unique: true })
+  key!: string;
 
-  @Prop({ type: String, enum: Object.values(PlatformCategory), required: true })
-  category: PlatformCategory;
+  @Prop({ required: true, trim: true })
+  name!: string;
 
-  @Prop({ trim: true, default: '' })
-  imageUrl?: string;
+  @Prop({ default: '', trim: true })
+  description!: string;
 
-  @Prop({ default: true })
-  isActive: boolean;
+  @Prop({ default: '', trim: true })
+  logoUrl!: string;
 
-  /** Indica si el frontend/backend tienen soporte para esta plataforma */
-  @Prop({ default: false })
-  isSupported: boolean;
+  @Prop({ default: true, index: true })
+  isActive!: boolean;
 
-  /** Tipo de conexión de esta plataforma (APIKEY u OAUTH) */
-  @Prop({ type: String, enum: Object.values(ConnectionType), required: true })
-  connectionType: ConnectionType;
+  /** Whether jtrade actually supports this platform today — shown to users as a readiness flag, independent of catalogue visibility (isActive). */
+  @Prop({ default: false, index: true })
+  isSupported!: boolean;
 }
 
 export const PlatformSchema = SchemaFactory.createForClass(Platform);
-
-PlatformSchema.index({ category: 1, isActive: 1 });
-PlatformSchema.index({ connectionType: 1, isSupported: 1 });

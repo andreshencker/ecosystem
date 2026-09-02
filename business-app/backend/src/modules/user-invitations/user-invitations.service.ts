@@ -23,7 +23,7 @@ import {
   InvitationPasswordCompletedPayload,
   PLATFORM_EVENTS,
 } from '../../infrastructure/events/event-bus.service';
-import { CommunicationsClientService } from '../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../integrations/relay/client/relay-client.service';
 
 @Injectable()
 export class UserInvitationsService implements OnModuleInit {
@@ -37,7 +37,7 @@ export class UserInvitationsService implements OnModuleInit {
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
     private readonly eventBus: EventBusService,
-    private readonly commClient: CommunicationsClientService,
+    private readonly commClient: RelayClientService,
   ) {}
 
   /** Subscribe to the cross-module password-changed event (DEC-013). */
@@ -451,7 +451,9 @@ export class UserInvitationsService implements OnModuleInit {
           })
           .catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
-            this.logger.warn(`company_welcome_message threw for ${inv.email}: ${msg}`);
+            this.logger.warn(
+              `company_welcome_message threw for ${inv.email}: ${msg}`,
+            );
           });
       }
     }

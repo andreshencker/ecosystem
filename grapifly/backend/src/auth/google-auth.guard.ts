@@ -6,7 +6,10 @@ import { Request } from 'express';
 export class GoogleAuthGuard extends AuthGuard('google') {
   getAuthenticateOptions(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
-    const app = request.query.app === 'relay' ? 'relay' : undefined;
+    // Any non-empty appKey is accepted here — the real validation (does this
+    // app exist and is it active in the catalogue) happens downstream at
+    // createSsoCode(), before a code is ever minted for it.
+    const app = typeof request.query.app === 'string' && request.query.app.trim() ? request.query.app.trim() : undefined;
     const invitation = request.query.flow === 'invitation';
 
     return {

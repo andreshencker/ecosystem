@@ -4,7 +4,11 @@ import { HydratedDocument } from 'mongoose';
 export type LinkedCalendarStatus = 'active' | 'paused';
 
 export type CalendarFlow = 'holidays' | 'shifts' | 'payments';
-export const CALENDAR_FLOWS: CalendarFlow[] = ['holidays', 'shifts', 'payments'];
+export const CALENDAR_FLOWS: CalendarFlow[] = [
+  'holidays',
+  'shifts',
+  'payments',
+];
 
 export type LinkedCalendarDocument = HydratedDocument<LinkedCalendar>;
 
@@ -18,23 +22,23 @@ export class LinkedCalendar {
   @Prop({ required: true, index: true })
   companyId!: string;
 
-  /** Provider credential ID from Communications App. */
+  /** Provider credential ID from Relay App. */
   @Prop({ required: true, index: true })
   connectionId!: string;
 
-  /** Provider key returned by Communications (e.g. "icloud", "google_calendar"). */
+  /** Provider key returned by Relay (e.g. "icloud", "google_calendar"). */
   @Prop({ required: true, trim: true })
   providerKey!: string;
 
-  /** Human-readable provider name returned by Communications. */
+  /** Human-readable provider name returned by Relay. */
   @Prop({ required: true, trim: true })
   providerDisplayName!: string;
 
-  /** Account email / display identifier from Communications (not secret). */
+  /** Account email / display identifier from Relay (not secret). */
   @Prop({ required: true, trim: true })
   accountIdentifier!: string;
 
-  /** External calendar ID or URL returned by Communications. */
+  /** External calendar ID or URL returned by Relay. */
   @Prop({ required: true, trim: true })
   externalCalendarId!: string;
 
@@ -48,7 +52,7 @@ export class LinkedCalendar {
   @Prop({ type: String, default: null, trim: true })
   timezone!: string | null;
 
-  /** Access role returned by Communications (e.g. "owner", "read-write", "read-only"). */
+  /** Access role returned by Relay (e.g. "owner", "read-write", "read-only"). */
   @Prop({ type: String, default: null, trim: true })
   accessRole!: string | null;
 
@@ -78,7 +82,8 @@ export class LinkedCalendar {
   linkedByUserId!: string | null;
 }
 
-export const LinkedCalendarSchema = SchemaFactory.createForClass(LinkedCalendar);
+export const LinkedCalendarSchema =
+  SchemaFactory.createForClass(LinkedCalendar);
 
 // Prevent duplicate: same Business + same connection + same external calendar
 LinkedCalendarSchema.index(

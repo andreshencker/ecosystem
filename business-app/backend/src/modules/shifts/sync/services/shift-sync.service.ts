@@ -3,14 +3,20 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Shift, ShiftDocument } from '../../schemas/shift.schema';
-import { SyncHistory, SyncHistoryDocument } from '../schemas/sync-history.schema';
+import {
+  SyncHistory,
+  SyncHistoryDocument,
+} from '../schemas/sync-history.schema';
 import { LinkedCalendarsService } from '../../../linked-calendars/linked-calendars.service';
-import { CommunicationsCalendarClient } from '../../../linked-calendars/clients/communications-calendar.client';
-import { CommunicationsClientService } from '../../../../integrations/communications/client/communications-client.service';
+import { RelayCalendarClient } from '../../../linked-calendars/clients/relay-calendar.client';
+import { RelayClientService } from '../../../../integrations/relay/client/relay-client.service';
 import { UsersService } from '../../../users/users.service';
 import { BusinessIntelligenceService } from '../../../../integrations/business-intelligence/business-intelligence.service';
 import { CalendarEventToShiftMapper } from '../mappers/calendar-event-to-shift.mapper';
-import type { BusinessSyncResult, CalendarSyncStats } from '../interfaces/sync-result.interface';
+import type {
+  BusinessSyncResult,
+  CalendarSyncStats,
+} from '../interfaces/sync-result.interface';
 import type { LinkedCalendarQueryDto } from '../../../linked-calendars/dto/linked-calendar-query.dto';
 import type { LinkedCalendarResponseDto } from '../../../linked-calendars/dto/linked-calendar-response.dto';
 
@@ -19,7 +25,7 @@ import type { LinkedCalendarResponseDto } from '../../../linked-calendars/dto/li
  *
  * Responsible for:
  *   1. Reading all active linked calendars for a Business.
- *   2. Fetching events from Communications for each calendar.
+ *   2. Fetching events from Relay for each calendar.
  *   3. Upserting Shift records (idempotent by externalOccurrenceId).
  *   4. Marking shifts whose events have disappeared as syncStatus=deleted.
  *   5. Recording sync history.
@@ -33,7 +39,7 @@ export class ShiftSyncService {
   private readonly logger = new Logger(ShiftSyncService.name);
 
   /** Default sync window: 30 days back to 180 days ahead. */
-  private static readonly DAYS_BACK    = 30;
+  private static readonly DAYS_BACK = 30;
   private static readonly DAYS_FORWARD = 180;
 
   constructor(
@@ -42,8 +48,8 @@ export class ShiftSyncService {
     @InjectModel(SyncHistory.name)
     private readonly historyModel: Model<SyncHistoryDocument>,
     private readonly linkedCalendarsService: LinkedCalendarsService,
-    private readonly calendarClient: CommunicationsCalendarClient,
-    private readonly commClient: CommunicationsClientService,
+    private readonly calendarClient: RelayCalendarClient,
+    private readonly commClient: RelayClientService,
     private readonly usersService: UsersService,
     private readonly biService: BusinessIntelligenceService,
   ) {}
@@ -60,13 +66,16 @@ export class ShiftSyncService {
     businessId: string,
     actor: { userId: string; email: string; firstName: string },
   ): Promise<BusinessSyncResult> {
-    const wall     = Date.now();
+    const wall = Date.now();
     const startedAt = new Date().toISOString();
 
     this.logger.log(`[sync] START businessId=${businessId}`);
 
     const query: LinkedCalendarQueryDto = { status: 'active', flow: 'shifts' };
-    const calendars = await this.linkedCalendarsService.findAll(businessId, query);
+    const calendars = await this.linkedCalendarsService.findAll(
+      businessId,
+      query,
+    );
 
     this.logger.log(`[sync] ${calendars.length} active shift-flow calendars`);
 
@@ -77,17 +86,17 @@ export class ShiftSyncService {
       stats.push(calStat);
     }
 
-    const totalCreated   = stats.reduce((n, s) => n + s.created,   0);
-    const totalUpdated   = stats.reduce((n, s) => n + s.updated,   0);
-    const totalDeleted   = stats.reduce((n, s) => n + s.deleted,   0);
-    const totalErrors    = stats.reduce((n, s) => n + s.errors.length, 0);
+    const totalCreated = stats.reduce((n, s) => n + s.created, 0);
+    const totalUpdated = stats.reduce((n, s) => n + s.updated, 0);
+    const totalDeleted = stats.reduce((n, s) => n + s.deleted, 0);
+    const totalErrors = stats.reduce((n, s) => n + s.errors.length, 0);
     const totalDurationMs = Date.now() - wall;
-    const finishedAt     = new Date().toISOString();
+    const finishedAt = new Date().toISOString();
 
     this.logger.log(
       `[sync] DONE businessId=${businessId} ` +
-      `created=${totalCreated} updated=${totalUpdated} deleted=${totalDeleted} ` +
-      `errors=${totalErrors} duration=${totalDurationMs}ms`,
+        `created=${totalCreated} updated=${totalUpdated} deleted=${totalDeleted} ` +
+        `errors=${totalErrors} duration=${totalDurationMs}ms`,
     );
 
     // ── Email notification ──────────────────────────────────────────────────
@@ -100,7 +109,8 @@ export class ShiftSyncService {
     // After calendar sync updates MongoDB, replicate fact_shift to PostgreSQL so
     // the pending-assignment summary reflects the current operational state.
     // Runs in the background — never blocks the sync response.
-    this.biService.syncModel(businessId, 'shift', false)
+    this.biService
+      .syncModel(businessId, 'shift', false)
       .then((r) =>
         this.logger.log(
           `[sync] BI ETL complete businessId=${businessId} inserted=${r?.inserted ?? 0} updated=${r?.updated ?? 0}`,
@@ -137,10 +147,15 @@ export class ShiftSyncService {
     linkedCalendarId: string,
     actor: { userId: string; email: string; firstName: string },
   ): Promise<CalendarSyncStats> {
-    const calendar = await this.linkedCalendarsService.findById(linkedCalendarId, businessId);
+    const calendar = await this.linkedCalendarsService.findById(
+      linkedCalendarId,
+      businessId,
+    );
 
     if (calendar.status !== 'active') {
-      throw new BadRequestException(`Calendar '${calendar.calendarName}' is not active`);
+      throw new BadRequestException(
+        `Calendar '${calendar.calendarName}' is not active`,
+      );
     }
     if (calendar.flow !== 'shifts') {
       throw new BadRequestException(
@@ -156,10 +171,11 @@ export class ShiftSyncService {
 
     this.logger.log(
       `[sync:single] DONE linkedCalendarId=${linkedCalendarId} ` +
-      `created=${result.created} updated=${result.updated} errors=${result.errors.length}`,
+        `created=${result.created} updated=${result.updated} errors=${result.errors.length}`,
     );
 
-    this.biService.syncModel(businessId, 'shift', false)
+    this.biService
+      .syncModel(businessId, 'shift', false)
       .then((r) =>
         this.logger.log(
           `[sync:single] BI ETL done businessId=${businessId} inserted=${r?.inserted ?? 0} updated=${r?.updated ?? 0}`,
@@ -180,17 +196,17 @@ export class ShiftSyncService {
     businessId: string,
     calendar: LinkedCalendarResponseDto,
   ): Promise<CalendarSyncStats> {
-    const calWall   = Date.now();
+    const calWall = Date.now();
     const startedAt = new Date();
 
     const history = await this.historyModel.create({
       businessId,
-      linkedCalendarId:  calendar.id,
-      calendarName:      calendar.calendarName,
+      linkedCalendarId: calendar.id,
+      calendarName: calendar.calendarName,
       accountIdentifier: calendar.accountIdentifier,
-      providerKey:       calendar.providerKey,
+      providerKey: calendar.providerKey,
       startedAt,
-      status:            'running',
+      status: 'running',
     });
 
     const errors: string[] = [];
@@ -202,14 +218,15 @@ export class ShiftSyncService {
 
     try {
       // ── 1. Calculate date range ─────────────────────────────────────────
-      const now  = new Date();
+      const now = new Date();
       const from = new Date(now);
-      const to   = new Date(now);
+      const to = new Date(now);
       from.setDate(from.getDate() - ShiftSyncService.DAYS_BACK);
       to.setDate(to.getDate() + ShiftSyncService.DAYS_FORWARD);
 
-      // ── 2. Fetch events from Communications ────────────────────────────
-      let events: import('../../../linked-calendars/clients/communications-calendar.client').CommCalendarEventInfo[] = [];
+      // ── 2. Fetch events from Relay ────────────────────────────
+      let events: import('../../../linked-calendars/clients/relay-calendar.client').CommCalendarEventInfo[] =
+        [];
       try {
         events = await this.calendarClient.listCalendarEvents(
           businessId,
@@ -219,7 +236,7 @@ export class ShiftSyncService {
         );
         eventsReceived = events.length;
         this.logger.log(
-          `[sync:${calendar.calendarName}] ${eventsReceived} events from Communications`,
+          `[sync:${calendar.calendarName}] ${eventsReceived} events from Relay`,
         );
       } catch (err: any) {
         const msg = `Failed to fetch events: ${err?.message ?? 'Unknown error'}`;
@@ -229,14 +246,24 @@ export class ShiftSyncService {
         const durationMs = Date.now() - calWall;
         await this.historyModel.findOneAndUpdate(
           { _id: history._id },
-          { $set: { finishedAt: new Date(), status: 'failed', errors, durationMs } },
+          {
+            $set: {
+              finishedAt: new Date(),
+              status: 'failed',
+              errors,
+              durationMs,
+            },
+          },
         );
         return {
-          linkedCalendarId:  calendar.id,
-          calendarName:      calendar.calendarName,
+          linkedCalendarId: calendar.id,
+          calendarName: calendar.calendarName,
           accountIdentifier: calendar.accountIdentifier,
           eventsReceived: 0,
-          created: 0, updated: 0, deleted: 0, skipped: 0,
+          created: 0,
+          updated: 0,
+          deleted: 0,
+          skipped: 0,
           errors,
           durationMs,
           status: 'failed',
@@ -247,22 +274,29 @@ export class ShiftSyncService {
       const seenOccurrenceIds = new Set<string>();
 
       for (const event of events) {
-        if (!event.id) { skipped++; continue; }
+        if (!event.id) {
+          skipped++;
+          continue;
+        }
 
         // Some providers keep cancelled events in their feed and expose the
         // cancellation through status instead of removing the occurrence.
         // Treat both representations identically: retain the Shift for audit,
         // but remove it from operational views via syncStatus=deleted.
         if (event.status === 'cancelled') {
-          const cancelledResult = await this.shiftModel.updateMany(
-            {
-              businessId,
-              linkedCalendarId: calendar.id,
-              externalOccurrenceId: event.id,
-              syncStatus: { $ne: 'deleted' },
-            },
-            { $set: { syncStatus: 'deleted', lastExternalUpdate: new Date() } },
-          ).exec();
+          const cancelledResult = await this.shiftModel
+            .updateMany(
+              {
+                businessId,
+                linkedCalendarId: calendar.id,
+                externalOccurrenceId: event.id,
+                syncStatus: { $ne: 'deleted' },
+              },
+              {
+                $set: { syncStatus: 'deleted', lastExternalUpdate: new Date() },
+              },
+            )
+            .exec();
           deleted += cancelledResult.modifiedCount ?? 0;
           continue;
         }
@@ -270,15 +304,18 @@ export class ShiftSyncService {
         seenOccurrenceIds.add(event.id);
 
         const normalized = CalendarEventToShiftMapper.map(event, calendar);
-        if (!normalized) { skipped++; continue; }
+        if (!normalized) {
+          skipped++;
+          continue;
+        }
 
         // BUSINESS_APP_SHIFT_BEFORE_SAVE — log exactly what will be persisted
         process.stdout.write(
           `[SHIFT_SYNC] BUSINESS_APP_SHIFT_BEFORE_SAVE | occurrenceId=${event.id} ` +
-          `date=${normalized.date} startTime=${normalized.startTime} ` +
-          `endDate=${normalized.endDate} endTime=${normalized.endTime} ` +
-          `timezone=${normalized.timezone ?? 'null'} allDay=${normalized.allDay} ` +
-          `startInstant=${normalized.start.toISOString()} endInstant=${normalized.end.toISOString()}\n`,
+            `date=${normalized.date} startTime=${normalized.startTime} ` +
+            `endDate=${normalized.endDate} endTime=${normalized.endTime} ` +
+            `timezone=${normalized.timezone ?? 'null'} allDay=${normalized.allDay} ` +
+            `startInstant=${normalized.start.toISOString()} endInstant=${normalized.end.toISOString()}\n`,
         );
 
         try {
@@ -295,29 +332,28 @@ export class ShiftSyncService {
 
           if (existingShift) {
             // Update — overwrite calendar fields, preserve business fields
-            await this.shiftModel.findOneAndUpdate(
-              filter,
-              {
+            await this.shiftModel
+              .findOneAndUpdate(filter, {
                 $set: {
-                  title:              normalized.title,
-                  description:        normalized.description,
-                  location:           normalized.location,
-                  start:              normalized.start,
-                  end:                normalized.end,
-                  date:               normalized.date,
-                  startTime:          normalized.startTime,
-                  endDate:            normalized.endDate,
-                  endTime:            normalized.endTime,
-                  allDay:             normalized.allDay,
-                  timezone:           normalized.timezone,
-                  organizer:          normalized.organizer,
-                  attendees:          normalized.attendees,
+                  title: normalized.title,
+                  description: normalized.description,
+                  location: normalized.location,
+                  start: normalized.start,
+                  end: normalized.end,
+                  date: normalized.date,
+                  startTime: normalized.startTime,
+                  endDate: normalized.endDate,
+                  endTime: normalized.endTime,
+                  allDay: normalized.allDay,
+                  timezone: normalized.timezone,
+                  organizer: normalized.organizer,
+                  attendees: normalized.attendees,
                   lastExternalUpdate: normalized.lastExternalUpdate,
-                  syncStatus:         'synced',
-                  metadata:           normalized.metadata,
+                  syncStatus: 'synced',
+                  metadata: normalized.metadata,
                 },
-              },
-            ).exec();
+              })
+              .exec();
             updated++;
           } else {
             // Create new shift from calendar event
@@ -337,53 +373,59 @@ export class ShiftSyncService {
 
       // ── 4. Mark disappeared events as deleted ──────────────────────────
       if (seenOccurrenceIds.size > 0 || eventsReceived === 0) {
-        const deletedResult = await this.shiftModel.updateMany(
-          {
-            businessId,
-            linkedCalendarId: calendar.id,
-            syncStatus: { $in: ['synced', 'pending'] },
-            externalOccurrenceId: {
-              $nin: [...seenOccurrenceIds],
+        const deletedResult = await this.shiftModel
+          .updateMany(
+            {
+              businessId,
+              linkedCalendarId: calendar.id,
+              syncStatus: { $in: ['synced', 'pending'] },
+              externalOccurrenceId: {
+                $nin: [...seenOccurrenceIds],
+              },
             },
-          },
-          { $set: { syncStatus: 'deleted' } },
-        ).exec();
+            { $set: { syncStatus: 'deleted' } },
+          )
+          .exec();
         deleted = deletedResult.modifiedCount ?? 0;
         if (deleted > 0) {
-          this.logger.log(`[sync:${calendar.calendarName}] marked ${deleted} shifts as deleted`);
+          this.logger.log(
+            `[sync:${calendar.calendarName}] marked ${deleted} shifts as deleted`,
+          );
         }
       }
-
     } catch (err: any) {
       const msg = `Unexpected sync error: ${err?.message}`;
       errors.push(msg);
       this.logger.error(`[sync:${calendar.calendarName}] ${msg}`, err?.stack);
     }
 
-    const durationMs  = Date.now() - calWall;
-    const syncStatus: 'completed' | 'failed' = errors.length > 0 && created + updated === 0 ? 'failed' : 'completed';
+    const durationMs = Date.now() - calWall;
+    const syncStatus: 'completed' | 'failed' =
+      errors.length > 0 && created + updated === 0 ? 'failed' : 'completed';
 
     // ── 5. Update sync history ──────────────────────────────────────────
-    await this.historyModel.findOneAndUpdate(
-      { _id: history._id },
-      {
-        $set: {
-          finishedAt:     new Date(),
-          eventsReceived,
-          created,
-          updated,
-          deleted,
-          skipped,
-          errors,
-          durationMs,
-          status: syncStatus,
+    await this.historyModel
+      .findOneAndUpdate(
+        { _id: history._id },
+        {
+          $set: {
+            finishedAt: new Date(),
+            eventsReceived,
+            created,
+            updated,
+            deleted,
+            skipped,
+            errors,
+            durationMs,
+            status: syncStatus,
+          },
         },
-      },
-    ).exec();
+      )
+      .exec();
 
     return {
-      linkedCalendarId:  calendar.id,
-      calendarName:      calendar.calendarName,
+      linkedCalendarId: calendar.id,
+      calendarName: calendar.calendarName,
       accountIdentifier: calendar.accountIdentifier,
       eventsReceived,
       created,
@@ -404,7 +446,8 @@ export class ShiftSyncService {
   ) {
     const skip = (params.page - 1) * params.limit;
     const filter: Record<string, any> = { businessId };
-    if (params.linkedCalendarId) filter.linkedCalendarId = params.linkedCalendarId;
+    if (params.linkedCalendarId)
+      filter.linkedCalendarId = params.linkedCalendarId;
 
     const [items, total] = await Promise.all([
       this.historyModel
@@ -438,7 +481,13 @@ export class ShiftSyncService {
     totalDeleted: number,
     totalErrors: number,
   ): void {
-    void businessId; void actor; void stats; void totalCreated; void totalUpdated; void totalDeleted; void totalErrors;
+    void businessId;
+    void actor;
+    void stats;
+    void totalCreated;
+    void totalUpdated;
+    void totalDeleted;
+    void totalErrors;
     // const hasFailures = stats.some((s) => s.status === 'failed');
     // const event = hasFailures
     //   ? 'calendar_sync.sync_failed'

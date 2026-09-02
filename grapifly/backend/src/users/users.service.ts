@@ -5,8 +5,7 @@ import { Model } from 'mongoose';
 import { GrapiflyUser, GrapiflyUserDocument } from './schemas/user.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { OrganizationMembership, OrganizationMembershipDocument } from '../organizations/schemas/organization-membership.schema';
-import { OrganizationApplication, OrganizationApplicationDocument } from '../organizations/schemas/organization-application.schema';
-import { OrganizationMemberApplication, OrganizationMemberApplicationDocument } from '../organizations/schemas/organization-member-application.schema';
+import { ApplicationAssignmentsService } from '../access/application-assignments.service';
 
 export interface GoogleIdentity {
   subject: string;
@@ -24,18 +23,22 @@ export class UsersService implements OnApplicationBootstrap {
     private readonly users: Model<GrapiflyUserDocument>,
     @InjectModel(Organization.name) private readonly organizations: Model<OrganizationDocument>,
     @InjectModel(OrganizationMembership.name) private readonly memberships: Model<OrganizationMembershipDocument>,
-    @InjectModel(OrganizationApplication.name) private readonly organizationApplications: Model<OrganizationApplicationDocument>,
-    @InjectModel(OrganizationMemberApplication.name) private readonly memberApplications: Model<OrganizationMemberApplicationDocument>,
+    private readonly accessAssignments: ApplicationAssignmentsService,
   ) {}
 
   async onApplicationBootstrap() {
+    // Compatibility migration for the standardized ecosystem flow names.
+    await this.users.updateMany({ tipo: 'owner' as never }, { $set: { tipo: 'client' } });
+    await this.users.updateMany({ tipo: 'interno' as never }, { $set: { tipo: 'internal' } });
+    // Accounts created before `tipo` existed came through self-service.
+    await this.users.updateMany({ tipo: { $exists: false } }, { $set: { tipo: 'client' } });
     const users = await this.users.find({ isActive: true, email: { $ne: 'grapiflydeveloper@gmail.com' } }).lean();
     await Promise.all(users.map((user) => this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email)));
     this.logger.log(`Default organization provisioning ready (${users.length} user accounts checked).`);
   }
 
-  async upsertGoogleIdentity(identity: GoogleIdentity) {
-    const user = await this.users.findOneAndUpdate(
+  async upsertGoogleIdentity(identity: GoogleIdentity, requestedType: 'client' | 'provider' = 'client') {
+    const result = await this.users.findOneAndUpdate(
       { provider: 'google', providerSubject: identity.subject },
       {
         $set: {
@@ -50,12 +53,17 @@ export class UsersService implements OnApplicationBootstrap {
           provider: 'google',
           providerSubject: identity.subject,
           isActive: true,
+          // Public self-service may create a client or provider. `internal`
+          // remains exclusively controlled by the platform administrator.
+          tipo: requestedType,
         },
       },
-      { upsert: true, new: true },
-    ).lean();
-    await this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email);
-    return user;
+      { upsert: true, new: true, includeResultMetadata: true },
+    );
+    const user = result.value!.toObject();
+    const wasNew = !result.lastErrorObject?.updatedExisting;
+    const organizationId = await this.ensureDefaultOrganization(user.grapiflyUserId, user.displayName, user.email);
+    return { user, wasNew, organizationId };
   }
 
   private async ensureDefaultOrganization(grapiflyUserId: string, displayName: string, email: string) {
@@ -84,16 +92,8 @@ export class UsersService implements OnApplicationBootstrap {
       { $set: { role: 'owner', status: 'active' }, $setOnInsert: { membershipId: `gpf_mem_default_${suffix}` } },
       { upsert: true, returnDocument: 'after' },
     );
-    await this.organizationApplications.findOneAndUpdate(
-      { organizationId, applicationKey: 'relay' },
-      { $set: { status: 'active', enabledBy: grapiflyUserId } },
-      { upsert: true, returnDocument: 'after' },
-    );
-    await this.memberApplications.findOneAndUpdate(
-      { organizationId, grapiflyUserId, applicationKey: 'relay' },
-      { $set: { role: 'owner', status: 'active' } },
-      { upsert: true, returnDocument: 'after' },
-    );
+    await this.accessAssignments.grantDefaultAccess(grapiflyUserId, organizationId);
+    return organizationId;
   }
 
   findByGrapiflyUserId(grapiflyUserId: string) {
@@ -104,10 +104,14 @@ export class UsersService implements OnApplicationBootstrap {
     return this.users.findOne({ email: email.toLowerCase().trim(), isActive: true }).lean();
   }
 
+  findByProviderSubject(provider: 'google', providerSubject: string) {
+    return this.users.findOne({ provider, providerSubject }).lean();
+  }
+
   listAll() {
     return this.users
       .find()
-      .select('grapiflyUserId email emailVerified displayName avatarUrl isActive provider lastLoginAt createdAt')
+      .select('grapiflyUserId email emailVerified displayName avatarUrl isActive provider tipo lastLoginAt createdAt')
       .sort({ createdAt: -1 })
       .lean();
   }

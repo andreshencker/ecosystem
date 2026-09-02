@@ -11,7 +11,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuthService } from '../auth.service';
 import { RefreshToken } from '../schemas/refresh-token.schema';
 import { UsersService } from '../../users/users.service';
-import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../../integrations/relay/client/relay-client.service';
 import { ProvisioningService } from '../../provisioning/provisioning.service';
 
 // Valid 24-char hex ObjectId strings to satisfy BSON validation.
@@ -76,7 +76,7 @@ describe('AuthService', () => {
         },
         { provide: getModelToken(RefreshToken.name), useValue: tokenModelMock },
         {
-          provide: CommunicationsClientService,
+          provide: RelayClientService,
           useValue: { notifyEvent: jest.fn().mockResolvedValue(true) },
         },
         {
@@ -278,7 +278,13 @@ describe('AuthService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           AuthService,
-          { provide: UsersService, useValue: { ...usersServiceMock, findByEmailWithPassword: jest.fn().mockResolvedValue(user) } },
+          {
+            provide: UsersService,
+            useValue: {
+              ...usersServiceMock,
+              findByEmailWithPassword: jest.fn().mockResolvedValue(user),
+            },
+          },
           {
             provide: JwtService,
             useValue: {
@@ -288,10 +294,29 @@ describe('AuthService', () => {
               }),
             },
           },
-          { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') } },
-          { provide: getModelToken(RefreshToken.name), useValue: { ...tokenModelMock, create: jest.fn().mockResolvedValue({ _id: 'tok_1' }) } },
-          { provide: CommunicationsClientService, useValue: { notifyEvent: jest.fn().mockResolvedValue(true) } },
-          { provide: ProvisioningService, useValue: { provisionBusiness: jest.fn().mockResolvedValue(undefined) } },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockReturnValue('http://localhost:3000'),
+            },
+          },
+          {
+            provide: getModelToken(RefreshToken.name),
+            useValue: {
+              ...tokenModelMock,
+              create: jest.fn().mockResolvedValue({ _id: 'tok_1' }),
+            },
+          },
+          {
+            provide: RelayClientService,
+            useValue: { notifyEvent: jest.fn().mockResolvedValue(true) },
+          },
+          {
+            provide: ProvisioningService,
+            useValue: {
+              provisionBusiness: jest.fn().mockResolvedValue(undefined),
+            },
+          },
         ],
       }).compile();
 
@@ -321,12 +346,34 @@ describe('AuthService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           AuthService,
-          { provide: UsersService, useValue: { ...usersServiceMock, ...userOverrides } },
-          { provide: JwtService, useValue: { signAsync: jest.fn().mockResolvedValue('jwt_token') } },
-          { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:3003') } },
-          { provide: getModelToken(RefreshToken.name), useValue: tokenModelMock },
-          { provide: CommunicationsClientService, useValue: { notifyEvent: notifyMock } },
-          { provide: ProvisioningService, useValue: { provisionBusiness: jest.fn().mockResolvedValue(undefined) } },
+          {
+            provide: UsersService,
+            useValue: { ...usersServiceMock, ...userOverrides },
+          },
+          {
+            provide: JwtService,
+            useValue: { signAsync: jest.fn().mockResolvedValue('jwt_token') },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockReturnValue('http://localhost:3003'),
+            },
+          },
+          {
+            provide: getModelToken(RefreshToken.name),
+            useValue: tokenModelMock,
+          },
+          {
+            provide: RelayClientService,
+            useValue: { notifyEvent: notifyMock },
+          },
+          {
+            provide: ProvisioningService,
+            useValue: {
+              provisionBusiness: jest.fn().mockResolvedValue(undefined),
+            },
+          },
         ],
       }).compile();
       return module.get<AuthService>(AuthService);
@@ -346,7 +393,10 @@ describe('AuthService', () => {
       await new Promise((r) => setTimeout(r, 50));
 
       expect(notifyMock).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'platform', event: 'security.company_verify_email' }),
+        expect.objectContaining({
+          type: 'platform',
+          event: 'security.company_verify_email',
+        }),
       );
       // businessId must NOT appear in a platform event
       const call = notifyMock.mock.calls[0][0];
@@ -369,7 +419,10 @@ describe('AuthService', () => {
       await svc.forgotPassword('user@x.com');
 
       expect(notifyMock).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'platform', event: 'security.company_forgot_password' }),
+        expect.objectContaining({
+          type: 'platform',
+          event: 'security.company_forgot_password',
+        }),
       );
       const call = notifyMock.mock.calls[0][0];
       expect(call).not.toHaveProperty('businessId');
@@ -407,13 +460,18 @@ describe('AuthService', () => {
       const svc = await buildModuleCapturingNotify({
         findByPasswordResetToken: jest.fn().mockResolvedValue(user),
       });
-      tokenModelMock.updateMany = jest.fn().mockResolvedValue({ modifiedCount: 0 });
+      tokenModelMock.updateMany = jest
+        .fn()
+        .mockResolvedValue({ modifiedCount: 0 });
 
       await svc.resetPassword('valid_token', 'NewP@ss!');
       await new Promise((r) => setTimeout(r, 50));
 
       expect(notifyMock).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'platform', event: 'security.company_password_changed' }),
+        expect.objectContaining({
+          type: 'platform',
+          event: 'security.company_password_changed',
+        }),
       );
       const call = notifyMock.mock.calls[0][0];
       expect(call).not.toHaveProperty('businessId');
@@ -432,12 +490,37 @@ describe('AuthService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           AuthService,
-          { provide: UsersService, useValue: { ...usersServiceMock, findByEmailWithPassword: jest.fn().mockResolvedValue(user) } },
-          { provide: JwtService, useValue: { signAsync: jest.fn().mockResolvedValue('jwt_token') } },
-          { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:3003') } },
-          { provide: getModelToken(RefreshToken.name), useValue: tokenModelMock },
-          { provide: CommunicationsClientService, useValue: { notifyEvent: notifyMock } },
-          { provide: ProvisioningService, useValue: { provisionBusiness: jest.fn().mockResolvedValue(undefined) } },
+          {
+            provide: UsersService,
+            useValue: {
+              ...usersServiceMock,
+              findByEmailWithPassword: jest.fn().mockResolvedValue(user),
+            },
+          },
+          {
+            provide: JwtService,
+            useValue: { signAsync: jest.fn().mockResolvedValue('jwt_token') },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockReturnValue('http://localhost:3003'),
+            },
+          },
+          {
+            provide: getModelToken(RefreshToken.name),
+            useValue: tokenModelMock,
+          },
+          {
+            provide: RelayClientService,
+            useValue: { notifyEvent: notifyMock },
+          },
+          {
+            provide: ProvisioningService,
+            useValue: {
+              provisionBusiness: jest.fn().mockResolvedValue(undefined),
+            },
+          },
         ],
       }).compile();
       const svc = module.get<AuthService>(AuthService);
@@ -449,10 +532,16 @@ describe('AuthService', () => {
 
     it('no raw token URLs appear in log output', async () => {
       const logLines: string[] = [];
-      jest.spyOn(require('@nestjs/common').Logger.prototype, 'log')
-        .mockImplementation((msg: string) => { logLines.push(msg); });
-      jest.spyOn(require('@nestjs/common').Logger.prototype, 'warn')
-        .mockImplementation((msg: string) => { logLines.push(msg); });
+      jest
+        .spyOn(require('@nestjs/common').Logger.prototype, 'log')
+        .mockImplementation((msg: string) => {
+          logLines.push(msg);
+        });
+      jest
+        .spyOn(require('@nestjs/common').Logger.prototype, 'warn')
+        .mockImplementation((msg: string) => {
+          logLines.push(msg);
+        });
 
       const user = {
         _id: OBJECT_ID,

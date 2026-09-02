@@ -73,7 +73,6 @@ async function buildAndRun(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('UsersBootstrapService', () => {
-
   describe('first run — no existing data', () => {
     it('creates platform company when none exists', async () => {
       const { bizModel } = await buildAndRun(
@@ -89,7 +88,10 @@ describe('UsersBootstrapService', () => {
       );
 
       expect(bizModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ businessKey: 'invoice-app', isPlatformCompany: true }),
+        expect.objectContaining({
+          businessKey: 'invoice-app',
+          isPlatformCompany: true,
+        }),
       );
     });
 
@@ -116,17 +118,26 @@ describe('UsersBootstrapService', () => {
 
     it('does not log plaintext password during bootstrap', async () => {
       const noop = () => {};
-      const warnSpy  = jest.spyOn(process.stdout, 'write').mockImplementation(noop as any);
+      const warnSpy = jest
+        .spyOn(process.stdout, 'write')
+        .mockImplementation(noop as any);
       const logLines: string[] = [];
       const loggerLogSpy = jest
         .spyOn(require('@nestjs/common').Logger.prototype, 'log')
-        .mockImplementation((msg: string) => { logLines.push(msg); });
+        .mockImplementation((msg: string) => {
+          logLines.push(msg);
+        });
       const loggerWarnSpy = jest
         .spyOn(require('@nestjs/common').Logger.prototype, 'warn')
-        .mockImplementation((msg: string) => { logLines.push(msg); });
+        .mockImplementation((msg: string) => {
+          logLines.push(msg);
+        });
 
       await buildAndRun(
-        { findOne: jest.fn(() => chain(null)), create: jest.fn().mockResolvedValue({ _id: 'u1' }) },
+        {
+          findOne: jest.fn(() => chain(null)),
+          create: jest.fn().mockResolvedValue({ _id: 'u1' }),
+        },
         {},
       );
 
@@ -179,7 +190,8 @@ describe('UsersBootstrapService', () => {
     it('does not overwrite a valid existing password hash on normal restart', async () => {
       const adminWithDifferentValidHash = {
         ...CORRECTLY_LINKED_ADMIN,
-        passwordHash: '$2b$12$differentHashAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        passwordHash:
+          '$2b$12$differentHashAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
       };
 
       const { userModel } = await buildAndRun(
@@ -305,7 +317,10 @@ describe('UsersBootstrapService', () => {
             if (id === 'non_existent_company_id') return chain(null);
             return chain(PLATFORM_BIZ);
           }),
-          create: jest.fn().mockResolvedValue({ _id: 'new_biz_id', businessKey: 'alice-smith-business' }),
+          create: jest.fn().mockResolvedValue({
+            _id: 'new_biz_id',
+            businessKey: 'alice-smith-business',
+          }),
         },
       );
 
@@ -326,14 +341,21 @@ describe('UsersBootstrapService', () => {
     });
   });
 
-  describe('missing CommunicationConnection does not break bootstrap', () => {
+  describe('missing RelayConnection does not break bootstrap', () => {
     it('bootstrap resolves without throwing when no comm connection exists', async () => {
-      // Bootstrap does not interact with CommunicationConnection at all —
-      // that is handled separately by CommunicationsModule.onApplicationBootstrap.
+      // Bootstrap does not interact with RelayConnection at all —
+      // that is handled separately by RelayModule.onApplicationBootstrap.
       await expect(
         buildAndRun(
-          { findOne: jest.fn(() => chain(null)), create: jest.fn().mockResolvedValue({ _id: 'u1' }) },
-          { findOne: jest.fn(() => chain(null)), create: jest.fn().mockResolvedValue(PLATFORM_BIZ), findById: jest.fn(() => chain(null)) },
+          {
+            findOne: jest.fn(() => chain(null)),
+            create: jest.fn().mockResolvedValue({ _id: 'u1' }),
+          },
+          {
+            findOne: jest.fn(() => chain(null)),
+            create: jest.fn().mockResolvedValue(PLATFORM_BIZ),
+            findById: jest.fn(() => chain(null)),
+          },
         ),
       ).resolves.toBeDefined();
     });

@@ -73,7 +73,7 @@ function AccountStep({
     return (
       <Alert severity="info" icon={<EventNoteIcon />}>
         No calendar accounts found. Connect a calendar account in{' '}
-        <strong>Communications App → Calendar → Connect</strong> first.
+        <strong>Relay → Calendar → Connect</strong> first.
       </Alert>
     );
   }

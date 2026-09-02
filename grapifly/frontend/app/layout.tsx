@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './styles.css';
+import { GrapiflyThemeProvider } from '@/components/GrapiflyThemeProvider';
 
 export const metadata: Metadata = {
   title: 'Grapifly — One account. Every possibility.',
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><GrapiflyThemeProvider>{children}</GrapiflyThemeProvider></body>
     </html>
   );
 }

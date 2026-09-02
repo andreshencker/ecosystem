@@ -11,8 +11,14 @@ export class PlatformAdmin {
   @Prop({ required: true, lowercase: true, trim: true, unique: true, index: true })
   email!: string;
 
-  @Prop({ required: true, enum: ['ecosystem_super_admin'], index: true })
-  role!: 'ecosystem_super_admin';
+  /**
+   * Admin level. Not a fixed enum — the ecosystem's admin levels are global
+   * (shared across every app, unlike per-app owner/provider roles) and grow
+   * over time via invitations (see AdminInvitation), so the valid set of
+   * levels is enforced in code (AdminLevels), not the DB schema.
+   */
+  @Prop({ required: true, trim: true, index: true })
+  role!: string;
 
   @Prop({ required: true, enum: ['active', 'suspended'], default: 'active', index: true })
   status!: 'active' | 'suspended';

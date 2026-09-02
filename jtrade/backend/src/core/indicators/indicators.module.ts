@@ -1,31 +1,24 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-
+import { AuthModule } from '../auth/auth.module';
+import { SignalsModule } from '../signals/signals.module';
+import { IndicatorWebhookController } from './indicator-webhook.controller';
 import { IndicatorsController } from './indicators.controller';
 import { IndicatorsService } from './indicators.service';
-
 import { Indicator, IndicatorSchema } from './schemas/indicator.schema';
-
-import {
-  CompanyProvider,
-  CompanyProviderSchema,
-} from '../company-provider/schemas/company-provider.schema';
+import { Symbol, SymbolSchema } from '../symbols/schemas/symbol.schema';
 
 @Module({
   imports: [
+    AuthModule,
+    SignalsModule,
     MongooseModule.forFeature([
-      {
-        name: Indicator.name,
-        schema: IndicatorSchema,
-      },
-      {
-        name: CompanyProvider.name,
-        schema: CompanyProviderSchema,
-      },
+      { name: Indicator.name, schema: IndicatorSchema },
+      { name: Symbol.name, schema: SymbolSchema },
     ]),
   ],
-  controllers: [IndicatorsController],
+  controllers: [IndicatorsController, IndicatorWebhookController],
   providers: [IndicatorsService],
-  exports: [IndicatorsService, MongooseModule],
+  exports: [IndicatorsService],
 })
 export class IndicatorsModule {}

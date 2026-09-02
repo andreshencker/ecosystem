@@ -2,7 +2,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 export type OrganizationMemberApplicationDocument = HydratedDocument<OrganizationMemberApplication>;
-export type ApplicationMemberRole = 'owner' | 'admin' | 'operator' | 'viewer';
+// Not a fixed union anymore — each app declares its own valid roles in its
+// catalogue entry (Application.ownerRoles). Validated in OrganizationsService
+// against that list, not constrained here.
+export type ApplicationMemberRole = string;
 
 @Schema({ collection: 'organization_member_applications', timestamps: true, versionKey: false })
 export class OrganizationMemberApplication {
@@ -15,7 +18,7 @@ export class OrganizationMemberApplication {
   @Prop({ required: true, lowercase: true, trim: true, index: true })
   applicationKey!: string;
 
-  @Prop({ required: true, enum: ['owner', 'admin', 'operator', 'viewer'], default: 'viewer' })
+  @Prop({ required: true, lowercase: true, trim: true, default: 'viewer' })
   role!: ApplicationMemberRole;
 
   @Prop({ required: true, enum: ['active', 'suspended', 'revoked'], default: 'active' })

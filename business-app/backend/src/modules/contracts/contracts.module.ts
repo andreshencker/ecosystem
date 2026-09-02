@@ -6,9 +6,12 @@ import { Customer, CustomerSchema } from '../customer/schemas/customer.schema';
 import { Shift, ShiftSchema } from '../shifts/schemas/shift.schema';
 import { ContractsService } from './contracts.service';
 import { ContractsController } from './contracts.controller';
-import { CommunicationsModule } from '../../integrations/communications/communications.module';
+import { RelayModule } from '../../integrations/relay/relay.module';
 import { UsersModule } from '../users/users.module';
-import { LinkedCalendar, LinkedCalendarSchema } from '../linked-calendars/schemas/linked-calendar.schema';
+import {
+  LinkedCalendar,
+  LinkedCalendarSchema,
+} from '../linked-calendars/schemas/linked-calendar.schema';
 
 @Module({
   imports: [
@@ -18,7 +21,7 @@ import { LinkedCalendar, LinkedCalendarSchema } from '../linked-calendars/schema
       { name: LinkedCalendar.name, schema: LinkedCalendarSchema },
       { name: Shift.name, schema: ShiftSchema },
     ]),
-    CommunicationsModule,
+    RelayModule,
     UsersModule,
   ],
   controllers: [ContractsController],

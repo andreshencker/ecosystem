@@ -26,7 +26,7 @@ import PeopleOutlinedIcon        from '@mui/icons-material/PeopleOutlined';
 import SmsOutlinedIcon           from '@mui/icons-material/SmsOutlined';
 import StarIcon                  from '@mui/icons-material/Star';
 
-import { usePurposes } from '@/hooks/api/useCommunicationPurposes';
+import { usePurposes } from '@/hooks/api/useRelayPurposes';
 
 import { PageHeader }       from '@/components/layout';
 import { ConfirmDialog, EmptyState, StatusBadge } from '@/components/shared';

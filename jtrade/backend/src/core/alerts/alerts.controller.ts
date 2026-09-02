@@ -8,10 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { AlertsService } from './alerts.service';
 import { CreateAlertDto } from './dto/create-alert.dto';
@@ -20,6 +23,7 @@ import { QueryAlertsDto } from './dto/query-alerts.dto';
 import { AlertMapper } from './mappers/alert.mapper';
 import { AlertResponseDto } from './dto/alert-response.dto';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('alerts')
 export class AlertsController {
   constructor(private readonly service: AlertsService) {}

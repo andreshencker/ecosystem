@@ -1,150 +1,97 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { GrapiflyAppShell } from '@/components/GrapiflyAppShell';
-import { OrganizationProfile, OrganizationProfileTabs } from '@/components/OrganizationProfileTabs';
-import '../invitations.css';
+import { useCallback, useEffect, useState } from 'react';
+import { GrapiflyAppShell, useGrapiflyShell } from '@/components/GrapiflyAppShell';
+import { OrganizationProfileTabs, type OrganizationProfile } from '@/components/OrganizationProfileTabs';
 
-interface OrganizationSummary {
-  organizationId: string;
-  name: string;
-  slug: string;
-  isDefault: boolean;
-  isPlatform: boolean;
-  membership: { role: 'owner' | 'admin' | 'member' };
-  applications: string[];
-}
+const EMPTY_PROFILE: Omit<OrganizationProfile, 'organizationId' | 'name' | 'slug' | 'status' | 'isPlatform'> = {
+  entityType: 'company',
+  legalName: '', tagline: '', timezone: 'Australia/Sydney',
+  officialEmail: '', supportEmail: '', supportPhoneCountryCode: '', supportPhoneNumber: '', supportHours: '',
+  addressLine1: '', addressLine2: '', addressCity: '', addressState: '', addressPostalCode: '', addressCountry: '',
+  websiteUrl: '', apiBaseUrl: '', helpCenterUrl: '', privacyPolicyUrl: '', termsUrl: '', unsubscribeUrl: '',
+  facebook: '', instagram: '', linkedin: '', x: '', youtube: '', tiktok: '', whatsapp: '', telegram: '',
+  copyrightText: '', disclaimerShort: '', disclaimerLong: '', logoIconUrl: '', logoFullUrl: '',
+  bankAccountHolder: '', bankName: '', bankAccountNumber: '', bankSwiftBic: '', bankCountry: '',
+  usdtWalletAddress: '', usdtNetwork: '',
+};
 
-interface OrganizationDetails {
-  organization: OrganizationProfile;
-  membership: { role: 'owner' | 'admin' | 'member' };
-  applications: { applicationKey: string }[];
-  members: { membershipId: string; role: string; applications: { applicationKey: string; role: string }[]; user: { displayName: string; email: string; avatarUrl: string | null } | null }[];
-  invitations: { invitationId: string; email: string; role: string; applicationKeys: string[]; expiresAt: string; status: 'pending' | 'expired' }[];
+function normalizeProfile(raw: Record<string, unknown>): OrganizationProfile {
+  const merged = { ...EMPTY_PROFILE, ...raw } as Record<string, unknown>;
+  const out = {} as OrganizationProfile;
+  for (const key of Object.keys(EMPTY_PROFILE) as (keyof typeof EMPTY_PROFILE)[]) {
+    (out[key] as unknown) = merged[key] ?? EMPTY_PROFILE[key];
+  }
+  out.organizationId = String(raw.organizationId ?? '');
+  out.name = String(raw.name ?? '');
+  out.slug = String(raw.slug ?? '');
+  out.status = (raw.status as OrganizationProfile['status']) ?? 'active';
+  out.isPlatform = Boolean(raw.isPlatform);
+  out.createdAt = raw.createdAt as string | undefined;
+  out.updatedAt = raw.updatedAt as string | undefined;
+  return out;
 }
 
 export default function OrganizationsPage() {
+  return <GrapiflyAppShell><OrganizationProfilePage /></GrapiflyAppShell>;
+}
+
+function OrganizationProfilePage() {
   const apiUrl = process.env.NEXT_PUBLIC_ID_API_URL ?? 'http://localhost:3101';
-  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [details, setDetails] = useState<OrganizationDetails | null>(null);
-  const [organizationName, setOrganizationName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
-  const [invitationLink, setInvitationLink] = useState('');
-  const [message, setMessage] = useState('');
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-  const [invitationActionId, setInvitationActionId] = useState<string | null>(null);
+  const { selectedOrganization } = useGrapiflyShell();
+  const organizationId = selectedOrganization?.organizationId ?? '';
 
-  async function loadOrganizations(preferredId?: string) {
-    const response = await fetch(`${apiUrl}/organizations`, { credentials: 'include' });
-    if (response.status === 401) { window.location.replace('/'); return; }
-    if (!response.ok) throw new Error('Unable to load organizations');
-    const data = await response.json();
-    setOrganizations(data.organizations);
-    const requestedId = preferredId ?? selectedId;
-    const nextId = data.organizations.some((organization: OrganizationSummary) => organization.organizationId === requestedId) ? requestedId : data.organizations[0]?.organizationId ?? null;
-    setSelectedId(nextId);
-    if (nextId) await loadDetails(nextId);
-  }
+  const [profile, setProfile] = useState<OrganizationProfile | null>(null);
+  const [role, setRole] = useState<'owner' | 'admin' | 'member'>('member');
+  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
-  async function loadDetails(organizationId: string) {
-    const response = await fetch(`${apiUrl}/organizations/${organizationId}`, { credentials: 'include' });
-    if (!response.ok) throw new Error('Unable to load organization');
-    setDetails(await response.json());
-  }
+  const load = useCallback(() => {
+    if (!organizationId) { setProfile(null); setState('idle'); return; }
+    setState('loading');
+    fetch(`${apiUrl}/organizations/${organizationId}`, { credentials: 'include' })
+      .then(async (response) => {
+        if (response.status === 401) { window.location.replace('/'); return null; }
+        if (!response.ok) throw new Error();
+        return response.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        setProfile(normalizeProfile(data.organization ?? data));
+        setRole(data.membership?.role ?? selectedOrganization?.membership.role ?? 'member');
+        setState('ready');
+      })
+      .catch(() => setState('error'));
+  }, [apiUrl, organizationId, selectedOrganization?.membership.role]);
 
-  useEffect(() => { loadOrganizations().catch(() => setMessage('Organizations could not be loaded.')); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  async function createOrganization(event: FormEvent) {
-    event.preventDefault(); setMessage('');
-    const response = await fetch(`${apiUrl}/organizations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: organizationName }) });
-    const data = await response.json();
-    if (!response.ok) { setMessage(data.message ?? 'Organization could not be created.'); return; }
-    setOrganizationName('');
-    await loadOrganizations(data.organizationId);
-    setMessage('Organization created. You are its owner.');
-  }
+  const canManage = ['owner', 'admin'].includes(role);
 
-  async function enableRelay() {
-    if (!selectedId) return;
-    const response = await fetch(`${apiUrl}/organizations/${selectedId}/applications`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationKey: 'relay' }) });
-    if (!response.ok) { const data = await response.json(); setMessage(data.message ?? 'Relay could not be enabled.'); return; }
-    await loadOrganizations(selectedId);
-    setMessage('Relay is now enabled for this organization.');
-  }
-
-  async function invite(event: FormEvent) {
-    event.preventDefault();
-    if (!selectedId) return;
-    const applicationKeys = details?.applications.map((application) => application.applicationKey) ?? [];
-    const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: inviteEmail, role: inviteRole, applicationKeys }) });
-    const data = await response.json();
-    if (!response.ok) { setMessage(data.message ?? 'Invitation could not be created.'); return; }
-    const link = `${window.location.origin}/invitations/${data.token}`;
-    setInvitationLink(link); setInviteEmail('');
-    await loadDetails(selectedId);
-    setMessage('Invitation created. Copy the secure link and send it to the invited person.');
-  }
-
-  async function regenerateInvitation(invitationId: string) {
-    if (!selectedId) return;
-    setInvitationActionId(invitationId); setMessage('');
-    try {
-      const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations/${invitationId}/regenerate`, { method: 'POST', credentials: 'include' });
-      const data = await response.json();
-      if (!response.ok) { setMessage(data.message ?? 'Invitation link could not be regenerated.'); return; }
-      setInvitationLink(`${window.location.origin}/invitations/${data.token}`);
-      await loadDetails(selectedId);
-      setMessage('A new invitation link was generated. The previous link is no longer valid.');
-    } finally { setInvitationActionId(null); }
-  }
-
-  async function cancelInvitation(invitationId: string, email: string) {
-    if (!selectedId || !window.confirm(`Cancel the invitation for ${email}?`)) return;
-    setInvitationActionId(invitationId); setMessage('');
-    try {
-      const response = await fetch(`${apiUrl}/organizations/${selectedId}/invitations/${invitationId}/cancel`, { method: 'POST', credentials: 'include' });
-      const data = await response.json();
-      if (!response.ok) { setMessage(data.message ?? 'Invitation could not be cancelled.'); return; }
-      setInvitationLink('');
-      await loadDetails(selectedId);
-      setMessage('Invitation cancelled.');
-    } finally { setInvitationActionId(null); }
-  }
-
-  async function archiveOrganization(organization: OrganizationSummary) {
-    setActionMenuId(null);
-    if (organization.isDefault || organization.isPlatform) { setMessage('The official and default organizations are protected.'); return; }
-    if (!window.confirm(`Archive ${organization.name}? Its applications and pending invitations will be disabled.`)) return;
-    const response = await fetch(`${apiUrl}/organizations/${organization.organizationId}/archive`, { method: 'POST', credentials: 'include' });
-    const data = await response.json();
-    if (!response.ok) { setMessage(data.message ?? 'Organization could not be archived.'); return; }
-    if (selectedId === organization.organizationId) { setSelectedId(null); setDetails(null); }
-    await loadOrganizations();
-    setMessage('Organization archived.');
-  }
-
-  const canManage = details && ['owner', 'admin'].includes(details.membership.role);
-  return <GrapiflyAppShell><section className="organizations-page organizations-embedded">
-    <section className="organizations-shell">
-      <header className="organizations-heading"><div><span className="section-kicker">Grapifly Organizations</span><h1>Your teams.<br/>One identity.</h1><p>Create several organizations, choose their apps and invite the people who work with you.</p></div>
-        <form onSubmit={createOrganization}><label>New organization</label><div><input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Organization name" required/><button>Create</button></div></form>
-      </header>
-      {message && <div className="organization-message">{message}</div>}
-      <div className="organizations-layout">
-        <aside className="organization-list"><h2>Organizations</h2>{organizations.map((organization) => <div className={`organization-list-row ${selectedId === organization.organizationId ? 'active' : ''}`} key={organization.organizationId}><button className="organization-select" onClick={() => { setSelectedId(organization.organizationId); loadDetails(organization.organizationId); setInvitationLink(''); setActionMenuId(null); }}><span>{organization.name[0]}</span><div><strong>{organization.name}</strong><small>{organization.membership.role} · {organization.applications.length} apps{organization.isDefault ? ' · default' : ''}</small></div></button><button className="organization-actions-trigger" aria-label={`Actions for ${organization.name}`} onClick={() => setActionMenuId(actionMenuId === organization.organizationId ? null : organization.organizationId)}>•••</button>{actionMenuId === organization.organizationId && <div className="organization-actions-menu"><button onClick={() => { navigator.clipboard.writeText(organization.organizationId); setActionMenuId(null); setMessage('Organization ID copied.'); }}>Copy organization ID</button><button className="danger" disabled={organization.isDefault || organization.isPlatform || organization.membership.role !== 'owner'} onClick={() => archiveOrganization(organization)}>{organization.isDefault || organization.isPlatform ? 'Protected organization' : 'Archive organization'}</button></div>}</div>)}{organizations.length === 0 && <p>Create your first organization to begin.</p>}</aside>
-        <section className="organization-detail">{details ? <>
-          <header><div><span>{details.membership.role}</span><h2>{details.organization.name}</h2><p>{details.organization.slug}</p></div><code>{details.organization.organizationId}</code></header>
-          <OrganizationProfileTabs organization={details.organization} ownerEmail={details.members.find((member) => member.role === 'owner')?.user?.email ?? 'Not assigned'} canManage={Boolean(canManage)} apiUrl={apiUrl} onSaved={(organization) => setDetails({ ...details, organization })}/>
-          <div className="organization-section-title"><div><h3>Applications</h3><p>Solutions enabled for everyone in this organization.</p></div>{canManage && !details.applications.some((app) => app.applicationKey === 'relay') && <button onClick={enableRelay}>Enable Relay</button>}</div>
-          <div className="organization-apps">{details.applications.map((application) => <span key={application.applicationKey}>✦ {application.applicationKey}</span>)}{details.applications.length === 0 && <p>No applications enabled yet.</p>}</div>
-          <div className="organization-section-title"><div><h3>Members</h3><p>Identity and membership are managed centrally by Grapifly.</p></div></div>
-          <div className="member-list">{details.members.map((member) => <article key={member.membershipId}>{member.user?.avatarUrl ? <img src={member.user.avatarUrl} alt=""/> : <span>{member.user?.displayName?.[0] ?? 'G'}</span>}<div><strong>{member.user?.displayName ?? 'Grapifly user'}</strong><small>{member.user?.email}{member.applications.length > 0 ? ` · ${member.applications.map((app) => app.applicationKey).join(', ')}` : ''}</small></div><b>{member.role}</b></article>)}</div>
-          {canManage && <form className="invitation-form" onSubmit={invite}><div><h3>Invite a member</h3><p>The invitation grants membership and access to the enabled applications.</p></div><div className="invitation-fields"><input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="name@company.com" required/><select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'member' | 'admin')}><option value="member">Member</option><option value="admin">Administrator</option></select><button>Invite</button></div>{invitationLink && <div className="invitation-link"><input readOnly value={invitationLink}/><button type="button" onClick={() => navigator.clipboard.writeText(invitationLink)}>Copy link</button></div>}</form>}
-          {details.invitations.length > 0 && <div className="pending-invitations"><h3>Invitations</h3>{details.invitations.map((invitation) => <article key={invitation.invitationId}><div><strong>{invitation.email}</strong><span>{invitation.role} · {invitation.status === 'expired' ? 'expired' : `expires ${new Date(invitation.expiresAt).toLocaleDateString()}`}</span></div>{canManage && <div className="invitation-actions"><button disabled={invitationActionId === invitation.invitationId} onClick={() => regenerateInvitation(invitation.invitationId)}>New link</button>{invitation.status === 'pending' && <button className="danger" disabled={invitationActionId === invitation.invitationId} onClick={() => cancelInvitation(invitation.invitationId, invitation.email)}>Cancel</button>}</div>}</article>)}</div>}
-        </> : <div className="organization-empty"><h2>Select an organization</h2><p>Its applications, members and invitations will appear here.</p></div>}</section>
+  return <section className="organizations-page organizations-embedded"><section className="organizations-shell">
+    <header className="organizations-heading">
+      <div>
+        <span className="section-kicker">Grapifly</span>
+        <h1>My organization</h1>
+        <p>
+          {selectedOrganization
+            ? <>Profile for <strong>{selectedOrganization.name}</strong> — switch organization from the sidebar. You are {canManage ? `an ${role}` : `a ${role} (view only)`}.</>
+            : 'Select or create an organization from the sidebar to manage its profile.'}
+        </p>
       </div>
-    </section>
-  </section></GrapiflyAppShell>;
+    </header>
+
+    {state === 'loading' && <div className="organization-empty"><p>Loading organization…</p></div>}
+    {state === 'error' && <div className="organization-empty"><p>This organization could not be loaded.</p></div>}
+    {state === 'idle' && !organizationId && <div className="organization-empty"><p>No organization selected. Use the sidebar to create one.</p></div>}
+
+    {state === 'ready' && profile && (
+      <OrganizationProfileTabs
+        key={profile.organizationId}
+        organization={profile}
+        canManage={canManage}
+        apiUrl={apiUrl}
+        onSaved={(updated) => setProfile((current) => (current ? { ...current, ...updated } : updated))}
+      />
+    )}
+  </section></section>;
 }

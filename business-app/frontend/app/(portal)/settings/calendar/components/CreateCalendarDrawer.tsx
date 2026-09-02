@@ -112,7 +112,7 @@ function AccountField({
   if (loadError) {
     return (
       <Alert severity="error">
-        {(loadError as any)?.response?.data?.message ?? 'Failed to load calendar accounts. Check that Communications integration is configured.'}
+        {(loadError as any)?.response?.data?.message ?? 'Failed to load calendar accounts. Check that Relay integration is configured.'}
       </Alert>
     );
   }
@@ -120,7 +120,7 @@ function AccountField({
     return (
       <Alert severity="info">
         No calendar accounts found. Connect a calendar account in{' '}
-        <strong>Communications App → Calendar → Connect</strong> first.
+        <strong>Relay → Calendar → Connect</strong> first.
       </Alert>
     );
   }

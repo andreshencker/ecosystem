@@ -5,7 +5,7 @@ import { Reflector } from '@nestjs/core';
 import { UsersController } from '../users.controller';
 import { UsersService } from '../users.service';
 import { EventBusService } from '../../../infrastructure/events/event-bus.service';
-import { CommunicationsClientService } from '../../../integrations/communications/client/communications-client.service';
+import { RelayClientService } from '../../../integrations/relay/client/relay-client.service';
 import { RolesGuard } from '../../../infrastructure/security/guards/roles.guard';
 import { UserResponseDto } from '../dto/user-response.dto';
 import type { AuthContext } from '../../../infrastructure/security/types/auth-context.types';
@@ -71,7 +71,7 @@ async function buildModule(
     providers: [
       { provide: UsersService, useValue: usersServiceMock },
       { provide: EventBusService, useValue: eventBusMock },
-      { provide: CommunicationsClientService, useValue: commClientMock },
+      { provide: RelayClientService, useValue: commClientMock },
       {
         provide: ConfigService,
         useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') },

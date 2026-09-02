@@ -150,9 +150,9 @@ const BILLING_SECTION: SidebarSectionConfig = {
 const COMPANY_SETTINGS_ITEMS: SidebarItemConfig[] = [
   { href: '/settings/company',                 label: 'My Business',              icon: ApartmentOutlinedIcon           },
   { href: '/settings/profile',                 label: 'Profile',                  icon: PersonOutlinedIcon              },
-  { href: '/settings/communications',          label: 'Communications',           icon: CableOutlinedIcon               },
-  { href: '/settings/communication-purposes',  label: 'Communication Purposes',   icon: NotificationsNoneOutlinedIcon   },
-  { href: '/settings/communication-events',    label: 'Communication Events',     icon: EventOutlinedIcon               },
+  { href: '/settings/relay',          label: 'Relay',                    icon: CableOutlinedIcon               },
+  { href: '/settings/relay-purposes',  label: 'Relay Purposes',   icon: NotificationsNoneOutlinedIcon   },
+  { href: '/settings/relay-events',    label: 'Relay Events',     icon: EventOutlinedIcon               },
   { href: '/settings/calendar',                label: 'Linked Calendars',         icon: CalendarMonthOutlinedIcon       },
 ];
 

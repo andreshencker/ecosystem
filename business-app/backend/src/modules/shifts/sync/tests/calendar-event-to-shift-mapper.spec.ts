@@ -1,39 +1,43 @@
 import { CalendarEventToShiftMapper } from '../mappers/calendar-event-to-shift.mapper';
-import type { CommCalendarEventInfo } from '../../../linked-calendars/clients/communications-calendar.client';
+import type { CommCalendarEventInfo } from '../../../linked-calendars/clients/relay-calendar.client';
 import type { LinkedCalendarResponseDto } from '../../../linked-calendars/dto/linked-calendar-response.dto';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-function makeCalendar(tz: string | null = 'Australia/Sydney'): LinkedCalendarResponseDto {
+function makeCalendar(
+  tz: string | null = 'Australia/Sydney',
+): LinkedCalendarResponseDto {
   return {
-    id:                 'cal1',
-    companyId:          'biz1',
-    connectionId:       'conn1',
-    providerKey:        'icloud',
+    id: 'cal1',
+    companyId: 'biz1',
+    connectionId: 'conn1',
+    providerKey: 'icloud',
     providerDisplayName: 'iCloud',
-    accountIdentifier:  'user@icloud.com',
+    accountIdentifier: 'user@icloud.com',
     externalCalendarId: 'ext-cal-1',
-    calendarName:       'Work',
+    calendarName: 'Work',
     calendarDescription: null,
-    timezone:           tz,
-    accessRole:         'owner',
-    isPrimary:          false,
-    status:             'active',
-    flow:               'shifts',
-    linkedByUserId:     null,
-    createdAt:          '2026-01-01T00:00:00Z',
-    updatedAt:          '2026-01-01T00:00:00Z',
+    timezone: tz,
+    accessRole: 'owner',
+    isPrimary: false,
+    status: 'active',
+    flow: 'shifts',
+    linkedByUserId: null,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   };
 }
 
-function makeEvent(overrides: Partial<CommCalendarEventInfo> = {}): CommCalendarEventInfo {
+function makeEvent(
+  overrides: Partial<CommCalendarEventInfo> = {},
+): CommCalendarEventInfo {
   return {
-    id:        'occ_2026071809',
+    id: 'occ_2026071809',
     calendarId: 'ext-cal-1',
-    title:     'Morning shift',
-    startAt:   '2026-07-18T23:00:00Z', // 09:00 AEST (UTC+10, standard time)
-    endAt:     '2026-07-19T07:00:00Z', // 17:00 AEST
-    allDay:    false,
+    title: 'Morning shift',
+    startAt: '2026-07-18T23:00:00Z', // 09:00 AEST (UTC+10, standard time)
+    endAt: '2026-07-19T07:00:00Z', // 17:00 AEST
+    allDay: false,
     ...overrides,
   };
 }
@@ -41,12 +45,15 @@ function makeEvent(overrides: Partial<CommCalendarEventInfo> = {}): CommCalendar
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('CalendarEventToShiftMapper', () => {
-
   describe('timezone conversion', () => {
     it('Australia/Sydney standard time: 23:00 UTC → 09:00 local, date shifts to next day', () => {
-      const event    = makeEvent({ startAt: '2026-07-18T23:00:00Z', endAt: '2026-07-19T07:00:00Z', timeZone: 'Australia/Sydney' });
+      const event = makeEvent({
+        startAt: '2026-07-18T23:00:00Z',
+        endAt: '2026-07-19T07:00:00Z',
+        timeZone: 'Australia/Sydney',
+      });
       const calendar = makeCalendar('Australia/Sydney');
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       expect(result).not.toBeNull();
       // 2026-07-18 23:00 UTC = 2026-07-19 09:00 AEST (UTC+10, July = winter, standard)
@@ -58,9 +65,13 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('Australia/Sydney daylight-saving time: Jan event (UTC+11), 22:00 UTC → 09:00 local', () => {
       // January: AEDT = UTC+11
-      const event    = makeEvent({ startAt: '2026-01-18T22:00:00Z', endAt: '2026-01-19T06:00:00Z', timeZone: 'Australia/Sydney' });
+      const event = makeEvent({
+        startAt: '2026-01-18T22:00:00Z',
+        endAt: '2026-01-19T06:00:00Z',
+        timeZone: 'Australia/Sydney',
+      });
       const calendar = makeCalendar('Australia/Sydney');
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       expect(result.date).toBe('2026-01-19');
       expect(result.startTime).toBe('09:00');
@@ -68,9 +79,13 @@ describe('CalendarEventToShiftMapper', () => {
     });
 
     it('UTC event: no timezone, times preserved as UTC', () => {
-      const event    = makeEvent({ startAt: '2026-07-18T09:00:00Z', endAt: '2026-07-18T17:00:00Z', timeZone: undefined });
+      const event = makeEvent({
+        startAt: '2026-07-18T09:00:00Z',
+        endAt: '2026-07-18T17:00:00Z',
+        timeZone: undefined,
+      });
       const calendar = makeCalendar(null); // no calendar tz
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       expect(result.date).toBe('2026-07-18');
       expect(result.startTime).toBe('09:00');
@@ -80,9 +95,13 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('event crossing midnight in local timezone', () => {
       // 14:00 UTC on Jul 18 = 00:00 AEST Jul 19 (UTC+10)
-      const event    = makeEvent({ startAt: '2026-07-18T14:00:00Z', endAt: '2026-07-18T22:00:00Z', timeZone: 'Australia/Sydney' });
+      const event = makeEvent({
+        startAt: '2026-07-18T14:00:00Z',
+        endAt: '2026-07-18T22:00:00Z',
+        timeZone: 'Australia/Sydney',
+      });
       const calendar = makeCalendar('Australia/Sydney');
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       expect(result.date).toBe('2026-07-19');
       expect(result.startTime).toBe('00:00');
@@ -90,9 +109,14 @@ describe('CalendarEventToShiftMapper', () => {
     });
 
     it('all-day event: uses raw ISO date, sets 00:00–23:59', () => {
-      const event    = makeEvent({ startAt: '2026-07-18T00:00:00Z', endAt: '2026-07-18T00:00:00Z', allDay: true, timeZone: 'Australia/Sydney' });
+      const event = makeEvent({
+        startAt: '2026-07-18T00:00:00Z',
+        endAt: '2026-07-18T00:00:00Z',
+        allDay: true,
+        timeZone: 'Australia/Sydney',
+      });
       const calendar = makeCalendar('Australia/Sydney');
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       expect(result.date).toBe('2026-07-18');
       expect(result.startTime).toBe('00:00');
@@ -101,9 +125,12 @@ describe('CalendarEventToShiftMapper', () => {
     });
 
     it('uses event timezone over calendar timezone', () => {
-      const event    = makeEvent({ startAt: '2026-07-18T23:00:00Z', timeZone: 'Australia/Sydney' });
+      const event = makeEvent({
+        startAt: '2026-07-18T23:00:00Z',
+        timeZone: 'Australia/Sydney',
+      });
       const calendar = makeCalendar('UTC');
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       // event tz wins: 23:00 UTC = 09:00 AEST
       expect(result.date).toBe('2026-07-19');
@@ -112,9 +139,12 @@ describe('CalendarEventToShiftMapper', () => {
     });
 
     it('falls back to calendar timezone when event has none', () => {
-      const event    = makeEvent({ startAt: '2026-07-18T23:00:00Z', timeZone: undefined });
+      const event = makeEvent({
+        startAt: '2026-07-18T23:00:00Z',
+        timeZone: undefined,
+      });
       const calendar = makeCalendar('Australia/Sydney');
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
 
       expect(result.date).toBe('2026-07-19');
       expect(result.startTime).toBe('09:00');
@@ -124,20 +154,29 @@ describe('CalendarEventToShiftMapper', () => {
 
   describe('initial state for imported shifts', () => {
     it('sets contractId=null, customerId=null, contractAssigned=false', () => {
-      const result = CalendarEventToShiftMapper.map(makeEvent(), makeCalendar())!;
+      const result = CalendarEventToShiftMapper.map(
+        makeEvent(),
+        makeCalendar(),
+      )!;
       expect(result.contractId).toBeNull();
       expect(result.customerId).toBeNull();
       expect(result.contractAssigned).toBe(false);
     });
 
     it('sets createdFromCalendar=true and syncStatus=synced', () => {
-      const result = CalendarEventToShiftMapper.map(makeEvent(), makeCalendar())!;
+      const result = CalendarEventToShiftMapper.map(
+        makeEvent(),
+        makeCalendar(),
+      )!;
       expect(result.createdFromCalendar).toBe(true);
       expect(result.syncStatus).toBe('synced');
     });
 
     it('sets status=draft', () => {
-      const result = CalendarEventToShiftMapper.map(makeEvent(), makeCalendar())!;
+      const result = CalendarEventToShiftMapper.map(
+        makeEvent(),
+        makeCalendar(),
+      )!;
       expect(result.status).toBe('draft');
     });
 
@@ -154,8 +193,11 @@ describe('CalendarEventToShiftMapper', () => {
 
   describe('calendar traceability fields', () => {
     it('copies all calendar identity fields', () => {
-      const cal    = makeCalendar();
-      const result = CalendarEventToShiftMapper.map(makeEvent({ uid: 'uid_series' }), cal)!;
+      const cal = makeCalendar();
+      const result = CalendarEventToShiftMapper.map(
+        makeEvent({ uid: 'uid_series' }),
+        cal,
+      )!;
 
       expect(result.linkedCalendarId).toBe('cal1');
       expect(result.calendarProvider).toBe('icloud');
@@ -167,26 +209,26 @@ describe('CalendarEventToShiftMapper', () => {
     });
   });
 
-  // ── Real Communications DTO shape tests ──────────────────────────────────────
-  // These tests use the EXACT payload shape that Communications sends to Business App
+  // ── Real Relay DTO shape tests ──────────────────────────────────────
+  // These tests use the EXACT payload shape that Relay sends to Business App
   // after parsing iCal VEVENTs. The key distinction from the original offset tests is
-  // that Communications strips the TZID parameter and emits bare local datetime strings.
+  // that Relay strips the TZID parameter and emits bare local datetime strings.
 
-  describe('real Communications payload shapes', () => {
+  describe('real Relay payload shapes', () => {
     it('bare local datetime without IANA timezone (non-recurring iCloud event): extracts local time', () => {
-      // This is the ACTUAL format Communications sends for non-recurring iCloud events.
+      // This is the ACTUAL format Relay sends for non-recurring iCloud events.
       // The iCal VEVENT has DTSTART;TZID=Australia/Sydney:20260709T120000
-      // Communications strips the TZID param and emits startAt='2026-07-09T12:00:00' (no Z, no offset).
+      // Relay strips the TZID param and emits startAt='2026-07-09T12:00:00' (no Z, no offset).
       // The previous mapper code called new Date('2026-07-09T12:00:00') which on a Mac in
       // Australia/Sydney timezone produces a Date representing 02:00Z — then UTC extraction
       // gave the wrong result: startTime='02:00'.
       const event = makeEvent({
-        startAt:  '2026-07-09T12:00:00',   // bare local datetime — NO Z, NO offset
-        endAt:    '2026-07-09T17:00:00',
-        timeZone: undefined,               // Communications never set this field
+        startAt: '2026-07-09T12:00:00', // bare local datetime — NO Z, NO offset
+        endAt: '2026-07-09T17:00:00',
+        timeZone: undefined, // Relay never set this field
       });
       const calendar = makeCalendar(null); // iCloud returns timezone=undefined for calendars
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
       expect(result).not.toBeNull();
       // Must extract the local components directly from the string
       expect(result.date).toBe('2026-07-09');
@@ -197,8 +239,8 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('bare local datetime with midnight: 00:00 preserved correctly', () => {
       const event = makeEvent({
-        startAt:  '2026-07-09T00:00:00',
-        endAt:    '2026-07-09T08:00:00',
+        startAt: '2026-07-09T00:00:00',
+        endAt: '2026-07-09T08:00:00',
         timeZone: undefined,
       });
       const result = CalendarEventToShiftMapper.map(event, makeCalendar(null))!;
@@ -209,8 +251,8 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('bare local datetime overnight: endDate is the next day', () => {
       const event = makeEvent({
-        startAt:  '2026-07-14T23:00:00',
-        endAt:    '2026-07-15T03:00:00',
+        startAt: '2026-07-14T23:00:00',
+        endAt: '2026-07-15T03:00:00',
         timeZone: undefined,
       });
       const result = CalendarEventToShiftMapper.map(event, makeCalendar(null))!;
@@ -226,11 +268,14 @@ describe('CalendarEventToShiftMapper', () => {
       //   Intl(12:00Z, 'Australia/Sydney') = 22:00 AEST — wrong, double-conversion.
       // After fix: '2026-07-09T12:00:00' → extractFromLocalDateTimeString → '12:00' directly.
       const event = makeEvent({
-        startAt:  '2026-07-09T12:00:00',   // bare local (utcToLocalDateTimeString output)
-        endAt:    '2026-07-09T17:00:00',
-        timeZone: 'Australia/Sydney',       // propagated by Communications
+        startAt: '2026-07-09T12:00:00', // bare local (utcToLocalDateTimeString output)
+        endAt: '2026-07-09T17:00:00',
+        timeZone: 'Australia/Sydney', // propagated by Relay
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       // Must return the local components as-is — no Intl conversion applied
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('12:00');
@@ -240,13 +285,16 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('UTC-Z timestamp with IANA timezone (correct provider pairing): uses IANA', () => {
       // A UTC timestamp paired with an IANA timezone is the correct canonical form.
-      // Communications should emit this for recurring events after our fix.
+      // Relay should emit this for recurring events after our fix.
       const event = makeEvent({
-        startAt:  '2026-07-09T02:00:00Z',  // UTC instant
-        endAt:    '2026-07-09T07:00:00Z',
-        timeZone: 'Australia/Sydney',       // IANA timezone for conversion
+        startAt: '2026-07-09T02:00:00Z', // UTC instant
+        endAt: '2026-07-09T07:00:00Z',
+        timeZone: 'Australia/Sydney', // IANA timezone for conversion
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       // 02:00 UTC in Australia/Sydney (UTC+10, July=winter) = 12:00 local
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('12:00');
@@ -257,8 +305,8 @@ describe('CalendarEventToShiftMapper', () => {
       // A UTC Z-string with no IANA timezone — there is no embedded local info.
       // Fallback to UTC is the only safe option.
       const event = makeEvent({
-        startAt:  '2026-07-09T12:00:00Z',
-        endAt:    '2026-07-09T17:00:00Z',
+        startAt: '2026-07-09T12:00:00Z',
+        endAt: '2026-07-09T17:00:00Z',
         timeZone: undefined,
       });
       const result = CalendarEventToShiftMapper.map(event, makeCalendar(null))!;
@@ -272,11 +320,14 @@ describe('CalendarEventToShiftMapper', () => {
       // Simulates a recurring event occurrence where our fix emits the local bare string
       // along with the IANA timezone.
       const event = makeEvent({
-        startAt:  '2026-01-09T01:00:00Z',  // UTC — AEDT = UTC+11
-        endAt:    '2026-01-09T05:00:00Z',
+        startAt: '2026-01-09T01:00:00Z', // UTC — AEDT = UTC+11
+        endAt: '2026-01-09T05:00:00Z',
         timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       // January in Sydney = AEDT (UTC+11): 01:00Z = 12:00 AEDT
       expect(result.date).toBe('2026-01-09');
       expect(result.startTime).toBe('12:00');
@@ -289,11 +340,14 @@ describe('CalendarEventToShiftMapper', () => {
       // Provider sends full offset — JavaScript Date parses it correctly.
       // Intl then converts to Australia/Sydney and should return the same local time.
       const event = makeEvent({
-        startAt:   '2026-07-09T12:00:00+10:00',
-        endAt:     '2026-07-09T17:00:00+10:00',
-        timeZone:  'Australia/Sydney',
+        startAt: '2026-07-09T12:00:00+10:00',
+        endAt: '2026-07-09T17:00:00+10:00',
+        timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('12:00');
       expect(result.endTime).toBe('17:00');
@@ -305,12 +359,12 @@ describe('CalendarEventToShiftMapper', () => {
       // and without an IANA tz the code fell back to UTC → displayed 02:00 instead of 12:00.
       // After the fix: extractFromOffsetAwareString extracts "12:00" directly from the string.
       const event = makeEvent({
-        startAt:  '2026-07-09T12:00:00+10:00',
-        endAt:    '2026-07-09T17:00:00+10:00',
-        timeZone: undefined,  // provider did not send a timezone label
+        startAt: '2026-07-09T12:00:00+10:00',
+        endAt: '2026-07-09T17:00:00+10:00',
+        timeZone: undefined, // provider did not send a timezone label
       });
-      const calendar = makeCalendar(null);  // no calendar-level timezone either
-      const result   = CalendarEventToShiftMapper.map(event, calendar)!;
+      const calendar = makeCalendar(null); // no calendar-level timezone either
+      const result = CalendarEventToShiftMapper.map(event, calendar)!;
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('12:00');
       expect(result.endTime).toBe('17:00');
@@ -322,12 +376,15 @@ describe('CalendarEventToShiftMapper', () => {
       // 2026-07-14 13:00 UTC = 2026-07-14 23:00 AEST
       // 2026-07-14 17:00 UTC = 2026-07-15 03:00 AEST
       const event = makeEvent({
-        startAt:  '2026-07-14T13:00:00Z',
-        endAt:    '2026-07-14T17:00:00Z',
+        startAt: '2026-07-14T13:00:00Z',
+        endAt: '2026-07-14T17:00:00Z',
         timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
-      expect(result.date).toBe('2026-07-14');    // start date is the anchor
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
+      expect(result.date).toBe('2026-07-14'); // start date is the anchor
       expect(result.startTime).toBe('23:00');
       expect(result.endDate).toBe('2026-07-15'); // crosses midnight → next day
       expect(result.endTime).toBe('03:00');
@@ -338,8 +395,8 @@ describe('CalendarEventToShiftMapper', () => {
       // Start: 2026-07-14T23:00:00+10:00 = local 23:00 on Jul 14
       // End:   2026-07-15T03:00:00+10:00 = local 03:00 on Jul 15
       const event = makeEvent({
-        startAt:  '2026-07-14T23:00:00+10:00',
-        endAt:    '2026-07-15T03:00:00+10:00',
+        startAt: '2026-07-14T23:00:00+10:00',
+        endAt: '2026-07-15T03:00:00+10:00',
         timeZone: undefined,
       });
       const result = CalendarEventToShiftMapper.map(event, makeCalendar(null))!;
@@ -352,11 +409,14 @@ describe('CalendarEventToShiftMapper', () => {
     it('offset causing local-date difference from UTC date', () => {
       // 2026-07-08T15:30:00Z = 2026-07-09T01:30:00 in Australia/Sydney (UTC+10, July=winter)
       const event = makeEvent({
-        startAt:  '2026-07-08T15:30:00Z',
-        endAt:    '2026-07-08T23:30:00Z',
+        startAt: '2026-07-08T15:30:00Z',
+        endAt: '2026-07-08T23:30:00Z',
         timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       // UTC date is Jul 8 but local Sydney date is Jul 9
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('01:30');
@@ -366,11 +426,14 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('UTC event with explicit UTC timezone: times are UTC values', () => {
       const event = makeEvent({
-        startAt:  '2026-07-09T12:00:00Z',
-        endAt:    '2026-07-09T17:00:00Z',
+        startAt: '2026-07-09T12:00:00Z',
+        endAt: '2026-07-09T17:00:00Z',
         timeZone: 'UTC',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('UTC'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('UTC'),
+      )!;
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('12:00');
       expect(result.endTime).toBe('17:00');
@@ -379,8 +442,8 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('UTC-Z timestamp with no timezone: falls back to UTC (Z is not an offset-aware string)', () => {
       const event = makeEvent({
-        startAt:  '2026-07-09T12:00:00Z',
-        endAt:    '2026-07-09T17:00:00Z',
+        startAt: '2026-07-09T12:00:00Z',
+        endAt: '2026-07-09T17:00:00Z',
         timeZone: undefined,
       });
       const result = CalendarEventToShiftMapper.map(event, makeCalendar(null))!;
@@ -393,11 +456,14 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('unrecognised timezone falls back to UTC without string-slicing', () => {
       const event = makeEvent({
-        startAt:  '2026-07-18T09:30:00Z',
-        endAt:    '2026-07-18T17:45:00Z',
+        startAt: '2026-07-18T09:30:00Z',
+        endAt: '2026-07-18T17:45:00Z',
         timeZone: 'Not/A_Real_Zone',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Not/A_Real_Zone'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Not/A_Real_Zone'),
+      )!;
       // Falls back to UTC — values must be valid YYYY-MM-DD and HH:mm
       expect(result.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(result.startTime).toMatch(/^\d{2}:\d{2}$/);
@@ -410,11 +476,14 @@ describe('CalendarEventToShiftMapper', () => {
     it('Australia/Sydney daylight-saving: Jan event (UTC+11), 01:00 UTC → 12:00 local', () => {
       // 2026-01-09T01:00:00Z = 2026-01-09T12:00:00 AEDT (UTC+11, January = summer DST)
       const event = makeEvent({
-        startAt:  '2026-01-09T01:00:00Z',
-        endAt:    '2026-01-09T05:00:00Z',
+        startAt: '2026-01-09T01:00:00Z',
+        endAt: '2026-01-09T05:00:00Z',
         timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       expect(result.date).toBe('2026-01-09');
       expect(result.startTime).toBe('12:00');
       expect(result.endTime).toBe('16:00');
@@ -422,19 +491,25 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('Australia/Sydney standard time: 02:00 UTC → 12:00 local (UTC+10, July=winter)', () => {
       const event = makeEvent({
-        startAt:  '2026-07-09T02:00:00Z',
-        endAt:    '2026-07-09T07:00:00Z',
+        startAt: '2026-07-09T02:00:00Z',
+        endAt: '2026-07-09T07:00:00Z',
         timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       expect(result.date).toBe('2026-07-09');
       expect(result.startTime).toBe('12:00');
       expect(result.endTime).toBe('17:00');
     });
 
     it('repeated sync does not change stored local time (idempotency)', () => {
-      const event  = makeEvent({ startAt: '2026-07-18T23:00:00Z', timeZone: 'Australia/Sydney' });
-      const cal    = makeCalendar('Australia/Sydney');
+      const event = makeEvent({
+        startAt: '2026-07-18T23:00:00Z',
+        timeZone: 'Australia/Sydney',
+      });
+      const cal = makeCalendar('Australia/Sydney');
       const r1 = CalendarEventToShiftMapper.map(event, cal)!;
       const r2 = CalendarEventToShiftMapper.map(event, cal)!;
       expect(r1.date).toBe(r2.date);
@@ -444,7 +519,10 @@ describe('CalendarEventToShiftMapper', () => {
     });
 
     it('contract assignment fields are null/false on import — resync must not overwrite them', () => {
-      const result = CalendarEventToShiftMapper.map(makeEvent(), makeCalendar())!;
+      const result = CalendarEventToShiftMapper.map(
+        makeEvent(),
+        makeCalendar(),
+      )!;
       expect(result.contractId).toBeNull();
       expect(result.contractAssigned).toBe(false);
       // The sync service's $set does NOT include contractId/contractAssigned,
@@ -453,11 +531,14 @@ describe('CalendarEventToShiftMapper', () => {
 
     it('endDate equals date for same-day shifts', () => {
       const event = makeEvent({
-        startAt:  '2026-07-09T02:00:00Z',
-        endAt:    '2026-07-09T07:00:00Z',
+        startAt: '2026-07-09T02:00:00Z',
+        endAt: '2026-07-09T07:00:00Z',
         timeZone: 'Australia/Sydney',
       });
-      const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+      const result = CalendarEventToShiftMapper.map(
+        event,
+        makeCalendar('Australia/Sydney'),
+      )!;
       expect(result.date).toBe('2026-07-09');
       expect(result.endDate).toBe('2026-07-09');
     });
@@ -470,19 +551,22 @@ describe('CalendarEventToShiftMapper', () => {
 // vs the old behaviour where timeZone was undefined and UTC was stored.
 
 describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
-  // After the Communications App fix, it now extracts X-WR-TIMEZONE and sets
+  // After the Relay App fix, it now extracts X-WR-TIMEZONE and sets
   // timeZone on each event before sending to Business App.
 
   it('21/07/2026 No Limit Boxing 1:00 PM – 6:00 PM AEST: stored as 13:00–18:00', () => {
     // LASSO ICS: DTSTART:20260721T030000Z  (03:00 UTC = 13:00 AEST UTC+10)
     //            DTEND:20260721T080000Z    (08:00 UTC = 18:00 AEST)
-    // Communications now emits timeZone: 'Australia/Sydney' from X-WR-TIMEZONE.
+    // Relay now emits timeZone: 'Australia/Sydney' from X-WR-TIMEZONE.
     const event = makeEvent({
-      startAt:  '2026-07-21T03:00:00Z',
-      endAt:    '2026-07-21T08:00:00Z',
+      startAt: '2026-07-21T03:00:00Z',
+      endAt: '2026-07-21T08:00:00Z',
       timeZone: 'Australia/Sydney',
     });
-    const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const result = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     expect(result.date).toBe('2026-07-21');
     expect(result.startTime).toBe('13:00');
     expect(result.endDate).toBe('2026-07-21');
@@ -492,11 +576,14 @@ describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
   it('22/07/2026 MCI|WCU 11:00 AM – 6:00 PM AEST: stored as 11:00–18:00', () => {
     // 11:00 AM AEST = 01:00 UTC; 6:00 PM AEST = 08:00 UTC
     const event = makeEvent({
-      startAt:  '2026-07-22T01:00:00Z',
-      endAt:    '2026-07-22T08:00:00Z',
+      startAt: '2026-07-22T01:00:00Z',
+      endAt: '2026-07-22T08:00:00Z',
       timeZone: 'Australia/Sydney',
     });
-    const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const result = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     expect(result.date).toBe('2026-07-22');
     expect(result.startTime).toBe('11:00');
     expect(result.endDate).toBe('2026-07-22');
@@ -506,11 +593,14 @@ describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
   it('overnight 10:00 PM–12:00 AM AEST: endDate is next day, endTime is 00:00', () => {
     // 10:00 PM AEST (22:00) = 12:00 UTC; midnight AEST = 14:00 UTC
     const event = makeEvent({
-      startAt:  '2026-07-21T12:00:00Z',
-      endAt:    '2026-07-21T14:00:00Z',
+      startAt: '2026-07-21T12:00:00Z',
+      endAt: '2026-07-21T14:00:00Z',
       timeZone: 'Australia/Sydney',
     });
-    const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const result = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     expect(result.date).toBe('2026-07-21');
     expect(result.startTime).toBe('22:00');
     expect(result.endDate).toBe('2026-07-22');
@@ -519,11 +609,14 @@ describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
 
   it('stored Shift values are NOT UTC (regression: previously 03:00 instead of 13:00)', () => {
     const event = makeEvent({
-      startAt:  '2026-07-21T03:00:00Z',
-      endAt:    '2026-07-21T08:00:00Z',
+      startAt: '2026-07-21T03:00:00Z',
+      endAt: '2026-07-21T08:00:00Z',
       timeZone: 'Australia/Sydney',
     });
-    const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const result = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     // Must not be raw UTC values
     expect(result.startTime).not.toBe('03:00');
     expect(result.endTime).not.toBe('08:00');
@@ -535,11 +628,14 @@ describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
   it('DST: January event in AEDT (UTC+11): 01:00Z → 12:00 local', () => {
     // Australia/Sydney in January = AEDT = UTC+11
     const event = makeEvent({
-      startAt:  '2026-01-21T01:00:00Z',
-      endAt:    '2026-01-21T07:00:00Z',
+      startAt: '2026-01-21T01:00:00Z',
+      endAt: '2026-01-21T07:00:00Z',
       timeZone: 'Australia/Sydney',
     });
-    const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const result = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     expect(result.date).toBe('2026-01-21');
     expect(result.startTime).toBe('12:00');
     expect(result.endTime).toBe('18:00');
@@ -549,11 +645,14 @@ describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
     // If conversion were applied twice, 13:00 AEST would become 23:00 or some
     // other wrong value. The bare-local-first priority prevents this.
     const event = makeEvent({
-      startAt:  '2026-07-21T13:00:00',   // bare local (recurring occurrence output)
-      endAt:    '2026-07-21T18:00:00',
+      startAt: '2026-07-21T13:00:00', // bare local (recurring occurrence output)
+      endAt: '2026-07-21T18:00:00',
       timeZone: 'Australia/Sydney',
     });
-    const result = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const result = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     // Bare local = extract directly; no Intl applied
     expect(result.startTime).toBe('13:00');
     expect(result.endTime).toBe('18:00');
@@ -563,12 +662,18 @@ describe('LASSO-pattern regression: UTC-Z + propagated calendarTz', () => {
 
   it('idempotent re-sync: running mapper twice produces the same result', () => {
     const event = makeEvent({
-      startAt:  '2026-07-21T03:00:00Z',
-      endAt:    '2026-07-21T08:00:00Z',
+      startAt: '2026-07-21T03:00:00Z',
+      endAt: '2026-07-21T08:00:00Z',
       timeZone: 'Australia/Sydney',
     });
-    const r1 = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
-    const r2 = CalendarEventToShiftMapper.map(event, makeCalendar('Australia/Sydney'))!;
+    const r1 = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
+    const r2 = CalendarEventToShiftMapper.map(
+      event,
+      makeCalendar('Australia/Sydney'),
+    )!;
     expect(r1.date).toBe(r2.date);
     expect(r1.startTime).toBe(r2.startTime);
     expect(r1.endTime).toBe(r2.endTime);
