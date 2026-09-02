@@ -1,52 +1,81 @@
-# Prod overrides for grapifly.com deployment.
-#   docker network create grapifly_net        # once, shared by every app + Caddy
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Grapifly ID — production (grapifly.com + id.grapifly.com)
+#   docker compose -f docker-compose.prod.yml up -d --build
 #
-# Requires Docker Compose v2.24+ for `!reset`. On older versions, delete the
-# `ports:` blocks from docker-compose.yml instead of overriding them here.
-
-networks:
-  grapifly_net:
-    external: true
+# Reverse proxy: Traefik on the external `grapifly_proxy` network
+# (entrypoint `websecure`, cert resolver `le`) — same pattern as jtrade.
+# Secrets: grapifly/backend/.env.prod  (gitignored, provided on the server).
 
 services:
+
   mongo:
-    # Do NOT expose the database on the host in prod.
-    ports: !reset []
+    image: mongo:7
+    container_name: grapifly_mongodb
+    restart: unless-stopped
+    volumes:
+      - grapifly_mongo_data:/data/db
+    # Internal only — no host port in prod.
 
   backend:
+    build:
+      context: ./backend
+    container_name: grapifly_backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    env_file:
+      - ./backend/.env.prod
     environment:
-      # Enables Secure cookies (grapifly_session etc.) — required in prod.
       NODE_ENV: production
-      # Browser-facing (CORS + redirects). Comma list allowed.
+      PORT: 3101
+      MONGODB_URI: mongodb://mongo:27017/grapifly_identity
+      # Browser-facing (CORS + SSO/redirect targets).
       FRONTEND_URL: https://grapifly.com
-      # Per-app public URLs written into the applications catalogue on boot.
       GRAPIFLY_APP_URL: https://grapifly.com
       RELAY_APP_URL: https://relay.grapifly.com
       BUSINESS_APP_URL: https://businessapp.grapifly.com
       JTRADE_APP_URL: https://jtrade.grapifly.com
-      # SSO callback URLs (owned by the central catalogue).
       RELAY_SSO_CALLBACK_URL: https://relay.grapifly.com/auth/grapifly/callback
       JTRADE_SSO_CALLBACK_URL: https://jtrade.grapifly.com/auth/grapifly/callback
-      # Google OAuth — must match Authorized redirect URI in Google Cloud Console.
       GOOGLE_CALLBACK_URL: https://id.grapifly.com/auth/google/callback
-      # Server-to-server — internal container name on the shared network.
-      RELAY_API_URL: http://relay_backend:3001
+      # Server-to-server (through Traefik).
+      RELAY_API_URL: https://api.relay.grapifly.com
     networks:
       - default
-      - grapifly_net
-    ports:
-      - "127.0.0.1:3101:3101"
+      - grapifly_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grapifly-id.rule=Host(`id.grapifly.com`)"
+      - "traefik.http.routers.grapifly-id.entrypoints=websecure"
+      - "traefik.http.routers.grapifly-id.tls=true"
+      - "traefik.http.routers.grapifly-id.tls.certresolver=le"
+      - "traefik.http.services.grapifly-id.loadbalancer.server.port=3101"
 
   frontend:
     build:
+      context: ./frontend
       args:
         NEXT_PUBLIC_ID_API_URL: https://id.grapifly.com
         NEXT_PUBLIC_JTRADE_URL: https://jtrade.grapifly.com
         NEXT_PUBLIC_BUSINESS_URL: https://businessapp.grapifly.com
         NEXT_PUBLIC_COMMUNICATIONS_URL: https://relay.grapifly.com
+    container_name: grapifly_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
     networks:
       - default
-      - grapifly_net
-    ports:
-      - "127.0.0.1:3100:3100"
+      - grapifly_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grapifly-web.rule=Host(`grapifly.com`) || Host(`www.grapifly.com`)"
+      - "traefik.http.routers.grapifly-web.entrypoints=websecure"
+      - "traefik.http.routers.grapifly-web.tls=true"
+      - "traefik.http.routers.grapifly-web.tls.certresolver=le"
+      - "traefik.http.services.grapifly-web.loadbalancer.server.port=3100"
+
+networks:
+  grapifly_proxy:
+    external: true
+
+volumes:
+  grapifly_mongo_data:

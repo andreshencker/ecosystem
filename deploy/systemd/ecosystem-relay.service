@@ -1,0 +1,16 @@
+[Unit]
+Description=Ecosystem - relay (relay.grapifly.com, api.relay.grapifly.com)
+Requires=docker.service
+After=docker.service network-online.target ecosystem-grapifly.service
+PartOf=ecosystem.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=__ECOSYSTEM_ROOT__/relay
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=ecosystem.target

@@ -1,3 +1,13 @@
+# jtrade — production (jtrade.grapifly.com)
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Reverse proxy: Traefik on the external `grapifly_proxy` network.
+# The frontend image is nginx serving the SPA and proxying /backend and
+# /orchestrator internally, so jtrade needs a single Traefik router.
+# MongoDB is NOT in this stack — jtrade uses an external / managed Mongo
+# (set MONGODB_URI in backend/.env.prod).
+# Secrets: jtrade/backend/.env.prod, jtrade/orchestrator/.env.prod (gitignored).
+
 services:
 
   orchestrator:
@@ -8,6 +18,7 @@ services:
     container_name: orchestrator
     env_file: ./orchestrator/.env.prod
     restart: unless-stopped
+    networks: [default]
 
   backend:
     build:
@@ -16,14 +27,25 @@ services:
         NODE_ENV: prod
     container_name: backend
     env_file: ./backend/.env.prod
+    environment:
+      CONTEXT_PATH: /backend
+      # Browser-facing.
+      ALLOWED_ORIGINS: https://jtrade.grapifly.com
+      GRAPIFLY_FRONTEND_URL: https://grapifly.com
+      FRONTEND_BASE_URL: https://jtrade.grapifly.com
+      JTRADE_PUBLIC_API_URL: https://jtrade.grapifly.com/backend
+      # Server-to-server (through Traefik).
+      GRAPIFLY_ID_API_URL: https://id.grapifly.com
+      RELAY_API_URL: https://api.relay.grapifly.com
     restart: unless-stopped
+    networks: [default]
 
 #  communication:
 #    build:
 #      context: ./communication
 #      args:
 #        NODE_ENV: prod
-#    container_name: communication
+#    container_name: jtrade_communication
 #    env_file: ./communication/.env.prod
 #    restart: unless-stopped
 
@@ -32,29 +54,26 @@ services:
       context: ./frontend
       args:
         NODE_ENV: prod
+        VITE_API_BASE: https://jtrade.grapifly.com/backend
+        VITE_GRAPIFLY_ID_URL: https://id.grapifly.com
+        VITE_GRAPIFLY_WEB_URL: https://grapifly.com
     container_name: frontend
     depends_on:
       - backend
       - orchestrator
 #      - communication
     restart: unless-stopped
-
     networks:
       - default
       - grapifly_proxy
-
     labels:
       - "traefik.enable=true"
-
       - "traefik.http.routers.jtrade-frontend.rule=Host(`jtrade.grapifly.com`)"
       - "traefik.http.routers.jtrade-frontend.entrypoints=websecure"
       - "traefik.http.routers.jtrade-frontend.tls=true"
       - "traefik.http.routers.jtrade-frontend.tls.certresolver=le"
-
       - "traefik.http.services.jtrade-frontend.loadbalancer.server.port=80"
 
-
 networks:
-
   grapifly_proxy:
     external: true

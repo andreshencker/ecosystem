@@ -1,0 +1,7 @@
+[Unit]
+Description=Grapifly ecosystem (all apps)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Install]
+WantedBy=multi-user.target

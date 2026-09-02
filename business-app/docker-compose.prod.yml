@@ -1,39 +1,116 @@
-# Prod overrides for businessapp.grapifly.com deployment.
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Business — production (businessapp.grapifly.com + api.businessapp.grapifly.com)
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Reverse proxy: Traefik on the external `grapifly_proxy` network.
+# Secrets: business-app/backend/.env.prod, business-app/business-intelligence/.env.prod
+#          (gitignored, provided on the server).
 
-networks:
-  grapifly_net:
-    external: true
+name: business-app
 
 services:
+
   redis:
-    ports: !reset []
+    image: redis:7-alpine
+    container_name: business_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --appendonly yes
+    volumes:
+      - business_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [business_internal]
 
   bi:
-    # Internal only — reached by the backend over the compose network.
-    ports: !reset []
+    build:
+      context: ./business-intelligence
+      dockerfile: Dockerfile
+    image: business-app-bi:prod
+    container_name: business_bi
+    restart: unless-stopped
+    env_file:
+      - ./business-intelligence/.env.prod
+    environment:
+      PORT: 8000
+      MONGO_DATABASE: business_app_db
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks: [business_internal]
 
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: business-app-backend:prod
+    container_name: business_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.prod
     environment:
+      NODE_ENV: production
+      PORT: 3004
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BI_SERVICE_URL: http://bi:8000
       # Browser-facing.
       FRONTEND_BASE_URL: https://businessapp.grapifly.com
       APP_BASE_URL: https://businessapp.grapifly.com
       ALLOWED_ORIGINS: https://businessapp.grapifly.com
-      # Server-to-server.
-      RELAY_API_URL: http://relay_backend:3001
+      # Server-to-server (through Traefik).
+      RELAY_API_URL: https://api.relay.grapifly.com
+    depends_on:
+      redis:
+        condition: service_healthy
+      bi:
+        condition: service_started
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     networks:
       - business_internal
-      - grapifly_net
-    ports:
-      - "127.0.0.1:3004:3004"
+      - grapifly_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.business-api.rule=Host(`api.businessapp.grapifly.com`)"
+      - "traefik.http.routers.business-api.entrypoints=websecure"
+      - "traefik.http.routers.business-api.tls=true"
+      - "traefik.http.routers.business-api.tls.certresolver=le"
+      - "traefik.http.services.business-api.loadbalancer.server.port=3004"
 
   frontend:
     build:
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://api.businessapp.grapifly.com
         NEXT_PUBLIC_APP_ENV: production
+    image: business-app-frontend:prod
+    container_name: business_frontend
+    restart: unless-stopped
+    environment:
+      PORT: 3005
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      backend:
+        condition: service_started
     networks:
       - business_internal
-      - grapifly_net
-    ports:
-      - "127.0.0.1:3005:3005"
+      - grapifly_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.business-web.rule=Host(`businessapp.grapifly.com`)"
+      - "traefik.http.routers.business-web.entrypoints=websecure"
+      - "traefik.http.routers.business-web.tls=true"
+      - "traefik.http.routers.business-web.tls.certresolver=le"
+      - "traefik.http.services.business-web.loadbalancer.server.port=3005"
+
+networks:
+  business_internal:
+    name: business_internal
+  grapifly_proxy:
+    external: true
+
+volumes:
+  business_redis_data:
+    name: business_redis_data
