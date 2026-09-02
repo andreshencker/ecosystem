@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Self-heal if invoked as `sh deploy.sh` (dash has no arrays / BASH_SOURCE).
+if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 #
 # Ecosystem production deploy.
 #
