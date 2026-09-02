@@ -1,78 +1,60 @@
-# jtrade — production stack for jtrade.grapifly.com
-#
-#   docker network create grapifly_net      # once, shared by every app + Caddy
-#   docker compose -f docker-compose.prod.yml up -d --build
-#
-# The repo had no compose for jtrade; this is the reference stack. If you already
-# run jtrade with your own compose on the server, port the env values below.
-#
-# The frontend image is nginx serving the SPA and reverse-proxying /backend to
-# the backend container (frontend/nginx/nginx.prod.conf).
-
-name: jtrade
-
-networks:
-  jtrade_internal:
-    name: jtrade_internal
-  grapifly_net:
-    external: true
-
-volumes:
-  jtrade_mongo_data:
-    name: jtrade_mongo_data
-
 services:
-  mongo:
-    image: mongo:7
-    container_name: jtrade_mongodb
+
+  orchestrator:
+    build:
+      context: ./orchestrator
+      args:
+        NODE_ENV: prod
+    container_name: orchestrator
+    env_file: ./orchestrator/.env.prod
     restart: unless-stopped
-    volumes:
-      - jtrade_mongo_data:/data/db
-    networks: [jtrade_internal]
-    # No host port in prod.
 
   backend:
     build:
       context: ./backend
-    image: jtrade-backend:local
-    container_name: jtrade_backend
+      args:
+        NODE_ENV: prod
+    container_name: backend
+    env_file: ./backend/.env.prod
     restart: unless-stopped
-    depends_on: [mongo]
-    env_file:
-      - ./backend/.env.prod
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      CONTEXT_PATH: /backend
-      MONGODB_URI: mongodb://mongo:27017/jtrade
-      # Browser-facing.
-      ALLOWED_ORIGINS: https://jtrade.grapifly.com
-      GRAPIFLY_FRONTEND_URL: https://grapifly.com
-      FRONTEND_BASE_URL: https://jtrade.grapifly.com
-      JTRADE_PUBLIC_API_URL: https://jtrade.grapifly.com/backend
-      # Server-to-server — internal container names on the shared network.
-      GRAPIFLY_ID_API_URL: http://grapifly_backend:3101
-      RELAY_API_URL: http://relay_backend:3001
-    networks: [jtrade_internal, grapifly_net]
-    ports:
-      - "127.0.0.1:3202:3002"
 
-  # NOTE: the legacy orchestrator (jtrade/orchestrator/) is kept in the repo for
-  # reference but is not deployed — its logic now lives in the signalbots module
-  # and nothing calls it. Add it back here only if you re-enable that path.
+#  communication:
+#    build:
+#      context: ./communication
+#      args:
+#        NODE_ENV: prod
+#    container_name: communication
+#    env_file: ./communication/.env.prod
+#    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       args:
         NODE_ENV: prod
-        VITE_API_BASE: https://jtrade.grapifly.com/backend
-        VITE_GRAPIFLY_ID_URL: https://id.grapifly.com
-        VITE_GRAPIFLY_WEB_URL: https://grapifly.com
-    image: jtrade-frontend:local
-    container_name: jtrade_frontend
+    container_name: frontend
+    depends_on:
+      - backend
+      - orchestrator
+#      - communication
     restart: unless-stopped
-    depends_on: [backend]
-    networks: [jtrade_internal, grapifly_net]
-    ports:
-      - "127.0.0.1:8173:80"
+
+    networks:
+      - default
+      - grapifly_proxy
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.jtrade-frontend.rule=Host(`jtrade.grapifly.com`)"
+      - "traefik.http.routers.jtrade-frontend.entrypoints=websecure"
+      - "traefik.http.routers.jtrade-frontend.tls=true"
+      - "traefik.http.routers.jtrade-frontend.tls.certresolver=le"
+
+      - "traefik.http.services.jtrade-frontend.loadbalancer.server.port=80"
+
+
+networks:
+
+  grapifly_proxy:
+    external: true

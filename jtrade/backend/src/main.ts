@@ -33,6 +33,8 @@ async function bootstrap() {
     'http://localhost:8080',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:8080',
+    'https://jtrade.grapifly.com',
+    'http://jtrade.grapifly.com',
     ...(config.get<string>('ALLOWED_ORIGINS') ?? '')
       .split(',')
       .map((o) => o.trim())
