@@ -13,6 +13,7 @@ import { IndicatorsModule } from './core/indicators/indicators.module';
 import { SymbolsModule } from './core/symbols/symbols.module';
 import { SignalsModule } from './core/signals/signals.module';
 import { SignalbotsModule } from './core/signalbots/signalbots.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SignalbotsModule } from './core/signalbots/signalbots.module';
     SymbolsModule,
     SignalsModule,
     SignalbotsModule,
+    OnboardingModule,
     GrapiflyIntegrationModule,
   ],
   providers: [],
