@@ -22,9 +22,9 @@ export class CreateConnectedPaymentAccountDto {
 }
 
 export class CreateConnectOnboardingDto {
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   refreshUrl!: string;
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   returnUrl!: string;
 }
 
@@ -36,9 +36,9 @@ export class CreateConnectCheckoutDto {
   @IsInt() @Min(1) amountMinor!: number;
   @IsInt() @Min(0) applicationFeeMinor!: number;
   @IsString() @Matches(/^[A-Za-z]{3}$/) currency!: string;
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   successUrl!: string;
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   cancelUrl!: string;
   @IsOptional() @IsString() @MaxLength(240) description?: string;
   @IsOptional() @IsObject() metadata?: Record<string, string>;

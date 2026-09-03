@@ -93,6 +93,7 @@ export class PaymentsOnboardingService {
     providerOrganizationId: string,
     method: string,
     dto: StartMethodDto,
+    actorEmail?: string,
   ): Promise<{ onboardingUrl: string; status: string; resumed: boolean }> {
     const onboarding = this.methods.get(method);
     if (!onboarding) throw new NotFoundException(`Unknown method "${method}"`);
@@ -127,7 +128,7 @@ export class PaymentsOnboardingService {
       const started = await onboarding.start({
         providerOrganizationId,
         country: dto.country,
-        email: dto.email,
+        email: dto.email ?? actorEmail,
         businessName: dto.businessName,
       });
       await this.model.create({

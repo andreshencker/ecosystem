@@ -11,6 +11,7 @@ import {
     ListItem,
     ListItemText,
     Stack,
+    TextField,
     Typography,
 } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
@@ -57,6 +58,7 @@ function StatusChip({ status }: { status: PaymentMethodStatus }) {
 
 export default function ProviderPayoutsPage() {
     const [params, setParams] = useSearchParams();
+    const [country, setCountry] = React.useState("");
     const status = usePaymentsOnboardingStatus();
     const start = useStartPaymentMethod();
     const refresh = useRefreshPaymentMethod();
@@ -74,12 +76,15 @@ export default function ProviderPayoutsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const goToGateway = (method: string) => {
-        start.mutate(method, {
-            onSuccess: (res) => {
-                window.location.href = res.onboardingUrl;
+    const goToGateway = (method: string, extra?: { country?: string }) => {
+        start.mutate(
+            { method, ...extra },
+            {
+                onSuccess: (res) => {
+                    window.location.href = res.onboardingUrl;
+                },
             },
-        });
+        );
     };
 
     const data = status.data;
@@ -121,13 +126,27 @@ export default function ProviderPayoutsPage() {
                                         Connect a Stripe account to receive payouts. Stripe will ask for your
                                         identity, a bank account and tax details.
                                     </Typography>
-                                    <LoadingButton
-                                        variant="contained"
-                                        loading={busy}
-                                        onClick={() => goToGateway("stripe")}
-                                    >
-                                        Set up Stripe
-                                    </LoadingButton>
+                                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                                        <TextField
+                                            label="Country"
+                                            size="small"
+                                            required
+                                            value={country}
+                                            onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0, 2))}
+                                            placeholder="US"
+                                            helperText="2-letter code — cannot be changed later"
+                                            sx={{ width: 160 }}
+                                        />
+                                        <LoadingButton
+                                            variant="contained"
+                                            loading={busy}
+                                            disabled={country.length !== 2}
+                                            onClick={() => goToGateway("stripe", { country })}
+                                            sx={{ mt: 0.5 }}
+                                        >
+                                            Set up Stripe
+                                        </LoadingButton>
+                                    </Stack>
                                 </>
                             )}
 

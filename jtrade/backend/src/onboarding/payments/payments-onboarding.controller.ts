@@ -35,6 +35,7 @@ export class PaymentsOnboardingController {
       req.user.organizationId,
       method.toLowerCase(),
       dto,
+      req.user.email,
     );
   }
 

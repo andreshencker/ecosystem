@@ -24,14 +24,20 @@ export function usePaymentsOnboardingStatus() {
     });
 }
 
+export interface StartMethodArgs {
+    method: string;
+    country?: string;
+    businessName?: string;
+}
+
 /** Starts (or resumes) a method's configuration and returns the URL to redirect to. */
 export function useStartPaymentMethod() {
-    return useMutation<StartMethodResult, unknown, string>({
-        mutationFn: (method: string) =>
+    return useMutation<StartMethodResult, unknown, StartMethodArgs>({
+        mutationFn: ({ method, ...body }: StartMethodArgs) =>
             api
                 .post<Envelope<StartMethodResult>>(
                     `${BASE}/methods/${method}/start`,
-                    {},
+                    body,
                 )
                 .then((r) => r.data.data),
         onError: (err) =>
