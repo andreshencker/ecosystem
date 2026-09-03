@@ -30,7 +30,9 @@ export interface MethodOnboarding {
 
 export interface StartMethodInput {
   providerOrganizationId: string;
-  /** ISO-2 country — some gateways need it up front and cannot change it later. */
+  /** Relay payment connection to use — resolved by the orchestrator from admin config. */
+  relayConnectionId: string;
+  /** ISO-2 country — resolved by the orchestrator from admin settings + provider choice. */
   country?: string;
   email?: string;
   businessName?: string;

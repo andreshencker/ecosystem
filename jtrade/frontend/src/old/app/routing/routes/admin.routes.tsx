@@ -8,6 +8,7 @@ const AdminDashboard = lazy(() => import("@/old/app/common/pages/admin/admindash
 const ProductsPage = lazy(() => import("@/pages/products/ProductsPage"));
 const PlatformsPage = lazy(() => import("@/pages/platforms/PlatformsPage"));
 const ProductTypesPage = lazy(() => import("@/pages/product-types/ProductTypesPage"));
+const AdminPaymentsPage = lazy(() => import("@/pages/admin/AdminPaymentsPage"));
 const NotFound = lazy(() => import("@/old/app/common/pages/not-found"));
 
 export const adminRoutes: RouteObject[] = [{
@@ -19,6 +20,7 @@ export const adminRoutes: RouteObject[] = [{
         { path: "products", element: <ProductsPage review/> },
         { path: "platforms", element: <PlatformsPage/> },
         { path: "product-types", element: <ProductTypesPage/> },
+        { path: "payments", element: <AdminPaymentsPage/> },
         { path: "*", element: <NotFound/> },
     ],
 }];

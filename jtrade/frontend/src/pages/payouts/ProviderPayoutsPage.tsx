@@ -10,6 +10,7 @@ import {
     List,
     ListItem,
     ListItemText,
+    MenuItem,
     Stack,
     TextField,
     Typography,
@@ -91,6 +92,8 @@ export default function ProviderPayoutsPage() {
     const stripe = data?.methods.find((m) => m.method === data.baseMethod);
     const extras = data?.methods.filter((m) => !m.isBase) ?? [];
     const busy = start.isPending || refresh.isPending;
+    const countryChoices = data?.requiredCountryChoice ?? [];
+    const needsCountry = countryChoices.length > 0;
 
     return (
         <>
@@ -107,7 +110,14 @@ export default function ProviderPayoutsPage() {
                 />
             )}
 
-            {data && (
+            {data && !data.configReady && (
+                <Alert severity="info" sx={{ maxWidth: 640 }}>
+                    Payment methods aren't set up yet. An administrator needs to configure
+                    them before you can connect your payouts.
+                </Alert>
+            )}
+
+            {data && data.configReady && (
                 <Stack spacing={2} maxWidth={640}>
                     {/* ── Stripe — the mandatory base ───────────────────────── */}
                     <Card variant="outlined">
@@ -127,21 +137,29 @@ export default function ProviderPayoutsPage() {
                                         identity, a bank account and tax details.
                                     </Typography>
                                     <Stack direction="row" spacing={1} alignItems="flex-start">
-                                        <TextField
-                                            label="Country"
-                                            size="small"
-                                            required
-                                            value={country}
-                                            onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0, 2))}
-                                            placeholder="US"
-                                            helperText="2-letter code — cannot be changed later"
-                                            sx={{ width: 160 }}
-                                        />
+                                        {needsCountry && (
+                                            <TextField
+                                                select
+                                                label="Country"
+                                                size="small"
+                                                required
+                                                value={country}
+                                                onChange={(e) => setCountry(e.target.value)}
+                                                helperText="Cannot be changed later"
+                                                sx={{ width: 200 }}
+                                            >
+                                                {countryChoices.map((c) => (
+                                                    <MenuItem key={c} value={c}>{c}</MenuItem>
+                                                ))}
+                                            </TextField>
+                                        )}
                                         <LoadingButton
                                             variant="contained"
                                             loading={busy}
-                                            disabled={country.length !== 2}
-                                            onClick={() => goToGateway("stripe", { country })}
+                                            disabled={needsCountry && !country}
+                                            onClick={() =>
+                                                goToGateway("stripe", needsCountry ? { country } : undefined)
+                                            }
                                             sx={{ mt: 0.5 }}
                                         >
                                             Set up Stripe

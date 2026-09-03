@@ -20,7 +20,11 @@ export interface PaymentsOnboardingStatus {
     baseMethod: string;
     baseStatus: PaymentMethodStatus | null;
     baseComplete: boolean;
+    /** false when the admin hasn't finished configuring the required method. */
+    configReady: boolean;
     canAddMore: boolean;
+    /** [] = no country choice needed, [..] = provider picks one. */
+    requiredCountryChoice: string[];
     methods: ProviderPaymentMethod[];
     availableToAdd: AvailableMethod[];
 }

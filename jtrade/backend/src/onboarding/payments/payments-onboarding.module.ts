@@ -7,18 +7,24 @@ import {
   ProviderPayment,
   ProviderPaymentSchema,
 } from './schemas/provider-payment.schema';
+import {
+  PaymentMethodConfig,
+  PaymentMethodConfigSchema,
+} from './config/schemas/payment-method-config.schema';
 import { RelayPaymentsClient } from './relay-payments.client';
 import { PaymentsCatalogService } from './payments-catalog.service';
 import { StripeOnboardingService } from './stripe/stripe-onboarding.service';
 import { PaymentsOnboardingService } from './payments-onboarding.service';
 import { PaymentsOnboardingController } from './payments-onboarding.controller';
+import { PaymentsAdminService } from './config/payments-admin.service';
+import { PaymentsAdminController } from './config/payments-admin.controller';
 
 /**
  * `onboarding/payments/` — a provider's payment methods.
  *
- * Each method's flow lives in its own folder (`stripe/`, later `coingate/`…)
- * and implements the same contract. This module only wires them together and
- * exposes the provider-facing endpoints.
+ *   config/   → admin curates which methods jtrade offers + their settings
+ *   stripe/   → the Stripe Connect flow (+ its admin settings)
+ *   coingate/ → later, same contract
  */
 @Module({
   imports: [
@@ -26,14 +32,16 @@ import { PaymentsOnboardingController } from './payments-onboarding.controller';
     AuthModule,
     MongooseModule.forFeature([
       { name: ProviderPayment.name, schema: ProviderPaymentSchema },
+      { name: PaymentMethodConfig.name, schema: PaymentMethodConfigSchema },
     ]),
   ],
-  controllers: [PaymentsOnboardingController],
+  controllers: [PaymentsOnboardingController, PaymentsAdminController],
   providers: [
     RelayPaymentsClient,
     PaymentsCatalogService,
     StripeOnboardingService,
     PaymentsOnboardingService,
+    PaymentsAdminService,
   ],
   exports: [PaymentsOnboardingService],
 })

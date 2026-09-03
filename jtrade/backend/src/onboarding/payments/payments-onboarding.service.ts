@@ -12,83 +12,122 @@ import {
   ProviderPayment,
   ProviderPaymentDocument,
 } from './schemas/provider-payment.schema';
+import {
+  PaymentMethodConfig,
+  PaymentMethodConfigDocument,
+} from './config/schemas/payment-method-config.schema';
 import type { MethodOnboarding } from './contracts/method-onboarding.contract';
+import type { MethodConfigurable } from './contracts/method-settings.contract';
 import type { StartMethodDto } from './dto/payments-onboarding.dto';
-import { PaymentsCatalogService } from './payments-catalog.service';
-import type { RelayProvider } from './relay-payments.client';
 import { StripeOnboardingService } from './stripe/stripe-onboarding.service';
 
-/** Stripe is the mandatory base method for every jtrade provider. */
-const BASE_METHOD = 'stripe';
+/** Used only when the admin hasn't configured anything yet. */
+const FALLBACK_REQUIRED_METHOD = 'stripe';
 
 /**
- * The orchestrator. It does not know what Stripe or CoinGate are — it reads
- * `provider_payments`, routes to the right method folder, and persists the
- * result. It also owns jtrade's rules around the methods (Stripe first, then
- * the rest). It never decides whether a provider can sell — that belongs to
- * whoever combines this with the provider/product onboardings.
+ * The orchestrator. Reads the admin's payment config + `provider_payments`,
+ * routes to the right method folder, persists the result. It owns jtrade's
+ * rules (which method is required, which are offered). It never decides
+ * whether a provider can sell.
  */
 @Injectable()
 export class PaymentsOnboardingService {
   private readonly log = new Logger(PaymentsOnboardingService.name);
   private readonly methods = new Map<string, MethodOnboarding>();
+  private readonly configurable = new Map<string, MethodConfigurable>();
 
   constructor(
     @InjectModel(ProviderPayment.name)
     private readonly model: Model<ProviderPaymentDocument>,
-    private readonly catalog: PaymentsCatalogService,
+    @InjectModel(PaymentMethodConfig.name)
+    private readonly configModel: Model<PaymentMethodConfigDocument>,
     private readonly config: ConfigService,
     stripe: StripeOnboardingService,
   ) {
-    this.register(stripe);
+    this.methods.set(stripe.method, stripe);
+    this.configurable.set(stripe.method, stripe);
   }
 
-  private register(method: MethodOnboarding) {
-    this.methods.set(method.method, method);
+  // ─── admin config lookup ─────────────────────────────────────────────────
+
+  private async enabledMethods() {
+    return this.configModel
+      .find({ enabled: true })
+      .sort({ displayOrder: 1, method: 1 })
+      .lean();
+  }
+
+  private async requiredMethod(): Promise<string> {
+    const req = await this.configModel
+      .findOne({ enabled: true, isRequired: true })
+      .lean();
+    return req?.method ?? FALLBACK_REQUIRED_METHOD;
+  }
+
+  private async methodConfig(method: string) {
+    return this.configModel.findOne({ method }).lean();
   }
 
   // ─── read ────────────────────────────────────────────────────────────────
 
-  /** Everything the provider's "Payouts" screen needs. */
   async getStatus(providerOrganizationId: string) {
-    const rows = await this.model
-      .find({ providerOrganizationId })
-      .sort({ isBase: -1, createdAt: 1 })
-      .lean();
+    const [rows, enabled, requiredMethod] = await Promise.all([
+      this.model
+        .find({ providerOrganizationId })
+        .sort({ isBase: -1, createdAt: 1 })
+        .lean(),
+      this.enabledMethods(),
+      this.requiredMethod(),
+    ]);
 
-    const base = rows.find((r) => r.method === BASE_METHOD);
+    const base = rows.find((r) => r.method === requiredMethod);
     const baseComplete = base?.status === 'complete';
-
     const configured = new Set(rows.map((r) => r.method));
-    const catalogue: RelayProvider[] = await this.catalog
-      .listMethods()
-      .catch(() => [] as RelayProvider[]);
+
+    const baseCfg = enabled.find((c) => c.method === requiredMethod);
+    // Required method not offered / not configured by the admin yet.
+    const configReady = !!baseCfg && this.settingsUsable(requiredMethod, baseCfg.settings);
 
     return {
-      baseMethod: BASE_METHOD,
+      baseMethod: requiredMethod,
       baseStatus: base?.status ?? null,
       baseComplete,
-      /** other methods can only be added once the base is complete */
+      configReady,
       canAddMore: baseComplete,
       methods: rows.map((r) => this.toDto(r)),
+      requiredCountryChoice: this.countryChoice(requiredMethod, baseCfg?.settings),
       availableToAdd: baseComplete
-        ? catalogue
-            .filter((m) => !configured.has(m.providerKey))
-            .map((m) => ({
-              method: m.providerKey,
-              displayName: m.displayName,
-              description: m.description ?? '',
+        ? enabled
+            .filter((c) => c.method !== requiredMethod && !configured.has(c.method))
+            .map((c) => ({
+              method: c.method,
+              displayName: c.displayName || c.method,
             }))
         : [],
     };
   }
 
+  private settingsUsable(method: string, settings: unknown) {
+    const spec = this.configurable.get(method);
+    if (!spec) return true;
+    try {
+      spec.validateSettings((settings ?? {}) as Record<string, unknown>);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** For the provider form: [] = no choice needed, [..] = pick one. */
+  private countryChoice(method: string, settings: unknown): string[] {
+    const list = (settings as { allowedCountries?: unknown } | undefined)
+      ?.allowedCountries;
+    if (!Array.isArray(list) || list.length <= 1) return [];
+    return list.map((c) => String(c));
+  }
+
   // ─── write ───────────────────────────────────────────────────────────────
 
-  /**
-   * "Configure this method" — the button the provider presses. Starts a fresh
-   * flow, or resumes an unfinished one, and returns the URL to send them to.
-   */
   async startMethod(
     providerOrganizationId: string,
     method: string,
@@ -98,22 +137,28 @@ export class PaymentsOnboardingService {
     const onboarding = this.methods.get(method);
     if (!onboarding) throw new NotFoundException(`Unknown method "${method}"`);
 
-    if (method !== BASE_METHOD) {
+    const requiredMethod = await this.requiredMethod();
+    const cfg = await this.methodConfig(method);
+
+    // The method must be offered (fallback: the required method may run before
+    // the admin has saved anything).
+    const offered = cfg?.enabled || method === requiredMethod;
+    if (!offered) {
+      throw new ConflictException(`"${method}" is not available`);
+    }
+
+    if (method !== requiredMethod) {
       const base = await this.model
-        .findOne({ providerOrganizationId, method: BASE_METHOD })
+        .findOne({ providerOrganizationId, method: requiredMethod })
         .lean();
       if (base?.status !== 'complete') {
         throw new ConflictException(
-          'Configure Stripe before adding another payment method',
+          `Configure ${requiredMethod} before adding another payment method`,
         );
       }
     }
 
-    const existing = await this.model.findOne({
-      providerOrganizationId,
-      method,
-    });
-
+    const existing = await this.model.findOne({ providerOrganizationId, method });
     if (existing?.status === 'complete') {
       throw new ConflictException(`"${method}" is already configured`);
     }
@@ -125,9 +170,13 @@ export class PaymentsOnboardingService {
       relayAccountId = existing.relayAccountId;
       resumed = true;
     } else {
+      const relayConnectionId = await this.resolveConnectionId(method, cfg);
+      const country = this.resolveCountry(method, cfg?.settings, dto.country);
+
       const started = await onboarding.start({
         providerOrganizationId,
-        country: dto.country,
+        relayConnectionId,
+        country,
         email: dto.email ?? actorEmail,
         businessName: dto.businessName,
       });
@@ -140,7 +189,7 @@ export class PaymentsOnboardingService {
         status: started.state.status,
         requirementsDue: started.state.requirementsDue,
         disabledReason: started.state.disabledReason,
-        isBase: method === BASE_METHOD,
+        isBase: method === requiredMethod,
         lastCheckedAt: new Date(),
       });
       relayAccountId = started.relayAccountId;
@@ -155,14 +204,9 @@ export class PaymentsOnboardingService {
     const row = await this.model
       .findOne({ providerOrganizationId, method })
       .lean();
-    return {
-      onboardingUrl: link.url,
-      status: row?.status ?? 'pending',
-      resumed,
-    };
+    return { onboardingUrl: link.url, status: row?.status ?? 'pending', resumed };
   }
 
-  /** Ask Relay for the latest state and update the row. */
   async refreshMethod(providerOrganizationId: string, method: string) {
     const onboarding = this.methods.get(method);
     if (!onboarding) throw new NotFoundException(`Unknown method "${method}"`);
@@ -185,6 +229,29 @@ export class PaymentsOnboardingService {
   }
 
   // ─── helpers ─────────────────────────────────────────────────────────────
+
+  private async resolveConnectionId(
+    method: string,
+    cfg: PaymentMethodConfig | null,
+  ): Promise<string> {
+    if (cfg?.relayConnectionId) return cfg.relayConnectionId;
+    throw new ConflictException(
+      `${method} payouts are not configured — ask an administrator.`,
+    );
+  }
+
+  private resolveCountry(
+    method: string,
+    settings: unknown,
+    providerChoice?: string,
+  ): string | undefined {
+    const spec = this.configurable.get(method);
+    if (!spec) return providerChoice;
+    return spec.resolveCountry(
+      (settings ?? {}) as Record<string, unknown>,
+      providerChoice,
+    );
+  }
 
   private buildUrls(method: string) {
     const base = (
