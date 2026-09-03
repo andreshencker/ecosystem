@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -8,6 +9,7 @@ import { ApplicationAssignmentsModule } from '../access/application-assignments.
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleStrategy } from './google.strategy';
+import { RelayGoogleCredentialsService } from './relay-google-credentials.service';
 import { SessionGuard } from './session.guard';
 import { GoogleAuthGuard } from './google-auth.guard';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -36,6 +38,7 @@ import { PlatformAdmin, PlatformAdminSchema } from '../admin/schemas/platform-ad
       { name: PlatformAdmin.name, schema: PlatformAdminSchema },
     ]),
     PassportModule,
+    HttpModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -45,7 +48,38 @@ import { PlatformAdmin, PlatformAdminSchema } from '../admin/schemas/platform-ad
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy, GoogleAuthGuard, SessionGuard],
+  providers: [
+    AuthService,
+    RelayGoogleCredentialsService,
+    // The Google client id/secret come from Relay's OAuth-application store
+    // (platform company's "google" registration) resolved once at startup,
+    // falling back to GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars.
+    {
+      provide: GoogleStrategy,
+      inject: [RelayGoogleCredentialsService, ConfigService],
+      useFactory: async (
+        relayCreds: RelayGoogleCredentialsService,
+        config: ConfigService,
+      ) => {
+        const relay = await relayCreds.getGoogleClient();
+        return new GoogleStrategy({
+          clientID:
+            relay?.clientId ??
+            config.get<string>('GOOGLE_CLIENT_ID') ??
+            'configure-google-client-id',
+          clientSecret:
+            relay?.clientSecret ??
+            config.get<string>('GOOGLE_CLIENT_SECRET') ??
+            'configure-google-client-secret',
+          callbackURL:
+            config.get<string>('GOOGLE_CALLBACK_URL') ??
+            'http://localhost:3101/auth/google/callback',
+        });
+      },
+    },
+    GoogleAuthGuard,
+    SessionGuard,
+  ],
   exports: [SessionGuard, JwtModule],
 })
 export class AuthModule {}

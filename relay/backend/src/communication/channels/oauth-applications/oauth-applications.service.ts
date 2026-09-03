@@ -180,4 +180,35 @@ export class OAuthApplicationsService {
       clientSecret: decrypted.clientSecret,
     };
   }
+
+  /**
+   * Reads and decrypts the *platform* company's OAuth app for a provider
+   * family (e.g. Grapifly asking Relay for the shared Google login
+   * credentials so they don't have to be duplicated into Grapifly's env).
+   * Returns null when the platform company has no such app registered.
+   */
+  async readPlatformDecrypted(
+    providerFamily: string,
+  ): Promise<{ clientId: string; clientSecret: string } | null> {
+    const platformCompanyId = await this.getPlatformCompanyId();
+    if (!platformCompanyId) return null;
+
+    const doc = await this.model
+      .findOne({
+        companyId: platformCompanyId,
+        providerFamily: providerFamily.toLowerCase().trim(),
+        isActive: true,
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (!doc) return null;
+
+    const decrypted = this.crypto.decryptJson((doc as any).encryptedSecret) as {
+      clientSecret: string;
+    };
+    return {
+      clientId: (doc as any).clientId,
+      clientSecret: decrypted.clientSecret,
+    };
+  }
 }

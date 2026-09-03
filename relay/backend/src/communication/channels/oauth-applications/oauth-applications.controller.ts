@@ -3,9 +3,12 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
+  NotFoundException,
+  Param,
   Post,
   Query,
   UnauthorizedException,
@@ -77,6 +80,33 @@ export class OAuthApplicationsController {
       'relay.use',
     );
     return this.service.findAllForCompany({ companyId, providerFamily });
+  }
+
+  // GET /oauth-applications/platform/:providerFamily/credentials
+  @Get('platform/:providerFamily/credentials')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Platform OAuth app credentials (Grapifly service-to-service only)',
+    description:
+      "Returns the decrypted clientId/clientSecret of the platform company's " +
+      'OAuth application for a provider family (e.g. "google"). Lets Grapifly ' +
+      'source its Google login credentials from Relay instead of its own env. ' +
+      'Only callable with a valid x-grapifly-service-secret.',
+  })
+  async platformCredentials(
+    @CurrentUser() ctx: AuthContext,
+    @Param('providerFamily') providerFamily: string,
+  ): Promise<{ clientId: string; clientSecret: string }> {
+    if (ctx.actorType !== 'apikey' || ctx.keyId !== 'grapifly-service') {
+      throw new ForbiddenException('grapifly service credentials required');
+    }
+    const creds = await this.service.readPlatformDecrypted(providerFamily);
+    if (!creds) {
+      throw new NotFoundException(
+        `No platform OAuth application registered for "${providerFamily}"`,
+      );
+    }
+    return creds;
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
