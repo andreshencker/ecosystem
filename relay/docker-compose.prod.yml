@@ -22,7 +22,7 @@ services:
       retries: 10
     networks: [relay_internal]
 
-  backend:
+  relay-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -59,7 +59,7 @@ services:
       - "traefik.http.routers.relay-api.tls.certresolver=le"
       - "traefik.http.services.relay-api.loadbalancer.server.port=3001"
 
-  frontend:
+  relay-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -75,7 +75,7 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
     depends_on:
-      backend:
+      relay-backend:
         condition: service_started
     networks:
       - relay_internal

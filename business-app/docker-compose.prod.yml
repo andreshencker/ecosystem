@@ -39,7 +39,7 @@ services:
       - 'host.docker.internal:host-gateway'
     networks: [business_internal]
 
-  backend:
+  business-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -79,7 +79,7 @@ services:
       - "traefik.http.routers.business-api.tls.certresolver=le"
       - "traefik.http.services.business-api.loadbalancer.server.port=3004"
 
-  frontend:
+  business-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -93,7 +93,7 @@ services:
       PORT: 3005
       HOSTNAME: 0.0.0.0
     depends_on:
-      backend:
+      business-backend:
         condition: service_started
     networks:
       - business_internal

@@ -10,12 +10,12 @@
 
 services:
 
-  backend:
+  jtrade-backend:
     build:
       context: ./backend
       args:
         NODE_ENV: prod
-    container_name: backend
+    container_name: jtrade_backend
     env_file: ./env/.env.prod
     environment:
       CONTEXT_PATH: /backend
@@ -28,9 +28,9 @@ services:
       GRAPIFLY_ID_API_URL: https://id.grapifly.com
       RELAY_API_URL: https://api.relay.grapifly.com
     restart: unless-stopped
-    networks: [default]
+    networks: [default, grapifly_proxy]
 
-  frontend:
+  jtrade-frontend:
     build:
       context: ./frontend
       args:
@@ -38,9 +38,9 @@ services:
         VITE_API_BASE: https://jtrade.grapifly.com/backend
         VITE_GRAPIFLY_ID_URL: https://id.grapifly.com
         VITE_GRAPIFLY_WEB_URL: https://grapifly.com
-    container_name: frontend
+    container_name: jtrade_frontend
     depends_on:
-      - backend
+      - jtrade-backend
     restart: unless-stopped
     networks:
       - default

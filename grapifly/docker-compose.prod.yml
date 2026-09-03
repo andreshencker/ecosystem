@@ -15,7 +15,7 @@ services:
       - grapifly_mongo_data:/data/db
     # Internal only — no host port in prod.
 
-  backend:
+  grapifly-backend:
     build:
       context: ./backend
     container_name: grapifly_backend
@@ -51,7 +51,7 @@ services:
       - "traefik.http.routers.grapifly-id.tls.certresolver=le"
       - "traefik.http.services.grapifly-id.loadbalancer.server.port=3101"
 
-  frontend:
+  grapifly-frontend:
     build:
       context: ./frontend
       args:
@@ -62,7 +62,7 @@ services:
     container_name: grapifly_frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      - grapifly-backend
     networks:
       - default
       - grapifly_proxy
