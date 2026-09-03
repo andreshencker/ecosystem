@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 const BASE = 'http://localhost:3000';
 const API  = 'http://localhost:3001';
-const DB   = 'mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/communication_platform_db';
+const DB   = 'mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/relaydb';
 const DIR  = '/tmp/final-screenshots';
 const TS   = Date.now();
 

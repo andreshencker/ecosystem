@@ -4,9 +4,9 @@
 # Reverse proxy: Traefik on the external `grapifly_proxy` network.
 # The frontend image is nginx serving the SPA and proxying /backend internally,
 # so jtrade needs a single Traefik router.
-# MongoDB is NOT in this stack — jtrade uses an external / managed Mongo
-# (set MONGODB_URI in backend/.env.prod).
-# Secrets: jtrade/backend/.env.prod (gitignored).
+# MongoDB is NOT in this stack — jtrade uses an external / managed Mongo (Atlas)
+# (set MONGODB_URI in env/.env.prod).
+# Secrets: jtrade/env/.env.prod (gitignored).
 
 services:
 

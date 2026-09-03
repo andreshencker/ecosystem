@@ -9,8 +9,8 @@ import { ConfigService } from '@nestjs/config';
       useFactory: (config: ConfigService) => ({
         uri: config.get<string>('MONGODB_URI'),
         // Explicit database name — overrides whatever is in the URI.
-        // All modules data lives in communication_platform_db.
-        dbName: 'communication_platform_db',
+        // All modules data lives in relaydb.
+        dbName: 'relaydb',
         autoIndex: true,
       }),
     }),

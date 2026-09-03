@@ -64,7 +64,7 @@ const TS = Date.now();
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-await mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/communication_platform_db', { serverSelectionTimeoutMS: 8000 });
+await mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/relaydb', { serverSelectionTimeoutMS: 8000 });
 const db = mongoose.connection.db;
 
 const ownerEmail = `rt-owner-${TS}@test.com`;

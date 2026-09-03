@@ -12,7 +12,7 @@ Key infrastructure decisions apply across the whole platform, not just a single 
 
 ## Infrastructure Decisions
 
-**MongoDB Atlas** — managed cloud MongoDB. Each service uses its own database. The Communication Backend uses `communication_platform_db`. Atlas removes the operational overhead of replication, backups, and upgrades.
+**MongoDB Atlas** — managed cloud MongoDB. Each service uses its own database. The Communication Backend uses `relaydb`. Atlas removes the operational overhead of replication, backups, and upgrades.
 
 **Redis** — queue backend (BullMQ) for all async processing. Also used for any distributed locking or caching needs in future services. Deployed locally via Docker; managed Redis (ElastiCache or Upstash) for production.
 

@@ -3,31 +3,21 @@
 #
 # Reverse proxy: Traefik on the external `grapifly_proxy` network
 # (entrypoint `websecure`, cert resolver `le`) — same pattern as jtrade.
-# Secrets: grapifly/backend/.env.prod  (gitignored, provided on the server).
+# MongoDB is external (Atlas) — set MONGODB_URI in env/.env.prod.
+# Secrets: grapifly/env/.env.prod  (gitignored, provided on the server).
 
 services:
-
-  mongo:
-    image: mongo:7
-    container_name: grapifly_mongodb
-    restart: unless-stopped
-    volumes:
-      - grapifly_mongo_data:/data/db
-    # Internal only — no host port in prod.
 
   grapifly-backend:
     build:
       context: ./backend
     container_name: grapifly_backend
     restart: unless-stopped
-    depends_on:
-      - mongo
     env_file:
       - ./env/.env.prod
     environment:
       NODE_ENV: production
       PORT: 3101
-      MONGODB_URI: mongodb://mongo:27017/grapifly_identity
       # Browser-facing (CORS + SSO/redirect targets).
       FRONTEND_URL: https://grapifly.com
       GRAPIFLY_APP_URL: https://grapifly.com
@@ -78,6 +68,3 @@ services:
 networks:
   grapifly_proxy:
     external: true
-
-volumes:
-  grapifly_mongo_data:

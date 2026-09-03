@@ -1,29 +1,19 @@
 services:
-  mongo:
-    image: mongo:7
-    container_name: grapifly_mongodb
-    restart: unless-stopped
-    ports:
-      - "27019:27017"
-    volumes:
-      - grapifly_mongo_data:/data/db
-
   backend:
     build: ./backend
     container_name: grapifly_backend
     restart: unless-stopped
-    depends_on:
-      - mongo
     env_file:
       - ./env/.env.local
     environment:
       PORT: 3101
-      MONGODB_URI: mongodb://mongo:27017/grapifly_identity
       GRAPIFLY_SSO_CLIENT_SECRET: ${GRAPIFLY_SSO_CLIENT_SECRET:-development-grapifly-relay-sso-change-me}
       RELAY_SSO_CALLBACK_URL: http://localhost:3000/auth/grapifly/callback
       JTRADE_SSO_CALLBACK_URL: http://localhost:5173/auth/grapifly/callback
       JTRADE_SERVICE_SECRET: ${JTRADE_SERVICE_SECRET:-development-jtrade-service-secret-change-me}
       RELAY_API_URL: http://host.docker.internal:3001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3101:3101"
 
@@ -41,6 +31,3 @@ services:
       - backend
     ports:
       - "3100:3100"
-
-volumes:
-  grapifly_mongo_data:

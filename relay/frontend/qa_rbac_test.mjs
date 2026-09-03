@@ -61,7 +61,7 @@ function dbRun(script) {
 function verifyEmail(email) {
   return dbRun(`
     const mongoose = require('mongoose');
-    mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/communication_platform_db')
+    mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/relaydb')
       .then(async () => {
         const db = mongoose.connection.db;
         const r = await db.collection('users').updateOne({ email: '${email}' }, { \\$set: { isEmailVerified: true } });
@@ -75,7 +75,7 @@ function createUser(email, firstName, lastName, role, ownerEmail) {
   return dbRun(`
     const mongoose = require('mongoose');
     const bcrypt = require('bcryptjs');
-    mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/communication_platform_db')
+    mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/relaydb')
       .then(async () => {
         const db = mongoose.connection.db;
         const owner = await db.collection('users').findOne({ email: '${ownerEmail}' });
@@ -389,7 +389,7 @@ console.log('\n\x1b[1m═══ TEST 6: PLATFORM_ADMIN ═══\x1b[0m');
 dbRun(`
   const mongoose = require('mongoose');
   const bcrypt = require('bcryptjs');
-  mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/communication_platform_db')
+  mongoose.connect('mongodb+srv://admin:admin@cluster0.3ffg4.mongodb.net/relaydb')
     .then(async () => {
       const db = mongoose.connection.db;
       const hash = await bcrypt.hash('QaTest123!', 12);

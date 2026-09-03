@@ -55,10 +55,10 @@ cp jtrade/env/.env.prod.example        jtrade/env/.env.prod
 
 | File | Fill in |
 |------|---------|
-| `grapifly/env/.env.prod` | `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_SECRET`, `*_SERVICE_SECRET` (must match each app), `GRAPIFLY_SSO_CLIENT_SECRET` (= `RELAY_SERVICE_SECRET`) |
-| `relay/env/.env.prod` | `MONGODB_URI`, AWS/S3, SMTP (`CHANGE_ME_*`) — secrets + keys are pre-generated |
+| `grapifly/env/.env.prod` | `MONGODB_URI` (**Atlas**, DB `grapiflydb`), `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_SECRET`, `*_SERVICE_SECRET` (must match each app), `GRAPIFLY_SSO_CLIENT_SECRET` (= `RELAY_SERVICE_SECRET`) |
+| `relay/env/.env.prod` | `MONGODB_URI` (**Atlas** — db forced to `relaydb`), AWS/S3, SMTP (`CHANGE_ME_*`) — secrets + keys are pre-generated |
 | `business-app/env/.env.prod` | `MONGODB_URI`, `MONGO_URI`, `BI_DATABASE_URL` (Neon), `PLATFORM_ADMIN_BOOTSTRAP_PASSWORD` — one file, backend + BI |
-| `jtrade/env/.env.prod` | `MONGODB_URI` (**external Mongo**) — the rest is pre-filled |
+| `jtrade/env/.env.prod` | `MONGODB_URI` (**Atlas**, DB `jtradedb`) — the rest is pre-filled |
 
 The pre-generated secrets in the `.example` files are consistent across apps
 (same `RELAY_SERVICE_SECRET` value in grapifly and relay, etc.). Keep them or
@@ -105,8 +105,10 @@ sudo deploy/systemd/install.sh              # boot-time units
   `{GRAPIFLY,RELAY,BUSINESS,JTRADE}_APP_URL` / `*_SSO_CALLBACK_URL` **on every boot**.
 - Cross-app server-to-server calls go through Traefik (`https://api.relay.grapifly.com`,
   `https://id.grapifly.com`) — only the routed services join `grapifly_proxy`.
-- DB/Redis have no host ports in prod. jtrade uses an **external Mongo** (no `mongo`
-  service in its compose).
+- All four apps use **MongoDB Atlas** — databases `grapiflydb`, `jtradedb`,
+  `relaydb`, `business_app_db`. No app bundles a `mongo` service. (relay forces
+  its db name to `relaydb` via `dbName` in `DatabaseModule`, so the URI path is
+  cosmetic.)
 - `restart: unless-stopped` on every container + the systemd units = survives both
   container crashes and host reboot.
 - `business` has no Grapifly SSO yet — its `ssoCallbackUrl` stays admin-set.

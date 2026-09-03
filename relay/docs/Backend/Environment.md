@@ -25,7 +25,7 @@ Source of truth: `communication/.env.example`
 
 | Variable | Default | Required | Description |
 |---|---|---|---|
-| `MONGODB_URI` | — | Yes | Full connection string. Database must be named `communication_platform_db`. Example: `mongodb+srv://user:pass@cluster.mongodb.net/communication_platform_db` |
+| `MONGODB_URI` | — | Yes | Full connection string. `DatabaseModule` forces the db name to `relaydb` (`dbName` override), so the URI path is optional. Example: `mongodb+srv://user:pass@cluster.mongodb.net/relaydb` |
 
 ---
 
