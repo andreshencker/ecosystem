@@ -26,14 +26,16 @@ export class RelayPaymentsClient {
 
   /** Payment providers Relay supports (the method catalogue). */
   listProviders(): Promise<RelayProvider[]> {
-    return this.get<RelayProvider[]>('/payments/providers');
+    return this.get<{ data?: RelayProvider[] } | RelayProvider[]>(
+      '/payments/providers',
+    ).then((r) => (Array.isArray(r) ? r : (r.data ?? [])));
   }
 
   /** The platform company's configured payment connections. */
   listConnections(): Promise<RelayConnection[]> {
-    return this.get<{ data: RelayConnection[] }>('/payments/accounts').then(
-      (r) => r.data ?? [],
-    );
+    return this.get<{ data?: RelayConnection[] } | RelayConnection[]>(
+      '/payments/accounts',
+    ).then((r) => (Array.isArray(r) ? r : (r.data ?? [])));
   }
 
   // ─── connect: accounts ───────────────────────────────────────────────────
