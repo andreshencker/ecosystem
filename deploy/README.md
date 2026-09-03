@@ -58,7 +58,7 @@ cp jtrade/env/.env.prod.example        jtrade/env/.env.prod
 | `grapifly/env/.env.prod` | `MONGODB_URI` (**Atlas**, DB `grapifly`), `JWT_SESSION_SECRET`, `GOOGLE_CLIENT_SECRET`, `*_SERVICE_SECRET` (must match each app), `GRAPIFLY_SSO_CLIENT_SECRET` (= `RELAY_SERVICE_SECRET`) |
 | `relay/env/.env.prod` | `MONGODB_URI`, AWS/S3, SMTP (`CHANGE_ME_*`) — secrets + keys are pre-generated |
 | `business-app/env/.env.prod` | `MONGODB_URI`, `MONGO_URI`, `BI_DATABASE_URL` (Neon), `PLATFORM_ADMIN_BOOTSTRAP_PASSWORD` — one file, backend + BI |
-| `jtrade/env/.env.prod` | `MONGODB_URI` (**Atlas**, DB `jtrade`) — the rest is pre-filled |
+| `jtrade/env/.env.prod` | `MONGODB_URI` (**Atlas**, DB `jtradedb`) — the rest is pre-filled |
 
 The pre-generated secrets in the `.example` files are consistent across apps
 (same `RELAY_SERVICE_SECRET` value in grapifly and relay, etc.). Keep them or
@@ -105,8 +105,8 @@ sudo deploy/systemd/install.sh              # boot-time units
   `{GRAPIFLY,RELAY,BUSINESS,JTRADE}_APP_URL` / `*_SSO_CALLBACK_URL` **on every boot**.
 - Cross-app server-to-server calls go through Traefik (`https://api.relay.grapifly.com`,
   `https://id.grapifly.com`) — only the routed services join `grapifly_proxy`.
-- `grapifly` and `jtrade` use **MongoDB Atlas** (DB name = app name — `grapifly`,
-  `jtrade`); neither compose file has a `mongo` service. `relay` / `business-app`
+- `grapifly` and `jtrade` use **MongoDB Atlas** (databases `grapifly` and
+  `jtradedb`); neither compose file has a `mongo` service. `relay` / `business-app`
   still run their own Mongo (no host ports in prod).
 - `restart: unless-stopped` on every container + the systemd units = survives both
   container crashes and host reboot.
