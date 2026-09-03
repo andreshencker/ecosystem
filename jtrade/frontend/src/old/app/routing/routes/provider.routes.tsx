@@ -10,6 +10,7 @@ const ProductsPage = lazy(() => import("@/pages/products/ProductsPage"));
 const ProductVersionsPage = lazy(() => import("@/pages/product-versions/ProductVersionsPage"));
 const TeamPage = lazy(() => import("@/pages/team/TeamPage"));
 const MyOrganizationPage = lazy(() => import("@/pages/organization/MyOrganizationPage"));
+const ProviderPayoutsPage = lazy(() => import("@/pages/payouts/ProviderPayoutsPage"));
 const ProviderIndicatorsPage = lazy(() => import("@/pages/indicators/ProviderIndicatorsPage"));
 const ProviderSymbolsPage = lazy(() => import("@/pages/symbols/ProviderSymbolsPage"));
 const ProviderAlertsPage = lazy(() => import("@/pages/alerts/ProviderAlertsPage"));
@@ -25,6 +26,7 @@ export const providerRoutes: RouteObject[] = [{
         { index: true, element: <Navigate to="dashboard" replace/> },
         { path: "dashboard", element: <ProviderDashboard/> },
         { path: "organization", element: <MyOrganizationPage/> },
+        { path: "payouts", element: <ProviderPayoutsPage/> },
         { path: "team", element: <TeamPage/> },
         { path: "products", element: <ProductsPage/> },
         { path: "product-versions", element: <ProductVersionsPage/> },

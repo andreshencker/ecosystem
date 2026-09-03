@@ -2,6 +2,7 @@ import type { NavigationConfig } from "../types";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import ArchiveRoundedIcon from "@mui/icons-material/ArchiveRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
@@ -27,6 +28,7 @@ export const providerNavigation: NavigationConfig = {
             workspace: [
                 { label: "Dashboard", path: "/provider/dashboard", icon: DashboardRoundedIcon },
                 { label: "My Organization", path: "/provider/organization", icon: ApartmentRoundedIcon },
+                { label: "Payouts", path: "/provider/payouts", icon: AccountBalanceWalletRoundedIcon },
                 { label: "Team", path: "/provider/team", icon: GroupsRoundedIcon },
             ],
             products: [
