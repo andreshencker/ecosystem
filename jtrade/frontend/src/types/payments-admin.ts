@@ -9,6 +9,8 @@ export interface SettingsFieldDef {
 }
 
 export interface AdminPaymentMethod {
+    /** DataTable row id — the method key doubles as it. */
+    id?: string;
     method: string;
     displayName: string;
     description: string;
@@ -20,6 +22,12 @@ export interface AdminPaymentMethod {
     relayConnectionId: string | null;
     settings: Record<string, unknown>;
     settingsFields: SettingsFieldDef[];
+}
+
+export interface AvailableMethod {
+    method: string;
+    displayName: string;
+    description: string;
 }
 
 export interface UpsertMethodConfigPayload {

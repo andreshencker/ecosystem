@@ -2,12 +2,18 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
+
+export class AddMethodDto {
+  @IsString() @IsNotEmpty() @Matches(/^[a-z0-9-]{2,40}$/) method!: string;
+}
 
 export class UpsertMethodConfigDto {
   @IsOptional() @IsBoolean() enabled?: boolean;
