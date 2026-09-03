@@ -17,7 +17,7 @@ import { CommunicationTokensModule } from './communication-tokens/communication-
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URI') ?? 'mongodb://localhost:27017/grapifly',
+        uri: config.get<string>('MONGODB_URI') ?? 'mongodb://localhost:27017/grapiflydb',
       }),
     }),
     UsersModule,
