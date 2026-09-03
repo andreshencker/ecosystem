@@ -49,6 +49,8 @@ export interface WebhookDeliveryDetail extends WebhookDeliverySummary {
   providerApiVersion?: string;
   livemode?: boolean;
   requestId?: string;
+  /** Stripe Connect account that emitted the event, when applicable. */
+  connectedAccountId?: string;
   payloadHash?: string;
   safePayloadSummary?: Record<string, unknown>;
   rawPayloadAvailable: boolean;
@@ -87,6 +89,8 @@ export interface VerifiedWebhookEvent {
   objectType?: string;
   objectId?: string;
   requestId?: string;
+  /** Stripe Connect account that emitted the event, when applicable. */
+  connectedAccountId?: string;
   /** Safe canonical summary of the event object — no sensitive values. */
   safePayloadSummary?: Record<string, unknown>;
 }

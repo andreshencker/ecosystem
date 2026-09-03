@@ -16,6 +16,7 @@ export enum PaymentCapability {
   RecurringPayments = 'recurringPayments',
   PaymentMethods = 'paymentMethods',
   Checkout = 'checkout',
+  Connect = 'connect',
   Refunds = 'refunds',
   RefundListing = 'refundListing',
   RefundDetail = 'refundDetail',

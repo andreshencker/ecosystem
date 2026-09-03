@@ -259,6 +259,9 @@ export function verifyStripeWebhookSignature(
     objectType,
     objectId,
     requestId: requestData?.id ?? undefined,
+    connectedAccountId:
+      (typeof event.account === 'string' ? event.account : undefined) ??
+      (objectType === 'account' ? objectId : undefined),
     safePayloadSummary,
   };
 }
@@ -313,6 +316,48 @@ function buildSafePayloadSummary(
     ];
     for (const key of safeIntentKeys) {
       if (key in obj) safe[key] = obj[key];
+    }
+  }
+
+  if (objectType === 'checkout.session') {
+    const safeCheckoutKeys = [
+      'client_reference_id',
+      'payment_intent',
+      'payment_status',
+    ];
+    for (const key of safeCheckoutKeys) {
+      if (key in obj) safe[key] = obj[key];
+    }
+  }
+
+  if (objectType === 'account') {
+    const safeAccountKeys = [
+      'charges_enabled',
+      'payouts_enabled',
+      'details_submitted',
+      'default_currency',
+      'country',
+    ];
+    for (const key of safeAccountKeys) {
+      if (key in obj) safe[key] = obj[key];
+    }
+    const requirements = obj['requirements'];
+    if (requirements && typeof requirements === 'object') {
+      const safeRequirements = requirements as Record<string, unknown>;
+      safe['requirements_currently_due'] =
+        safeRequirements['currently_due'] ?? [];
+      safe['requirements_eventually_due'] =
+        safeRequirements['eventually_due'] ?? [];
+      safe['disabled_reason'] = safeRequirements['disabled_reason'] ?? null;
+    }
+  }
+
+  const metadata = obj['metadata'];
+  if (metadata && typeof metadata === 'object') {
+    const safeMetadata = metadata as Record<string, unknown>;
+    if (typeof safeMetadata['graphify_external_reference'] === 'string') {
+      safe['metadata_external_reference'] =
+        safeMetadata['graphify_external_reference'];
     }
   }
 

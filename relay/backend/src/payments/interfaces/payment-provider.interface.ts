@@ -30,6 +30,16 @@ import type {
   CreateRefundParams,
 } from '../contracts/payment-refund-list.contract';
 import type {
+  ConnectedPaymentAccountState,
+  ConnectAccountSessionResult,
+  ConnectCheckoutResult,
+  ConnectOnboardingResult,
+  CreateConnectedPaymentAccountParams,
+  CreateConnectAccountSessionParams,
+  CreateConnectCheckoutParams,
+  CreateConnectOnboardingParams,
+} from '../contracts/payment-connect.contract';
+import type {
   PayoutDetail,
   PayoutListResult,
   ListPayoutsParams,
@@ -78,6 +88,43 @@ export interface IPaymentProvider {
    * Must not perform any network calls.
    */
   getMetadata(): PaymentProviderMetadata;
+}
+
+/** Marketplace connectivity executed with the tenant's own platform credentials. */
+export interface IPaymentConnectProvider extends IPaymentProvider {
+  readonly supportsConnect: true;
+  createConnectedAccount(
+    context: PaymentProviderContext,
+    params: CreateConnectedPaymentAccountParams,
+  ): Promise<ConnectedPaymentAccountState>;
+  getConnectedAccount(
+    context: PaymentProviderContext,
+    providerAccountId: string,
+  ): Promise<ConnectedPaymentAccountState>;
+  createConnectOnboarding(
+    context: PaymentProviderContext,
+    params: CreateConnectOnboardingParams,
+  ): Promise<ConnectOnboardingResult>;
+  createConnectAccountSession(
+    context: PaymentProviderContext,
+    params: CreateConnectAccountSessionParams,
+  ): Promise<ConnectAccountSessionResult>;
+  createConnectCheckout(
+    context: PaymentProviderContext,
+    params: CreateConnectCheckoutParams,
+  ): Promise<ConnectCheckoutResult>;
+}
+
+export function isConnectProvider(
+  provider: IPaymentProvider | PaymentProviderRef,
+): provider is IPaymentConnectProvider {
+  return (
+    'supportsConnect' in provider &&
+    provider.supportsConnect === true &&
+    'createConnectedAccount' in provider &&
+    typeof (provider as Record<string, unknown>)['createConnectedAccount'] ===
+      'function'
+  );
 }
 
 // ─── Technical execution capability interfaces ────────────────────────────────

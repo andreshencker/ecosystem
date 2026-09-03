@@ -20,8 +20,26 @@ import type {
   IPaymentRefundProvider,
   IPaymentPayoutProvider,
   IPaymentWebhookProvider,
+  IPaymentConnectProvider,
   IGatewayGuideProvider,
 } from '../../interfaces/payment-provider.interface';
+import type {
+  ConnectedPaymentAccountState,
+  ConnectAccountSessionResult,
+  ConnectCheckoutResult,
+  ConnectOnboardingResult,
+  CreateConnectedPaymentAccountParams,
+  CreateConnectAccountSessionParams,
+  CreateConnectCheckoutParams,
+  CreateConnectOnboardingParams,
+} from '../../contracts/payment-connect.contract';
+import {
+  createStripeConnectedAccount,
+  createStripeConnectAccountSession,
+  createStripeConnectCheckout,
+  createStripeConnectOnboarding,
+  getStripeConnectedAccount,
+} from './stripe.connect';
 import type { GatewayGuide } from '../../contracts/payment-gateway-guide.contract';
 import { STRIPE_GATEWAY_GUIDE } from './stripe.gateway-guide';
 import type {
@@ -268,6 +286,7 @@ export class StripePaymentProvider
     IPaymentRefundProvider,
     IPaymentPayoutProvider,
     IPaymentWebhookProvider,
+    IPaymentConnectProvider,
     IGatewayGuideProvider,
     IPaymentsPageDefinitionProvider,
     IRefundsPageDefinitionProvider,
@@ -286,6 +305,7 @@ export class StripePaymentProvider
   readonly supportsRefundListing = true as const;
   readonly supportsPayoutListing = true as const;
   readonly supportsWebhookEndpoints = true as const;
+  readonly supportsConnect = true as const;
   readonly supportsGatewayGuide = true as const;
   readonly supportsPaymentsPageDefinition = true as const;
   readonly supportsRefundsPageDefinition = true as const;
@@ -481,6 +501,56 @@ export class StripePaymentProvider
     const secretKey = this.extractSecretKey(context.credentials);
     const client = this.createStripeClient(secretKey);
     return executeStripeTest(client, context.credentialsId, params);
+  }
+
+  createConnectedAccount(
+    context: PaymentProviderContext,
+    params: CreateConnectedPaymentAccountParams,
+  ): Promise<ConnectedPaymentAccountState> {
+    return createStripeConnectedAccount(
+      this.createStripeClient(this.extractSecretKey(context.credentials)),
+      params,
+    );
+  }
+
+  getConnectedAccount(
+    context: PaymentProviderContext,
+    providerAccountId: string,
+  ): Promise<ConnectedPaymentAccountState> {
+    return getStripeConnectedAccount(
+      this.createStripeClient(this.extractSecretKey(context.credentials)),
+      providerAccountId,
+    );
+  }
+
+  createConnectOnboarding(
+    context: PaymentProviderContext,
+    params: CreateConnectOnboardingParams,
+  ): Promise<ConnectOnboardingResult> {
+    return createStripeConnectOnboarding(
+      this.createStripeClient(this.extractSecretKey(context.credentials)),
+      params,
+    );
+  }
+
+  createConnectAccountSession(
+    context: PaymentProviderContext,
+    params: CreateConnectAccountSessionParams,
+  ): Promise<ConnectAccountSessionResult> {
+    return createStripeConnectAccountSession(
+      this.createStripeClient(this.extractSecretKey(context.credentials)),
+      params,
+    );
+  }
+
+  createConnectCheckout(
+    context: PaymentProviderContext,
+    params: CreateConnectCheckoutParams,
+  ): Promise<ConnectCheckoutResult> {
+    return createStripeConnectCheckout(
+      this.createStripeClient(this.extractSecretKey(context.credentials)),
+      params,
+    );
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────────

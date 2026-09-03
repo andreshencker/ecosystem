@@ -455,6 +455,7 @@ describe('getAccount — capabilities mapping', () => {
       'balance',
       'paymentMethods',
       'paymentUnits',
+      'connect',
       'refunds',
       'refundListing',
       'refundDetail',

@@ -5,6 +5,10 @@
 
 /** Stripe event types recommended for payment-related endpoint configuration. */
 export const STRIPE_RECOMMENDED_EVENT_TYPES: readonly string[] = [
+  // ─── Connect Checkout ──────────────────────────────────────────────────────
+  'checkout.session.completed',
+  'checkout.session.expired',
+
   // ─── PaymentIntent ──────────────────────────────────────────────────────────
   'payment_intent.succeeded',
   'payment_intent.payment_failed',

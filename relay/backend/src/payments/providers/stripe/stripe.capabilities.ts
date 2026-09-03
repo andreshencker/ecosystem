@@ -35,6 +35,8 @@ export const STRIPE_CAPABILITIES: PaymentProviderCapabilities = {
     [PaymentCapability.RecurringPayments]: CapabilityStatus.Planned,
     [PaymentCapability.PaymentMethods]: CapabilityStatus.Available,
     [PaymentCapability.Checkout]: CapabilityStatus.Planned,
+    // Connect accounts, onboarding and destination Checkout charges are implemented.
+    [PaymentCapability.Connect]: CapabilityStatus.Available,
     [PaymentCapability.Refunds]: CapabilityStatus.Available,
     [PaymentCapability.RefundListing]: CapabilityStatus.Available,
     [PaymentCapability.RefundDetail]: CapabilityStatus.Available,

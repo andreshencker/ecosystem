@@ -49,6 +49,7 @@ import {
   WebhookDeliveryDocument,
 } from '../schemas/webhook-delivery.schema';
 import { PaymentsWebhookEndpointsService } from '../services/payments-webhook-endpoints.service';
+import { PaymentsConnectService } from '../services/payments-connect.service';
 
 /**
  * Default webhook delivery retention: 30 days.
@@ -70,6 +71,7 @@ export class PaymentsWebhookReceiverController {
     private readonly deliveryModel: Model<WebhookDeliveryDocument>,
     private readonly registry: PaymentProviderRegistry,
     private readonly endpointsService: PaymentsWebhookEndpointsService,
+    private readonly connectService: PaymentsConnectService,
   ) {}
 
   /**
@@ -244,6 +246,21 @@ export class PaymentsWebhookReceiverController {
       // 10. If signature is valid, mark as processed synchronously.
       //     In production, dispatch to a queue for async processing.
       if (signatureStatus === 'valid') {
+        if (verifiedEvent) {
+          // Connect reconciliation is best-effort — a failure here must not
+          // block the delivery record from being marked processed, nor be
+          // mistaken for a duplicate-key error by the outer catch.
+          try {
+            await this.connectService.processVerifiedWebhook(
+              credentialId,
+              verifiedEvent,
+            );
+          } catch (connectErr: unknown) {
+            this.logger.error(
+              `[receiver] Connect reconciliation failed for ${providerEventId}: ${String(connectErr)}`,
+            );
+          }
+        }
         await this.deliveryModel.updateOne(
           {
             providerCredentialId: new Types.ObjectId(credentialId),

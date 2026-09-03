@@ -49,6 +49,7 @@ import { PaymentsPageDefinitionController } from './controllers/payments-page-de
 import { PaymentsRefundsPageDefinitionController } from './controllers/payments-refunds-page-definition.controller';
 import { PaymentsTestingPageDefinitionController } from './controllers/payments-testing-page-definition.controller';
 import { PaymentsReferenceDataController } from './controllers/payments-reference-data.controller';
+import { PaymentsConnectController } from './controllers/payments-connect.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentsResolverService } from './services/payments-resolver.service';
 import { PaymentsAccountsService } from './services/payments-accounts.service';
@@ -65,6 +66,15 @@ import { PaymentsPageDefinitionService } from './services/payments-page-definiti
 import { PaymentsRefundsPageDefinitionService } from './services/payments-refunds-page-definition.service';
 import { PaymentsTestingPageDefinitionService } from './services/payments-testing-page-definition.service';
 import { PaymentsReferenceDataService } from './services/payments-reference-data.service';
+import { PaymentsConnectService } from './services/payments-connect.service';
+import {
+  ConnectedPaymentAccount,
+  ConnectedPaymentAccountSchema,
+} from './schemas/connected-payment-account.schema';
+import {
+  ConnectPaymentExecution,
+  ConnectPaymentExecutionSchema,
+} from './schemas/connect-payment-execution.schema';
 import { PaymentProviderRegistry } from './registry/payment-provider.registry';
 
 // ─── Provider adapters ────────────────────────────────────────────────────────
@@ -85,6 +95,14 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
       // Webhook technical models.
       { name: WebhookDelivery.name, schema: WebhookDeliverySchema },
       { name: WebhookEndpointSecret.name, schema: WebhookEndpointSecretSchema },
+      {
+        name: ConnectedPaymentAccount.name,
+        schema: ConnectedPaymentAccountSchema,
+      },
+      {
+        name: ConnectPaymentExecution.name,
+        schema: ConnectPaymentExecutionSchema,
+      },
     ]),
 
     ChannelsRuntimeModule,
@@ -107,6 +125,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsRefundsPageDefinitionController,
     PaymentsTestingPageDefinitionController,
     PaymentsReferenceDataController,
+    PaymentsConnectController,
   ],
   providers: [
     // ── Provider adapters ──────────────────────────────────────────────────────
@@ -144,6 +163,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
     PaymentsRefundsPageDefinitionService,
     PaymentsTestingPageDefinitionService,
     PaymentsReferenceDataService,
+    PaymentsConnectService,
   ],
   exports: [PaymentsService, PaymentProviderRegistry],
 })
