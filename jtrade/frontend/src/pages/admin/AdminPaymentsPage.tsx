@@ -28,6 +28,16 @@ function settingToInput(field: SettingsFieldDef, value: unknown): string {
     return value === undefined || value === null ? "" : String(value);
 }
 
+function settingsComplete(m: AdminPaymentMethod): boolean {
+    return m.settingsFields
+        .filter((f) => f.required)
+        .every((f) => {
+            const v = m.settings[f.key];
+            if (f.type === "country-list") return Array.isArray(v) && v.length > 0;
+            return v !== undefined && v !== null && v !== "";
+        });
+}
+
 function inputToSetting(field: SettingsFieldDef, raw: string): unknown {
     if (field.type === "country-list") {
         return raw
@@ -90,7 +100,10 @@ export default function AdminPaymentsPage() {
 
             {list.data && list.data.length > 0 && (
                 <Stack spacing={1.5} maxWidth={720}>
-                    {list.data.map((m) => (
+                    {list.data.map((m) => {
+                        const ready = !m.configurable || settingsComplete(m);
+                        const canEnable = m.supportedByRelay && (m.enabled || ready);
+                        return (
                         <Card key={m.method} variant="outlined">
                             <CardContent>
                                 <Box display="flex" alignItems="center" justifyContent="space-between" gap={1}>
@@ -113,7 +126,7 @@ export default function AdminPaymentsPage() {
                                         {m.configurable && (
                                             <LoadingButton
                                                 size="small"
-                                                variant="outlined"
+                                                variant={ready ? "outlined" : "contained"}
                                                 onClick={() => openConfig(m)}
                                             >
                                                 Configure
@@ -122,10 +135,16 @@ export default function AdminPaymentsPage() {
                                         <Switch
                                             checked={m.enabled}
                                             onChange={(e) => toggle(m, { enabled: e.target.checked })}
-                                            disabled={!m.supportedByRelay}
+                                            disabled={!canEnable}
                                         />
                                     </Stack>
                                 </Box>
+
+                                {!ready && !m.enabled && (
+                                    <Typography variant="caption" color="warning.main" display="block" mt={1}>
+                                        Configure the settings before enabling this method.
+                                    </Typography>
+                                )}
 
                                 {m.enabled && (
                                     <Box mt={1} display="flex" alignItems="center" gap={1}>
@@ -141,7 +160,8 @@ export default function AdminPaymentsPage() {
                                 )}
                             </CardContent>
                         </Card>
-                    ))}
+                        );
+                    })}
                 </Stack>
             )}
 
