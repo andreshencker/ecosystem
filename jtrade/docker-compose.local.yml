@@ -1,8 +1,7 @@
 # jtrade — LOCAL. `docker compose -f docker-compose.local.yml up -d --build`
 #
 # Frontend (nginx) serves the SPA on :5173 and proxies /backend to the backend
-# container. Mongo is the standalone `jtrade_mongodb` container on the host
-# (mongodb://host.docker.internal:27017) — same "external Mongo" shape as prod.
+# container. MongoDB is external (Atlas) — set MONGODB_URI in env/.env.local.
 
 services:
   backend:
@@ -16,7 +15,6 @@ services:
       NODE_ENV: local
       PORT: 3002
       CONTEXT_PATH: /backend
-      MONGODB_URI: mongodb://host.docker.internal:27017/jtrade
       GRAPIFLY_ID_API_URL: http://host.docker.internal:3101
       GRAPIFLY_FRONTEND_URL: http://localhost:3100
       RELAY_API_URL: http://host.docker.internal:3001
