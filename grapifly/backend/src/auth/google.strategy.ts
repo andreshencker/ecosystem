@@ -1,15 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy } from 'passport-google-oauth20';
 
+export interface GoogleStrategyOptions {
+  clientID: string;
+  clientSecret: string;
+  callbackURL: string;
+}
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor(config: ConfigService) {
+  // clientID / clientSecret are resolved (Relay first, env fallback) by the
+  // async factory provider in AuthModule — see relay-google-credentials.service.
+  constructor(options: GoogleStrategyOptions) {
     super({
-      clientID: config.get<string>('GOOGLE_CLIENT_ID') ?? 'configure-google-client-id',
-      clientSecret: config.get<string>('GOOGLE_CLIENT_SECRET') ?? 'configure-google-client-secret',
-      callbackURL: config.get<string>('GOOGLE_CALLBACK_URL') ?? 'http://localhost:3101/auth/google/callback',
+      clientID: options.clientID,
+      clientSecret: options.clientSecret,
+      callbackURL: options.callbackURL,
       scope: ['email', 'profile'],
     });
   }
