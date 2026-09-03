@@ -72,6 +72,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.business-api.rule=Host(`api.businessapp.grapifly.com`)"
       - "traefik.http.routers.business-api.entrypoints=websecure"
       - "traefik.http.routers.business-api.tls=true"
@@ -99,6 +100,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.business-web.rule=Host(`businessapp.grapifly.com`)"
       - "traefik.http.routers.business-web.entrypoints=websecure"
       - "traefik.http.routers.business-web.tls=true"

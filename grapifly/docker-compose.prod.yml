@@ -44,6 +44,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.grapifly-id.rule=Host(`id.grapifly.com`)"
       - "traefik.http.routers.grapifly-id.entrypoints=websecure"
       - "traefik.http.routers.grapifly-id.tls=true"
@@ -67,6 +68,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.grapifly-web.rule=Host(`grapifly.com`) || Host(`www.grapifly.com`)"
       - "traefik.http.routers.grapifly-web.entrypoints=websecure"
       - "traefik.http.routers.grapifly-web.tls=true"

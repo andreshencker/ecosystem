@@ -47,6 +47,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.jtrade-frontend.rule=Host(`jtrade.grapifly.com`)"
       - "traefik.http.routers.jtrade-frontend.entrypoints=websecure"
       - "traefik.http.routers.jtrade-frontend.tls=true"

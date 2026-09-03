@@ -52,6 +52,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.relay-api.rule=Host(`api.relay.grapifly.com`)"
       - "traefik.http.routers.relay-api.entrypoints=websecure"
       - "traefik.http.routers.relay-api.tls=true"
@@ -81,6 +82,7 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.relay-web.rule=Host(`relay.grapifly.com`)"
       - "traefik.http.routers.relay-web.entrypoints=websecure"
       - "traefik.http.routers.relay-web.tls=true"
