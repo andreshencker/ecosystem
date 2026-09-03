@@ -22,7 +22,7 @@ services:
       retries: 10
     networks: [relay_internal]
 
-  backend:
+  relay-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -52,13 +52,14 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.relay-api.rule=Host(`api.relay.grapifly.com`)"
       - "traefik.http.routers.relay-api.entrypoints=websecure"
       - "traefik.http.routers.relay-api.tls=true"
       - "traefik.http.routers.relay-api.tls.certresolver=le"
       - "traefik.http.services.relay-api.loadbalancer.server.port=3001"
 
-  frontend:
+  relay-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -74,13 +75,14 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
     depends_on:
-      backend:
+      relay-backend:
         condition: service_started
     networks:
       - relay_internal
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.relay-web.rule=Host(`relay.grapifly.com`)"
       - "traefik.http.routers.relay-web.entrypoints=websecure"
       - "traefik.http.routers.relay-web.tls=true"

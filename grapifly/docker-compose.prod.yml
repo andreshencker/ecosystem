@@ -8,7 +8,7 @@
 
 services:
 
-  backend:
+  grapifly-backend:
     build:
       context: ./backend
     container_name: grapifly_backend
@@ -34,13 +34,14 @@ services:
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.grapifly-id.rule=Host(`id.grapifly.com`)"
       - "traefik.http.routers.grapifly-id.entrypoints=websecure"
       - "traefik.http.routers.grapifly-id.tls=true"
       - "traefik.http.routers.grapifly-id.tls.certresolver=le"
       - "traefik.http.services.grapifly-id.loadbalancer.server.port=3101"
 
-  frontend:
+  grapifly-frontend:
     build:
       context: ./frontend
       args:
@@ -51,12 +52,13 @@ services:
     container_name: grapifly_frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      - grapifly-backend
     networks:
       - default
       - grapifly_proxy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=grapifly_proxy"
       - "traefik.http.routers.grapifly-web.rule=Host(`grapifly.com`) || Host(`www.grapifly.com`)"
       - "traefik.http.routers.grapifly-web.entrypoints=websecure"
       - "traefik.http.routers.grapifly-web.tls=true"
