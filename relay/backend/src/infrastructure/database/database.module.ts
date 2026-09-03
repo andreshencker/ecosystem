@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         uri: config.get<string>('MONGODB_URI'),
-        dbName: 'communication_platform_db',
+        dbName: 'relaydb',
         autoIndex: true,
       }),
     }),
