@@ -1156,6 +1156,8 @@ export class ProviderCredentialsService {
 
     if (ck === 'payment') {
       if (ct === 'api_key' && pk === 'stripe') return StripeCredentialsContract;
+      if (ct === 'api_key' && pk === 'stripe-connect')
+        return StripeCredentialsContract;
       if (ct === 'token' && pk === 'coingate')
         return CoinGateCredentialsContract;
       if (ct === 'token') return TokenCredentialsContract;

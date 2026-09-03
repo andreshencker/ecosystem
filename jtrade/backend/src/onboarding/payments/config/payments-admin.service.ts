@@ -19,7 +19,7 @@ import type { MethodConfigurable } from '../contracts/method-settings.contract';
 import type { UpsertMethodConfigDto } from './dto/payments-admin.dto';
 import { PaymentsCatalogService } from '../payments-catalog.service';
 import type { RelayProvider } from '../relay-payments.client';
-import { StripeOnboardingService } from '../stripe/stripe-onboarding.service';
+import { StripeConnectOnboardingService } from '../stripe-connect/stripe-connect-onboarding.service';
 
 /**
  * The admin's control panel for payments: which of Relay's methods jtrade
@@ -35,7 +35,7 @@ export class PaymentsAdminService {
     @InjectModel(ProviderPayment.name)
     private readonly providerPayments: Model<ProviderPaymentDocument>,
     private readonly catalog: PaymentsCatalogService,
-    stripe: StripeOnboardingService,
+    stripe: StripeConnectOnboardingService,
   ) {
     this.configurable.set(stripe.method, stripe);
   }

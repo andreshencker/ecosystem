@@ -23,10 +23,10 @@ import {
  * It does NOT decide whether the provider can sell.
  */
 @Injectable()
-export class StripeOnboardingService
+export class StripeConnectOnboardingService
   implements MethodOnboarding, MethodConfigurable
 {
-  readonly method = 'stripe';
+  readonly method = 'stripe-connect';
 
   constructor(private readonly relay: RelayPaymentsClient) {}
 

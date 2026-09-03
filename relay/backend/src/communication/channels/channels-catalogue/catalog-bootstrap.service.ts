@@ -291,6 +291,15 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
               isActive: true,
             },
             {
+              providerKey: 'stripe-connect',
+              displayName: 'Stripe Connect',
+              description:
+                'Stripe Connect — marketplace onboarding: connected accounts, hosted KYC, and destination charges with an application fee',
+              channelIds: [paymentChannel._id],
+              connectionType: 'api_key' as const,
+              isActive: true,
+            },
+            {
               providerKey: 'coingate',
               displayName: 'CoinGate',
               description:

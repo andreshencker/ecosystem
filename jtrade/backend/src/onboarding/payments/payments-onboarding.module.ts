@@ -13,7 +13,7 @@ import {
 } from './config/schemas/payment-method-config.schema';
 import { RelayPaymentsClient } from './relay-payments.client';
 import { PaymentsCatalogService } from './payments-catalog.service';
-import { StripeOnboardingService } from './stripe/stripe-onboarding.service';
+import { StripeConnectOnboardingService } from './stripe-connect/stripe-connect-onboarding.service';
 import { PaymentsOnboardingService } from './payments-onboarding.service';
 import { PaymentsOnboardingController } from './payments-onboarding.controller';
 import { PaymentsAdminService } from './config/payments-admin.service';
@@ -39,7 +39,7 @@ import { PaymentsAdminController } from './config/payments-admin.controller';
   providers: [
     RelayPaymentsClient,
     PaymentsCatalogService,
-    StripeOnboardingService,
+    StripeConnectOnboardingService,
     PaymentsOnboardingService,
     PaymentsAdminService,
   ],

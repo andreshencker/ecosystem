@@ -67,7 +67,7 @@ export default function ProviderPayoutsPage() {
     // Coming back from the gateway — re-check the method and clean the URL.
     React.useEffect(() => {
         if (params.get("from") !== "return" && params.get("from") !== "refresh") return;
-        const method = params.get("method") ?? "stripe";
+        const method = params.get("method") ?? "stripe-connect";
         refresh.mutate(method, {
             onSuccess: () => toast.success("Status updated."),
         });
@@ -119,12 +119,12 @@ export default function ProviderPayoutsPage() {
 
             {data && data.configReady && (
                 <Stack spacing={2} maxWidth={640}>
-                    {/* ── Stripe — the mandatory base ───────────────────────── */}
+                    {/* ── Stripe Connect — the mandatory base ───────────────────────── */}
                     <Card variant="outlined">
                         <CardContent>
                             <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} mb={1}>
                                 <Box display="flex" alignItems="center" gap={1}>
-                                    <Typography variant="subtitle1" fontWeight={600}>Stripe</Typography>
+                                    <Typography variant="subtitle1" fontWeight={600}>Stripe Connect</Typography>
                                     <Chip size="small" label="Required" sx={{ bgcolor: "action.selected" }} />
                                 </Box>
                                 {stripe && <StatusChip status={stripe.status} />}
@@ -158,11 +158,11 @@ export default function ProviderPayoutsPage() {
                                             loading={busy}
                                             disabled={needsCountry && !country}
                                             onClick={() =>
-                                                goToGateway("stripe", needsCountry ? { country } : undefined)
+                                                goToGateway(data.baseMethod, needsCountry ? { country } : undefined)
                                             }
                                             sx={{ mt: 0.5 }}
                                         >
-                                            Set up Stripe
+                                            Set up Stripe Connect
                                         </LoadingButton>
                                     </Stack>
                                 </>
@@ -175,13 +175,13 @@ export default function ProviderPayoutsPage() {
                                         again if you already completed it.
                                     </Typography>
                                     <Stack direction="row" spacing={1}>
-                                        <LoadingButton variant="contained" loading={busy} onClick={() => goToGateway("stripe")}>
+                                        <LoadingButton variant="contained" loading={busy} onClick={() => goToGateway(data.baseMethod)}>
                                             Continue setup
                                         </LoadingButton>
                                         <LoadingButton
                                             variant="outlined"
                                             loading={refresh.isPending}
-                                            onClick={() => refresh.mutate("stripe")}
+                                            onClick={() => refresh.mutate(data.baseMethod)}
                                         >
                                             I've finished — check
                                         </LoadingButton>
@@ -206,10 +206,10 @@ export default function ProviderPayoutsPage() {
                                         </List>
                                     )}
                                     <Stack direction="row" spacing={1}>
-                                        <LoadingButton variant="contained" loading={busy} onClick={() => goToGateway("stripe")}>
+                                        <LoadingButton variant="contained" loading={busy} onClick={() => goToGateway(data.baseMethod)}>
                                             Fix in Stripe
                                         </LoadingButton>
-                                        <LoadingButton variant="outlined" loading={refresh.isPending} onClick={() => refresh.mutate("stripe")}>
+                                        <LoadingButton variant="outlined" loading={refresh.isPending} onClick={() => refresh.mutate(data.baseMethod)}>
                                             Check again
                                         </LoadingButton>
                                     </Stack>
@@ -285,7 +285,7 @@ export default function ProviderPayoutsPage() {
                         </>
                     ) : (
                         <EmptyState
-                            title="More methods unlock after Stripe"
+                            title="More methods unlock after Stripe Connect"
                             description="Once your Stripe account is ready you'll be able to add other ways to get paid."
                         />
                     )}

@@ -19,10 +19,10 @@ import {
 import type { MethodOnboarding } from './contracts/method-onboarding.contract';
 import type { MethodConfigurable } from './contracts/method-settings.contract';
 import type { StartMethodDto } from './dto/payments-onboarding.dto';
-import { StripeOnboardingService } from './stripe/stripe-onboarding.service';
+import { StripeConnectOnboardingService } from './stripe-connect/stripe-connect-onboarding.service';
 
 /** Used only when the admin hasn't configured anything yet. */
-const FALLBACK_REQUIRED_METHOD = 'stripe';
+const FALLBACK_REQUIRED_METHOD = 'stripe-connect';
 
 /**
  * The orchestrator. Reads the admin's payment config + `provider_payments`,
@@ -42,7 +42,7 @@ export class PaymentsOnboardingService {
     @InjectModel(PaymentMethodConfig.name)
     private readonly configModel: Model<PaymentMethodConfigDocument>,
     private readonly config: ConfigService,
-    stripe: StripeOnboardingService,
+    stripe: StripeConnectOnboardingService,
   ) {
     this.methods.set(stripe.method, stripe);
     this.configurable.set(stripe.method, stripe);

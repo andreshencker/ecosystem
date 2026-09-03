@@ -79,6 +79,7 @@ import { PaymentProviderRegistry } from './registry/payment-provider.registry';
 
 // ─── Provider adapters ────────────────────────────────────────────────────────
 import { StripePaymentProvider } from './providers/stripe/stripe.provider';
+import { StripeConnectPaymentProvider } from './providers/stripe-connect/stripe-connect.provider';
 import { CoingatePaymentProvider } from './providers/coingate/coingate.provider';
 
 @Module({
@@ -130,6 +131,7 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
   providers: [
     // ── Provider adapters ──────────────────────────────────────────────────────
     StripePaymentProvider,
+    StripeConnectPaymentProvider,
     CoingatePaymentProvider,
 
     // ── Registry ──────────────────────────────────────────────────────────────
@@ -137,10 +139,15 @@ import { CoingatePaymentProvider } from './providers/coingate/coingate.provider'
       provide: PaymentProviderRegistry,
       useFactory: (
         stripe: StripePaymentProvider,
+        stripeConnect: StripeConnectPaymentProvider,
         coingate: CoingatePaymentProvider,
       ): PaymentProviderRegistry =>
-        new PaymentProviderRegistry([stripe, coingate]),
-      inject: [StripePaymentProvider, CoingatePaymentProvider],
+        new PaymentProviderRegistry([stripe, stripeConnect, coingate]),
+      inject: [
+        StripePaymentProvider,
+        StripeConnectPaymentProvider,
+        CoingatePaymentProvider,
+      ],
     },
 
     // ── Crypto (for webhook signing secret encryption) ─────────────────────────

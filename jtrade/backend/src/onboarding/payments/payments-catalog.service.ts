@@ -42,8 +42,9 @@ export class PaymentsCatalogService {
    * connection of that provider on the platform company.
    */
   async resolveConnectionId(method: string): Promise<string> {
+    const envKey = method.toUpperCase().replace(/[^A-Z0-9]/g, '_');
     const override = this.config.get<string>(
-      `RELAY_${method.toUpperCase()}_CONNECTION_ID`,
+      `RELAY_${envKey}_CONNECTION_ID`,
     );
     if (override) return override;
 
