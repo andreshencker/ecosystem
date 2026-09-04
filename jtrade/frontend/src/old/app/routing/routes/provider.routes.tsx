@@ -3,10 +3,10 @@ import { Navigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import RequireRole from "../guards/RequireRole";
 import { NavigationLayout, providerNavigation } from "@/old/app/navigation";
-import ProviderModuleStatusPage from "@/old/app/common/pages/provider/ProviderModuleStatusPage";
 
 const ProviderDashboard = lazy(() => import("@/old/app/common/pages/provider/providerdashboard"));
 const ProductsPage = lazy(() => import("@/pages/products/ProductsPage"));
+const ProductOnboardingPage = lazy(() => import("@/pages/products/ProductOnboardingPage"));
 const ProductVersionsPage = lazy(() => import("@/pages/product-versions/ProductVersionsPage"));
 const TeamPage = lazy(() => import("@/pages/team/TeamPage"));
 const MyOrganizationPage = lazy(() => import("@/pages/organization/MyOrganizationPage"));
@@ -29,6 +29,8 @@ export const providerRoutes: RouteObject[] = [{
         { path: "payouts", element: <ProviderPayoutsPage/> },
         { path: "team", element: <TeamPage/> },
         { path: "products", element: <ProductsPage/> },
+        { path: "products/new", element: <ProductOnboardingPage/> },
+        { path: "products/:productId/onboarding", element: <ProductOnboardingPage/> },
         { path: "product-versions", element: <ProductVersionsPage/> },
         { path: "product-params", element: <ProviderProductParamsPage/> },
         { path: "pricing", element: <ProviderPricingPage/> },
@@ -36,7 +38,6 @@ export const providerRoutes: RouteObject[] = [{
         { path: "indicators", element: <ProviderIndicatorsPage/> },
         { path: "symbols", element: <ProviderSymbolsPage/> },
         { path: "alerts", element: <ProviderAlertsPage/> },
-        { path: "webhooks", element: <ProviderModuleStatusPage title="Webhooks" description="Webhook configuration is part of the trading runtime and remains pending migration." nextStep="Define the new product event contract and organization-scoped webhook endpoints."/> },
         { path: "*", element: <NotFound/> },
     ],
 }];
