@@ -28,7 +28,7 @@ describe('GrapiflyOrganizationService — secret resolution', () => {
     await service.get(ctx);
 
     expect(http.request).toHaveBeenCalledWith(
-      expect.objectContaining({ headers: expect.objectContaining({ 'x-grapifly-sso-secret': 'relay-own-secret' }) }),
+      expect.objectContaining({ headers: expect.objectContaining({ 'x-ecosystem-secret': 'relay-own-secret' }) }),
     );
   });
 
@@ -38,7 +38,7 @@ describe('GrapiflyOrganizationService — secret resolution', () => {
     await service.get(ctx);
 
     expect(http.request).toHaveBeenCalledWith(
-      expect.objectContaining({ headers: expect.objectContaining({ 'x-grapifly-sso-secret': 'legacy-shared-secret' }) }),
+      expect.objectContaining({ headers: expect.objectContaining({ 'x-ecosystem-secret': 'legacy-shared-secret' }) }),
     );
   });
 

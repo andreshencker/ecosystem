@@ -1,6 +1,7 @@
-import { Controller, Get, Headers, Param } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApplicationsService } from '../applications/applications.service';
 import { ApplicationAssignmentsService } from './application-assignments.service';
+import { EcosystemAuth, type EcosystemAuthContext } from '../directory/ecosystem-auth.decorator';
 
 @Controller('internal/apps/:appKey/config')
 export class AppCatalogueController {
@@ -10,11 +11,8 @@ export class AppCatalogueController {
   ) {}
 
   @Get()
-  async getConfig(
-    @Param('appKey') appKey: string,
-    @Headers('x-grapifly-sso-secret') secret: string | undefined,
-  ) {
-    await this.assignments.assertAppClient(appKey, secret);
-    return this.applications.getPublicConfig(appKey);
+  async getConfig(@EcosystemAuth() auth: EcosystemAuthContext) {
+    await this.assignments.assertAppClient(auth.appKey, auth.secret);
+    return this.applications.getPublicConfig(auth.appKey!);
   }
 }

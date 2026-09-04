@@ -6,11 +6,12 @@ import { GrapiflyOrganizationController, AppSwitcherController } from './grapifl
 import { GrapiflyOrganizationService } from './grapifly-organization.service';
 import { GrapiflyTeamController } from './grapifly-team.controller';
 import { GrapiflyTeamService } from './grapifly-team.service';
+import { GrapiflyDirectoryService } from './grapifly-directory.service';
 
 @Module({
   imports: [HttpModule],
   controllers: [GrapiflyAppConfigController, GrapiflyOrganizationController, AppSwitcherController, GrapiflyTeamController],
-  providers: [GrapiflyAppConfigService, GrapiflyOrganizationService, GrapiflyTeamService],
-  exports: [HttpModule, GrapiflyAppConfigService, GrapiflyOrganizationService],
+  providers: [GrapiflyAppConfigService, GrapiflyOrganizationService, GrapiflyTeamService, GrapiflyDirectoryService],
+  exports: [HttpModule, GrapiflyAppConfigService, GrapiflyOrganizationService, GrapiflyDirectoryService],
 })
 export class GrapiflyIntegrationModule {}

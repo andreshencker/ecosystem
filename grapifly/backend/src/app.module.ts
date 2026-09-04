@@ -10,6 +10,7 @@ import { ApplicationAssignmentsModule } from './access/application-assignments.m
 import { RoleCatalogModule } from './roles/role-catalog.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { CommunicationTokensModule } from './communication-tokens/communication-tokens.module';
+import { DirectoryModule } from './directory/directory.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CommunicationTokensModule } from './communication-tokens/communication-
     OrganizationsModule,
     PlatformAdminModule,
     CommunicationTokensModule,
+    DirectoryModule,
   ],
   controllers: [HealthController],
 })

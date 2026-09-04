@@ -107,7 +107,10 @@ export class ApplicationAssignmentsService {
    * under `appKey` in the catalogue — replaces assertRelayClient's single
    * global secret with a secret scoped to that specific app.
    */
-  async assertAppClient(appKey: string, candidate: string | undefined): Promise<void> {
+  async assertAppClient(appKey: string | undefined, candidate: string | undefined): Promise<void> {
+    if (!appKey) {
+      throw new ForbiddenException('Invalid Grapifly application client');
+    }
     const application = await this.applications.findByKeyWithSecret(appKey);
     if (!application?.serviceSecretHash || !candidate) {
       throw new ForbiddenException('Invalid Grapifly application client');

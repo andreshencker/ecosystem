@@ -85,8 +85,9 @@ export class GrapiflyOrganizationService {
         url: `${base}/internal/apps/relay/organizations/${encodeURIComponent(ctx.grapiflyOrganizationId)}${subpath}`,
         data,
         headers: {
-          'x-grapifly-sso-secret': secret,
-          'x-grapifly-user-id': actor.grapiflyUserId,
+          'x-ecosystem-app': 'relay',
+          'x-ecosystem-secret': secret,
+          'x-ecosystem-actor': actor.grapiflyUserId,
         },
         timeout: 5000,
       }));

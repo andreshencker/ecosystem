@@ -89,7 +89,11 @@ export class GrapiflyOrganizationService {
         method,
         url: `${base}/internal/apps/jtrade/organizations${subpath}`,
         data,
-        headers: { 'x-grapifly-sso-secret': secret, 'x-grapifly-user-id': grapiflyUserId },
+        headers: {
+          'x-ecosystem-app': 'jtrade',
+          'x-ecosystem-secret': secret,
+          'x-ecosystem-actor': grapiflyUserId,
+        },
         timeout: 5000,
       }));
       if (response.data.contractVersion !== 2) throw new BadGatewayException('Unsupported Grapifly organization contract');

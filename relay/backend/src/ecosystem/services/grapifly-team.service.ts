@@ -51,7 +51,7 @@ export class GrapiflyTeamService {
     const base = (this.config.get<string>('GRAPIFLY_ID_API_URL') ?? 'http://localhost:3101').replace(/\/$/, '');
     const url = `${base}/internal/apps/relay/organizations/${encodeURIComponent(ctx.grapiflyOrganizationId)}/team${path}`;
     try {
-      const response = await firstValueFrom(this.http.request({ method, url, data, headers: { 'x-grapifly-sso-secret': secret, 'x-grapifly-user-id': actor.grapiflyUserId }, timeout: 5000 }));
+      const response = await firstValueFrom(this.http.request({ method, url, data, headers: { 'x-ecosystem-app': 'relay', 'x-ecosystem-secret': secret, 'x-ecosystem-actor': actor.grapiflyUserId }, timeout: 5000 }));
       return response.data;
     } catch (error: any) {
       const status = error?.response?.status;

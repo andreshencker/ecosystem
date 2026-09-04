@@ -603,7 +603,7 @@ export class OrganizationsService implements OnApplicationBootstrap {
     }
   }
 
-  assertAppClient(appKey: string, candidate: string | undefined) {
+  assertAppClient(appKey: string | undefined, candidate: string | undefined) {
     return this.accessAssignments.assertAppClient(appKey, candidate);
   }
 

@@ -85,7 +85,11 @@ export class GrapiflyTeamService {
         method,
         url,
         data,
-        headers: { 'x-grapifly-sso-secret': secret, 'x-grapifly-user-id': grapiflyUserId },
+        headers: {
+          'x-ecosystem-app': 'jtrade',
+          'x-ecosystem-secret': secret,
+          'x-ecosystem-actor': grapiflyUserId,
+        },
         timeout: 5000,
       }));
       return response.data;

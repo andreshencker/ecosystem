@@ -1,20 +1,20 @@
-import { Body, Controller, Get, Headers, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
+import { EcosystemAuth, type EcosystemAuthContext } from '../directory/ecosystem-auth.decorator';
 
 @Controller('internal/apps/:appKey/organizations')
 export class AppOrganizationListController {
   constructor(private readonly organizations: OrganizationsService) {}
 
   @Get()
-  async listOrganizations(
-    @Headers('x-grapifly-sso-secret') secret: string | undefined,
-    @Headers('x-grapifly-user-id') actorUserId: string,
-    @Param('appKey') appKey: string,
-  ) {
-    await this.organizations.assertAppClient(appKey, secret);
+  async listOrganizations(@EcosystemAuth() auth: EcosystemAuthContext) {
+    await this.organizations.assertAppClient(auth.appKey, auth.secret);
     return {
       contractVersion: 2,
-      organizations: await this.organizations.listForUserByApplication(actorUserId, appKey),
+      organizations: await this.organizations.listForUserByApplication(
+        auth.actor ?? '',
+        auth.appKey!,
+      ),
     };
   }
 }
@@ -25,37 +25,33 @@ export class AppOrganizationController {
 
   @Get()
   async getOrganization(
-    @Headers('x-grapifly-sso-secret') secret: string | undefined,
-    @Headers('x-grapifly-user-id') actorUserId: string,
-    @Param('appKey') appKey: string,
+    @EcosystemAuth() auth: EcosystemAuthContext,
     @Param('organizationId') organizationId: string,
   ) {
-    await this.organizations.assertAppClient(appKey, secret);
+    await this.organizations.assertAppClient(auth.appKey, auth.secret);
     return {
       contractVersion: 2,
       organization: await this.organizations.getApplicationOrganization(
-        actorUserId,
+        auth.actor ?? '',
         organizationId,
-        appKey,
+        auth.appKey!,
       ),
     };
   }
 
   @Patch()
   async updateOrganization(
-    @Headers('x-grapifly-sso-secret') secret: string | undefined,
-    @Headers('x-grapifly-user-id') actorUserId: string,
-    @Param('appKey') appKey: string,
+    @EcosystemAuth() auth: EcosystemAuthContext,
     @Param('organizationId') organizationId: string,
     @Body() body: Record<string, unknown>,
   ) {
-    await this.organizations.assertAppClient(appKey, secret);
+    await this.organizations.assertAppClient(auth.appKey, auth.secret);
     return {
       contractVersion: 2,
       organization: await this.organizations.updateApplicationOrganization(
-        actorUserId,
+        auth.actor ?? '',
         organizationId,
-        appKey,
+        auth.appKey!,
         body,
       ),
     };
@@ -69,13 +65,14 @@ export class AppOrganizationController {
    */
   @Get('enabled-apps')
   async listEnabledApps(
-    @Headers('x-grapifly-sso-secret') secret: string | undefined,
-    @Headers('x-grapifly-user-id') actorUserId: string,
-    @Param('appKey') appKey: string,
+    @EcosystemAuth() auth: EcosystemAuthContext,
     @Param('organizationId') organizationId: string,
   ) {
-    await this.organizations.assertAppClient(appKey, secret);
-    const applications = await this.organizations.listEnabledApplications(actorUserId, organizationId);
+    await this.organizations.assertAppClient(auth.appKey, auth.secret);
+    const applications = await this.organizations.listEnabledApplications(
+      auth.actor ?? '',
+      organizationId,
+    );
     return { contractVersion: 2, applications, total: applications.length };
   }
 }

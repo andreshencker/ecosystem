@@ -150,8 +150,9 @@ export class AuthService {
           `${baseUrl.replace(/\/$/, '')}/internal/apps/relay/organizations`,
           {
             headers: {
-              'x-grapifly-sso-secret': clientSecret,
-              'x-grapifly-user-id': user.grapiflyUserId,
+              'x-ecosystem-app': 'relay',
+              'x-ecosystem-secret': clientSecret,
+              'x-ecosystem-actor': user.grapiflyUserId,
             },
             timeout: 5000,
           },
