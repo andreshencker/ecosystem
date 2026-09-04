@@ -8,7 +8,10 @@ import { ConfigService } from '@nestjs/config';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         uri: config.get<string>('MONGODB_URI'),
-        dbName: 'relaydb',
+        // Prod leaves MONGODB_DB_NAME unset → 'relaydb'. Local dev sets it
+        // (e.g. 'relaydb_dev') so it never shares a database with production,
+        // even when both point at the same Atlas cluster.
+        dbName: config.get<string>('MONGODB_DB_NAME') ?? 'relaydb',
         autoIndex: true,
       }),
     }),

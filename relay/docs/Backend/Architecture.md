@@ -28,7 +28,7 @@ The service is organised into three layers. Each layer is a set of NestJS module
 Shared technical services with no business logic. All other layers depend on these.
 
 ### DatabaseModule
-Connects to MongoDB via Mongoose. Database name: `relaydb` (forced by `dbName` in `DatabaseModule`). Default: MongoDB Atlas. Local option commented out in `docker-compose.yml`.
+Connects to MongoDB via Mongoose. Database name: `MONGODB_DB_NAME` (`dbName` override in `DatabaseModule`, defaults to `relaydb`; local dev uses `relaydb_dev`). Default: MongoDB Atlas.
 
 ### RedisModule
 Global singleton ioredis client. Used by QueueModule and any module that needs direct Redis access. Configured via `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`.

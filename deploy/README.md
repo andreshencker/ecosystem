@@ -101,14 +101,24 @@ sudo deploy/systemd/install.sh              # boot-time units
 ## 6. Notes
 
 - All four Nest backends call `set('trust proxy', 1)` — OAuth/SSO redirects use `https`.
-- `grapifly` writes the applications catalogue (`launchUrl`, `ssoCallbackUrl`) from
-  `{GRAPIFLY,RELAY,BUSINESS,JTRADE}_APP_URL` / `*_SSO_CALLBACK_URL` **on every boot**.
+- `grapifly` writes the applications catalogue (`launchUrl`, `ssoCallbackUrl`,
+  `serviceSecretHash`) from `{GRAPIFLY,RELAY,BUSINESS,JTRADE}_APP_URL` /
+  `*_SSO_CALLBACK_URL` / `*_SERVICE_SECRET` **on every boot** — so a prod and a
+  local instance pointed at the same database overwrite each other's URLs and
+  secrets. Local dev MUST use its own databases (see below).
 - Cross-app server-to-server calls go through Traefik (`https://api.relay.grapifly.com`,
   `https://id.grapifly.com`) — only the routed services join `grapifly_proxy`.
-- All four apps use **MongoDB Atlas** — databases `grapiflydb`, `jtradedb`,
-  `relaydb`, `business_app_db`. No app bundles a `mongo` service. (relay forces
-  its db name to `relaydb` via `dbName` in `DatabaseModule`, so the URI path is
-  cosmetic.)
+- All four apps use **MongoDB Atlas** — prod databases `grapiflydb`, `jtradedb`,
+  `relaydb`, `business_app_db`. No app bundles a `mongo` service.
+  - grapifly / jtrade take the db name from the `MONGODB_URI` path.
+  - relay: db name is `MONGODB_DB_NAME` (falls back to `relaydb`).
+  - business-app: db name is `MONGODB_DB_NAME` (falls back to `business_app_db`);
+    the BI ETL source db is `MONGO_DATABASE` (compose).
+  - **Local development uses separate databases** — `grapiflydb_dev`,
+    `jtradedb_dev`, `relaydb_dev`, `business_app_db_dev` — configured in each
+    `*/env/.env.local`. Same Atlas cluster is fine; the db name is the boundary.
+    Never point a local instance at a prod database (it will clobber the
+    applications catalogue above).
 - `restart: unless-stopped` on every container + the systemd units = survives both
   container crashes and host reboot.
 - `business` has no Grapifly SSO yet — its `ssoCallbackUrl` stays admin-set.

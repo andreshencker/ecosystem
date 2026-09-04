@@ -25,7 +25,8 @@ Source of truth: `communication/.env.example`
 
 | Variable | Default | Required | Description |
 |---|---|---|---|
-| `MONGODB_URI` | — | Yes | Full connection string. `DatabaseModule` forces the db name to `relaydb` (`dbName` override), so the URI path is optional. Example: `mongodb+srv://user:pass@cluster.mongodb.net/relaydb` |
+| `MONGODB_URI` | — | Yes | Full connection string. The db name comes from `MONGODB_DB_NAME`, not the URI path. Example: `mongodb+srv://user:pass@cluster.mongodb.net/` |
+| `MONGODB_DB_NAME` | `relaydb` | No | Database name (`dbName` override in `DatabaseModule`). Prod leaves it unset; local dev sets `relaydb_dev` so it never shares a database with prod. |
 
 ---
 
