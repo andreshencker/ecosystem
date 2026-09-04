@@ -7,6 +7,7 @@ import { TypeProductsModule } from './core/type-products/type-products.module';
 import { GrapiflyIntegrationModule } from './integrations/grapifly/grapifly-integration.module';
 import { ProductsModule } from './core/products/products.module';
 import { ProductPricingModule } from './core/product-pricing/product-pricing.module';
+import { ProductOnboardingModule } from './core/product-onboarding/product-onboarding.module';
 import { OrdersModule } from './core/orders/orders.module';
 import { PlatformsModule } from './core/platforms/platforms.module';
 import { IndicatorsModule } from './core/indicators/indicators.module';
@@ -27,6 +28,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     PlatformsModule,
     ProductsModule,
     ProductPricingModule,
+    ProductOnboardingModule,
     OrdersModule,
     IndicatorsModule,
     SymbolsModule,

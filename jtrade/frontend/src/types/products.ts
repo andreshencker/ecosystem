@@ -19,6 +19,32 @@ export type ProductParam = {
     options: string[];
 };
 
+export type ProductFaqEntry = { question: string; answer: string };
+
+/** Commercial content shown before purchase. NOT the future ProductVersion "Product Experience". */
+export type ProductPresentation = {
+    fullDescription: string;
+    whatItDoes: string;
+    howItWorks: string;
+    howToUse: string;
+    whatYouReceive: string;
+    features: string[];
+    requirements: string[];
+    limitations: string[];
+    faq: ProductFaqEntry[];
+    documentationUrl: string;
+    supportUrl: string;
+    videoUrl: string;
+};
+
+export type ProductOnboardingState = {
+    currentStep: number;
+    visitedSteps: number[];
+    startedAt?: string;
+    lastActiveAt?: string;
+    completedAt: string | null;
+};
+
 export type Product = {
     id?: string;
     _id: string;
@@ -26,22 +52,39 @@ export type Product = {
     name: string;
     description: string;
     status: "draft" | "pending_review" | "published" | "suspended" | "archived";
-    typeProductId?: ProductRef;
-    platformId?: ProductRef;
+    typeProductId?: ProductRef | null;
+    platformId?: ProductRef | null;
+    /** Commercial: every platform the product operates on (onboarding Step 5). */
+    platformIds?: ProductRef[];
     indicatorIds: ProductRef[];
     params: ProductParam[];
     /** First-party product implemented and operated by Grapifly (e.g. the Signal Bot). */
     native?: boolean;
+    // ── commercial ──
+    tagline?: string;
+    shortDescription?: string;
+    logoUrl?: string;
+    coverImageUrl?: string;
+    presentation?: Partial<ProductPresentation>;
+    category?: string;
+    tags?: string[];
+    onboarding?: ProductOnboardingState;
     createdAt?: string;
     updatedAt?: string;
 };
 
 export type CreateProductPayload = {
-    typeProductId: string;
-    platformId: string;
     key: string;
     name: string;
+    /** Required — chosen on the type-selection screen before onboarding. */
+    typeProductId: string;
+    platformId?: string;
+    platformIds?: string[];
     description?: string;
+    tagline?: string;
+    shortDescription?: string;
+    logoUrl?: string;
+    coverImageUrl?: string;
     indicatorIds?: string[];
 };
 
@@ -62,9 +105,54 @@ export type UpdateProductPayload = {
     key?: string;
     name?: string;
     description?: string;
+    tagline?: string;
+    shortDescription?: string;
+    logoUrl?: string;
+    coverImageUrl?: string;
+    presentation?: Partial<ProductPresentation>;
+    category?: string;
+    tags?: string[];
+    platformIds?: string[];
     indicatorIds?: string[];
     params?: ProductParamInput[];
     status?: Product["status"];
+};
+
+// ── Commercial onboarding (product-onboarding module) ────────────────────────
+
+export type CommercialStepKey =
+    | "identity"
+    | "presentation"
+    | "classification"
+    | "platforms"
+    | "pricing"
+    | "promotions"
+    | "alertSetup"
+    | "review";
+
+export type CommercialStepReadiness = {
+    key: CommercialStepKey;
+    step: number;
+    label: string;
+    optional: boolean;
+    complete: boolean;
+    missing: string[];
+    configured?: number;
+};
+
+export type CommercialReadiness = {
+    ready: boolean;
+    percentage: number;
+    steps: Record<CommercialStepKey, CommercialStepReadiness>;
+    missing: string[];
+};
+
+export type ProductOnboardingResponse = {
+    product: Product;
+    pricingOptions: ProductPricing[];
+    progress: ProductOnboardingState;
+    readiness: CommercialReadiness;
+    resumeStep: number;
 };
 
 // ── Pricing (product-pricing module) ─────────────────────────────────────────

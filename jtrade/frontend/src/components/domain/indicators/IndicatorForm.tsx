@@ -6,6 +6,7 @@ import {
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 
 import WebhookUrlCell from "@/components/shared/WebhookUrlCell";
+import IndicatorAlertsList from "./IndicatorAlertsList";
 import { API_URL } from "@/lib/constants";
 import { type CreateIndicatorPayload, type Indicator } from "@/types/indicator";
 
@@ -113,39 +114,9 @@ export default function IndicatorForm({ initial, loading, onSubmit, onCancel, on
                                 Manage alerts
                             </Button>
                         </Stack>
-                        {alerts.length === 0 ? (
-                            <Typography variant="caption" color="text.disabled">No alerts yet.</Typography>
-                        ) : (
-                            <Box
-                                sx={{
-                                    maxHeight: 200, overflowY: "auto", pr: 0.5,
-                                    display: "flex", flexDirection: "column", gap: 0.5,
-                                }}
-                            >
-                                {alerts.map((a) => (
-                                    <Box
-                                        key={a.id ?? `${a.symbolId}:${a.timeframe}`}
-                                        sx={{
-                                            display: "flex", alignItems: "center", gap: 1, flexShrink: 0,
-                                            border: "1px solid", borderColor: "divider", borderRadius: 1.5, pl: 1, pr: 0.5, py: 0.25,
-                                        }}
-                                    >
-                                        <Typography sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 13, flex: 1 }} noWrap>
-                                            {a.symbol || "?"}
-                                            <Box component="span" sx={{ color: "text.disabled", fontWeight: 400, ml: 0.5 }}>
-                                                {a.timeframe}
-                                            </Box>
-                                        </Typography>
-                                        <Switch
-                                            size="small"
-                                            checked={a.enabled !== false}
-                                            disabled={!onToggleAlert || !a.id}
-                                            onChange={(e) => a.id && onToggleAlert?.(a.id, e.target.checked)}
-                                        />
-                                    </Box>
-                                ))}
-                            </Box>
-                        )}
+                        <Box sx={{ maxHeight: 200, overflowY: "auto", pr: 0.5 }}>
+                            <IndicatorAlertsList pairs={alerts} onToggle={onToggleAlert} />
+                        </Box>
                     </Box>
                 )}
 

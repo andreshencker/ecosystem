@@ -1,6 +1,8 @@
 // src/hooks/api/useProducts.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { api } from "@/lib/http";
+import { errorToMessage } from "@/lib/utils";
 import type { CreateProductPayload, Product, UpdateProductPayload } from "@/types/products";
 
 type Envelope<T> = { status: string; data: T };
@@ -46,6 +48,19 @@ export function useUpdateProduct() {
         mutationFn: (args: { id: string; data: UpdateProductPayload }) =>
             api.patch<Envelope<Product>>(`${BASE}/${args.id}`, args.data).then((r) => r.data.data),
         onSuccess: () => qc.invalidateQueries({ queryKey: KEY("mine") }),
+    });
+}
+
+/** Delete a product. Backend rejects it (409) if the product is published. */
+export function useDeleteProduct() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => api.delete<Envelope<{ deleted: boolean }>>(`${BASE}/${id}`).then((r) => r.data.data),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: KEY("mine") });
+            toast.success("Product deleted.");
+        },
+        onError: (err) => toast.error(errorToMessage(err, "Could not delete this product.")),
     });
 }
 

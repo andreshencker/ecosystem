@@ -39,13 +39,66 @@ export class ProductParam {
 }
 export const ProductParamSchema = SchemaFactory.createForClass(ProductParam);
 
+/** One question + answer in the pre-purchase FAQ. Commercial content, not config. */
+@Schema({ _id: false })
+export class ProductFaqEntry {
+  @Prop({ type: String, trim: true, default: '' }) question!: string;
+  @Prop({ type: String, trim: true, default: '' }) answer!: string;
+}
+export const ProductFaqEntrySchema = SchemaFactory.createForClass(ProductFaqEntry);
+
 /**
- * One product = one type + one platform. Different platform (or a different
- * indicator set) means a different product — this keeps versioning linear and
- * pricing traceable.
+ * Everything a customer should understand about the product BEFORE buying.
+ * Pure commercial content — Marketplace renders this as a product listing page.
+ * This is NOT the future ProductVersion "Product Experience" (the technical
+ * configuration UI); the two are deliberately separate.
+ */
+@Schema({ _id: false })
+export class ProductPresentation {
+  @Prop({ type: String, trim: true, default: '' }) fullDescription!: string;
+  @Prop({ type: String, trim: true, default: '' }) whatItDoes!: string;
+  @Prop({ type: String, trim: true, default: '' }) howItWorks!: string;
+  @Prop({ type: String, trim: true, default: '' }) howToUse!: string;
+  @Prop({ type: String, trim: true, default: '' }) whatYouReceive!: string;
+  @Prop({ type: [String], default: [] }) features!: string[];
+  @Prop({ type: [String], default: [] }) requirements!: string[];
+  @Prop({ type: [String], default: [] }) limitations!: string[];
+  @Prop({ type: [ProductFaqEntrySchema], default: [] }) faq!: ProductFaqEntry[];
+  @Prop({ type: String, trim: true, default: '' }) documentationUrl!: string;
+  @Prop({ type: String, trim: true, default: '' }) supportUrl!: string;
+  @Prop({ type: String, trim: true, default: '' }) videoUrl!: string;
+}
+export const ProductPresentationSchema = SchemaFactory.createForClass(ProductPresentation);
+
+/**
+ * Auxiliary UX state for the commercial onboarding wizard. The source of truth
+ * for "is this step done" is always the real data (see commercial-readiness.ts);
+ * this only remembers where the provider was so they can resume.
+ */
+@Schema({ _id: false })
+export class ProductOnboarding {
+  @Prop({ type: Number, default: 1, min: 1, max: 9 }) currentStep!: number;
+  @Prop({ type: [Number], default: [1] }) visitedSteps!: number[];
+  @Prop({ type: Date, default: Date.now }) startedAt!: Date;
+  @Prop({ type: Date, default: Date.now }) lastActiveAt!: Date;
+  /** First moment the product became commercially ready. Never cleared. */
+  @Prop({ type: Date, default: null }) completedAt!: Date | null;
+}
+export const ProductOnboardingSchema = SchemaFactory.createForClass(ProductOnboarding);
+
+/**
+ * PRODUCT = what is being sold: identity, presentation, classification, and its
+ * commercial model (pricing/promotions live in the product-pricing module).
  *
- * Money lives in the product-pricing module (product_prices / product_promotions).
- * Version history lives in product_versions (isCurrentVersion flag there).
+ * PRODUCT VERSION = how a concrete release works technically (artifact, contract,
+ * compatibility). That is a separate onboarding — not modelled here.
+ *
+ * `typeProductId` is required + immutable — chosen in Step 1 of onboarding
+ * (Product Type). `platformIds` is the COMMERCIAL declaration of which trading
+ * platforms the product runs on (Step 5, editable). `platformId` (singular) is
+ * the deferred ProductVersion technical target — one concrete platform a release
+ * is built for — and stays nullable/immutable-once-set. `indicatorIds` / `params`
+ * / `native` are legacy technical fields the commercial wizard never touches.
  */
 @Schema({ collection: 'products', timestamps: true, versionKey: false })
 export class Product {
@@ -53,14 +106,40 @@ export class Product {
   @Prop({ required: true, trim: true }) createdByGrapiflyUserId!: string;
   @Prop({ required: true, trim: true }) updatedByGrapiflyUserId!: string;
 
-  /** Immutable after creation. */
-  @Prop({ type: SchemaTypes.ObjectId, ref: TypeProduct.name, required: true, index: true }) typeProductId!: Types.ObjectId;
-  /** Immutable after creation. */
-  @Prop({ type: SchemaTypes.ObjectId, ref: Platform.name, required: true, index: true }) platformId!: Types.ObjectId;
+  /**
+   * The official product KIND. Chosen on the type-selection screen BEFORE
+   * onboarding, required at creation, immutable afterwards (Signal -> Bot is a
+   * different product). See core/type-products.
+   */
+  @Prop({ type: SchemaTypes.ObjectId, ref: TypeProduct.name, required: true, immutable: true, index: true }) typeProductId!: Types.ObjectId;
+  /** Deferred to ProductVersion onboarding. Nullable. Immutable once set. */
+  @Prop({ type: SchemaTypes.ObjectId, ref: Platform.name, default: null, index: true }) platformId!: Types.ObjectId | null;
+  /**
+   * Commercial: every trading platform this product operates on (MT4, MT5, …).
+   * Chosen in Step 5 of onboarding, editable afterwards (a provider can add
+   * platform support later). Must contain at least one for commercial readiness.
+   */
+  @Prop({ type: [{ type: SchemaTypes.ObjectId, ref: Platform.name }], default: [], index: true }) platformIds!: Types.ObjectId[];
 
   @Prop({ required: true, lowercase: true, trim: true }) key!: string;
   @Prop({ required: true, trim: true }) name!: string;
   @Prop({ trim: true, default: '' }) description!: string;
+
+  // ── Identity (commercial) ──────────────────────────────────────────────────
+  @Prop({ type: String, trim: true, default: '' }) tagline!: string;
+  @Prop({ type: String, trim: true, default: '' }) shortDescription!: string;
+  @Prop({ type: String, trim: true, default: '' }) logoUrl!: string;
+  @Prop({ type: String, trim: true, default: '' }) coverImageUrl!: string;
+
+  // ── Presentation (commercial) ──────────────────────────────────────────────
+  @Prop({ type: ProductPresentationSchema, default: () => ({}) }) presentation!: ProductPresentation;
+
+  // ── Classification (declaration only — no type-specific logic here) ─────────
+  @Prop({ type: String, trim: true, lowercase: true, default: '' }) category!: string;
+  @Prop({ type: [String], default: [] }) tags!: string[];
+
+  // ── Commercial onboarding UX state ─────────────────────────────────────────
+  @Prop({ type: ProductOnboardingSchema, default: () => ({}) }) onboarding!: ProductOnboarding;
 
   @Prop({ required: true, enum: ['draft', 'pending_review', 'published', 'suspended', 'archived'], default: 'draft', index: true }) status!: ProductStatus;
 
@@ -85,3 +164,5 @@ export const ProductSchema = SchemaFactory.createForClass(Product);
 ProductSchema.index({ providerOrganizationId: 1, key: 1 }, { unique: true });
 ProductSchema.index({ providerOrganizationId: 1, status: 1, updatedAt: -1 });
 ProductSchema.index({ platformId: 1, status: 1 });
+ProductSchema.index({ platformIds: 1, status: 1 });
+ProductSchema.index({ category: 1, status: 1 });

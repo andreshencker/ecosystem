@@ -9,6 +9,8 @@ import FormData from 'form-data';
 import { firstValueFrom } from 'rxjs';
 
 const LOGO_DOMAIN = 'platform-logos';
+const PRODUCT_MEDIA_DOMAIN = 'product-media';
+const TYPE_PRODUCT_ICON_DOMAIN = 'type-product-icons';
 const PRODUCT_VERSIONS_DOMAIN = 'product-versions';
 
 export type RelayStorageFileInfo = {
@@ -43,6 +45,29 @@ export class RelayStorageService {
     form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
     form.append('companyId', this.requireCompanyId());
     form.append('domain', LOGO_DOMAIN);
+
+    const response = await this.post<{ url: string }>(form);
+    return response.url;
+  }
+
+  /** Official product-type icon (admin catalogue). Returns the public URL. */
+  async uploadTypeProductIcon(file: Express.Multer.File): Promise<string> {
+    const form = new FormData();
+    form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
+    form.append('companyId', this.requireCompanyId());
+    form.append('domain', TYPE_PRODUCT_ICON_DOMAIN);
+
+    const response = await this.post<{ url: string }>(form);
+    return response.url;
+  }
+
+  /** Commercial product media (logo / cover). Returns the public URL. */
+  async uploadProductImage(file: Express.Multer.File, organizationId: string): Promise<string> {
+    const form = new FormData();
+    form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
+    form.append('companyId', this.requireCompanyId());
+    form.append('domain', PRODUCT_MEDIA_DOMAIN);
+    form.append('folder', organizationId);
 
     const response = await this.post<{ url: string }>(form);
     return response.url;

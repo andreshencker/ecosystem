@@ -7,6 +7,28 @@ import { PRODUCT_PARAM_REPEAT, PRODUCT_PARAM_TYPES } from '../schemas/product.sc
 
 const toBoolean = ({ value }: { value: unknown }) => value === true || value === 'true' || value === '1';
 
+// ── Presentation (commercial content shown before purchase) ───────────────────
+
+export class ProductFaqEntryDto {
+  @IsOptional() @IsString() @MaxLength(300) question?: string;
+  @IsOptional() @IsString() @MaxLength(4000) answer?: string;
+}
+
+export class ProductPresentationDto {
+  @IsOptional() @IsString() @MaxLength(8000) fullDescription?: string;
+  @IsOptional() @IsString() @MaxLength(4000) whatItDoes?: string;
+  @IsOptional() @IsString() @MaxLength(4000) howItWorks?: string;
+  @IsOptional() @IsString() @MaxLength(4000) howToUse?: string;
+  @IsOptional() @IsString() @MaxLength(4000) whatYouReceive?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(50) features?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(50) requirements?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(50) limitations?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => ProductFaqEntryDto) faq?: ProductFaqEntryDto[];
+  @IsOptional() @IsString() @MaxLength(500) documentationUrl?: string;
+  @IsOptional() @IsString() @MaxLength(500) supportUrl?: string;
+  @IsOptional() @IsString() @MaxLength(500) videoUrl?: string;
+}
+
 export class ProductParamDto {
   @IsString() @Matches(/^[a-zA-Z][a-zA-Z0-9_]*$/, { message: 'key must be one word: letters, digits, underscore' }) @MaxLength(50)
   key!: string;
@@ -29,22 +51,51 @@ export class ProductParamDto {
 }
 
 export class CreateProductDto {
+  /** Required — chosen on the type-selection screen before onboarding. Immutable after creation. */
   @IsMongoId() typeProductId!: string;
-  @IsMongoId() platformId!: string;
+  /** Optional — the deferred ProductVersion technical target (single platform). */
+  @IsOptional() @IsMongoId() platformId?: string;
+  /** Commercial: the trading platforms this product operates on (Step 5). */
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsMongoId({ each: true }) platformIds?: string[];
 
   @IsString() @MinLength(2) @MaxLength(80) key!: string;
   @IsString() @MinLength(2) @MaxLength(160) name!: string;
   @IsOptional() @IsString() @MaxLength(4000) description?: string;
 
-  /** Only applied when the product type is 'signals'. */
+  // Identity (commercial)
+  @IsOptional() @IsString() @MaxLength(120) tagline?: string;
+  @IsOptional() @IsString() @MaxLength(200) shortDescription?: string;
+  @IsOptional() @IsString() @MaxLength(500) logoUrl?: string;
+  @IsOptional() @IsString() @MaxLength(500) coverImageUrl?: string;
+
+  /** Only applied when the product type is 'signals' (legacy path). */
   @IsOptional() @IsArray() @ArrayMaxSize(50) @IsMongoId({ each: true }) indicatorIds?: string[];
 }
 
-/** typeProductId and platformId are immutable — not accepted here. */
+/**
+ * typeProductId and the singular platformId are NOT accepted here — both are
+ * immutable after creation. The commercial platformIds list IS editable.
+ */
 export class UpdateProductDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(80) key?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(160) name?: string;
   @IsOptional() @IsString() @MaxLength(4000) description?: string;
+
+  // Identity (commercial)
+  @IsOptional() @IsString() @MaxLength(120) tagline?: string;
+  @IsOptional() @IsString() @MaxLength(200) shortDescription?: string;
+  @IsOptional() @IsString() @MaxLength(500) logoUrl?: string;
+  @IsOptional() @IsString() @MaxLength(500) coverImageUrl?: string;
+
+  // Presentation (commercial)
+  @IsOptional() @ValidateNested() @Type(() => ProductPresentationDto) presentation?: ProductPresentationDto;
+
+  // Classification (commercial discovery — type is NOT here anymore)
+  @IsOptional() @IsString() @MaxLength(60) category?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20) tags?: string[];
+
+  // Platforms the product operates on (commercial — Step 5, editable)
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsMongoId({ each: true }) platformIds?: string[];
 
   @IsOptional() @IsArray() @ArrayMaxSize(50) @IsMongoId({ each: true }) indicatorIds?: string[];
 

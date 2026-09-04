@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Request } from 'express';
@@ -35,8 +35,26 @@ export class ProductsController {
   one(@Req() req: AuthRequest, @Param('id') id: string) { return this.service.findMine(req.user, id); }
 
   @Roles(ApplicationRole.PROVIDER)
+  @Post(':id/media')
+  @UseInterceptors(uploadInterceptor)
+  uploadMedia(
+    @Req() req: AuthRequest,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query('kind') kind?: string,
+  ) {
+    const resolved = kind === 'cover' ? 'cover' : kind === 'logo' ? 'logo' : null;
+    if (!resolved) throw new BadRequestException('kind must be "logo" or "cover"');
+    return this.service.setImage(req.user, id, resolved, file);
+  }
+
+  @Roles(ApplicationRole.PROVIDER)
   @Patch(':id')
   update(@Req() req: AuthRequest, @Param('id') id: string, @Body() dto: UpdateProductDto) { return this.service.update(req.user, id, dto); }
+
+  @Roles(ApplicationRole.PROVIDER)
+  @Delete(':id')
+  remove(@Req() req: AuthRequest, @Param('id') id: string) { return this.service.remove(req.user, id); }
 
   @Roles(ApplicationRole.ADMIN)
   @Patch(':id/review/:status')

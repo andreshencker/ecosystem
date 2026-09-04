@@ -25,7 +25,11 @@ export function useProductPricing(productId?: string) {
 
 function useInvalidatePricing() {
     const qc = useQueryClient();
-    return () => qc.invalidateQueries({ queryKey: rootKey });
+    return () => {
+        qc.invalidateQueries({ queryKey: rootKey });
+        // Pricing changes move commercial readiness — keep the onboarding wizard fresh.
+        qc.invalidateQueries({ queryKey: ["product-onboarding"] });
+    };
 }
 
 export function useCreateProductPricing(productId: string) {
