@@ -30,6 +30,30 @@ export interface AvailableMethod {
     description: string;
 }
 
+export type ProviderPaymentMethodStatus = "pending" | "complete" | "restricted";
+
+export interface ProviderPaymentMethodRow {
+    method: string;
+    status: ProviderPaymentMethodStatus;
+    isBase: boolean;
+    providerAccountId: string | null;
+    requirementsDue: string[];
+    disabledReason: string | null;
+    lastCheckedAt: string | null;
+    updatedAt: string | null;
+}
+
+export interface ProviderPaymentOrg {
+    /** DataTable row id. */
+    id?: string;
+    organizationId: string;
+    organizationName: string;
+    organizationSlug: string | null;
+    baseStatus: ProviderPaymentMethodStatus | null;
+    baseComplete: boolean;
+    methods: ProviderPaymentMethodRow[];
+}
+
 export interface UpsertMethodConfigPayload {
     enabled?: boolean;
     isRequired?: boolean;

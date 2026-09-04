@@ -10,6 +10,8 @@ import {
     Select,
     Stack,
     Switch,
+    Tab,
+    Tabs,
     TextField,
     Tooltip,
     Typography,
@@ -35,6 +37,8 @@ import {
     useUpsertPaymentMethod,
 } from "@/hooks/api/usePaymentsAdmin";
 import type { AdminPaymentMethod, SettingsFieldDef } from "@/types/payments-admin";
+import { CountryListField } from "./CountryListField";
+import { ProviderPaymentsTab } from "./ProviderPaymentsTab";
 
 // ─── settings <-> form helpers ────────────────────────────────────────────────
 
@@ -58,18 +62,33 @@ function settingsComplete(m: AdminPaymentMethod): boolean {
             return v !== undefined && v !== null && v !== "";
         });
 }
-function settingsSummary(m: AdminPaymentMethod): string {
-    const parts: string[] = [];
-    const c = m.settings["allowedCountries"];
-    if (Array.isArray(c) && c.length) parts.push(c.join(", "));
-    const fee = m.settings["platformFeePercent"];
-    if (fee !== undefined && fee !== null && fee !== "") parts.push(`${fee}%`);
-    return parts.join(" · ");
+/** "10% + $0.30" — the commission jtrade keeps on every sale. "—" if this method has no fee. */
+function feeSummary(m: AdminPaymentMethod): string {
+    const hasPct = m.settingsFields.some((f) => f.key === "platformFeePercent");
+    if (!hasPct) return "—";
+    const pct = m.settings["platformFeePercent"];
+    if (pct === undefined || pct === null || pct === "") return "Not set";
+    const fixed = Number(m.settings["platformFeeFixedMinor"] ?? 0);
+    const fixedPart = fixed > 0 ? ` + $${(fixed / 100).toFixed(2)}` : "";
+    return `${pct}%${fixedPart}`;
 }
+
+/** "12 countries" / "US, GB" / "All 44" / "Not set" */
+function countriesSummary(m: AdminPaymentMethod): string {
+    const hasField = m.settingsFields.some((f) => f.type === "country-list");
+    if (!hasField) return "—";
+    const c = m.settings["allowedCountries"];
+    const list = Array.isArray(c) ? (c as string[]) : [];
+    if (list.length === 0) return "Not set";
+    if (list.length <= 3) return list.join(", ");
+    return `${list.length} countries`;
+}
+
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
 export default function AdminPaymentsPage() {
+    const [tab, setTab] = React.useState(0);
     const q = useAdminPaymentMethods();
     const available = useAvailablePaymentMethods();
     const add = useAddPaymentMethod();
@@ -156,13 +175,28 @@ export default function AdminPaymentsPage() {
             renderCell: (p) => (p.value ? <Chip size="small" color="primary" label="Base" /> : null),
         },
         {
-            field: "settings", headerName: "Configuration", flex: 1, minWidth: 180,
+            field: "fee", headerName: "Platform fee", width: 140, sortable: false,
+            valueGetter: (_v, row) => feeSummary(row),
             renderCell: (p) => {
-                const s = settingsSummary(p.row);
-                return s ? (
-                    <Typography variant="body2" color="text.secondary">{s}</Typography>
-                ) : (
-                    <Typography variant="body2" color="warning.main">Not configured</Typography>
+                const s = feeSummary(p.row);
+                if (s === "—") return <Typography variant="body2" color="text.disabled">—</Typography>;
+                return (
+                    <Typography variant="body2" color={s === "Not set" ? "warning.main" : "text.primary"}>
+                        {s}
+                    </Typography>
+                );
+            },
+        },
+        {
+            field: "countries", headerName: "Countries", flex: 1, minWidth: 130, sortable: false,
+            valueGetter: (_v, row) => countriesSummary(row),
+            renderCell: (p) => {
+                const s = countriesSummary(p.row);
+                if (s === "—") return <Typography variant="body2" color="text.disabled">—</Typography>;
+                return (
+                    <Typography variant="body2" color={s === "Not set" ? "warning.main" : "text.secondary"}>
+                        {s}
+                    </Typography>
                 );
             },
         },
@@ -172,36 +206,47 @@ export default function AdminPaymentsPage() {
         <>
             <PageHeader
                 title="Payments"
-                count={rows.length}
-                subtitle="Choose which of Relay's payment methods jtrade offers to providers, and set what each one needs."
+                count={tab === 0 ? rows.length : undefined}
+                subtitle="Choose which of Relay's payment methods jtrade offers to providers, and see how each provider's setup is going."
                 actions={
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel>Add a method</InputLabel>
-                            <Select
-                                label="Add a method"
-                                value={toAdd}
-                                onChange={(e) => setToAdd(e.target.value)}
-                                disabled={available.isLoading || (available.data ?? []).length === 0}
+                    tab === 0 ? (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <FormControl size="small" sx={{ minWidth: 200 }}>
+                                <InputLabel>Add a method</InputLabel>
+                                <Select
+                                    label="Add a method"
+                                    value={toAdd}
+                                    onChange={(e) => setToAdd(e.target.value)}
+                                    disabled={available.isLoading || (available.data ?? []).length === 0}
+                                >
+                                    {(available.data ?? []).map((m) => (
+                                        <MenuItem key={m.method} value={m.method}>{m.displayName}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <LoadingButton
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                loading={add.isPending}
+                                disabled={!toAdd}
+                                onClick={handleAdd}
                             >
-                                {(available.data ?? []).map((m) => (
-                                    <MenuItem key={m.method} value={m.method}>{m.displayName}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        <LoadingButton
-                            variant="contained"
-                            startIcon={<AddIcon />}
-                            loading={add.isPending}
-                            disabled={!toAdd}
-                            onClick={handleAdd}
-                        >
-                            Add
-                        </LoadingButton>
-                    </Stack>
+                                Add
+                            </LoadingButton>
+                        </Stack>
+                    ) : undefined
                 }
             />
 
+            <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
+                <Tab label="Methods" />
+                <Tab label="Providers" />
+            </Tabs>
+
+            {tab === 1 && <ProviderPaymentsTab />}
+
+            {tab === 0 && (
+            <>
             <SearchToolbar
                 search={list.search}
                 onSearchChange={list.setSearch}
@@ -261,7 +306,10 @@ export default function AdminPaymentsPage() {
                         <Chip size="small" color={row.enabled ? "success" : "default"}
                             label={row.enabled ? "Enabled" : "Disabled"} />
                     ),
-                    fields: [{ field: "settings", label: "Config", render: (_v, row) => settingsSummary(row) || "—" }],
+                    fields: [
+                        { field: "settings", label: "Platform fee", render: (_v, row) => feeSummary(row) },
+                        { field: "settings", label: "Countries", render: (_v, row) => countriesSummary(row) },
+                    ],
                 }}
             />
 
@@ -279,23 +327,30 @@ export default function AdminPaymentsPage() {
             >
                 {editing && (
                     <Stack spacing={2.5}>
-                        {editing.settingsFields.map((f) => (
-                            <TextField
-                                key={f.key}
-                                label={f.label}
-                                required={f.required}
-                                helperText={
-                                    f.type === "country-list"
-                                        ? f.help ?? "2-letter codes, comma separated (e.g. US, GB, CO)"
-                                        : f.help
-                                }
-                                value={form[f.key] ?? ""}
-                                onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))}
-                                type={f.type === "number" ? "number" : "text"}
-                                fullWidth
-                                size="small"
-                            />
-                        ))}
+                        {editing.settingsFields.map((f) =>
+                            f.type === "country-list" ? (
+                                <CountryListField
+                                    key={f.key}
+                                    label={f.label}
+                                    required={f.required}
+                                    help={f.help}
+                                    value={form[f.key] ?? ""}
+                                    onChange={(next) => setForm((s) => ({ ...s, [f.key]: next }))}
+                                />
+                            ) : (
+                                <TextField
+                                    key={f.key}
+                                    label={f.label}
+                                    required={f.required}
+                                    helperText={f.help}
+                                    value={form[f.key] ?? ""}
+                                    onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))}
+                                    type={f.type === "number" ? "number" : "text"}
+                                    fullWidth
+                                    size="small"
+                                />
+                            ),
+                        )}
                         {editing.settingsFields.length === 0 && (
                             <Typography variant="body2" color="text.secondary">
                                 This method has no settings to configure.
@@ -337,6 +392,8 @@ export default function AdminPaymentsPage() {
                 }}
                 onCancel={() => setPendingDelete(null)}
             />
+            </>
+            )}
         </>
     );
 }

@@ -33,6 +33,12 @@ export class PaymentsAdminController {
   }
 
   @Roles(ApplicationRole.ADMIN)
+  @Get('providers')
+  listProviderPayments() {
+    return this.service.listProviderPayments();
+  }
+
+  @Roles(ApplicationRole.ADMIN)
   @Post('methods')
   add(@Body() dto: AddMethodDto) {
     return this.service.add(dto.method);

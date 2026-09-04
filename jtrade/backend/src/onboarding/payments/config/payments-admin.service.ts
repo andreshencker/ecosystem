@@ -20,6 +20,7 @@ import type { UpsertMethodConfigDto } from './dto/payments-admin.dto';
 import { PaymentsCatalogService } from '../payments-catalog.service';
 import type { RelayProvider } from '../relay-payments.client';
 import { StripeConnectOnboardingService } from '../stripe-connect/stripe-connect-onboarding.service';
+import { GrapiflyDirectoryService } from '../../../integrations/grapifly/grapifly-directory.service';
 
 /**
  * The admin's control panel for payments: which of Relay's methods jtrade
@@ -35,6 +36,7 @@ export class PaymentsAdminService {
     @InjectModel(ProviderPayment.name)
     private readonly providerPayments: Model<ProviderPaymentDocument>,
     private readonly catalog: PaymentsCatalogService,
+    private readonly directory: GrapiflyDirectoryService,
     stripe: StripeConnectOnboardingService,
   ) {
     this.configurable.set(stripe.method, stripe);
@@ -83,6 +85,70 @@ export class PaymentsAdminService {
         displayName: m.displayName,
         description: m.description ?? '',
       }));
+  }
+
+  /**
+   * Cross-provider view: every organization that has started any payment method,
+   * with each method's live status. Names are resolved via the Grapifly
+   * Directory (best-effort — falls back to the raw org id).
+   */
+  async listProviderPayments() {
+    const rows = await this.providerPayments
+      .find()
+      .sort({ providerOrganizationId: 1, isBase: -1, method: 1 })
+      .lean();
+
+    const orgIds = [...new Set(rows.map((r) => r.providerOrganizationId))];
+    const names = await this.directory.resolveOrganizations(orgIds);
+
+    const byOrg = new Map<
+      string,
+      {
+        organizationId: string;
+        organizationName: string;
+        organizationSlug: string | null;
+        methods: Array<{
+          method: string;
+          status: string;
+          isBase: boolean;
+          providerAccountId: string | null;
+          requirementsDue: string[];
+          disabledReason: string | null;
+          lastCheckedAt: Date | null;
+          updatedAt: Date | null;
+        }>;
+      }
+    >();
+
+    for (const row of rows) {
+      let entry = byOrg.get(row.providerOrganizationId);
+      if (!entry) {
+        const dir = names.get(row.providerOrganizationId);
+        entry = {
+          organizationId: row.providerOrganizationId,
+          organizationName: dir?.name ?? row.providerOrganizationId,
+          organizationSlug: dir?.slug ?? null,
+          methods: [],
+        };
+        byOrg.set(row.providerOrganizationId, entry);
+      }
+      entry.methods.push({
+        method: row.method,
+        status: row.status,
+        isBase: row.isBase,
+        providerAccountId: row.providerAccountId ?? null,
+        requirementsDue: row.requirementsDue ?? [],
+        disabledReason: row.disabledReason ?? null,
+        lastCheckedAt: row.lastCheckedAt ?? null,
+        updatedAt: row.updatedAt ?? null,
+      });
+    }
+
+    return [...byOrg.values()].map((entry) => ({
+      ...entry,
+      baseStatus: entry.methods.find((m) => m.isBase)?.status ?? null,
+      baseComplete: entry.methods.some((m) => m.isBase && m.status === 'complete'),
+    }));
   }
 
   async add(method: string) {

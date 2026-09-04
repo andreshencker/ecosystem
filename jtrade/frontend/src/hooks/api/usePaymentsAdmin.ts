@@ -5,6 +5,7 @@ import { errorToMessage } from "@/lib/utils";
 import type {
     AdminPaymentMethod,
     AvailableMethod,
+    ProviderPaymentOrg,
     UpsertMethodConfigPayload,
 } from "@/types/payments-admin";
 
@@ -29,6 +30,15 @@ export function useAvailablePaymentMethods() {
         queryKey: CATALOG_KEY,
         queryFn: () =>
             api.get<Envelope<AvailableMethod[]>>(`${BASE}/catalog`).then((r) => r.data.data),
+        refetchOnWindowFocus: false,
+    });
+}
+
+export function useProviderPaymentStatuses() {
+    return useQuery<ProviderPaymentOrg[]>({
+        queryKey: ["admin", "payments", "providers"],
+        queryFn: () =>
+            api.get<Envelope<ProviderPaymentOrg[]>>(`${BASE}/providers`).then((r) => r.data.data),
         refetchOnWindowFocus: false,
     });
 }

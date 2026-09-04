@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from '../../core/auth/auth.module';
+import { GrapiflyIntegrationModule } from '../../integrations/grapifly/grapifly-integration.module';
 import {
   ProviderPayment,
   ProviderPaymentSchema,
@@ -30,6 +31,7 @@ import { PaymentsAdminController } from './config/payments-admin.controller';
   imports: [
     HttpModule,
     AuthModule,
+    GrapiflyIntegrationModule,
     MongooseModule.forFeature([
       { name: ProviderPayment.name, schema: ProviderPaymentSchema },
       { name: PaymentMethodConfig.name, schema: PaymentMethodConfigSchema },
