@@ -29,7 +29,7 @@ services:
       - ./env/.env.local
     environment:
       PORT: 8000
-      MONGO_DATABASE: business_app_db
+      MONGO_DATABASE: business_app_db_dev  # local: keep in sync with MONGODB_DB_NAME in env/.env.local
     ports:
       - '${BUSINESS_BI_PORT:-8000}:8000'
     extra_hosts:
